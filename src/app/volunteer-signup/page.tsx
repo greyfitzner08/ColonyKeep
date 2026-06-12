@@ -9,14 +9,24 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { createClient } from "@/lib/supabase/client";
-import { TNVR_ROLES, LIABILITY_WAIVER_URL, POLICY_URL } from "@/lib/constants";
+import { TNVR_ROLES, VOLUNTEER_ROLES, LIABILITY_WAIVER_URL, POLICY_URL } from "@/lib/constants";
 import type { VolunteerRole, RoleDescription } from "@/lib/types";
 import Link from "next/link";
 
+const DEFAULT_ROLE_DESCRIPTIONS: RoleDescription[] = VOLUNTEER_ROLES.map((role) => ({
+  id: `default-${role.value}`,
+  role_id: role.value,
+  label: role.label,
+  description: `Support the TNVR mission as a ${role.label.toLowerCase()}.`,
+  created_at: "",
+  updated_at: "",
+}));
+
 export default function VolunteerSignupPage() {
-  const [roleDescriptions, setRoleDescriptions] = useState<RoleDescription[]>([]);
+  const [roleDescriptions, setRoleDescriptions] = useState<RoleDescription[]>(DEFAULT_ROLE_DESCRIPTIONS);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const [form, setForm] = useState({
     full_name: "",
@@ -38,8 +48,10 @@ export default function VolunteerSignupPage() {
 
   useEffect(() => {
     const supabase = createClient();
-    supabase.from("role_descriptions").select("*").then(({ data }) => {
-      if (data) setRoleDescriptions(data as RoleDescription[]);
+    supabase.from("role_descriptions").select("*").then(({ data, error }) => {
+      if (!error && data && data.length > 0) {
+        setRoleDescriptions(data as RoleDescription[]);
+      }
     });
   }, []);
 
@@ -69,6 +81,7 @@ export default function VolunteerSignupPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    setSubmitError(null);
     setSubmitting(true);
     const supabase = createClient();
     const { error } = await supabase.from("volunteer_applications").insert({
@@ -76,7 +89,11 @@ export default function VolunteerSignupPage() {
       status: "pending",
     });
     setSubmitting(false);
-    if (!error) setSubmitted(true);
+    if (!error) {
+      setSubmitted(true);
+      return;
+    }
+    setSubmitError(error.message);
   }
 
   if (submitted) {
@@ -219,6 +236,9 @@ export default function VolunteerSignupPage() {
           >
             {submitting ? "Submitting..." : "Submit Application"}
           </Button>
+          {submitError && (
+            <p className="mt-2 text-sm text-destructive">{submitError}</p>
+          )}
         </form>
       </div>
     </div>
