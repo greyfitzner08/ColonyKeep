@@ -1,0 +1,366 @@
+export type UserRole =
+  | "admin"
+  | "inquiry_team"
+  | "trap_team_lead"
+  | "clinic_coordination"
+  | "volunteer";
+
+export type HelpRequestStatus =
+  | "new_intake"
+  | "under_review"
+  | "needs_more_info"
+  | "routed_to_trap_team"
+  | "claimed"
+  | "appointment_needed"
+  | "appointment_reserved"
+  | "cat_trapped"
+  | "transported"
+  | "checked_in"
+  | "completed"
+  | "closed";
+
+export type AppointmentStatus =
+  | "available"
+  | "reserved"
+  | "confirmed_transport"
+  | "checked_in"
+  | "completed"
+  | "cancelled";
+
+export type VolunteerApplicationStatus =
+  | "pending"
+  | "approved"
+  | "rejected"
+  | "needs_followup";
+
+export type VolunteerRole =
+  | "intake_representative"
+  | "trapper"
+  | "trap_loaner"
+  | "transporter"
+  | "recovery"
+  | "event_volunteer"
+  | "grant_writing"
+  | "social_media"
+  | "snack_patrol"
+  | "crafter"
+  | "story_writer"
+  | "photographer"
+  | "videographer"
+  | "community_outreach"
+  | "other";
+
+export type ShiftType =
+  | "trapping"
+  | "transport"
+  | "clinic"
+  | "event"
+  | "recovery"
+  | "admin"
+  | "other";
+
+export type ShiftRequiredRole =
+  | "any"
+  | "tnvr_volunteer"
+  | "intake_representative"
+  | "event_volunteer";
+
+export type PublicBookingStatus =
+  | "pending"
+  | "confirmed"
+  | "expired"
+  | "cancelled";
+
+export interface Profile {
+  id: string;
+  email: string;
+  full_name: string | null;
+  role: UserRole | null;
+  team_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface HelpRequest {
+  id: string;
+  case_number: string;
+  status: HelpRequestStatus;
+  contact_name: string;
+  contact_email: string;
+  contact_phone: string;
+  colony_address: string;
+  colony_city: string;
+  colony_county: string;
+  colony_zip: string;
+  colony_lat: number | null;
+  colony_lng: number | null;
+  kittens_under_8_weeks: number;
+  cats_over_8_weeks: number;
+  can_help: boolean;
+  has_traps: boolean;
+  can_transport: boolean;
+  has_recovery_space: boolean;
+  consent_communications: boolean;
+  assigned_team_id: string | null;
+  assigned_team_name: string | null;
+  claimed_by_email: string | null;
+  claimed_by_name: string | null;
+  intake_notes: string | null;
+  follow_up_log: FollowUpEntry[];
+  follow_up_due_date: string | null;
+  medical_flags: MedicalFlag[];
+  medical_flag_dismissed: boolean;
+  medical_flag_forced: boolean;
+  outcome: string | null;
+  closure_notes: string | null;
+  history_log: HistoryEntry[];
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface FollowUpEntry {
+  id: string;
+  timestamp: string;
+  author_email: string;
+  author_name: string;
+  notes: string;
+  outcome: string | null;
+}
+
+export interface MedicalFlag {
+  keyword: string;
+  detected_at: string;
+  source: "auto" | "manual";
+}
+
+export interface HistoryEntry {
+  timestamp: string;
+  action: string;
+  actor_email: string | null;
+  actor_name: string | null;
+  details: string | null;
+}
+
+export interface Clinic {
+  id: string;
+  name: string;
+  address: string;
+  phone: string;
+  operating_days: string[];
+  slots_per_day: number;
+  slots_by_day: Record<string, number>;
+  included_services: string[];
+  packages: ClinicPackage[];
+  addon_services: ClinicAddon[];
+  notes: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ClinicPackage {
+  name: string;
+  price: number;
+  services: string[];
+}
+
+export interface ClinicAddon {
+  name: string;
+  price: number;
+}
+
+export interface Appointment {
+  id: string;
+  clinic_id: string;
+  clinic_name: string;
+  date: string;
+  total_slots: number;
+  reserved_slots: number;
+  help_request_id: string | null;
+  cat_id: string | null;
+  reserved_by: string | null;
+  reserved_by_name: string | null;
+  status: AppointmentStatus;
+  contact_name: string | null;
+  contact_email: string | null;
+  contact_phone: string | null;
+  cat_name: string | null;
+  cat_colors: string | null;
+  cat_breed: string | null;
+  cat_gender: string | null;
+  transporter_name: string | null;
+  transporter_email: string | null;
+  transporter_phone: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Cat {
+  id: string;
+  help_request_id: string;
+  name: string | null;
+  gender: string | null;
+  colors: string | null;
+  breed: string | null;
+  description: string | null;
+  estimated_status: string | null;
+  trapped_status: string | null;
+  appointment_status: string | null;
+  appointment_id: string | null;
+  clinic_id: string | null;
+  clinic_name: string | null;
+  return_status: string | null;
+  foster_program: string | null;
+  foster_name: string | null;
+  foster_email: string | null;
+  foster_phone: string | null;
+  trap_date: string | null;
+  transport_date: string | null;
+  return_date: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TrapTeam {
+  id: string;
+  name: string;
+  region: string;
+  zip_codes: string[];
+  members: string[];
+  lead_email: string;
+  is_active: boolean;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface VolunteerApplication {
+  id: string;
+  status: VolunteerApplicationStatus;
+  full_name: string;
+  email: string;
+  phone: string;
+  birthday: string;
+  roles_requested: VolunteerRole[];
+  why_volunteer: string;
+  prior_experience: string | null;
+  availability: string | null;
+  how_heard: string | null;
+  liability_waiver_signed: boolean;
+  shadow_completed: boolean;
+  policy_signed: boolean;
+  intake_training: boolean;
+  tnvr_certificate_uploaded: boolean;
+  tnvr_certificate_url: string | null;
+  event_crash_course: boolean;
+  admin_notes: string | null;
+  reviewed_by: string | null;
+  reviewed_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Shift {
+  id: string;
+  event_name: string;
+  shift_type: ShiftType;
+  required_roles: ShiftRequiredRole;
+  date: string;
+  start_time: string;
+  end_time: string;
+  location: string;
+  team_ids: string[];
+  volunteers_needed: number;
+  signed_up_emails: string[];
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface VolunteerHours {
+  id: string;
+  volunteer_email: string;
+  volunteer_name: string;
+  team_id: string | null;
+  team_name: string | null;
+  date: string;
+  hours: number;
+  hour_type: string;
+  help_request_id: string | null;
+  notes: string | null;
+  created_at: string;
+}
+
+export interface TeamAnnouncementComment {
+  author_email: string;
+  author_name: string;
+  text: string;
+  created_at: string;
+}
+
+export interface TeamAnnouncement {
+  id: string;
+  message: string;
+  team_id: string | null;
+  team_name: string | null;
+  author_email: string;
+  author_name: string;
+  pinned: boolean;
+  is_birthday: boolean;
+  birthday_person_name: string | null;
+  comments: TeamAnnouncementComment[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PublicClinicEvent {
+  id: string;
+  clinic_id: string;
+  clinic_name: string;
+  title: string;
+  date: string;
+  location: string;
+  total_spots: number;
+  description: string | null;
+  included_services: string[];
+  addon_services: ClinicAddon[];
+  base_price: number;
+  cost_description: string | null;
+  payment_url: string | null;
+  is_active: boolean;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PublicBooking {
+  id: string;
+  event_id: string;
+  status: PublicBookingStatus;
+  expires_at: string | null;
+  contact_name: string;
+  contact_email: string;
+  contact_phone: string;
+  cat_name: string | null;
+  cat_colors: string | null;
+  cat_breed: string | null;
+  cat_gender: string | null;
+  has_injuries: boolean;
+  injury_details: string | null;
+  selected_addons: string[];
+  total_price: number;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface RoleDescription {
+  id: string;
+  role_id: VolunteerRole;
+  label: string;
+  description: string;
+  created_at: string;
+  updated_at: string;
+}

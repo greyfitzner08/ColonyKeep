@@ -1,0 +1,67 @@
+import Link from "next/link";
+import { AlertTriangle, MapPin, Cat } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { STATUS_COLORS } from "@/lib/constants";
+import { hasActiveMedicalFlag } from "@/lib/medical-flags";
+import type { HelpRequest } from "@/lib/types";
+import { cn } from "@/lib/utils";
+
+interface CaseCardProps {
+  helpRequest: HelpRequest;
+}
+
+export function CaseCard({ helpRequest: hr }: CaseCardProps) {
+  const medical = hasActiveMedicalFlag(
+    hr.medical_flags ?? [],
+    hr.medical_flag_dismissed,
+    hr.medical_flag_forced
+  );
+  const totalCats = hr.kittens_under_8_weeks + hr.cats_over_8_weeks;
+
+  return (
+    <Link href={`/case/${hr.id}`}>
+      <Card className="transition-shadow hover:shadow-md cursor-pointer">
+        <CardHeader className="pb-2">
+          <div className="flex items-start justify-between gap-2">
+            <CardTitle className="text-base font-semibold">{hr.case_number}</CardTitle>
+            <div className="flex items-center gap-1">
+              {medical && (
+                <Badge variant="destructive" className="gap-1">
+                  <AlertTriangle className="h-3 w-3" />
+                  Medical
+                </Badge>
+              )}
+              <Badge className={cn("text-xs", STATUS_COLORS[hr.status])}>
+                {hr.status.replace(/_/g, " ")}
+              </Badge>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-2 text-sm">
+          <div className="flex items-center gap-1 text-muted-foreground">
+            <MapPin className="h-3.5 w-3.5" />
+            <span>
+              {hr.colony_city}, {hr.colony_county} {hr.colony_zip}
+            </span>
+          </div>
+          <div className="flex items-center gap-1 text-muted-foreground">
+            <Cat className="h-3.5 w-3.5" />
+            <span>
+              {totalCats} cat{totalCats !== 1 ? "s" : ""} ({hr.kittens_under_8_weeks} kittens,{" "}
+              {hr.cats_over_8_weeks} adults)
+            </span>
+          </div>
+          {hr.assigned_team_name && (
+            <p className="text-xs text-muted-foreground">Team: {hr.assigned_team_name}</p>
+          )}
+          {hr.follow_up_due_date && new Date(hr.follow_up_due_date) < new Date() && (
+            <Badge variant="outline" className="text-orange-600 border-orange-300">
+              Follow-up overdue
+            </Badge>
+          )}
+        </CardContent>
+      </Card>
+    </Link>
+  );
+}
