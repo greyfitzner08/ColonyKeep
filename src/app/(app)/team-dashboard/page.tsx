@@ -5,6 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { formatDate } from "@/lib/utils";
 
+type HoursByMember = Record<string, number>;
+
 export default async function TeamDashboardPage() {
   const profile = await getCurrentProfile();
   if (!profile?.team_id && profile?.role !== "admin") {
@@ -22,13 +24,13 @@ export default async function TeamDashboardPage() {
       supabase.from("help_requests").select("id, case_number, status").eq("assigned_team_id", teamId!).not("status", "in", '("completed","closed")'),
     ]);
 
-  const hoursByMember = (hours ?? []).reduce(
-    (acc, h) => {
-      acc[h.volunteer_email] = (acc[h.volunteer_email] ?? 0) + Number(h.hours);
-      return acc;
-    },
-    {} as Record<string, number>
-  );
+    const hoursByMember: HoursByMember = (hours ?? []).reduce(
+      (acc, h) => {
+        acc[h.volunteer_email] = (acc[h.volunteer_email] ?? 0) + Number(h.hours);
+        return acc;
+      },
+      {} as HoursByMember
+    );
 
   return (
     <div className="space-y-6">

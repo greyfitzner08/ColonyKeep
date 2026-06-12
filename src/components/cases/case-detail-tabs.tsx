@@ -42,7 +42,7 @@ export function CaseDetailTabs({
   async function saveOverview() {
     setSaving(true);
     const supabase = createClient();
-    const medicalFlags = mergeMedicalKeywords(
+    const medicalFlags = mergeMedicalFlags(
       hr.medical_flags ?? [],
       detectMedicalKeywords(hr.intake_notes ?? "")
     );
