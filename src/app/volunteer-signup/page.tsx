@@ -13,6 +13,9 @@ import { TNVR_ROLES, VOLUNTEER_ROLES, LIABILITY_WAIVER_URL, POLICY_URL } from "@
 import type { VolunteerRole, RoleDescription } from "@/lib/types";
 import Link from "next/link";
 
+const DEBUG_ENDPOINT = "http://127.0.0.1:7640/ingest/95a09861-ebea-4320-a8b0-60ac7e0ba838";
+const DEBUG_SESSION_ID = "43174d";
+
 const DEFAULT_ROLE_DESCRIPTIONS: RoleDescription[] = VOLUNTEER_ROLES.map((role) => ({
   id: `default-${role.value}`,
   role_id: role.value,
@@ -27,6 +30,25 @@ export default function VolunteerSignupPage() {
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+
+  function debugLog(hypothesisId: string, location: string, message: string, data: Record<string, unknown>) {
+    fetch(DEBUG_ENDPOINT, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Debug-Session-Id": DEBUG_SESSION_ID,
+      },
+      body: JSON.stringify({
+        sessionId: DEBUG_SESSION_ID,
+        runId: "pre-fix",
+        hypothesisId,
+        location,
+        message,
+        data,
+        timestamp: Date.now(),
+      }),
+    }).catch(() => {});
+  }
 
   const [form, setForm] = useState({
     full_name: "",
@@ -49,6 +71,13 @@ export default function VolunteerSignupPage() {
   useEffect(() => {
     const supabase = createClient();
     supabase.from("role_descriptions").select("*").then(({ data, error }) => {
+      // #region agent log
+      debugLog("H1", "volunteer-signup/page.tsx:useEffect:role_descriptions", "Role descriptions query completed", {
+        hasError: Boolean(error),
+        errorMessage: error?.message ?? null,
+        resultCount: data?.length ?? 0,
+      });
+      // #endregion
       if (!error && data && data.length > 0) {
         setRoleDescriptions(data as RoleDescription[]);
       }
@@ -57,6 +86,20 @@ export default function VolunteerSignupPage() {
 
   function toggleRole(role: VolunteerRole) {
     setForm((prev) => ({
+      // #region agent log
+      ...(() => {
+        const nextRoles = prev.roles_requested.includes(role)
+          ? prev.roles_requested.filter((r) => r !== role)
+          : [...prev.roles_requested, role];
+        debugLog("H2", "volunteer-signup/page.tsx:toggleRole", "Role toggled", {
+          role,
+          beforeCount: prev.roles_requested.length,
+          afterCount: nextRoles.length,
+          containsRoleAfterToggle: nextRoles.includes(role),
+        });
+        return {};
+      })(),
+      // #endregion
       ...prev,
       roles_requested: prev.roles_requested.includes(role)
         ? prev.roles_requested.filter((r) => r !== role)
@@ -70,6 +113,14 @@ export default function VolunteerSignupPage() {
     const supabase = createClient();
     const path = `applications/${Date.now()}-${file.name}`;
     const { error } = await supabase.storage.from("certificates").upload(path, file);
+    // #region agent log
+    debugLog("H3", "volunteer-signup/page.tsx:handleCertUpload", "Certificate upload attempted", {
+      hasError: Boolean(error),
+      errorMessage: error?.message ?? null,
+      fileName: file.name,
+      path,
+    });
+    // #endregion
     if (!error) {
       setForm((prev) => ({
         ...prev,
@@ -83,11 +134,29 @@ export default function VolunteerSignupPage() {
     e.preventDefault();
     setSubmitError(null);
     setSubmitting(true);
+    // #region agent log
+    debugLog("H4", "volunteer-signup/page.tsx:handleSubmit:start", "Submit started with current gate conditions", {
+      selectedRoleCount: form.roles_requested.length,
+      liabilitySigned: form.liability_waiver_signed,
+      policySigned: form.policy_signed,
+      needsTnvrCert,
+      certUploaded: form.tnvr_certificate_uploaded,
+      emailDomain: form.email.includes("@") ? form.email.split("@")[1] : null,
+    });
+    // #endregion
     const supabase = createClient();
     const { error } = await supabase.from("volunteer_applications").insert({
       ...form,
       status: "pending",
     });
+    // #region agent log
+    debugLog("H5", "volunteer-signup/page.tsx:handleSubmit:result", "Submit finished", {
+      hasError: Boolean(error),
+      errorMessage: error?.message ?? null,
+      errorCode: error?.code ?? null,
+      errorHint: error?.hint ?? null,
+    });
+    // #endregion
     setSubmitting(false);
     if (!error) {
       setSubmitted(true);
@@ -214,7 +283,7 @@ export default function VolunteerSignupPage() {
                 />
                 <Label htmlFor="policy">
                   I have read and agree to the{" "}
-                  <a href={POLICY_URL} target="_blank" rel="noopener" className="text-primary underline">Policy & Procedures</a>
+                  <a href="https://zealous-sherbet-f24.notion.site/Core-Policies-309a52ca229f817381b3cb6b68e5fadb" target="_blank" rel="noopener" className="text-primary underline">Policy & Procedures</a>
                 </Label>
               </div>
               {needsTnvrCert && (

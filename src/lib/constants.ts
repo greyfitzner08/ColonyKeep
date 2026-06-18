@@ -68,7 +68,7 @@ export const MEDICAL_KEYWORDS = [
 export const LIABILITY_WAIVER_URL =
   "https://www.notion.so/placeholder-liability-waiver";
 export const POLICY_URL =
-  "https://www.notion.so/placeholder-policy-procedures";
+  "https://zealous-sherbet-f24.notion.site/Core-Policies-309a52ca229f817381b3cb6b68e5fadb";
 
 export const ROLE_PERMISSIONS: Record<
   UserRole,
