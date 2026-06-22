@@ -98,10 +98,8 @@ export function VolunteersManager({ applications, teams }: VolunteersManagerProp
                   <p><strong>Phone:</strong> {app.phone}</p>
                   <p><strong>Birthday:</strong> {formatDate(app.birthday)}</p>
                   <p><strong>Roles:</strong> {app.roles_requested.map((r) => VOLUNTEER_ROLES.find((vr) => vr.value === r)?.label ?? r).join(", ")}</p>
-                  <p><strong>Availability:</strong> {app.availability ?? "—"}</p>
                 </div>
                 <div>
-                  <p><strong>Why volunteer:</strong> {app.why_volunteer}</p>
                   <p><strong>Experience:</strong> {app.prior_experience ?? "—"}</p>
                   <p><strong>How heard:</strong> {app.how_heard ?? "—"}</p>
                 </div>
