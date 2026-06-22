@@ -67,6 +67,36 @@ export default function VolunteerSignupPage() {
   });
 
   const needsTnvrCert = form.roles_requested.some((r) => TNVR_ROLES.includes(r));
+  const submitDisabled =
+    submitting ||
+    !form.liability_waiver_signed ||
+    !form.policy_signed ||
+    form.roles_requested.length === 0 ||
+    (needsTnvrCert && !form.tnvr_certificate_uploaded);
+
+  useEffect(() => {
+    // #region agent log
+    debugLog("H6", "volunteer-signup/page.tsx:submit-gate", "Submit gate state changed", {
+      submitDisabled,
+      submitting,
+      liabilitySigned: form.liability_waiver_signed,
+      policySigned: form.policy_signed,
+      selectedRoleCount: form.roles_requested.length,
+      needsTnvrCert,
+      certUploaded: form.tnvr_certificate_uploaded,
+      certUrlPresent: Boolean(form.tnvr_certificate_url),
+    });
+    // #endregion
+  }, [
+    submitDisabled,
+    submitting,
+    form.liability_waiver_signed,
+    form.policy_signed,
+    form.roles_requested.length,
+    needsTnvrCert,
+    form.tnvr_certificate_uploaded,
+    form.tnvr_certificate_url,
+  ]);
 
   useEffect(() => {
     const supabase = createClient();
@@ -289,7 +319,7 @@ export default function VolunteerSignupPage() {
               {needsTnvrCert && (
                 <div className="space-y-2 border-t pt-4">
                   <Label>TNVR Certificate Upload (required for trapping/transport roles)</Label>
-                  <Input type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={handleCertUpload} />
+                  <Input type="file" name="tnvr_certificate" accept=".pdf,.jpg,.jpeg,.png" onChange={handleCertUpload} />
                   {form.tnvr_certificate_uploaded && (
                     <p className="text-sm text-primary">Certificate uploaded successfully</p>
                   )}
@@ -301,7 +331,7 @@ export default function VolunteerSignupPage() {
           <Button
             type="submit"
             className="w-full"
-            disabled={submitting || !form.liability_waiver_signed || !form.policy_signed || form.roles_requested.length === 0 || (needsTnvrCert && !form.tnvr_certificate_uploaded)}
+            disabled={submitDisabled}
           >
             {submitting ? "Submitting..." : "Submit Application"}
           </Button>
