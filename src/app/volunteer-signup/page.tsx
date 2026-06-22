@@ -56,9 +56,7 @@ export default function VolunteerSignupPage() {
     phone: "",
     birthday: "",
     roles_requested: [] as VolunteerRole[],
-    why_volunteer: "",
     prior_experience: "",
-    availability: "",
     how_heard: "",
     liability_waiver_signed: false,
     policy_signed: false,
@@ -273,16 +271,8 @@ export default function VolunteerSignupPage() {
             <CardHeader><CardTitle className="text-lg">About You</CardTitle></CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label>Why do you want to volunteer?</Label>
-                <Textarea value={form.why_volunteer} onChange={(e) => setForm({ ...form, why_volunteer: e.target.value })} required rows={3} />
-              </div>
-              <div className="space-y-2">
                 <Label>Prior experience with cats or TNVR</Label>
                 <Textarea value={form.prior_experience} onChange={(e) => setForm({ ...form, prior_experience: e.target.value })} rows={2} />
-              </div>
-              <div className="space-y-2">
-                <Label>Availability</Label>
-                <Textarea value={form.availability} onChange={(e) => setForm({ ...form, availability: e.target.value })} rows={2} placeholder="e.g. Weekends, evenings..." />
               </div>
               <div className="space-y-2">
                 <Label>How did you hear about us?</Label>
