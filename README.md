@@ -14,7 +14,7 @@ A full-stack platform for volunteer rescue organizations managing Trap-Neuter-Va
 
 ## Requirements
 
-- Node.js **18.18+** (recommended: 20 LTS)
+- Node.js **20+**
 - A [Supabase](https://supabase.com) project
 - Optional: Resend API key, Google Maps API key
 

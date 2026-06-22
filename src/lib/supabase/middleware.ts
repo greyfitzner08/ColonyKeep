@@ -1,15 +1,21 @@
 import { createServerClient } from "@supabase/ssr";
 import type { SetAllCookies } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import {
+  getSupabasePublishableKey,
+  getSupabaseUrl,
+} from "@/lib/supabase/env";
 
 const PUBLIC_ROUTES = ["/request", "/volunteer-signup", "/clinic-booking", "/login", "/auth"];
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
+  const supabaseUrl = getSupabaseUrl();
+  const publishableKey = getSupabasePublishableKey();
 
   const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    supabaseUrl!,
+    publishableKey!,
     {
       cookies: {
         getAll() {

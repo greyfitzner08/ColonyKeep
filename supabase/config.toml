@@ -19,3 +19,9 @@ additional_redirect_urls = ["http://localhost:3000/auth/callback"]
 
 [storage]
 enabled = true
+
+# For Supabase Edge Functions using @supabase/server with auth modes other than
+# "user" ("publishable", "secret", or "none"), add:
+#
+# [functions.your-function-name]
+# verify_jwt = false
