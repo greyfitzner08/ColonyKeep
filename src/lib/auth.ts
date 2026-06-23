@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import { ROLE_PERMISSIONS } from "@/lib/constants";
+import { getRolePermissions, isKnownUserRole } from "@/lib/constants";
 import type { Profile, UserRole } from "@/lib/types";
 
 export async function getCurrentUser() {
@@ -28,15 +28,15 @@ export async function getCurrentProfile(): Promise<Profile | null> {
 
 export async function requireRole(allowedRoles: UserRole[]) {
   const profile = await getCurrentProfile();
-  if (!profile?.role || !allowedRoles.includes(profile.role)) {
+  if (!isKnownUserRole(profile?.role) || !allowedRoles.includes(profile.role)) {
     return null;
   }
   return profile;
 }
 
 export function canAccessRoute(role: UserRole | null, pathname: string): boolean {
-  if (!role) return false;
-  const permissions = ROLE_PERMISSIONS[role];
+  const permissions = getRolePermissions(role);
+  if (!permissions) return false;
   return permissions.routes.some(
     (route) => pathname === route || pathname.startsWith(route + "/")
   );

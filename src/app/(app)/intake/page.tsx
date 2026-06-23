@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { CaseCard } from "@/components/cases/case-card";
 import { IntakeFilters } from "@/components/cases/intake-filters";
@@ -39,7 +40,9 @@ export default async function IntakePage({ searchParams }: IntakePageProps) {
         <p className="text-muted-foreground">{filtered.length} cases</p>
       </div>
 
-      <IntakeFilters teams={teams ?? []} />
+      <Suspense fallback={<div className="h-10 animate-pulse rounded-md bg-muted" />}>
+        <IntakeFilters teams={teams ?? []} />
+      </Suspense>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {filtered.map((hr) => (

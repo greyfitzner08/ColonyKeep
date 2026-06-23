@@ -146,6 +146,14 @@ export const ROLE_PERMISSIONS: Record<
   },
 };
 
+export function isKnownUserRole(role: string | null | undefined): role is UserRole {
+  return role != null && role in ROLE_PERMISSIONS;
+}
+
+export function getRolePermissions(role: string | null | undefined) {
+  return isKnownUserRole(role) ? ROLE_PERMISSIONS[role] : null;
+}
+
 export const STATUS_COLORS: Record<HelpRequestStatus, string> = {
   new_intake: "bg-blue-100 text-blue-800",
   under_review: "bg-yellow-100 text-yellow-800",

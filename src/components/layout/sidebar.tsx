@@ -21,7 +21,7 @@ import {
   Cat,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { ROLE_PERMISSIONS } from "@/lib/constants";
+import { getRolePermissions } from "@/lib/constants";
 import type { UserRole } from "@/lib/types";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -52,7 +52,8 @@ export function Sidebar({ role, userName }: SidebarProps) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  const allowedRoutes = role ? ROLE_PERMISSIONS[role].routes : [];
+  const permissions = getRolePermissions(role);
+  const allowedRoutes = permissions?.routes ?? [];
   const visibleItems = NAV_ITEMS.filter((item) =>
     allowedRoutes.some(
       (route) => item.href === route || (route !== "/" && item.href.startsWith(route))
@@ -92,8 +93,8 @@ export function Sidebar({ role, userName }: SidebarProps) {
         <div className="mt-auto border-t border-sidebar-border pt-4 px-2">
           <p className="text-xs text-sidebar-foreground/60">Signed in as</p>
           <p className="text-sm font-medium text-sidebar-foreground truncate">{userName}</p>
-          {role && (
-            <p className="text-xs text-sidebar-foreground/60">{ROLE_PERMISSIONS[role].label}</p>
+          {permissions && (
+            <p className="text-xs text-sidebar-foreground/60">{permissions.label}</p>
           )}
         </div>
       )}

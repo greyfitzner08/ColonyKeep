@@ -2,6 +2,7 @@ import { getCurrentProfile } from "@/lib/auth";
 import { Sidebar } from "@/components/layout/sidebar";
 import { VolunteerGate } from "@/components/layout/volunteer-gate";
 import { SupabaseConfigGate } from "@/components/layout/supabase-config-gate";
+import { isKnownUserRole } from "@/lib/constants";
 import { hasSupabaseServerConfig } from "@/lib/supabase/env";
 
 export async function AppShell({ children }: { children: React.ReactNode }) {
@@ -11,7 +12,7 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
 
   const profile = await getCurrentProfile();
 
-  if (!profile?.role) {
+  if (!isKnownUserRole(profile?.role)) {
     return <VolunteerGate />;
   }
 
