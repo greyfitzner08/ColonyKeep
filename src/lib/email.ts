@@ -29,6 +29,31 @@ export async function sendWelcomeEmail(
   });
 }
 
+export async function sendVolunteerApprovalEmail(
+  email: string,
+  name: string,
+  passwordSetupUrl: string
+): Promise<void> {
+  if (!resend) {
+    console.log(`[email] Volunteer approval email to ${email} (Resend not configured)`);
+    return;
+  }
+
+  await resend.emails.send({
+    from: FROM,
+    to: email,
+    subject: "Your TNVR Rescue volunteer account is ready",
+    html: `
+      <h1>Welcome, ${name}!</h1>
+      <p>Your volunteer application has been approved.</p>
+      <p><strong>Username:</strong> ${email}</p>
+      <p><a href="${passwordSetupUrl}">Create your password</a></p>
+      <p>After setting your password, you can log in at <a href="${APP_URL}/login">${APP_URL}/login</a>.</p>
+      <p>Thank you for volunteering to help community cats!</p>
+    `,
+  });
+}
+
 export async function sendShiftConfirmationEmail(
   email: string,
   name: string,

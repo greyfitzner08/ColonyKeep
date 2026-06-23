@@ -9,7 +9,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { createClient } from "@/lib/supabase/client";
 import type { PublicClinicEvent } from "@/lib/types";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import Link from "next/link";
@@ -21,6 +20,8 @@ export default function ClinicBookingPage() {
   const [step, setStep] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const [form, setForm] = useState({
     contact_name: "",
@@ -37,28 +38,16 @@ export default function ClinicBookingPage() {
   });
 
   useEffect(() => {
-    const supabase = createClient();
-    supabase
-      .from("public_clinic_events")
-      .select("*")
-      .eq("is_active", true)
-      .gte("date", new Date().toISOString().split("T")[0])
-      .order("date")
-      .then(async ({ data }) => {
-        if (data) {
-          setEvents(data as PublicClinicEvent[]);
-          const counts: Record<string, number> = {};
-          for (const event of data) {
-            const { count } = await supabase
-              .from("public_bookings")
-              .select("*", { count: "exact", head: true })
-              .eq("event_id", event.id)
-              .in("status", ["pending", "confirmed"]);
-            counts[event.id] = count ?? 0;
-          }
-          setBookingCounts(counts);
+    fetch("/api/clinic-booking/events")
+      .then(async (response) => {
+        const result = await response.json();
+        if (!response.ok) {
+          throw new Error(result?.error ?? "Unable to load clinic events");
         }
-      });
+        setEvents(result.events as PublicClinicEvent[]);
+        setBookingCounts(result.counts ?? {});
+      })
+      .catch((error) => setLoadError(error.message));
   }, []);
 
   function calculateTotal(): number {
@@ -73,21 +62,25 @@ export default function ClinicBookingPage() {
 
   async function handleSubmit() {
     if (!selectedEvent) return;
+    setSubmitError(null);
     setSubmitting(true);
-    const supabase = createClient();
-    const expiresAt = new Date();
-    expiresAt.setHours(expiresAt.getHours() + 24);
-
-    const { error } = await supabase.from("public_bookings").insert({
+    const response = await fetch("/api/clinic-booking/create", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
       event_id: selectedEvent.id,
-      status: "pending",
-      expires_at: expiresAt.toISOString(),
       ...form,
       total_price: calculateTotal(),
+      }),
     });
+    const result = await response.json().catch(() => null);
 
     setSubmitting(false);
-    if (!error) setSubmitted(true);
+    if (response.ok) {
+      setSubmitted(true);
+    } else {
+      setSubmitError(result?.error ?? "Unable to submit booking");
+    }
   }
 
   if (submitted) {
@@ -127,6 +120,9 @@ export default function ClinicBookingPage() {
 
         {!selectedEvent ? (
           <div className="grid gap-4">
+            {loadError && (
+              <Card><CardContent className="py-8 text-center text-destructive">{loadError}</CardContent></Card>
+            )}
             {events.length === 0 && (
               <Card><CardContent className="py-8 text-center text-muted-foreground">No upcoming clinic events available.</CardContent></Card>
             )}
@@ -219,6 +215,7 @@ export default function ClinicBookingPage() {
                     <p className="font-semibold">Total: {formatCurrency(calculateTotal())}</p>
                     {selectedEvent.cost_description && <p className="text-sm text-muted-foreground mt-1">{selectedEvent.cost_description}</p>}
                   </div>
+                  {submitError && <p className="text-sm text-destructive">{submitError}</p>}
                 </>
               )}
               <div className="flex justify-between pt-4">

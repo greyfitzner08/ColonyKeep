@@ -24,6 +24,8 @@ export function ShiftBoard({ shifts: initial, userEmail, isAdmin }: ShiftBoardPr
   const router = useRouter();
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [createOpen, setCreateOpen] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
   const [form, setForm] = useState({
     event_name: "",
     shift_type: "trapping" as ShiftType,
@@ -50,8 +52,21 @@ export function ShiftBoard({ shifts: initial, userEmail, isAdmin }: ShiftBoardPr
   }
 
   async function createShift() {
-    const supabase = createClient();
-    await supabase.from("shifts").insert({ ...form, team_ids: [], signed_up_emails: [] });
+    setCreateError(null);
+    setCreating(true);
+    const response = await fetch("/api/shifts/create", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...form, team_ids: [] }),
+    });
+    const result = await response.json().catch(() => null);
+    setCreating(false);
+
+    if (!response.ok) {
+      setCreateError(result?.error ?? "Unable to create shift");
+      return;
+    }
+
     setCreateOpen(false);
     router.refresh();
   }
@@ -72,7 +87,7 @@ export function ShiftBoard({ shifts: initial, userEmail, isAdmin }: ShiftBoardPr
           </SelectContent>
         </Select>
         {isAdmin && (
-          <Button onClick={() => setCreateOpen(true)}><Plus className="h-4 w-4 mr-2" />Create Shift</Button>
+          <Button onClick={() => { setCreateError(null); setCreateOpen(true); }}><Plus className="h-4 w-4 mr-2" />Create Shift</Button>
         )}
       </div>
 
@@ -128,7 +143,10 @@ export function ShiftBoard({ shifts: initial, userEmail, isAdmin }: ShiftBoardPr
             </div>
             <div className="space-y-1"><Label>Location</Label><Input value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} /></div>
             <div className="space-y-1"><Label>Volunteers Needed</Label><Input type="number" min={1} value={form.volunteers_needed} onChange={(e) => setForm({ ...form, volunteers_needed: parseInt(e.target.value) || 1 })} /></div>
-            <Button onClick={createShift} className="w-full">Create</Button>
+            {createError && <p className="text-sm text-destructive">{createError}</p>}
+            <Button onClick={createShift} className="w-full" disabled={creating}>
+              {creating ? "Creating..." : "Create"}
+            </Button>
           </div>
         </DialogContent>
       </Dialog>

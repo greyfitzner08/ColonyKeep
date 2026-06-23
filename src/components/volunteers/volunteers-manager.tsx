@@ -31,14 +31,18 @@ export function VolunteersManager({ applications, teams }: VolunteersManagerProp
   const [filter, setFilter] = useState("all");
   const [approveRole, setApproveRole] = useState<UserRole>("volunteer");
   const [approveTeam, setApproveTeam] = useState<string>("");
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [actingId, setActingId] = useState<string | null>(null);
 
   const filtered = filter === "all"
     ? applications
     : applications.filter((a) => a.status === filter);
 
   async function handleAction(id: string, action: "approve" | "reject" | "followup") {
+    setActionError(null);
+    setActingId(id);
     if (action === "approve") {
-      await fetch("/api/volunteers/approve", {
+      const response = await fetch("/api/volunteers/approve", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -47,16 +51,27 @@ export function VolunteersManager({ applications, teams }: VolunteersManagerProp
           teamId: approveTeam || null,
         }),
       });
+      const result = await response.json().catch(() => null);
+      setActingId(null);
+      if (!response.ok) {
+        setActionError(result?.error ?? "Unable to approve volunteer");
+        return;
+      }
     } else {
       const { createClient } = await import("@/lib/supabase/client");
       const supabase = createClient();
-      await supabase
+      const { error } = await supabase
         .from("volunteer_applications")
         .update({
           status: action === "reject" ? "rejected" : "needs_followup",
           reviewed_at: new Date().toISOString(),
         })
         .eq("id", id);
+      setActingId(null);
+      if (error) {
+        setActionError(error.message);
+        return;
+      }
     }
     router.refresh();
   }
@@ -98,10 +113,8 @@ export function VolunteersManager({ applications, teams }: VolunteersManagerProp
                   <p><strong>Phone:</strong> {app.phone}</p>
                   <p><strong>Birthday:</strong> {formatDate(app.birthday)}</p>
                   <p><strong>Roles:</strong> {app.roles_requested.map((r) => VOLUNTEER_ROLES.find((vr) => vr.value === r)?.label ?? r).join(", ")}</p>
-                  <p><strong>Availability:</strong> {app.availability ?? "—"}</p>
                 </div>
                 <div>
-                  <p><strong>Why volunteer:</strong> {app.why_volunteer}</p>
                   <p><strong>Experience:</strong> {app.prior_experience ?? "—"}</p>
                   <p><strong>How heard:</strong> {app.how_heard ?? "—"}</p>
                 </div>
@@ -148,14 +161,15 @@ export function VolunteersManager({ applications, teams }: VolunteersManagerProp
                     </Select>
                   </div>
                   <Button size="sm" onClick={() => handleAction(app.id, "approve")}>
-                    <Check className="h-4 w-4 mr-1" />Approve
+                    <Check className="h-4 w-4 mr-1" />{actingId === app.id ? "Working..." : "Approve"}
                   </Button>
-                  <Button size="sm" variant="outline" onClick={() => handleAction(app.id, "followup")}>
+                  <Button size="sm" variant="outline" onClick={() => handleAction(app.id, "followup")} disabled={actingId === app.id}>
                     <MessageCircle className="h-4 w-4 mr-1" />Follow-up
                   </Button>
-                  <Button size="sm" variant="destructive" onClick={() => handleAction(app.id, "reject")}>
+                  <Button size="sm" variant="destructive" onClick={() => handleAction(app.id, "reject")} disabled={actingId === app.id}>
                     <X className="h-4 w-4 mr-1" />Reject
                   </Button>
+                  {actionError && <p className="basis-full text-sm text-destructive">{actionError}</p>}
                 </div>
               )}
             </CardContent>

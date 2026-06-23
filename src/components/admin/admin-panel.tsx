@@ -26,6 +26,8 @@ export function AdminPanel({ users, teams: initialTeams, roleDescriptions }: Adm
   const router = useRouter();
   const [teamDialog, setTeamDialog] = useState(false);
   const [editingTeam, setEditingTeam] = useState<TrapTeam | null>(null);
+  const [teamError, setTeamError] = useState<string | null>(null);
+  const [savingTeam, setSavingTeam] = useState(false);
   const [teamForm, setTeamForm] = useState({
     name: "",
     region: "",
@@ -56,12 +58,13 @@ export function AdminPanel({ users, teams: initialTeams, roleDescriptions }: Adm
       setEditingTeam(null);
       setTeamForm({ name: "", region: "", zip_codes: "", members: "", lead_email: "", notes: "" });
     }
+    setTeamError(null);
     setTeamDialog(true);
   }
 
   async function saveTeam() {
-    const supabase = createClient();
     const payload = {
+      id: editingTeam?.id,
       name: teamForm.name,
       region: teamForm.region,
       zip_codes: teamForm.zip_codes.split(",").map((s) => s.trim()).filter(Boolean),
@@ -70,11 +73,22 @@ export function AdminPanel({ users, teams: initialTeams, roleDescriptions }: Adm
       notes: teamForm.notes,
       is_active: true,
     };
-    if (editingTeam) {
-      await supabase.from("trap_teams").update(payload).eq("id", editingTeam.id);
-    } else {
-      await supabase.from("trap_teams").insert(payload);
+
+    setTeamError(null);
+    setSavingTeam(true);
+    const response = await fetch("/api/admin/trap-teams/save", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const result = await response.json().catch(() => null);
+    setSavingTeam(false);
+
+    if (!response.ok) {
+      setTeamError(result?.error ?? "Unable to save team");
+      return;
     }
+
     setTeamDialog(false);
     router.refresh();
   }
@@ -183,7 +197,10 @@ export function AdminPanel({ users, teams: initialTeams, roleDescriptions }: Adm
             <div className="space-y-1"><Label>ZIP Codes (comma-separated)</Label><Input value={teamForm.zip_codes} onChange={(e) => setTeamForm({ ...teamForm, zip_codes: e.target.value })} /></div>
             <div className="space-y-1"><Label>Members (emails, comma-separated)</Label><Input value={teamForm.members} onChange={(e) => setTeamForm({ ...teamForm, members: e.target.value })} /></div>
             <div className="space-y-1"><Label>Notes</Label><Textarea value={teamForm.notes} onChange={(e) => setTeamForm({ ...teamForm, notes: e.target.value })} /></div>
-            <Button onClick={saveTeam} className="w-full">Save Team</Button>
+            {teamError && <p className="text-sm text-destructive">{teamError}</p>}
+            <Button onClick={saveTeam} className="w-full" disabled={savingTeam}>
+              {savingTeam ? "Saving..." : "Save Team"}
+            </Button>
           </div>
         </DialogContent>
       </Dialog>

@@ -9,7 +9,6 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { createClient } from "@/lib/supabase/client";
 import type { Clinic } from "@/lib/types";
 import { Plus, Pencil } from "lucide-react";
 
@@ -39,11 +38,14 @@ export function ClinicsManager({ clinics: initial }: ClinicsManagerProps) {
   const [editing, setEditing] = useState<Clinic | null>(null);
   const [form, setForm] = useState(emptyClinic);
   const [servicesInput, setServicesInput] = useState("");
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
 
   function openNew() {
     setEditing(null);
     setForm(emptyClinic);
     setServicesInput("");
+    setSaveError(null);
     setDialogOpen(true);
   }
 
@@ -63,20 +65,32 @@ export function ClinicsManager({ clinics: initial }: ClinicsManagerProps) {
       is_active: clinic.is_active,
     });
     setServicesInput(clinic.included_services.join(", "));
+    setSaveError(null);
     setDialogOpen(true);
   }
 
   async function save() {
-    const supabase = createClient();
     const payload = {
+      id: editing?.id,
       ...form,
       included_services: servicesInput.split(",").map((s) => s.trim()).filter(Boolean),
     };
-    if (editing) {
-      await supabase.from("clinics").update(payload).eq("id", editing.id);
-    } else {
-      await supabase.from("clinics").insert(payload);
+
+    setSaveError(null);
+    setSaving(true);
+    const response = await fetch("/api/clinics/save", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const result = await response.json().catch(() => null);
+    setSaving(false);
+
+    if (!response.ok) {
+      setSaveError(result?.error ?? "Unable to save clinic");
+      return;
     }
+
     setDialogOpen(false);
     router.refresh();
   }
@@ -147,7 +161,10 @@ export function ClinicsManager({ clinics: initial }: ClinicsManagerProps) {
             <div className="space-y-2"><Label>Slots per Day</Label><Input type="number" value={form.slots_per_day} onChange={(e) => setForm({ ...form, slots_per_day: parseInt(e.target.value) || 0 })} /></div>
             <div className="space-y-2"><Label>Included Services (comma-separated)</Label><Input value={servicesInput} onChange={(e) => setServicesInput(e.target.value)} placeholder="Spay/Neuter, Rabies Vaccine, Ear Tip" /></div>
             <div className="space-y-2"><Label>Notes</Label><Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></div>
-            <Button onClick={save} className="w-full">Save Clinic</Button>
+            {saveError && <p className="text-sm text-destructive">{saveError}</p>}
+            <Button onClick={save} className="w-full" disabled={saving}>
+              {saving ? "Saving..." : "Save Clinic"}
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
