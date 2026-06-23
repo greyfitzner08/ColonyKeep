@@ -30,7 +30,7 @@ export function VolunteersManager({ applications, teams }: VolunteersManagerProp
   const [expanded, setExpanded] = useState<string | null>(null);
   const [filter, setFilter] = useState("all");
   const [approveRole, setApproveRole] = useState<UserRole>("volunteer");
-  const [approveTeam, setApproveTeam] = useState<string>("");
+  const [approveTeam, setApproveTeam] = useState<string>("none");
   const [actionError, setActionError] = useState<string | null>(null);
   const [actingId, setActingId] = useState<string | null>(null);
 
@@ -48,7 +48,7 @@ export function VolunteersManager({ applications, teams }: VolunteersManagerProp
         body: JSON.stringify({
           applicationId: id,
           role: approveRole,
-          teamId: approveTeam || null,
+          teamId: approveTeam === "none" ? null : approveTeam,
         }),
       });
       const result = await response.json().catch(() => null);
@@ -111,8 +111,8 @@ export function VolunteersManager({ applications, teams }: VolunteersManagerProp
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                 <div>
                   <p><strong>Phone:</strong> {app.phone}</p>
-                  <p><strong>Birthday:</strong> {formatDate(app.birthday)}</p>
-                  <p><strong>Roles:</strong> {app.roles_requested.map((r) => VOLUNTEER_ROLES.find((vr) => vr.value === r)?.label ?? r).join(", ")}</p>
+                  <p><strong>Birthday:</strong> {app.birthday ? formatDate(app.birthday) : "—"}</p>
+                  <p><strong>Roles:</strong> {(app.roles_requested ?? []).map((r) => VOLUNTEER_ROLES.find((vr) => vr.value === r)?.label ?? r).join(", ") || "—"}</p>
                 </div>
                 <div>
                   <p><strong>Experience:</strong> {app.prior_experience ?? "—"}</p>
@@ -155,7 +155,7 @@ export function VolunteersManager({ applications, teams }: VolunteersManagerProp
                     <Select value={approveTeam} onValueChange={setApproveTeam}>
                       <SelectTrigger className="w-[180px]"><SelectValue placeholder="Optional" /></SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">None</SelectItem>
+                        <SelectItem value="none">None</SelectItem>
                         {teams.map((t) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
                       </SelectContent>
                     </Select>

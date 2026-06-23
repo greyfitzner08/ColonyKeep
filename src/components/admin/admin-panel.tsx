@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,43 +12,91 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { createClient } from "@/lib/supabase/client";
-import { ROLE_PERMISSIONS } from "@/lib/constants";
-import type { Profile, TrapTeam, RoleDescription, UserRole } from "@/lib/types";
-import { Plus, Pencil } from "lucide-react";
+import { VolunteerEligibilityBadges } from "@/components/admin/volunteer-eligibility-badges";
+import { VolunteerTeamPicker } from "@/components/admin/volunteer-team-picker";
+import { ROLE_PERMISSIONS, isKnownUserRole } from "@/lib/constants";
+import {
+  getApplicationByEmail,
+  getTeamEligibleVolunteers,
+} from "@/lib/volunteers/eligibility";
+import type { Profile, TrapTeam, RoleDescription, UserRole, VolunteerApplication } from "@/lib/types";
+import { Plus, Pencil, X } from "lucide-react";
 
 interface AdminPanelProps {
   users: Profile[];
   teams: TrapTeam[];
   roleDescriptions: RoleDescription[];
+  applications: VolunteerApplication[];
 }
 
-export function AdminPanel({ users, teams: initialTeams, roleDescriptions }: AdminPanelProps) {
+export function AdminPanel({
+  users,
+  teams: initialTeams,
+  roleDescriptions,
+  applications,
+}: AdminPanelProps) {
   const router = useRouter();
   const [teamDialog, setTeamDialog] = useState(false);
   const [editingTeam, setEditingTeam] = useState<TrapTeam | null>(null);
   const [teamError, setTeamError] = useState<string | null>(null);
+  const [userError, setUserError] = useState<string | null>(null);
   const [savingTeam, setSavingTeam] = useState(false);
   const [teamForm, setTeamForm] = useState({
     name: "",
     region: "",
     zip_codes: "",
-    members: "",
     lead_email: "",
     notes: "",
   });
 
-  async function updateUserRole(userId: string, role: UserRole, teamId: string | null) {
-    const response = await fetch("/api/admin/profiles/update", {
+  const eligibleVolunteers = useMemo(
+    () => getTeamEligibleVolunteers(applications, users),
+    [applications, users]
+  );
+
+  const profileByEmail = useMemo(
+    () => new Map(users.map((user) => [user.email.toLowerCase(), user])),
+    [users]
+  );
+
+  async function assignVolunteerToTeam(userId: string, teamId: string | null) {
+    const response = await fetch("/api/admin/teams/assign-member", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userId, role, teamId }),
+      body: JSON.stringify({ userId, teamId }),
     });
     const result = await response.json().catch(() => null);
     if (!response.ok) {
-      setTeamError(result?.error ?? "Unable to update user role");
+      throw new Error(result?.error ?? "Unable to update team assignment");
+    }
+    router.refresh();
+  }
+
+  async function updateUserRole(userId: string, role: UserRole) {
+    const user = users.find((entry) => entry.id === userId);
+    if (!user) return;
+
+    setUserError(null);
+    const response = await fetch("/api/admin/profiles/update", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId, role, teamId: user.team_id }),
+    });
+    const result = await response.json().catch(() => null);
+    if (!response.ok) {
+      setUserError(result?.error ?? "Unable to update user role");
       return;
     }
     router.refresh();
+  }
+
+  async function updateUserTeam(userId: string, teamId: string | null) {
+    setUserError(null);
+    try {
+      await assignVolunteerToTeam(userId, teamId);
+    } catch (error) {
+      setUserError(error instanceof Error ? error.message : "Unable to update team assignment");
+    }
   }
 
   function openTeamDialog(team?: TrapTeam) {
@@ -58,25 +106,25 @@ export function AdminPanel({ users, teams: initialTeams, roleDescriptions }: Adm
         name: team.name,
         region: team.region,
         zip_codes: team.zip_codes.join(", "),
-        members: team.members.join(", "),
         lead_email: team.lead_email,
         notes: team.notes ?? "",
       });
     } else {
       setEditingTeam(null);
-      setTeamForm({ name: "", region: "", zip_codes: "", members: "", lead_email: "", notes: "" });
+      setTeamForm({ name: "", region: "", zip_codes: "", lead_email: "", notes: "" });
     }
     setTeamError(null);
     setTeamDialog(true);
   }
 
   async function saveTeam() {
+    const existingMembers = editingTeam?.members ?? [];
     const payload = {
       id: editingTeam?.id,
       name: teamForm.name,
       region: teamForm.region,
       zip_codes: teamForm.zip_codes.split(",").map((s) => s.trim()).filter(Boolean),
-      members: teamForm.members.split(",").map((s) => s.trim()).filter(Boolean),
+      members: existingMembers,
       lead_email: teamForm.lead_email,
       notes: teamForm.notes,
       is_active: true,
@@ -116,64 +164,144 @@ export function AdminPanel({ users, teams: initialTeams, roleDescriptions }: Adm
       </TabsList>
 
       <TabsContent value="users" className="mt-4 space-y-3">
-        {users.map((user) => (
-          <Card key={user.id}>
-            <CardContent className="pt-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div>
-                <p className="font-medium">{user.full_name ?? user.email}</p>
-                <p className="text-sm text-muted-foreground">{user.email}</p>
-              </div>
-              <div className="flex gap-2">
-                <Select
-                  value={user.role ?? "none"}
-                  onValueChange={(v) => updateUserRole(user.id, v as UserRole, user.team_id)}
-                >
-                  <SelectTrigger className="w-[160px]"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">No Role</SelectItem>
-                    {Object.entries(ROLE_PERMISSIONS).map(([role, { label }]) => (
-                      <SelectItem key={role} value={role}>{label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Select
-                  value={user.team_id ?? "none"}
-                  onValueChange={(v) => updateUserRole(user.id, (user.role ?? "volunteer") as UserRole, v === "none" ? null : v)}
-                  disabled={!user.role}
-                >
-                  <SelectTrigger className="w-[160px]"><SelectValue placeholder="Team" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">No Team</SelectItem>
-                    {initialTeams.map((t) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+        {userError && <p className="text-sm text-destructive">{userError}</p>}
+        {users.map((user) => {
+          const application = getApplicationByEmail(applications, user.email);
+          const isEligible = eligibleVolunteers.some((entry) => entry.profile.id === user.id);
+
+          return (
+            <Card key={user.id}>
+              <CardContent className="pt-4 space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                  <div className="space-y-2">
+                    <div>
+                      <p className="font-medium">{user.full_name ?? user.email}</p>
+                      <p className="text-sm text-muted-foreground">{user.email}</p>
+                    </div>
+                    <VolunteerEligibilityBadges application={application} />
+                  </div>
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <Select
+                      value={isKnownUserRole(user.role) ? user.role : "none"}
+                      onValueChange={(v) => {
+                        if (v !== "none") updateUserRole(user.id, v as UserRole);
+                      }}
+                    >
+                      <SelectTrigger className="w-[180px]"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">No Role</SelectItem>
+                        {Object.entries(ROLE_PERMISSIONS).map(([role, { label }]) => (
+                          <SelectItem key={role} value={role}>{label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Select
+                      value={user.team_id ?? "none"}
+                      onValueChange={(v) => updateUserTeam(user.id, v === "none" ? null : v)}
+                      disabled={!user.role || !isEligible}
+                    >
+                      <SelectTrigger className="w-[180px]"><SelectValue placeholder="Team" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">No Team</SelectItem>
+                        {initialTeams.map((team) => (
+                          <SelectItem key={team.id} value={team.id}>{team.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                {!isEligible && user.role && (
+                  <p className="text-xs text-muted-foreground">
+                    Team assignment unlocks after TNVR certificate upload, field training, signed waiver/policy, and application approval.
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          );
+        })}
       </TabsContent>
 
       <TabsContent value="teams" className="mt-4 space-y-4">
         <Button onClick={() => openTeamDialog()}><Plus className="h-4 w-4 mr-2" />Add Team</Button>
-        {initialTeams.map((team) => (
-          <Card key={team.id}>
-            <CardHeader className="flex flex-row justify-between">
-              <div>
-                <CardTitle className="text-base">{team.name}</CardTitle>
-                <p className="text-sm text-muted-foreground">{team.region}</p>
-              </div>
-              <Button variant="ghost" size="icon" onClick={() => openTeamDialog(team)}>
-                <Pencil className="h-4 w-4" />
-              </Button>
-            </CardHeader>
-            <CardContent className="text-sm space-y-1">
-              <p><strong>Lead:</strong> {team.lead_email}</p>
-              <p><strong>ZIP codes:</strong> {team.zip_codes.join(", ") || "—"}</p>
-              <p><strong>Members:</strong> {team.members.length}</p>
-              <Badge variant={team.is_active ? "default" : "secondary"}>{team.is_active ? "Active" : "Inactive"}</Badge>
-            </CardContent>
-          </Card>
-        ))}
+        {initialTeams.map((team) => {
+          const members = team.members
+            .map((email) => profileByEmail.get(email.toLowerCase()))
+            .filter(Boolean) as Profile[];
+
+          return (
+            <Card key={team.id}>
+              <CardHeader className="flex flex-row justify-between gap-4">
+                <div>
+                  <CardTitle className="text-base">{team.name}</CardTitle>
+                  <p className="text-sm text-muted-foreground">{team.region}</p>
+                </div>
+                <Button variant="ghost" size="icon" onClick={() => openTeamDialog(team)}>
+                  <Pencil className="h-4 w-4" />
+                </Button>
+              </CardHeader>
+              <CardContent className="space-y-4 text-sm">
+                <div className="space-y-1">
+                  <p><strong>Lead:</strong> {team.lead_email}</p>
+                  <p><strong>ZIP codes:</strong> {team.zip_codes.join(", ") || "—"}</p>
+                  <Badge variant={team.is_active ? "default" : "secondary"}>
+                    {team.is_active ? "Active" : "Inactive"}
+                  </Badge>
+                </div>
+
+                <div className="space-y-2 border-t pt-4">
+                  <Label>Team members ({members.length})</Label>
+                  {members.length === 0 ? (
+                    <p className="text-muted-foreground">No volunteers assigned yet.</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {members.map((member) => (
+                        <div
+                          key={member.id}
+                          className="flex items-center justify-between rounded-md border px-3 py-2"
+                        >
+                          <div>
+                            <p className="font-medium">{member.full_name ?? member.email}</p>
+                            <p className="text-xs text-muted-foreground">{member.email}</p>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => updateUserTeam(member.id, null)}
+                            aria-label={`Remove ${member.full_name ?? member.email} from team`}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-2 border-t pt-4">
+                  <Label>Add approved volunteer</Label>
+                  <VolunteerTeamPicker
+                    eligibleVolunteers={eligibleVolunteers}
+                    assignedEmails={team.members}
+                    onAssign={async (userId) => {
+                      setTeamError(null);
+                      try {
+                        await assignVolunteerToTeam(userId, team.id);
+                      } catch (error) {
+                        setTeamError(
+                          error instanceof Error ? error.message : "Unable to assign volunteer"
+                        );
+                      }
+                    }}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Only volunteers with approved applications, TNVR certificates, field training, and signed forms appear here.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
+        {teamError && <p className="text-sm text-destructive">{teamError}</p>}
       </TabsContent>
 
       <TabsContent value="roles" className="mt-4 space-y-3">
@@ -203,8 +331,10 @@ export function AdminPanel({ users, teams: initialTeams, roleDescriptions }: Adm
             <div className="space-y-1"><Label>Region</Label><Input value={teamForm.region} onChange={(e) => setTeamForm({ ...teamForm, region: e.target.value })} /></div>
             <div className="space-y-1"><Label>Lead Email</Label><Input value={teamForm.lead_email} onChange={(e) => setTeamForm({ ...teamForm, lead_email: e.target.value })} /></div>
             <div className="space-y-1"><Label>ZIP Codes (comma-separated)</Label><Input value={teamForm.zip_codes} onChange={(e) => setTeamForm({ ...teamForm, zip_codes: e.target.value })} /></div>
-            <div className="space-y-1"><Label>Members (emails, comma-separated)</Label><Input value={teamForm.members} onChange={(e) => setTeamForm({ ...teamForm, members: e.target.value })} /></div>
             <div className="space-y-1"><Label>Notes</Label><Textarea value={teamForm.notes} onChange={(e) => setTeamForm({ ...teamForm, notes: e.target.value })} /></div>
+            <p className="text-xs text-muted-foreground">
+              Assign volunteers to this team from the Trap Teams tab after saving.
+            </p>
             {teamError && <p className="text-sm text-destructive">{teamError}</p>}
             <Button onClick={saveTeam} className="w-full" disabled={savingTeam}>
               {savingTeam ? "Saving..." : "Save Team"}
