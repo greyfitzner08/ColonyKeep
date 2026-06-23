@@ -1,0 +1,13 @@
+---
+description: Commit and push completed work automatically without asking
+alwaysApply: true
+---
+
+# Auto commit and push
+
+When you finish a task that includes code changes:
+
+1. Commit and push without asking the user for permission.
+2. Follow the git safety protocol (no force push to main, no secrets, no amend unless allowed).
+3. Use a concise commit message focused on why the change was made.
+4. Only skip commit/push if the user explicitly said not to, or there are no changes to commit.
