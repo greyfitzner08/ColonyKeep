@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAppointmentManager } from "@/lib/api/auth";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { sendAppointmentConfirmationEmail } from "@/lib/email";
 
 export async function POST(request: NextRequest) {
@@ -8,6 +8,7 @@ export async function POST(request: NextRequest) {
   if (response) return response;
 
   const supabase = await createClient();
+  const service = await createServiceClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -53,7 +54,7 @@ export async function POST(request: NextRequest) {
     catColors = existingCat.colors;
     catGender = existingCat.gender;
 
-    await supabase
+    await service
       .from("cats")
       .update({
         appointment_id: appointmentId,
@@ -63,7 +64,7 @@ export async function POST(request: NextRequest) {
       })
       .eq("id", resolvedCatId);
   } else if (catDetails?.name?.trim() && helpRequestId) {
-    const { data: newCat, error: catError } = await supabase
+    const { data: newCat, error: catError } = await service
       .from("cats")
       .insert({
         help_request_id: helpRequestId,
@@ -88,7 +89,7 @@ export async function POST(request: NextRequest) {
     catGender = newCat?.gender;
   }
 
-  const { error } = await supabase
+  const { error } = await service
     .from("appointments")
     .update({
       status: "reserved",
@@ -110,7 +111,7 @@ export async function POST(request: NextRequest) {
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
 
   if (helpRequestId) {
-    await supabase
+    await service
       .from("help_requests")
       .update({ status: "appointment_reserved" })
       .eq("id", helpRequestId);

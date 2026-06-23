@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAppointmentManager } from "@/lib/api/auth";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createServiceClient } from "@/lib/supabase/server";
 
 export async function POST(request: NextRequest) {
-  const { profile, response } = await requireAppointmentManager();
+  const { response } = await requireAppointmentManager();
   if (response) return response;
 
   const supabase = await createClient();
+  const service = await createServiceClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -38,7 +39,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const { error } = await supabase
+  const { error } = await service
     .from("appointments")
     .update({
       status: "available",
@@ -60,7 +61,7 @@ export async function POST(request: NextRequest) {
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
 
   if (appointment.cat_id) {
-    await supabase
+    await service
       .from("cats")
       .update({
         appointment_id: null,
@@ -77,7 +78,7 @@ export async function POST(request: NextRequest) {
       .neq("status", "available");
 
     if ((count ?? 0) === 0) {
-      await supabase
+      await service
         .from("help_requests")
         .update({ status: "routed_to_trap_team" })
         .eq("id", appointment.help_request_id)
