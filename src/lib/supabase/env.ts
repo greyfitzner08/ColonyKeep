@@ -24,3 +24,11 @@ export function getSupabaseBrowserPublishableKey() {
 export function getSupabaseSecretKey() {
   return process.env.SUPABASE_SECRET_KEY ?? process.env.SUPABASE_SERVICE_ROLE_KEY;
 }
+
+export function hasSupabaseServerConfig() {
+  return Boolean(getSupabaseUrl() && getSupabasePublishableKey());
+}
+
+export function hasSupabaseAdminConfig() {
+  return Boolean(getSupabaseUrl() && getSupabaseSecretKey());
+}

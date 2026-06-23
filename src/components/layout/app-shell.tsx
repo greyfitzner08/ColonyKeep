@@ -1,8 +1,14 @@
 import { getCurrentProfile } from "@/lib/auth";
 import { Sidebar } from "@/components/layout/sidebar";
 import { VolunteerGate } from "@/components/layout/volunteer-gate";
+import { SupabaseConfigGate } from "@/components/layout/supabase-config-gate";
+import { hasSupabaseServerConfig } from "@/lib/supabase/env";
 
 export async function AppShell({ children }: { children: React.ReactNode }) {
+  if (!hasSupabaseServerConfig()) {
+    return <SupabaseConfigGate />;
+  }
+
   const profile = await getCurrentProfile();
 
   if (!profile?.role) {
