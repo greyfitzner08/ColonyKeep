@@ -13,13 +13,18 @@ import { Label } from "@/components/ui/label";
 import { VOLUNTEER_ROLES } from "@/lib/constants";
 import { getApiErrorMessage } from "@/lib/api/errors";
 import { getEmailValidationError, parsePrimaryEmail } from "@/lib/email-utils";
+import {
+  missingRequirementsForRole,
+  requirementLabel,
+} from "@/lib/volunteers/role-requirements";
 import { formatDate } from "@/lib/utils";
-import type { VolunteerApplication, TrapTeam, UserRole, VolunteerRole } from "@/lib/types";
+import type { VolunteerApplication, TrapTeam, UserRole, VolunteerRole, Profile } from "@/lib/types";
 import { ChevronDown, ChevronUp, Check, X, MessageCircle, Trash2, AlertTriangle } from "lucide-react";
 
 interface VolunteersManagerProps {
   applications: VolunteerApplication[];
   teams: TrapTeam[];
+  profilesByEmail: Record<string, Profile>;
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -44,7 +49,7 @@ function roleLabel(role: VolunteerRole) {
   return VOLUNTEER_ROLES.find((entry) => entry.value === role)?.label ?? role;
 }
 
-export function VolunteersManager({ applications, teams }: VolunteersManagerProps) {
+export function VolunteersManager({ applications, teams, profilesByEmail }: VolunteersManagerProps) {
   const router = useRouter();
   const [expanded, setExpanded] = useState<string | null>(null);
   const [filter, setFilter] = useState("all");
@@ -277,6 +282,11 @@ export function VolunteersManager({ applications, teams }: VolunteersManagerProp
         const emailInvalid = Boolean(getEmailValidationError(emailValue));
         const suggestedEmail = parsePrimaryEmail(emailValue);
         const canReview = REVIEWABLE_STATUSES.has(app.status);
+        const linkedProfile = profilesByEmail[app.email.toLowerCase()];
+        const approvedRoles = linkedProfile?.volunteer_roles ?? [];
+        const rolesReady = (app.roles_requested ?? []).every(
+          (role) => missingRequirementsForRole(role, app).length === 0
+        );
 
         return (
           <Card key={app.id}>
@@ -285,22 +295,43 @@ export function VolunteersManager({ applications, teams }: VolunteersManagerProp
               onClick={() => setExpanded(expanded === app.id ? null : app.id)}
             >
               <div className="flex items-center justify-between gap-4">
-                <div className="space-y-2">
+                <div className="space-y-2 min-w-0">
                   <div>
                     <CardTitle className="text-base">{app.full_name}</CardTitle>
                     <p className="text-sm text-muted-foreground">
                       {app.email} · Applied {formatDate(app.created_at)}
+                      {linkedProfile?.role && (
+                        <> · Platform role: {linkedProfile.role.replace(/_/g, " ")}</>
+                      )}
                     </p>
                   </div>
                   <div className="flex flex-wrap gap-1">
-                    {(app.roles_requested ?? []).map((role) => (
-                      <Badge key={role} variant="secondary" className="text-xs">
-                        {roleLabel(role)}
-                      </Badge>
-                    ))}
+                    {(app.roles_requested ?? []).map((role) => {
+                      const missing = missingRequirementsForRole(role, app);
+                      return (
+                        <Badge
+                          key={role}
+                          variant={missing.length === 0 ? "secondary" : "outline"}
+                          className={`text-xs ${missing.length > 0 ? "border-amber-400 text-amber-900" : ""}`}
+                        >
+                          {roleLabel(role)}
+                          {missing.length > 0 && ` · needs ${missing.map(requirementLabel).join(", ")}`}
+                        </Badge>
+                      );
+                    })}
                   </div>
+                  {approvedRoles.length > 0 && (
+                    <p className="text-xs text-muted-foreground">
+                      Approved interests: {approvedRoles.map(roleLabel).join(", ")}
+                    </p>
+                  )}
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
+                  {canReview && (
+                    <Badge variant="outline" className={rolesReady ? "text-green-700" : "text-amber-700"}>
+                      {rolesReady ? "Ready to approve" : "Requirements pending"}
+                    </Badge>
+                  )}
                   <Badge className={STATUS_COLORS[app.status]}>{app.status.replace(/_/g, " ")}</Badge>
                   {expanded === app.id ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                 </div>

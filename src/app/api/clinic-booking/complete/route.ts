@@ -118,26 +118,31 @@ export async function POST(request: NextRequest) {
   const contact = spots[0];
 
   if (eventRow && contact) {
-    try {
-      await sendPublicBookingPendingEmail(
-        contact.contact_email,
-        contact.contact_name,
-        {
-          title: eventRow.title,
-          clinic_name: eventRow.clinic_name,
-          date: eventRow.date,
-          location: eventRow.location,
-          pending_email_message: eventRow.pending_email_message,
-        },
-        spots.map((spot) => ({
-          cat_name: spot.cat_name,
-          total_price: eventRow
-            ? calculateBookingTotal(eventRow.base_price, catalog, spot.selected_addons ?? [])
-            : spot.total_price ?? 0,
-        }))
-      );
-    } catch (emailError) {
-      console.error("[email] Failed to send pending booking email:", emailError);
+    const emailResult = await sendPublicBookingPendingEmail(
+      contact.contact_email,
+      contact.contact_name,
+      {
+        title: eventRow.title,
+        clinic_name: eventRow.clinic_name,
+        date: eventRow.date,
+        location: eventRow.location,
+        pending_email_message: eventRow.pending_email_message,
+      },
+      spots.map((spot) => ({
+        cat_name: spot.cat_name,
+        total_price: eventRow
+          ? calculateBookingTotal(eventRow.base_price, catalog, spot.selected_addons ?? [])
+          : spot.total_price ?? 0,
+      }))
+    );
+
+    if (!emailResult.sent) {
+      console.error("[email] Pending booking email failed:", emailResult.error);
+      return NextResponse.json({
+        success: true,
+        booking_count: holdRows.length,
+        email_warning: emailResult.error ?? "Confirmation email could not be sent",
+      });
     }
   }
 

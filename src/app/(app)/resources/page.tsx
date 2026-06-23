@@ -10,6 +10,7 @@ export default async function ResourcesPage() {
   const { data: documents } = await supabase
     .from("library_documents")
     .select("*")
+    .order("section")
     .order("title");
 
   return (

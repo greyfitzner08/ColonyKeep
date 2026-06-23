@@ -75,14 +75,19 @@ export async function POST(request: NextRequest) {
     confirmed_email_message: eventRow.confirmed_email_message,
   };
 
+  let emailWarning: string | undefined;
+
   try {
     if (status === "confirmed") {
-      await sendPublicBookingConfirmedEmail(
+      const emailResult = await sendPublicBookingConfirmedEmail(
         row.contact_email,
         row.contact_name,
         emailPayload,
         { cat_name: row.cat_name, total_price: row.total_price }
       );
+      if (!emailResult.sent) {
+        emailWarning = emailResult.error ?? "Confirmation email could not be sent";
+      }
     } else if (status === "waitlist") {
       await sendPublicBookingWaitlistEmail(row.contact_email, row.contact_name, emailPayload, {
         cat_name: row.cat_name,
@@ -94,7 +99,9 @@ export async function POST(request: NextRequest) {
     }
   } catch (emailError) {
     console.error("[email] Failed to send booking status email:", emailError);
+    emailWarning =
+      emailError instanceof Error ? emailError.message : "Status email could not be sent";
   }
 
-  return NextResponse.json({ booking: updated });
+  return NextResponse.json({ booking: updated, email_warning: emailWarning });
 }

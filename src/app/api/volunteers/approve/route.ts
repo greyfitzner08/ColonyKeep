@@ -76,17 +76,25 @@ export async function POST(request: NextRequest) {
 
     const { data: existingProfile } = await service
       .from("profiles")
-      .select("id")
+      .select("id, role, volunteer_roles")
       .eq("email", volunteerEmail)
       .maybeSingle();
+
+    const mergedVolunteerRoles = Array.from(
+      new Set([
+        ...((existingProfile?.volunteer_roles ?? []) as string[]),
+        ...((application.roles_requested ?? []) as string[]),
+      ])
+    );
 
     if (existingProfile) {
       const { error: profileUpdateError } = await service
         .from("profiles")
         .update({
-          role: role ?? "volunteer",
+          role: existingProfile.role ?? role ?? "volunteer",
           team_id: teamId ?? null,
           full_name: application.full_name,
+          volunteer_roles: mergedVolunteerRoles,
         })
         .eq("id", existingProfile.id);
 
@@ -100,6 +108,7 @@ export async function POST(request: NextRequest) {
         full_name: application.full_name,
         role: role ?? "volunteer",
         team_id: teamId ?? null,
+        volunteer_roles: application.roles_requested ?? [],
       });
 
       if (profileError) {

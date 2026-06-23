@@ -234,6 +234,9 @@ export function ClinicEventsManager({ events, clinics, bookings }: ClinicEventsM
       setError(result?.error ?? "Unable to update booking");
       return;
     }
+    if (result?.email_warning) {
+      setError(`Booking updated, but email failed: ${result.email_warning}`);
+    }
     router.refresh();
   }
 

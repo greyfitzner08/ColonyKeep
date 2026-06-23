@@ -77,6 +77,7 @@ export interface Profile {
   email: string;
   full_name: string | null;
   role: UserRole | null;
+  volunteer_roles: VolunteerRole[];
   team_id: string | null;
   created_at: string;
   updated_at: string;
@@ -384,9 +385,32 @@ export interface LibraryDocument {
   title: string;
   description: string | null;
   file_url: string;
+  section: string;
   view_roles: UserRole[];
   is_active: boolean;
   created_by_email: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface VolunteerRoleRequest {
+  id: string;
+  profile_id: string | null;
+  application_id: string | null;
+  email: string;
+  full_name: string | null;
+  requested_roles: VolunteerRole[];
+  status: "pending" | "approved" | "rejected";
+  tnvr_certificate_uploaded: boolean;
+  tnvr_certificate_url: string | null;
+  intake_training: boolean;
+  shadow_completed: boolean;
+  liability_waiver_signed: boolean;
+  policy_signed: boolean;
+  event_crash_course: boolean;
+  admin_notes: string | null;
+  reviewed_by: string | null;
+  reviewed_at: string | null;
   created_at: string;
   updated_at: string;
 }

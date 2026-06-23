@@ -103,7 +103,7 @@ export function HotspotsMap({ helpRequests }: HotspotsMapProps) {
       </div>
       {withCoords.length === 0 && (
         <p className="text-sm text-muted-foreground text-center">
-          No colony locations with coordinates yet. Addresses submitted via the intake form will appear here once geocoded.
+          No colony locations could be mapped yet. Cases need a colony address, city, or ZIP in the intake queue.
         </p>
       )}
     </div>

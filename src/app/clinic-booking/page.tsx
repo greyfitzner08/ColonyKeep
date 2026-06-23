@@ -60,6 +60,7 @@ function ClinicBookingContent() {
   const [submitted, setSubmitted] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [submitEmailWarning, setSubmitEmailWarning] = useState<string | null>(null);
 
   const [contact, setContact] = useState({
     contact_name: "",
@@ -169,6 +170,7 @@ function ClinicBookingContent() {
   async function handleSubmit() {
     if (!selectedEvent || !holdSessionId) return;
     setSubmitError(null);
+    setSubmitEmailWarning(null);
     setSubmitting(true);
 
     const response = await fetch("/api/clinic-booking/complete", {
@@ -193,6 +195,9 @@ function ClinicBookingContent() {
 
     setSubmitted(true);
     setHoldSessionId(null);
+    if (result?.email_warning) {
+      setSubmitEmailWarning(result.email_warning);
+    }
   }
 
   async function cancelBooking() {
@@ -236,6 +241,16 @@ function ClinicBookingContent() {
             </div>
 
             <p className="text-sm text-muted-foreground whitespace-pre-wrap">{pendingMessage}</p>
+
+            {submitEmailWarning && (
+              <div
+                role="alert"
+                className="rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+              >
+                We saved your request, but the confirmation email could not be sent ({submitEmailWarning}).
+                If you do not hear from us within a few days, contact the clinic team directly.
+              </div>
+            )}
 
             {selectedEvent.payment_url && (
               <p className="text-sm">

@@ -7,6 +7,36 @@ const resend = process.env.RESEND_API_KEY
 const FROM = process.env.EMAIL_FROM ?? "TNVR Rescue <noreply@example.com>";
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 
+async function sendResendEmail(payload: {
+  to: string;
+  subject: string;
+  html: string;
+  logLabel: string;
+}): Promise<{ sent: boolean; error?: string }> {
+  if (!resend) {
+    console.log(`[email] ${payload.logLabel} to ${payload.to} (Resend not configured)`);
+    return { sent: false, error: "Email service not configured (RESEND_API_KEY missing)" };
+  }
+
+  const { data, error } = await resend.emails.send({
+    from: FROM,
+    to: payload.to,
+    subject: payload.subject,
+    html: payload.html,
+  });
+
+  if (error) {
+    console.error(`[email] ${payload.logLabel} failed:`, error);
+    return { sent: false, error: error.message ?? "Email send failed" };
+  }
+
+  if (!data?.id) {
+    return { sent: false, error: "Email send returned no message id" };
+  }
+
+  return { sent: true };
+}
+
 export async function sendWelcomeEmail(
   email: string,
   name: string
@@ -16,10 +46,10 @@ export async function sendWelcomeEmail(
     return;
   }
 
-  await resend.emails.send({
-    from: FROM,
+  await sendResendEmail({
     to: email,
     subject: "Welcome to TNVR Rescue!",
+    logLabel: "Welcome email",
     html: `
       <h1>Welcome, ${name}!</h1>
       <p>Your volunteer application has been approved. You now have access to the TNVR Colony Management platform.</p>
@@ -134,7 +164,7 @@ export async function sendPublicBookingPendingEmail(
     pending_email_message?: string | null;
   },
   cats: { cat_name?: string | null; total_price: number }[]
-): Promise<void> {
+): Promise<{ sent: boolean; error?: string }> {
   const defaultMessage =
     "We received your clinic booking request. This does not guarantee your spot — our team will review it and email you again when your spot is confirmed.";
   const customMessage = event.pending_email_message?.trim() || defaultMessage;
@@ -157,15 +187,10 @@ export async function sendPublicBookingPendingEmail(
     <p><strong>Your spot is not confirmed yet.</strong> You will receive another email when our team confirms your booking.</p>
   `;
 
-  if (!resend) {
-    console.log(`[email] Public booking pending to ${email} (Resend not configured)`);
-    return;
-  }
-
-  await resend.emails.send({
-    from: FROM,
+  return sendResendEmail({
     to: email,
     subject: `Booking request received — ${event.title}`,
+    logLabel: "Public booking pending",
     html,
   });
 }
@@ -182,7 +207,7 @@ export async function sendPublicBookingConfirmedEmail(
     confirmed_email_message?: string | null;
   },
   cat: { cat_name?: string | null; total_price: number }
-): Promise<void> {
+): Promise<{ sent: boolean; error?: string }> {
   const defaultMessage =
     "Your clinic spot is confirmed! Please arrive on time and follow any check-in instructions we provided.";
   const customMessage = event.confirmed_email_message?.trim() || defaultMessage;
@@ -202,15 +227,10 @@ export async function sendPublicBookingConfirmedEmail(
     ${paymentBlock}
   `;
 
-  if (!resend) {
-    console.log(`[email] Public booking confirmed to ${email} (Resend not configured)`);
-    return;
-  }
-
-  await resend.emails.send({
-    from: FROM,
+  return sendResendEmail({
     to: email,
     subject: `Spot confirmed — ${event.title}`,
+    logLabel: "Public booking confirmed",
     html,
   });
 }

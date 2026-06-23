@@ -1,16 +1,20 @@
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
 import { MyImpactDashboard } from "@/components/volunteers/my-impact-dashboard";
-import type { VolunteerHours, Shift } from "@/lib/types";
+import { VolunteerProfileRoles } from "@/components/volunteers/volunteer-profile-roles";
+import type { VolunteerHours, Shift, VolunteerApplication, VolunteerRoleRequest } from "@/lib/types";
 
 export default async function MyImpactPage() {
   const profile = await getCurrentProfile();
   const supabase = await createClient();
   const email = profile?.email ?? "";
 
-  const [{ data: hours }, { data: shifts }] = await Promise.all([
+  const [{ data: hours }, { data: shifts }, { data: application }, { data: roleRequests }] =
+    await Promise.all([
     supabase.from("volunteer_hours").select("*").eq("volunteer_email", email).order("date", { ascending: false }),
     supabase.from("shifts").select("*").contains("signed_up_emails", [email]),
+    supabase.from("volunteer_applications").select("*").eq("email", email).maybeSingle(),
+    supabase.from("volunteer_role_requests").select("*").eq("email", email).order("created_at", { ascending: false }),
   ]);
 
   const { count: casesWorked } = await supabase
@@ -30,6 +34,13 @@ export default async function MyImpactPage() {
         casesWorked={casesWorked ?? 0}
         profile={profile}
       />
+      {profile && (
+        <VolunteerProfileRoles
+          profile={profile}
+          application={(application ?? null) as VolunteerApplication | null}
+          roleRequests={(roleRequests ?? []) as VolunteerRoleRequest[]}
+        />
+      )}
     </div>
   );
 }

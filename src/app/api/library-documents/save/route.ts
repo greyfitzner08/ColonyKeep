@@ -29,8 +29,9 @@ export async function POST(request: NextRequest) {
     title: body.title.trim(),
     description: body.description?.trim() || null,
     file_url: body.file_url.trim(),
+    section: body.section?.trim() || "General",
     view_roles: viewRoles.length > 0 ? viewRoles : ["admin"],
-    is_active: body.is_active ?? true,
+    is_active: true,
     created_by_email: profile!.email,
   };
 
