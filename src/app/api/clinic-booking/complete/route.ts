@@ -1,0 +1,94 @@
+import { NextRequest, NextResponse } from "next/server";
+import { createServiceClient } from "@/lib/supabase/server";
+import type { PublicBooking } from "@/lib/types";
+
+interface SpotPayload {
+  contact_name: string;
+  contact_email: string;
+  contact_phone: string;
+  cat_name?: string;
+  cat_colors?: string;
+  cat_breed?: string;
+  cat_gender?: string;
+  has_injuries?: boolean;
+  injury_details?: string;
+  selected_addons?: string[];
+  notes?: string;
+  total_price?: number;
+}
+
+export async function POST(request: NextRequest) {
+  const body = await request.json();
+  const sessionId = body.session_id as string | undefined;
+  const spots = (body.spots ?? []) as SpotPayload[];
+
+  if (!sessionId || spots.length === 0) {
+    return NextResponse.json({ error: "Missing session_id or spots" }, { status: 400 });
+  }
+
+  const service = await createServiceClient();
+  const { data: holds, error: holdsError } = await service
+    .from("public_bookings")
+    .select("*")
+    .eq("hold_session_id", sessionId)
+    .eq("status", "pending");
+
+  if (holdsError) {
+    return NextResponse.json({ error: holdsError.message }, { status: 400 });
+  }
+
+  const holdRows = (holds ?? []) as PublicBooking[];
+  if (holdRows.length === 0) {
+    return NextResponse.json({ error: "Hold session expired or not found" }, { status: 410 });
+  }
+
+  const now = Date.now();
+  if (holdRows.some((row) => row.expires_at && new Date(row.expires_at).getTime() <= now)) {
+    await service
+      .from("public_bookings")
+      .update({ status: "expired" })
+      .eq("hold_session_id", sessionId)
+      .eq("status", "pending");
+    return NextResponse.json({ error: "Your hold expired. Please start again." }, { status: 410 });
+  }
+
+  if (spots.length !== holdRows.length) {
+    return NextResponse.json(
+      { error: `Expected ${holdRows.length} spot form(s)` },
+      { status: 400 }
+    );
+  }
+
+  const confirmExpires = new Date();
+  confirmExpires.setHours(confirmExpires.getHours() + 24);
+
+  for (let index = 0; index < holdRows.length; index += 1) {
+    const hold = holdRows[index];
+    const spot = spots[index];
+    const { error } = await service
+      .from("public_bookings")
+      .update({
+        contact_name: spot.contact_name,
+        contact_email: spot.contact_email,
+        contact_phone: spot.contact_phone,
+        cat_name: spot.cat_name ?? null,
+        cat_colors: spot.cat_colors ?? null,
+        cat_breed: spot.cat_breed ?? null,
+        cat_gender: spot.cat_gender ?? null,
+        has_injuries: spot.has_injuries ?? false,
+        injury_details: spot.injury_details ?? null,
+        selected_addons: spot.selected_addons ?? [],
+        notes: spot.notes ?? null,
+        total_price: spot.total_price ?? 0,
+        expires_at: confirmExpires.toISOString(),
+        status: "pending",
+      })
+      .eq("id", hold.id);
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
+  }
+
+  return NextResponse.json({ success: true, booking_count: holdRows.length });
+}

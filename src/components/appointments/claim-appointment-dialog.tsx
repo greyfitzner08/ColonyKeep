@@ -6,6 +6,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -14,12 +21,13 @@ import {
 } from "@/components/ui/dialog";
 import { CaseSearchPicker } from "@/components/appointments/case-search-picker";
 import { type HelpRequestOption } from "@/lib/cases/help-request-options";
-import type { Appointment } from "@/lib/types";
+import type { Appointment, Cat } from "@/lib/types";
 
 interface ClaimAppointmentDialogProps {
   appointment: Appointment | null;
   onOpenChange: (open: boolean) => void;
   helpRequests: HelpRequestOption[];
+  cats?: Cat[];
   /** When set, the slot is linked to this case automatically (no search). */
   linkedHelpRequest?: HelpRequestOption | null;
 }
@@ -28,26 +36,36 @@ export function ClaimAppointmentDialog({
   appointment,
   onOpenChange,
   helpRequests,
+  cats = [],
   linkedHelpRequest = null,
 }: ClaimAppointmentDialogProps) {
   const router = useRouter();
   const [helpRequestId, setHelpRequestId] = useState("");
+  const [catMode, setCatMode] = useState<"new" | string>("new");
   const [catName, setCatName] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   const lockedCase = linkedHelpRequest ?? null;
   const effectiveHelpRequestId = lockedCase?.id ?? helpRequestId;
+  const availableCats = cats.filter(
+    (cat) => !cat.appointment_id || cat.appointment_id === appointment?.id
+  );
 
   useEffect(() => {
     if (!appointment) return;
     setHelpRequestId(lockedCase?.id ?? "");
+    setCatMode("new");
     setCatName("");
     setError(null);
   }, [appointment, lockedCase?.id]);
 
   async function claimSlot() {
     if (!appointment || !effectiveHelpRequestId) return;
+    if (catMode === "new" && !catName.trim()) {
+      setError("Enter a cat name or select an existing tracked cat");
+      return;
+    }
 
     setError(null);
     setSaving(true);
@@ -57,7 +75,7 @@ export function ClaimAppointmentDialog({
       body: JSON.stringify({
         appointmentId: appointment.id,
         helpRequestId: effectiveHelpRequestId,
-        catDetails: { name: catName },
+        ...(catMode !== "new" ? { catId: catMode } : { catDetails: { name: catName.trim() } }),
       }),
     });
     const result = await response.json().catch(() => null);
@@ -115,12 +133,35 @@ export function ClaimAppointmentDialog({
           )}
 
           <div className="space-y-2">
-            <Label>Cat name / description</Label>
-            <Input
-              value={catName}
-              onChange={(e) => setCatName(e.target.value)}
-              placeholder="e.g. Orange tabby male"
-            />
+            <Label>Cat</Label>
+            {availableCats.length > 0 ? (
+              <Select value={catMode} onValueChange={setCatMode}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select or add cat" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="new">Add new tracked cat</SelectItem>
+                  {availableCats.map((cat) => (
+                    <SelectItem key={cat.id} value={cat.id}>
+                      {cat.name || "Unnamed cat"}
+                      {cat.colors ? ` · ${cat.colors}` : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : null}
+            {catMode === "new" && (
+              <Input
+                value={catName}
+                onChange={(e) => setCatName(e.target.value)}
+                placeholder="e.g. Orange tabby male"
+              />
+            )}
+            {catMode !== "new" && (
+              <p className="text-sm text-muted-foreground">
+                Using tracked cat from this case. It will be linked to this appointment.
+              </p>
+            )}
           </div>
 
           {error && <p className="text-sm text-destructive">{error}</p>}

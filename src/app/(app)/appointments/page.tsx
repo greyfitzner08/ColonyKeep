@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { AppointmentsCalendar } from "@/components/appointments/appointments-calendar";
-import type { Appointment, Clinic } from "@/lib/types";
+import type { Appointment, Clinic, Cat } from "@/lib/types";
 
 interface AppointmentsPageProps {
   searchParams: Promise<{ caseId?: string }>;
@@ -9,9 +9,8 @@ interface AppointmentsPageProps {
 export default async function AppointmentsPage({ searchParams }: AppointmentsPageProps) {
   const params = await searchParams;
   const supabase = await createClient();
-  const today = new Date().toISOString().split("T")[0];
 
-  const [{ data: appointments }, { data: clinics }, { data: helpRequests }, linkedCaseResult] =
+  const [{ data: appointments }, { data: clinics }, { data: helpRequests }, linkedCaseResult, catsResult] =
     await Promise.all([
       supabase.from("appointments").select("*").order("date"),
       supabase.from("clinics").select("*").eq("is_active", true),
@@ -26,9 +25,13 @@ export default async function AppointmentsPage({ searchParams }: AppointmentsPag
             .eq("id", params.caseId)
             .maybeSingle()
         : Promise.resolve({ data: null }),
+      params.caseId
+        ? supabase.from("cats").select("*").eq("help_request_id", params.caseId)
+        : Promise.resolve({ data: [] }),
     ]);
 
   const linkedHelpRequest = linkedCaseResult.data ?? null;
+  const linkedCats = catsResult.data ?? [];
 
   return (
     <div className="space-y-6">
@@ -41,6 +44,7 @@ export default async function AppointmentsPage({ searchParams }: AppointmentsPag
         clinics={(clinics ?? []) as Clinic[]}
         helpRequests={helpRequests ?? []}
         linkedHelpRequest={linkedHelpRequest}
+        linkedCats={(linkedCats ?? []) as Cat[]}
       />
     </div>
   );

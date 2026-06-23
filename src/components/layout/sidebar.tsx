@@ -19,6 +19,7 @@ import {
   Menu,
   X,
   Cat,
+  BookOpen,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getRolePermissions } from "@/lib/constants";
@@ -39,6 +40,7 @@ const NAV_ITEMS = [
   { href: "/team-feed", label: "Team Feed", icon: MessageSquare },
   { href: "/team-dashboard", label: "Team Dashboard", icon: Users },
   { href: "/my-impact", label: "My Impact", icon: Heart },
+  { href: "/resources", label: "Resources", icon: BookOpen },
   { href: "/reports", label: "Reports", icon: BarChart3 },
   { href: "/admin", label: "Admin", icon: Settings },
 ];

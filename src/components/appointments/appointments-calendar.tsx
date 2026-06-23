@@ -18,7 +18,7 @@ import { Input } from "@/components/ui/input";
 import { ClaimAppointmentDialog } from "@/components/appointments/claim-appointment-dialog";
 import { APPOINTMENT_STATUS_COLORS } from "@/lib/constants";
 import { formatDate, cn } from "@/lib/utils";
-import type { Appointment, Clinic } from "@/lib/types";
+import type { Appointment, Clinic, Cat } from "@/lib/types";
 import type { HelpRequestOption } from "@/lib/cases/help-request-options";
 import { Plus, Calendar } from "lucide-react";
 
@@ -36,6 +36,7 @@ interface AppointmentsCalendarProps {
   helpRequests: HelpRequestOption[];
   /** Pre-link claims to this case (e.g. from /appointments?caseId=…) */
   linkedHelpRequest?: HelpRequestOption | null;
+  linkedCats?: Cat[];
 }
 
 export function AppointmentsCalendar({
@@ -43,11 +44,14 @@ export function AppointmentsCalendar({
   clinics,
   helpRequests,
   linkedHelpRequest = null,
+  linkedCats = [],
 }: AppointmentsCalendarProps) {
   const router = useRouter();
   const [view, setView] = useState<"month" | "list">("list");
   const [selectedClinics, setSelectedClinics] = useState<string[]>(clinics.map((c) => c.id));
   const [claimDialog, setClaimDialog] = useState<Appointment | null>(null);
+  const [unreserveId, setUnreserveId] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
   const [bulkDialog, setBulkDialog] = useState(false);
   const [bulkForm, setBulkForm] = useState({ clinic_id: "", date: "", count: 5 });
   const [bulkError, setBulkError] = useState<string | null>(null);
@@ -99,8 +103,27 @@ export function AppointmentsCalendar({
     router.refresh();
   }
 
+  async function unreserve(appointmentId: string, event: React.MouseEvent) {
+    event.stopPropagation();
+    setActionError(null);
+    setUnreserveId(appointmentId);
+    const response = await fetch("/api/appointments/unreserve", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ appointmentId }),
+    });
+    const result = await response.json().catch(() => null);
+    setUnreserveId(null);
+    if (!response.ok) {
+      setActionError(result?.error ?? "Unable to release appointment");
+      return;
+    }
+    router.refresh();
+  }
+
   return (
     <div className="space-y-4">
+      {actionError && <p className="text-sm text-destructive">{actionError}</p>}
       {linkedHelpRequest && (
         <div className="rounded-lg border bg-primary/5 px-4 py-3 text-sm">
           Reserving slots for{" "}
@@ -154,15 +177,28 @@ export function AppointmentsCalendar({
                       onClick={() => appt.status === "available" && setClaimDialog(appt)}
                     >
                       <CardContent className="pt-4">
-                        <div className="flex justify-between items-start">
+                        <div className="flex justify-between items-start gap-2">
                           <div>
                             <p className="font-medium text-sm">{appt.clinic_name}</p>
                             {appt.cat_name && <p className="text-xs text-muted-foreground">{appt.cat_name}</p>}
                             {appt.help_request_id && <p className="text-xs text-primary">Linked to case</p>}
                           </div>
-                          <Badge className={cn("text-xs", APPOINTMENT_STATUS_COLORS[appt.status])}>
-                            {appt.status}
-                          </Badge>
+                          <div className="flex flex-col items-end gap-1">
+                            <Badge className={cn("text-xs", APPOINTMENT_STATUS_COLORS[appt.status])}>
+                              {appt.status}
+                            </Badge>
+                            {appt.status === "reserved" && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-7 text-xs"
+                                disabled={unreserveId === appt.id}
+                                onClick={(e) => unreserve(appt.id, e)}
+                              >
+                                {unreserveId === appt.id ? "…" : "Un-reserve"}
+                              </Button>
+                            )}
+                          </div>
                         </div>
                       </CardContent>
                     </Card>
@@ -178,6 +214,7 @@ export function AppointmentsCalendar({
         onOpenChange={(open) => !open && setClaimDialog(null)}
         helpRequests={helpRequests}
         linkedHelpRequest={linkedHelpRequest}
+        cats={linkedCats}
       />
 
       <Dialog open={bulkDialog} onOpenChange={setBulkDialog}>

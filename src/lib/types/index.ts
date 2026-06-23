@@ -182,6 +182,7 @@ export interface Clinic {
   included_services: string[];
   packages: ClinicPackage[];
   addon_services: ClinicAddon[];
+  check_in_details: string | null;
   notes: string | null;
   is_active: boolean;
   created_at: string;
@@ -366,10 +367,23 @@ export interface PublicClinicEvent {
   updated_at: string;
 }
 
+export interface LibraryDocument {
+  id: string;
+  title: string;
+  description: string | null;
+  file_url: string;
+  view_roles: UserRole[];
+  is_active: boolean;
+  created_by_email: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface PublicBooking {
   id: string;
   event_id: string;
   status: PublicBookingStatus;
+  hold_session_id: string | null;
   expires_at: string | null;
   contact_name: string;
   contact_email: string;

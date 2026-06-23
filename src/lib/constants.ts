@@ -110,6 +110,7 @@ export const ROLE_PERMISSIONS: Record<
       "/reports",
       "/admin",
       "/clinic-events",
+      "/resources",
     ],
   },
   inquiry_team: {
@@ -122,6 +123,7 @@ export const ROLE_PERMISSIONS: Record<
       "/shift-board",
       "/team-feed",
       "/my-impact",
+      "/resources",
     ],
   },
   trap_team_lead: {
@@ -137,6 +139,7 @@ export const ROLE_PERMISSIONS: Record<
       "/team-feed",
       "/team-dashboard",
       "/my-impact",
+      "/resources",
     ],
   },
   clinic_coordination: {
@@ -151,6 +154,7 @@ export const ROLE_PERMISSIONS: Record<
       "/shift-board",
       "/team-feed",
       "/my-impact",
+      "/resources",
     ],
   },
   volunteer: {
@@ -161,6 +165,7 @@ export const ROLE_PERMISSIONS: Record<
       "/shift-board",
       "/team-feed",
       "/my-impact",
+      "/resources",
     ],
   },
 };

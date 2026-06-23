@@ -10,7 +10,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import type { Clinic } from "@/lib/types";
-import { Plus, Pencil } from "lucide-react";
+import { formatCurrency } from "@/lib/utils";
+import { Plus, Pencil, Trash2 } from "lucide-react";
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
@@ -28,6 +29,7 @@ const emptyClinic = {
   included_services: [] as string[],
   packages: [] as { name: string; price: number; services: string[] }[],
   addon_services: [] as { name: string; price: number }[],
+  check_in_details: "",
   notes: "",
   is_active: true,
 };
@@ -59,8 +61,9 @@ export function ClinicsManager({ clinics: initial }: ClinicsManagerProps) {
       slots_per_day: clinic.slots_per_day,
       slots_by_day: clinic.slots_by_day,
       included_services: clinic.included_services,
-      packages: clinic.packages,
-      addon_services: clinic.addon_services,
+      packages: clinic.packages ?? [],
+      addon_services: clinic.addon_services ?? [],
+      check_in_details: clinic.check_in_details ?? "",
       notes: clinic.notes ?? "",
       is_active: clinic.is_active,
     });
@@ -104,6 +107,20 @@ export function ClinicsManager({ clinics: initial }: ClinicsManagerProps) {
     });
   }
 
+  function addPackage() {
+    setForm({
+      ...form,
+      packages: [...form.packages, { name: "", price: 0, services: [] }],
+    });
+  }
+
+  function addAddon() {
+    setForm({
+      ...form,
+      addon_services: [...form.addon_services, { name: "", price: 0 }],
+    });
+  }
+
   return (
     <>
       <div className="flex justify-end">
@@ -134,6 +151,19 @@ export function ClinicsManager({ clinics: initial }: ClinicsManagerProps) {
               {clinic.included_services.length > 0 && (
                 <p><strong>Services:</strong> {clinic.included_services.join(", ")}</p>
               )}
+              {clinic.packages?.length > 0 && (
+                <div>
+                  <strong>Packages:</strong>
+                  <ul className="list-disc ml-4 mt-1">
+                    {clinic.packages.map((pkg, i) => (
+                      <li key={i}>{pkg.name} — {formatCurrency(pkg.price)}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {clinic.check_in_details && (
+                <p className="text-muted-foreground line-clamp-2">{clinic.check_in_details}</p>
+              )}
             </CardContent>
           </Card>
         ))}
@@ -160,6 +190,115 @@ export function ClinicsManager({ clinics: initial }: ClinicsManagerProps) {
             </div>
             <div className="space-y-2"><Label>Slots per Day</Label><Input type="number" value={form.slots_per_day} onChange={(e) => setForm({ ...form, slots_per_day: parseInt(e.target.value) || 0 })} /></div>
             <div className="space-y-2"><Label>Included Services (comma-separated)</Label><Input value={servicesInput} onChange={(e) => setServicesInput(e.target.value)} placeholder="Spay/Neuter, Rabies Vaccine, Ear Tip" /></div>
+
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label>Packages</Label>
+                <Button type="button" variant="outline" size="sm" onClick={addPackage}>Add package</Button>
+              </div>
+              {form.packages.map((pkg, index) => (
+                <div key={index} className="rounded border p-3 space-y-2">
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="Package name"
+                      value={pkg.name}
+                      onChange={(e) => {
+                        const packages = [...form.packages];
+                        packages[index] = { ...pkg, name: e.target.value };
+                        setForm({ ...form, packages });
+                      }}
+                    />
+                    <Input
+                      type="number"
+                      step="0.01"
+                      className="w-24"
+                      placeholder="Price"
+                      value={pkg.price}
+                      onChange={(e) => {
+                        const packages = [...form.packages];
+                        packages[index] = { ...pkg, price: parseFloat(e.target.value) || 0 };
+                        setForm({ ...form, packages });
+                      }}
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => setForm({ ...form, packages: form.packages.filter((_, i) => i !== index) })}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <Input
+                    placeholder="Services (comma-separated)"
+                    value={pkg.services.join(", ")}
+                    onChange={(e) => {
+                      const packages = [...form.packages];
+                      packages[index] = {
+                        ...pkg,
+                        services: e.target.value.split(",").map((s) => s.trim()).filter(Boolean),
+                      };
+                      setForm({ ...form, packages });
+                    }}
+                  />
+                </div>
+              ))}
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label>Add-on services</Label>
+                <Button type="button" variant="outline" size="sm" onClick={addAddon}>Add add-on</Button>
+              </div>
+              {form.addon_services.map((addon, index) => (
+                <div key={index} className="flex gap-2">
+                  <Input
+                    placeholder="Add-on name"
+                    value={addon.name}
+                    onChange={(e) => {
+                      const addon_services = [...form.addon_services];
+                      addon_services[index] = { ...addon, name: e.target.value };
+                      setForm({ ...form, addon_services });
+                    }}
+                  />
+                  <Input
+                    type="number"
+                    step="0.01"
+                    className="w-24"
+                    value={addon.price}
+                    onChange={(e) => {
+                      const addon_services = [...form.addon_services];
+                      addon_services[index] = { ...addon, price: parseFloat(e.target.value) || 0 };
+                      setForm({ ...form, addon_services });
+                    }}
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={() =>
+                      setForm({
+                        ...form,
+                        addon_services: form.addon_services.filter((_, i) => i !== index),
+                      })
+                    }
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+
+            <div className="space-y-2">
+              <Label>Check-in details</Label>
+              <Textarea
+                value={form.check_in_details}
+                onChange={(e) => setForm({ ...form, check_in_details: e.target.value })}
+                placeholder="Arrival time, parking, paperwork, fasting instructions…"
+                rows={4}
+              />
+            </div>
+
             <div className="space-y-2"><Label>Notes</Label><Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></div>
             {saveError && <p className="text-sm text-destructive">{saveError}</p>}
             <Button onClick={save} className="w-full" disabled={saving}>

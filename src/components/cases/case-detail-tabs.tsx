@@ -371,6 +371,7 @@ export function CaseDetailTabs({
           }}
           appointments={appointments}
           availableAppointments={availableAppointments}
+          cats={cats}
         />
       </TabsContent>
 

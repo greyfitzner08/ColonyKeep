@@ -18,6 +18,7 @@ export async function POST(request: NextRequest) {
     included_services: body.included_services ?? [],
     packages: body.packages ?? [],
     addon_services: body.addon_services ?? [],
+    check_in_details: body.check_in_details ?? null,
     notes: body.notes ?? null,
     is_active: body.is_active ?? true,
   };

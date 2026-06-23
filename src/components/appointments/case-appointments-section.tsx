@@ -1,12 +1,14 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { ClaimAppointmentDialog } from "@/components/appointments/claim-appointment-dialog";
 import { APPOINTMENT_STATUS_COLORS } from "@/lib/constants";
 import { formatDate, cn } from "@/lib/utils";
-import type { Appointment } from "@/lib/types";
+import type { Appointment, Cat } from "@/lib/types";
 import { Calendar, Plus } from "lucide-react";
 import type { HelpRequestOption } from "@/lib/cases/help-request-options";
 
@@ -14,14 +16,19 @@ interface CaseAppointmentsSectionProps {
   helpRequest: HelpRequestOption;
   appointments: Appointment[];
   availableAppointments: Appointment[];
+  cats?: Cat[];
 }
 
 export function CaseAppointmentsSection({
   helpRequest,
   appointments,
   availableAppointments,
+  cats = [],
 }: CaseAppointmentsSectionProps) {
+  const router = useRouter();
   const [claimTarget, setClaimTarget] = useState<Appointment | null>(null);
+  const [unreserveId, setUnreserveId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const grouped = availableAppointments.reduce(
     (acc, appt) => {
@@ -32,23 +39,56 @@ export function CaseAppointmentsSection({
     {} as Record<string, Appointment[]>
   );
 
+  async function unreserve(appointmentId: string) {
+    setError(null);
+    setUnreserveId(appointmentId);
+    const response = await fetch("/api/appointments/unreserve", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ appointmentId }),
+    });
+    const result = await response.json().catch(() => null);
+    setUnreserveId(null);
+
+    if (!response.ok) {
+      setError(result?.error ?? "Unable to release appointment");
+      return;
+    }
+
+    router.refresh();
+  }
+
   return (
     <div className="space-y-6">
+      {error && <p className="text-sm text-destructive">{error}</p>}
+
       {appointments.length > 0 && (
         <div className="space-y-3">
           <h3 className="text-base font-semibold">Reserved for this case</h3>
           {appointments.map((appt) => (
             <Card key={appt.id}>
-              <CardContent className="pt-6 flex justify-between items-start">
+              <CardContent className="pt-6 flex justify-between items-start gap-4">
                 <div>
                   <p className="text-lg font-semibold">{appt.clinic_name}</p>
                   <p className="text-base text-muted-foreground mt-1">
                     {formatDate(appt.date)} · {appt.cat_name ?? "No cat assigned"}
                   </p>
                 </div>
-                <Badge className={cn("text-sm", APPOINTMENT_STATUS_COLORS[appt.status])}>
-                  {appt.status}
-                </Badge>
+                <div className="flex flex-col items-end gap-2">
+                  <Badge className={cn("text-sm", APPOINTMENT_STATUS_COLORS[appt.status])}>
+                    {appt.status}
+                  </Badge>
+                  {appt.status === "reserved" && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={unreserveId === appt.id}
+                      onClick={() => unreserve(appt.id)}
+                    >
+                      {unreserveId === appt.id ? "Releasing…" : "Un-reserve"}
+                    </Button>
+                  )}
+                </div>
               </CardContent>
             </Card>
           ))}
@@ -102,6 +142,7 @@ export function CaseAppointmentsSection({
         onOpenChange={(open) => !open && setClaimTarget(null)}
         helpRequests={[]}
         linkedHelpRequest={helpRequest}
+        cats={cats}
       />
     </div>
   );
