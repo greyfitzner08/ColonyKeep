@@ -47,8 +47,11 @@ async function ensureAuthUser(
     });
 
     if (createResult.error && !isAlreadyRegisteredAuthError(createResult.error)) {
+      const createMessage =
+        createResult.error.message?.trim() ||
+        formatAuthError(createResult.error, redirectTo);
       return {
-        error: formatAuthError(inviteResult.error, redirectTo),
+        error: `Could not create volunteer login: ${createMessage}`,
       };
     }
   }
