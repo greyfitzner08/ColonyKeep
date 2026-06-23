@@ -2,14 +2,20 @@ import { Suspense } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
 import { IntakeFilters } from "@/components/cases/intake-filters";
-import { IntakeCaseGrid } from "@/components/cases/intake-case-grid";
+import { IntakeQueueView, type IntakeViewMode } from "@/components/cases/intake-queue-view";
 import { CaseImporter } from "@/components/cases/case-importer";
-import { sortCasesMedicalFirst } from "@/lib/cases/sort-cases";
 import { INTAKE_QUEUE_STATUSES } from "@/lib/cases/statuses";
+import type { IntakeSortKey } from "@/lib/cases/sort-intake-cases";
 import type { HelpRequest, HelpRequestStatus } from "@/lib/types";
 
 interface IntakePageProps {
-  searchParams: Promise<{ status?: string; team?: string; medical?: string }>;
+  searchParams: Promise<{
+    status?: string;
+    team?: string;
+    medical?: string;
+    view?: string;
+    sort?: string;
+  }>;
 }
 
 export default async function IntakePage({ searchParams }: IntakePageProps) {
@@ -40,7 +46,8 @@ export default async function IntakePage({ searchParams }: IntakePageProps) {
     );
   }
 
-  filtered = sortCasesMedicalFirst(filtered);
+  const view = (params.view === "table" ? "table" : "cards") as IntakeViewMode;
+  const sort = (params.sort ?? "date_desc") as IntakeSortKey;
 
   const canImport = profile?.role === "admin";
   const canClaim = profile?.role === "admin" || profile?.role === "inquiry_team";
@@ -58,13 +65,13 @@ export default async function IntakePage({ searchParams }: IntakePageProps) {
         <IntakeFilters teams={teams ?? []} />
       </Suspense>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        <IntakeCaseGrid
-          cases={filtered}
-          canClaim={canClaim}
-          userEmail={profile?.email ?? ""}
-        />
-      </div>
+      <IntakeQueueView
+        cases={filtered}
+        canClaim={canClaim}
+        userEmail={profile?.email ?? ""}
+        view={view}
+        sort={sort}
+      />
     </div>
   );
 }
