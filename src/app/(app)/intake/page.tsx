@@ -44,8 +44,6 @@ export default async function IntakePage({ searchParams }: IntakePageProps) {
 
   const canImport = profile?.role === "admin";
   const canClaim = profile?.role === "admin" || profile?.role === "inquiry_team";
-  const canReviewMedical =
-    profile?.role === "admin" || profile?.role === "inquiry_team";
 
   return (
     <div className="space-y-6">
@@ -64,7 +62,6 @@ export default async function IntakePage({ searchParams }: IntakePageProps) {
         <IntakeCaseGrid
           cases={filtered}
           canClaim={canClaim}
-          canReviewMedical={canReviewMedical}
           userEmail={profile?.email ?? ""}
         />
       </div>

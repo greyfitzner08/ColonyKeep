@@ -145,10 +145,11 @@ export function CaseDetailTabs({
       </TabsList>
 
       <TabsContent value="overview" className="space-y-4 mt-4">
-        {canReviewMedical && <MedicalReviewActions helpRequest={hr} />}
         <Card>
           <CardHeader><CardTitle>Case Details</CardTitle></CardHeader>
-          <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <CardContent className="space-y-4">
+            {canReviewMedical && <MedicalReviewActions helpRequest={hr} />}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Status</Label>
               <Select value={hr.status} onValueChange={(v) => updateStatus(v as HelpRequestStatus)}>
@@ -189,6 +190,7 @@ export function CaseDetailTabs({
             <div className="md:col-span-2 space-y-2"><Label>Intake Notes</Label><Textarea value={hr.intake_notes ?? ""} onChange={(e) => setHr({ ...hr, intake_notes: e.target.value })} rows={4} /></div>
             <div className="md:col-span-2">
               <Button onClick={saveOverview} disabled={saving}>{saving ? "Saving..." : "Save Changes"}</Button>
+            </div>
             </div>
           </CardContent>
         </Card>
