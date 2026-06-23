@@ -183,6 +183,7 @@ export interface Clinic {
   included_services: string[];
   packages: ClinicPackage[];
   addon_services: ClinicAddon[];
+  service_catalog: ClinicServiceOption[];
   check_in_details: string | null;
   notes: string | null;
   is_active: boolean;
@@ -199,6 +200,12 @@ export interface ClinicPackage {
 export interface ClinicAddon {
   name: string;
   price: number;
+}
+
+export interface ClinicServiceOption {
+  name: string;
+  price: number;
+  included_in_base: boolean;
 }
 
 export interface Appointment {
@@ -359,8 +366,8 @@ export interface PublicClinicEvent {
   description: string | null;
   included_services: string[];
   addon_services: ClinicAddon[];
+  service_catalog: ClinicServiceOption[];
   base_price: number;
-  cost_description: string | null;
   payment_url: string | null;
   pending_email_message: string | null;
   confirmed_email_message: string | null;
@@ -400,6 +407,7 @@ export interface PublicBooking {
   has_injuries: boolean;
   injury_details: string | null;
   selected_addons: string[];
+  addon_payments?: Record<string, boolean>;
   total_price: number;
   notes: string | null;
   created_at: string;

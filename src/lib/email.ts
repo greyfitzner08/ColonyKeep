@@ -222,9 +222,9 @@ export async function sendPublicBookingWaitlistEmail(
   cat: { cat_name?: string | null }
 ): Promise<void> {
   const html = `
-    <h1>Added to backup list</h1>
+    <h1>Added to waiting list</h1>
     <p>Hi ${name},</p>
-    <p>Your request for ${event.title} (${event.clinic_name}, ${event.date}) has been placed on our backup list for ${cat.cat_name ?? "your cat"}.</p>
+    <p>Your request for ${event.title} (${event.clinic_name}, ${event.date}) has been placed on our waiting list for ${cat.cat_name ?? "your cat"}.</p>
     <p>If a spot opens up, we will contact you by email.</p>
   `;
 
@@ -236,7 +236,7 @@ export async function sendPublicBookingWaitlistEmail(
   await resend.emails.send({
     from: FROM,
     to: email,
-    subject: `Backup list — ${event.title}`,
+    subject: `Waiting list — ${event.title}`,
     html,
   });
 }

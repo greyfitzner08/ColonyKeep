@@ -8,20 +8,44 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { ServiceCatalogEditor } from "@/components/clinics/service-catalog-editor";
 import { countOccupiedSpots } from "@/lib/clinic-events/availability";
+import {
+  defaultIncludedCatalog,
+  normalizeServiceCatalog,
+} from "@/lib/clinics/service-catalog";
 import { formatCurrency, formatDate } from "@/lib/utils";
-import type { PublicClinicEvent, PublicBooking } from "@/lib/types";
-import { Link2, Pencil, Plus } from "lucide-react";
+import type { Clinic, ClinicServiceOption, PublicClinicEvent, PublicBooking } from "@/lib/types";
+import { Copy, Link2, Pencil, Plus } from "lucide-react";
+
+type ClinicOption = Pick<Clinic, "id" | "name" | "service_catalog" | "included_services" | "addon_services">;
 
 interface ClinicEventsManagerProps {
   events: PublicClinicEvent[];
-  clinics: { id: string; name: string }[];
+  clinics: ClinicOption[];
   bookings: PublicBooking[];
 }
 
-const emptyForm = {
+interface EventForm {
+  clinic_id: string;
+  title: string;
+  date: string;
+  location: string;
+  total_spots: number;
+  description: string;
+  base_price: number;
+  payment_url: string;
+  service_catalog: ClinicServiceOption[];
+  pending_email_message: string;
+  confirmed_email_message: string;
+  is_active: boolean;
+  notes: string;
+}
+
+const emptyForm = (): EventForm => ({
   clinic_id: "",
   title: "",
   date: "",
@@ -29,14 +53,13 @@ const emptyForm = {
   total_spots: 20,
   description: "",
   base_price: 0,
-  cost_description: "",
   payment_url: "",
-  included_services: "",
+  service_catalog: defaultIncludedCatalog(),
   pending_email_message: "",
   confirmed_email_message: "",
   is_active: true,
   notes: "",
-};
+});
 
 const STATUS_VARIANT: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
   pending: "secondary",
@@ -46,21 +69,44 @@ const STATUS_VARIANT: Record<string, "default" | "secondary" | "destructive" | "
   expired: "outline",
 };
 
+const STATUS_LABEL: Record<string, string> = {
+  waitlist: "waiting list",
+};
+
+function statusLabel(status: string) {
+  return STATUS_LABEL[status] ?? status;
+}
+
 export function ClinicEventsManager({ events, clinics, bookings }: ClinicEventsManagerProps) {
   const router = useRouter();
   const [createOpen, setCreateOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<string | null>(null);
   const [editingEvent, setEditingEvent] = useState<PublicClinicEvent | null>(null);
-  const [form, setForm] = useState(emptyForm);
+  const [form, setForm] = useState<EventForm>(emptyForm());
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [emailsCopied, setEmailsCopied] = useState(false);
   const [updatingBookingId, setUpdatingBookingId] = useState<string | null>(null);
 
+  function catalogForClinic(clinicId: string): ClinicServiceOption[] {
+    const clinic = clinics.find((c) => c.id === clinicId);
+    if (!clinic) return defaultIncludedCatalog();
+    return normalizeServiceCatalog(clinic.service_catalog, clinic.included_services, clinic.addon_services);
+  }
+
   function resetForm() {
-    setForm(emptyForm);
+    setForm(emptyForm());
     setError(null);
+  }
+
+  function handleClinicChange(clinicId: string) {
+    setForm({
+      ...form,
+      clinic_id: clinicId,
+      service_catalog: catalogForClinic(clinicId),
+    });
   }
 
   async function createEvent() {
@@ -75,20 +121,9 @@ export function ClinicEventsManager({ events, clinics, bookings }: ClinicEventsM
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
+        ...form,
         clinic_id: form.clinic_id,
         clinic_name: clinic.name,
-        title: form.title,
-        date: form.date,
-        location: form.location,
-        total_spots: form.total_spots,
-        description: form.description,
-        base_price: form.base_price,
-        cost_description: form.cost_description,
-        payment_url: form.payment_url,
-        included_services: form.included_services.split(",").map((s) => s.trim()).filter(Boolean),
-        addon_services: [],
-        is_active: form.is_active,
-        notes: form.notes,
         pending_email_message: form.pending_email_message || null,
         confirmed_email_message: form.confirmed_email_message || null,
       }),
@@ -116,9 +151,12 @@ export function ClinicEventsManager({ events, clinics, bookings }: ClinicEventsM
       total_spots: event.total_spots,
       description: event.description ?? "",
       base_price: event.base_price,
-      cost_description: event.cost_description ?? "",
       payment_url: event.payment_url ?? "",
-      included_services: event.included_services.join(", "),
+      service_catalog: normalizeServiceCatalog(
+        event.service_catalog,
+        event.included_services,
+        event.addon_services
+      ),
       pending_email_message: event.pending_email_message ?? "",
       confirmed_email_message: event.confirmed_email_message ?? "",
       is_active: event.is_active,
@@ -143,20 +181,9 @@ export function ClinicEventsManager({ events, clinics, bookings }: ClinicEventsM
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         id: editingEvent.id,
+        ...form,
         clinic_id: form.clinic_id,
         clinic_name: clinic.name,
-        title: form.title,
-        date: form.date,
-        location: form.location,
-        total_spots: form.total_spots,
-        description: form.description,
-        base_price: form.base_price,
-        cost_description: form.cost_description,
-        payment_url: form.payment_url,
-        included_services: form.included_services.split(",").map((s) => s.trim()).filter(Boolean),
-        addon_services: editingEvent.addon_services,
-        is_active: form.is_active,
-        notes: form.notes,
         pending_email_message: form.pending_email_message || null,
         confirmed_email_message: form.confirmed_email_message || null,
       }),
@@ -183,6 +210,16 @@ export function ClinicEventsManager({ events, clinics, bookings }: ClinicEventsM
     });
   }
 
+  function copyAllEmails(bookingList: PublicBooking[]) {
+    const emails = [...new Set(bookingList.map((b) => b.contact_email.trim().toLowerCase()))]
+      .filter((email) => email && email !== "hold@pending.local")
+      .join(", ");
+    navigator.clipboard.writeText(emails).then(() => {
+      setEmailsCopied(true);
+      setTimeout(() => setEmailsCopied(false), 2000);
+    });
+  }
+
   async function updateBookingStatus(bookingId: string, status: PublicBooking["status"]) {
     setUpdatingBookingId(bookingId);
     setError(null);
@@ -200,6 +237,17 @@ export function ClinicEventsManager({ events, clinics, bookings }: ClinicEventsM
     router.refresh();
   }
 
+  async function toggleAddonPayment(bookingId: string, addonName: string, paid: boolean) {
+    setUpdatingBookingId(bookingId);
+    const response = await fetch("/api/clinic-events/bookings/update-payment", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ booking_id: bookingId, addon_name: addonName, paid }),
+    });
+    setUpdatingBookingId(null);
+    if (response.ok) router.refresh();
+  }
+
   const selectedEventData = events.find((e) => e.id === selectedEvent);
   const eventBookings = selectedEvent
     ? bookings.filter((b) => b.event_id === selectedEvent && b.contact_email !== "hold@pending.local")
@@ -208,34 +256,39 @@ export function ClinicEventsManager({ events, clinics, bookings }: ClinicEventsM
   const pendingBookings = eventBookings.filter((b) => b.status === "pending");
   const confirmedBookings = eventBookings.filter((b) => b.status === "confirmed");
   const waitlistBookings = eventBookings.filter((b) => b.status === "waitlist");
-  const otherBookings = eventBookings.filter((b) => !["pending", "confirmed", "waitlist"].includes(b.status));
+  const cancelledBookings = eventBookings.filter((b) => b.status === "cancelled");
+  const otherBookings = eventBookings.filter(
+    (b) => !["pending", "confirmed", "waitlist", "cancelled"].includes(b.status)
+  );
 
   const formFields = (
     <div className="space-y-3">
       <div className="space-y-1">
         <Label>Clinic</Label>
-        <Select value={form.clinic_id} onValueChange={(v) => setForm({ ...form, clinic_id: v })}>
+        <Select value={form.clinic_id} onValueChange={handleClinicChange}>
           <SelectTrigger><SelectValue placeholder="Select clinic" /></SelectTrigger>
           <SelectContent>
             {clinics.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
           </SelectContent>
         </Select>
+        <p className="text-xs text-muted-foreground">Selecting a clinic loads its service catalog — you can customize below.</p>
       </div>
       <div className="space-y-1"><Label>Title</Label><Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} /></div>
       <div className="space-y-1"><Label>Date</Label><Input type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} /></div>
       <div className="space-y-1"><Label>Location</Label><Input value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} /></div>
       <div className="space-y-1"><Label>Total Spots</Label><Input type="number" value={form.total_spots} onChange={(e) => setForm({ ...form, total_spots: parseInt(e.target.value) || 0 })} /></div>
-      <div className="space-y-1"><Label>Base Price</Label><Input type="number" step="0.01" value={form.base_price} onChange={(e) => setForm({ ...form, base_price: parseFloat(e.target.value) || 0 })} /></div>
-      <div className="space-y-1"><Label>Included Services (comma-separated)</Label><Input value={form.included_services} onChange={(e) => setForm({ ...form, included_services: e.target.value })} /></div>
+      <div className="space-y-1"><Label>Base Price (per cat)</Label><Input type="number" step="0.01" value={form.base_price} onChange={(e) => setForm({ ...form, base_price: parseFloat(e.target.value) || 0 })} /></div>
+      <ServiceCatalogEditor
+        value={form.service_catalog}
+        onChange={(service_catalog) => setForm({ ...form, service_catalog })}
+      />
       <div className="space-y-1"><Label>Payment URL</Label><Input value={form.payment_url} onChange={(e) => setForm({ ...form, payment_url: e.target.value })} /></div>
-      <div className="space-y-1"><Label>Cost description</Label><Input value={form.cost_description} onChange={(e) => setForm({ ...form, cost_description: e.target.value })} /></div>
       <div className="space-y-1"><Label>Description</Label><Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></div>
       <div className="space-y-1">
         <Label>After-signup message (shown on screen + pending email)</Label>
         <Textarea
           value={form.pending_email_message}
           onChange={(e) => setForm({ ...form, pending_email_message: e.target.value })}
-          placeholder="We received your request. Your spot is not confirmed until you receive a confirmation email from us."
           rows={3}
         />
       </div>
@@ -244,7 +297,6 @@ export function ClinicEventsManager({ events, clinics, bookings }: ClinicEventsM
         <Textarea
           value={form.confirmed_email_message}
           onChange={(e) => setForm({ ...form, confirmed_email_message: e.target.value })}
-          placeholder="Your spot is confirmed! Arrive at…"
           rows={3}
         />
       </div>
@@ -297,14 +349,7 @@ export function ClinicEventsManager({ events, clinics, bookings }: ClinicEventsM
                     Edit
                   </Button>
                   <Button variant="outline" size="sm" onClick={() => copyShareLink(event.id)}>
-                    {copiedId === event.id ? (
-                      "Copied!"
-                    ) : (
-                      <>
-                        <Link2 className="h-3.5 w-3.5 mr-1" />
-                        Share link
-                      </>
-                    )}
+                    {copiedId === event.id ? "Copied!" : (<><Link2 className="h-3.5 w-3.5 mr-1" />Share link</>)}
                   </Button>
                   <Button variant="ghost" size="sm" asChild>
                     <a href={`/clinic-booking?event=${event.id}`} target="_blank" rel="noopener noreferrer">
@@ -320,12 +365,19 @@ export function ClinicEventsManager({ events, clinics, bookings }: ClinicEventsM
 
       {selectedEvent && selectedEventData && (
         <Card>
-          <CardHeader>
-            <CardTitle>Manage bookings — {selectedEventData.title}</CardTitle>
-            <p className="text-sm text-muted-foreground">
-              Pending requests need review. Confirm to send the confirmation email and lock the spot.
-              Move to backup list if full, or cancel to release the spot.
-            </p>
+          <CardHeader className="flex flex-row items-start justify-between gap-4">
+            <div>
+              <CardTitle>Manage bookings — {selectedEventData.title}</CardTitle>
+              <p className="text-sm text-muted-foreground mt-1">
+                Confirm to approve and email. Move to waiting list if full. Cancel to release the spot.
+              </p>
+            </div>
+            {eventBookings.length > 0 && (
+              <Button variant="outline" size="sm" onClick={() => copyAllEmails(eventBookings)}>
+                <Copy className="h-3.5 w-3.5 mr-1" />
+                {emailsCopied ? "Copied!" : "Copy all emails"}
+              </Button>
+            )}
           </CardHeader>
           <CardContent className="space-y-6">
             {error && <p className="text-sm text-destructive">{error}</p>}
@@ -337,6 +389,7 @@ export function ClinicEventsManager({ events, clinics, bookings }: ClinicEventsM
               onConfirm={(id) => updateBookingStatus(id, "confirmed")}
               onWaitlist={(id) => updateBookingStatus(id, "waitlist")}
               onCancel={(id) => updateBookingStatus(id, "cancelled")}
+              onTogglePayment={toggleAddonPayment}
             />
 
             <BookingGroup
@@ -344,14 +397,24 @@ export function ClinicEventsManager({ events, clinics, bookings }: ClinicEventsM
               bookings={confirmedBookings}
               updatingId={updatingBookingId}
               onCancel={(id) => updateBookingStatus(id, "cancelled")}
+              onTogglePayment={toggleAddonPayment}
             />
 
             <BookingGroup
-              title={`Backup list (${waitlistBookings.length})`}
+              title={`Waiting list (${waitlistBookings.length})`}
               bookings={waitlistBookings}
               updatingId={updatingBookingId}
               onConfirm={(id) => updateBookingStatus(id, "confirmed")}
               onCancel={(id) => updateBookingStatus(id, "cancelled")}
+              onTogglePayment={toggleAddonPayment}
+            />
+
+            <BookingGroup
+              title={`Cancelled (${cancelledBookings.length})`}
+              bookings={cancelledBookings}
+              updatingId={updatingBookingId}
+              onWaitlist={(id) => updateBookingStatus(id, "waitlist")}
+              onTogglePayment={toggleAddonPayment}
             />
 
             {otherBookings.length > 0 && (
@@ -366,7 +429,7 @@ export function ClinicEventsManager({ events, clinics, bookings }: ClinicEventsM
       )}
 
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-h-[90vh] overflow-y-auto max-w-2xl">
           <DialogHeader><DialogTitle>Create Clinic Event</DialogTitle></DialogHeader>
           {formFields}
           <Button onClick={createEvent} className="w-full" disabled={saving}>
@@ -376,7 +439,7 @@ export function ClinicEventsManager({ events, clinics, bookings }: ClinicEventsM
       </Dialog>
 
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-h-[90vh] overflow-y-auto max-w-2xl">
           <DialogHeader><DialogTitle>Edit Clinic Event</DialogTitle></DialogHeader>
           {formFields}
           <Button onClick={updateEvent} className="w-full" disabled={saving}>
@@ -395,6 +458,7 @@ function BookingGroup({
   onConfirm,
   onWaitlist,
   onCancel,
+  onTogglePayment,
 }: {
   title: string;
   bookings: PublicBooking[];
@@ -402,6 +466,7 @@ function BookingGroup({
   onConfirm?: (id: string) => void;
   onWaitlist?: (id: string) => void;
   onCancel?: (id: string) => void;
+  onTogglePayment?: (bookingId: string, addonName: string, paid: boolean) => void;
 }) {
   if (bookings.length === 0) return null;
 
@@ -409,34 +474,61 @@ function BookingGroup({
     <div className="space-y-2">
       <h4 className="font-medium text-sm">{title}</h4>
       {bookings.map((b) => (
-        <div key={b.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-sm border rounded-lg p-3">
-          <div>
-            <p className="font-medium">{b.contact_name}</p>
-            <p className="text-muted-foreground">
-              {b.cat_name ?? "Unnamed cat"} · {b.contact_email} · {b.contact_phone}
-            </p>
-            {b.cat_colors && <p className="text-xs text-muted-foreground">{b.cat_colors}{b.cat_gender ? ` · ${b.cat_gender}` : ""}</p>}
-            {b.notes && <p className="text-xs text-muted-foreground mt-1">{b.notes}</p>}
+        <div key={b.id} className="flex flex-col gap-3 text-sm border rounded-lg p-3">
+          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+            <div>
+              <p className="font-medium">{b.contact_name}</p>
+              <p className="text-muted-foreground">
+                {b.cat_name ?? "Unnamed cat"} · {b.contact_email} · {b.contact_phone}
+              </p>
+              {b.cat_colors && (
+                <p className="text-xs text-muted-foreground">
+                  {b.cat_colors}{b.cat_gender ? ` · ${b.cat_gender}` : ""}
+                </p>
+              )}
+              {b.notes && <p className="text-xs text-muted-foreground mt-1">{b.notes}</p>}
+            </div>
+            <div className="flex flex-wrap items-center gap-2 shrink-0">
+              <Badge variant={STATUS_VARIANT[b.status] ?? "secondary"}>{statusLabel(b.status)}</Badge>
+              <span className="text-xs text-muted-foreground">{formatCurrency(b.total_price)}</span>
+              {onConfirm && (
+                <Button size="sm" disabled={updatingId === b.id} onClick={() => onConfirm(b.id)}>
+                  Confirm
+                </Button>
+              )}
+              {onWaitlist && (
+                <Button size="sm" variant="outline" disabled={updatingId === b.id} onClick={() => onWaitlist(b.id)}>
+                  Waiting list
+                </Button>
+              )}
+              {onCancel && (
+                <Button size="sm" variant="destructive" disabled={updatingId === b.id} onClick={() => onCancel(b.id)}>
+                  Cancel
+                </Button>
+              )}
+            </div>
           </div>
-          <div className="flex flex-wrap items-center gap-2 shrink-0">
-            <Badge variant={STATUS_VARIANT[b.status] ?? "secondary"}>{b.status}</Badge>
-            <span className="text-xs text-muted-foreground">{formatCurrency(b.total_price)}</span>
-            {onConfirm && (
-              <Button size="sm" disabled={updatingId === b.id} onClick={() => onConfirm(b.id)}>
-                Confirm
-              </Button>
-            )}
-            {onWaitlist && (
-              <Button size="sm" variant="outline" disabled={updatingId === b.id} onClick={() => onWaitlist(b.id)}>
-                Backup list
-              </Button>
-            )}
-            {onCancel && (
-              <Button size="sm" variant="destructive" disabled={updatingId === b.id} onClick={() => onCancel(b.id)}>
-                Cancel
-              </Button>
-            )}
-          </div>
+
+          {b.selected_addons.length > 0 && (
+            <div className="rounded-md bg-muted/50 p-3 space-y-2">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Add-on payment</p>
+              {b.selected_addons.map((addon) => {
+                const paid = b.addon_payments?.[addon] ?? false;
+                return (
+                  <div key={addon} className="flex items-center gap-2">
+                    <Checkbox
+                      checked={paid}
+                      disabled={updatingId === b.id}
+                      onCheckedChange={(checked) => onTogglePayment?.(b.id, addon, !!checked)}
+                    />
+                    <Label className="font-normal">
+                      {addon} {paid ? "· Paid" : "· Unpaid"}
+                    </Label>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       ))}
     </div>

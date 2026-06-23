@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sendPublicBookingPendingEmail } from "@/lib/email";
+import {
+  buildInitialAddonPayments,
+  calculateBookingTotal,
+  normalizeServiceCatalog,
+} from "@/lib/clinics/service-catalog";
 import { createServiceClient } from "@/lib/supabase/server";
 import type { PublicBooking, PublicClinicEvent } from "@/lib/types";
 
@@ -62,9 +67,27 @@ export async function POST(request: NextRequest) {
   const confirmExpires = new Date();
   confirmExpires.setHours(confirmExpires.getHours() + 24);
 
+  const { data: event } = await service
+    .from("public_clinic_events")
+    .select("*")
+    .eq("id", holdRows[0].event_id)
+    .single();
+
+  const eventRow = event as PublicClinicEvent | null;
+  const catalog = normalizeServiceCatalog(
+    eventRow?.service_catalog,
+    eventRow?.included_services,
+    eventRow?.addon_services
+  );
+
   for (let index = 0; index < holdRows.length; index += 1) {
     const hold = holdRows[index];
     const spot = spots[index];
+    const selectedAddons = spot.selected_addons ?? [];
+    const totalPrice = eventRow
+      ? calculateBookingTotal(eventRow.base_price, catalog, selectedAddons)
+      : spot.total_price ?? 0;
+
     const { error } = await service
       .from("public_bookings")
       .update({
@@ -77,9 +100,10 @@ export async function POST(request: NextRequest) {
         cat_gender: spot.cat_gender ?? null,
         has_injuries: spot.has_injuries ?? false,
         injury_details: spot.injury_details ?? null,
-        selected_addons: spot.selected_addons ?? [],
+        selected_addons: selectedAddons,
+        addon_payments: buildInitialAddonPayments(selectedAddons),
         notes: spot.notes ?? null,
-        total_price: spot.total_price ?? 0,
+        total_price: totalPrice,
         expires_at: confirmExpires.toISOString(),
         hold_session_id: null,
         status: "pending",
@@ -92,14 +116,8 @@ export async function POST(request: NextRequest) {
   }
 
   const contact = spots[0];
-  const { data: event } = await service
-    .from("public_clinic_events")
-    .select("*")
-    .eq("id", holdRows[0].event_id)
-    .single();
 
-  if (event && contact) {
-    const eventRow = event as PublicClinicEvent;
+  if (eventRow && contact) {
     try {
       await sendPublicBookingPendingEmail(
         contact.contact_email,
@@ -113,7 +131,9 @@ export async function POST(request: NextRequest) {
         },
         spots.map((spot) => ({
           cat_name: spot.cat_name,
-          total_price: spot.total_price ?? 0,
+          total_price: eventRow
+            ? calculateBookingTotal(eventRow.base_price, catalog, spot.selected_addons ?? [])
+            : spot.total_price ?? 0,
         }))
       );
     } catch (emailError) {

@@ -11,6 +11,11 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { EventDetailsSummary } from "@/components/clinics/event-details-summary";
+import {
+  calculateBookingTotal,
+  getAddonOptions,
+  normalizeServiceCatalog,
+} from "@/lib/clinics/service-catalog";
 import type { PublicClinicEvent } from "@/lib/types";
 import { formatCurrency } from "@/lib/utils";
 import Link from "next/link";
@@ -117,14 +122,21 @@ function ClinicBookingContent() {
     };
   }, [holdSessionId, submitted, releaseHold]);
 
+  function getEventCatalog(event: PublicClinicEvent) {
+    return normalizeServiceCatalog(
+      event.service_catalog,
+      event.included_services,
+      event.addon_services
+    );
+  }
+
   function calculateSpotTotal(spot: SpotForm): number {
     if (!selectedEvent) return 0;
-    let total = selectedEvent.base_price;
-    for (const addon of spot.selected_addons) {
-      const addonService = selectedEvent.addon_services.find((a) => a.name === addon);
-      if (addonService) total += addonService.price;
-    }
-    return total;
+    return calculateBookingTotal(
+      selectedEvent.base_price,
+      getEventCatalog(selectedEvent),
+      spot.selected_addons
+    );
   }
 
   function calculateGrandTotal(): number {
@@ -387,25 +399,29 @@ function ClinicBookingContent() {
                     {spot.has_injuries && (
                       <div className="space-y-2"><Label>Injury details</Label><Textarea value={spot.injury_details} onChange={(e) => { const next = [...spots]; next[index] = { ...spot, injury_details: e.target.value }; setSpots(next); }} /></div>
                     )}
-                    {selectedEvent.addon_services.length > 0 && (
+                    {selectedEvent && getAddonOptions(getEventCatalog(selectedEvent)).length > 0 && (
                       <div className="space-y-3">
                         <Label>Optional add-on services</Label>
-                        {selectedEvent.addon_services.map((addon) => (
-                          <div key={addon.name} className="flex items-center gap-2">
-                            <Checkbox
-                              checked={spot.selected_addons.includes(addon.name)}
-                              onCheckedChange={(v) => {
-                                const next = [...spots];
-                                next[index] = {
-                                  ...spot,
-                                  selected_addons: v
-                                    ? [...spot.selected_addons, addon.name]
-                                    : spot.selected_addons.filter((a) => a !== addon.name),
-                                };
-                                setSpots(next);
-                              }}
-                            />
-                            <Label>{addon.name} — {formatCurrency(addon.price)}</Label>
+                        <p className="text-xs text-muted-foreground">Select any extras you want for this cat.</p>
+                        {getAddonOptions(getEventCatalog(selectedEvent)).map((addon) => (
+                          <div key={addon.name} className="flex items-center justify-between gap-3 rounded-md border px-3 py-2">
+                            <div className="flex items-center gap-2">
+                              <Checkbox
+                                checked={spot.selected_addons.includes(addon.name)}
+                                onCheckedChange={(v) => {
+                                  const next = [...spots];
+                                  next[index] = {
+                                    ...spot,
+                                    selected_addons: v
+                                      ? [...spot.selected_addons, addon.name]
+                                      : spot.selected_addons.filter((a) => a !== addon.name),
+                                  };
+                                  setSpots(next);
+                                }}
+                              />
+                              <Label className="font-normal">{addon.name}</Label>
+                            </div>
+                            <span className="text-sm font-medium">{formatCurrency(addon.price)}</span>
                           </div>
                         ))}
                       </div>
@@ -419,9 +435,9 @@ function ClinicBookingContent() {
                   <>
                     <div className="rounded-lg bg-muted p-4">
                       <p className="font-semibold">Estimated grand total: {formatCurrency(calculateGrandTotal())}</p>
-                      {selectedEvent.cost_description && (
-                        <p className="text-sm text-muted-foreground mt-1">{selectedEvent.cost_description}</p>
-                      )}
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Base price plus any selected add-ons. Payment may be collected separately.
+                      </p>
                     </div>
                     <div
                       role="alert"

@@ -7,7 +7,7 @@ export default async function ClinicEventsPage() {
 
   const [{ data: events }, { data: clinics }, { data: bookings }] = await Promise.all([
     supabase.from("public_clinic_events").select("*").order("date", { ascending: false }),
-    supabase.from("clinics").select("id, name").eq("is_active", true),
+    supabase.from("clinics").select("id, name, service_catalog, included_services, addon_services").eq("is_active", true),
     supabase.from("public_bookings").select("*"),
   ]);
 
@@ -19,7 +19,7 @@ export default async function ClinicEventsPage() {
       </div>
       <ClinicEventsManager
         events={(events ?? []) as PublicClinicEvent[]}
-        clinics={clinics ?? []}
+        clinics={(clinics ?? []) as Pick<Clinic, "id" | "name" | "service_catalog" | "included_services" | "addon_services">[]}
         bookings={(bookings ?? []) as PublicBooking[]}
       />
     </div>

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { availableSpots } from "@/lib/clinic-events/availability";
 import { createServiceClient } from "@/lib/supabase/server";
 import type { PublicBooking, PublicClinicEvent } from "@/lib/types";
+import { normalizeServiceCatalog } from "@/lib/clinics/service-catalog";
 
 function normalizeEvents(
   rows: Array<Record<string, unknown>>
@@ -9,9 +10,15 @@ function normalizeEvents(
   return rows.map((row) => {
     const clinics = row.clinics as { check_in_details?: string | null } | null;
     const { clinics: _clinics, ...event } = row;
+    const typed = event as unknown as PublicClinicEvent;
     return {
-      ...(event as unknown as PublicClinicEvent),
+      ...typed,
       check_in_details: clinics?.check_in_details ?? null,
+      service_catalog: normalizeServiceCatalog(
+        typed.service_catalog,
+        typed.included_services,
+        typed.addon_services
+      ),
     };
   });
 }

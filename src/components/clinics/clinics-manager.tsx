@@ -9,7 +9,13 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import type { Clinic } from "@/lib/types";
+import { ServiceCatalogEditor } from "@/components/clinics/service-catalog-editor";
+import { ServiceCatalogDisplay } from "@/components/clinics/service-catalog-display";
+import {
+  defaultIncludedCatalog,
+  normalizeServiceCatalog,
+} from "@/lib/clinics/service-catalog";
+import type { Clinic, ClinicServiceOption } from "@/lib/types";
 import { formatCurrency } from "@/lib/utils";
 import { Plus, Pencil, Trash2 } from "lucide-react";
 
@@ -26,9 +32,8 @@ const emptyClinic = {
   operating_days: [] as string[],
   slots_per_day: 10,
   slots_by_day: {} as Record<string, number>,
-  included_services: [] as string[],
+  service_catalog: defaultIncludedCatalog() as ClinicServiceOption[],
   packages: [] as { name: string; price: number; services: string[] }[],
-  addon_services: [] as { name: string; price: number }[],
   check_in_details: "",
   notes: "",
   is_active: true,
@@ -39,14 +44,12 @@ export function ClinicsManager({ clinics: initial }: ClinicsManagerProps) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Clinic | null>(null);
   const [form, setForm] = useState(emptyClinic);
-  const [servicesInput, setServicesInput] = useState("");
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   function openNew() {
     setEditing(null);
     setForm(emptyClinic);
-    setServicesInput("");
     setSaveError(null);
     setDialogOpen(true);
   }
@@ -60,14 +63,16 @@ export function ClinicsManager({ clinics: initial }: ClinicsManagerProps) {
       operating_days: clinic.operating_days,
       slots_per_day: clinic.slots_per_day,
       slots_by_day: clinic.slots_by_day,
-      included_services: clinic.included_services,
+      service_catalog: normalizeServiceCatalog(
+        clinic.service_catalog,
+        clinic.included_services,
+        clinic.addon_services
+      ),
       packages: clinic.packages ?? [],
-      addon_services: clinic.addon_services ?? [],
       check_in_details: clinic.check_in_details ?? "",
       notes: clinic.notes ?? "",
       is_active: clinic.is_active,
     });
-    setServicesInput(clinic.included_services.join(", "));
     setSaveError(null);
     setDialogOpen(true);
   }
@@ -76,7 +81,6 @@ export function ClinicsManager({ clinics: initial }: ClinicsManagerProps) {
     const payload = {
       id: editing?.id,
       ...form,
-      included_services: servicesInput.split(",").map((s) => s.trim()).filter(Boolean),
     };
 
     setSaveError(null);
@@ -114,13 +118,6 @@ export function ClinicsManager({ clinics: initial }: ClinicsManagerProps) {
     });
   }
 
-  function addAddon() {
-    setForm({
-      ...form,
-      addon_services: [...form.addon_services, { name: "", price: 0 }],
-    });
-  }
-
   return (
     <>
       <div className="flex justify-end">
@@ -144,23 +141,16 @@ export function ClinicsManager({ clinics: initial }: ClinicsManagerProps) {
                 </Button>
               </div>
             </CardHeader>
-            <CardContent className="text-sm space-y-2">
+            <CardContent className="text-sm space-y-3">
               <p>{clinic.phone}</p>
               <p><strong>Days:</strong> {clinic.operating_days.join(", ") || "Not set"}</p>
               <p><strong>Slots/day:</strong> {clinic.slots_per_day}</p>
-              {clinic.included_services.length > 0 && (
-                <p><strong>Services:</strong> {clinic.included_services.join(", ")}</p>
-              )}
-              {clinic.packages?.length > 0 && (
-                <div>
-                  <strong>Packages:</strong>
-                  <ul className="list-disc ml-4 mt-1">
-                    {clinic.packages.map((pkg, i) => (
-                      <li key={i}>{pkg.name} — {formatCurrency(pkg.price)}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
+              <ServiceCatalogDisplay
+                catalog={clinic.service_catalog ?? []}
+                legacyIncluded={clinic.included_services}
+                legacyAddons={clinic.addon_services}
+                compact
+              />
               {clinic.check_in_details && (
                 <p className="text-muted-foreground line-clamp-2">{clinic.check_in_details}</p>
               )}
@@ -189,7 +179,11 @@ export function ClinicsManager({ clinics: initial }: ClinicsManagerProps) {
               </div>
             </div>
             <div className="space-y-2"><Label>Slots per Day</Label><Input type="number" value={form.slots_per_day} onChange={(e) => setForm({ ...form, slots_per_day: parseInt(e.target.value) || 0 })} /></div>
-            <div className="space-y-2"><Label>Included Services (comma-separated)</Label><Input value={servicesInput} onChange={(e) => setServicesInput(e.target.value)} placeholder="Spay/Neuter, Rabies Vaccine, Ear Tip" /></div>
+
+            <ServiceCatalogEditor
+              value={form.service_catalog}
+              onChange={(service_catalog) => setForm({ ...form, service_catalog })}
+            />
 
             <div className="space-y-2">
               <div className="flex items-center justify-between">
@@ -241,50 +235,6 @@ export function ClinicsManager({ clinics: initial }: ClinicsManagerProps) {
                       setForm({ ...form, packages });
                     }}
                   />
-                </div>
-              ))}
-            </div>
-
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label>Add-on services</Label>
-                <Button type="button" variant="outline" size="sm" onClick={addAddon}>Add add-on</Button>
-              </div>
-              {form.addon_services.map((addon, index) => (
-                <div key={index} className="flex gap-2">
-                  <Input
-                    placeholder="Add-on name"
-                    value={addon.name}
-                    onChange={(e) => {
-                      const addon_services = [...form.addon_services];
-                      addon_services[index] = { ...addon, name: e.target.value };
-                      setForm({ ...form, addon_services });
-                    }}
-                  />
-                  <Input
-                    type="number"
-                    step="0.01"
-                    className="w-24"
-                    value={addon.price}
-                    onChange={(e) => {
-                      const addon_services = [...form.addon_services];
-                      addon_services[index] = { ...addon, price: parseFloat(e.target.value) || 0 };
-                      setForm({ ...form, addon_services });
-                    }}
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    onClick={() =>
-                      setForm({
-                        ...form,
-                        addon_services: form.addon_services.filter((_, i) => i !== index),
-                      })
-                    }
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
                 </div>
               ))}
             </div>
