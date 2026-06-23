@@ -6,8 +6,16 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { createClient } from "@/lib/supabase/client";
 import { findTrapTeamForZip } from "@/lib/cases/assign-team-by-zip";
 import { detectMedicalKeywords, mergeMedicalFlags } from "@/lib/medical-flags";
@@ -15,6 +23,7 @@ import { formatDateTime } from "@/lib/utils";
 import type { HelpRequest, Cat, Appointment, FollowUpEntry, UserRole } from "@/lib/types";
 import { CaseColonyInfoSection } from "@/components/cases/case-colony-info-section";
 import { CaseIntakeSection } from "@/components/cases/case-intake-section";
+import { DetailField } from "@/components/cases/case-detail-fields";
 import { Plus } from "lucide-react";
 
 interface CaseDetailTabsProps {
@@ -27,11 +36,22 @@ interface CaseDetailTabsProps {
   canReviewMedical: boolean;
 }
 
+const EMPTY_CAT = {
+  name: "",
+  gender: "",
+  colors: "",
+  microchip_id: "",
+  clinic_id: "",
+  clinic_name: "",
+  medical_notes: "",
+};
+
 export function CaseDetailTabs({
   helpRequest: initial,
   cats: initialCats,
   appointments,
   teams,
+  clinics,
   userRole,
   canReviewMedical,
 }: CaseDetailTabsProps) {
@@ -39,8 +59,11 @@ export function CaseDetailTabs({
   const [hr, setHr] = useState(initial);
   const [cats, setCats] = useState(initialCats);
   const [saving, setSaving] = useState(false);
-  const [newCat, setNewCat] = useState({ name: "", gender: "", colors: "", breed: "" });
+  const [routing, setRouting] = useState(false);
+  const [newCat, setNewCat] = useState(EMPTY_CAT);
   const [followUpNote, setFollowUpNote] = useState("");
+
+  const canRouteToTrap = userRole === "admin" || userRole === "inquiry_team";
 
   function withTeamAssignment(next: HelpRequest): HelpRequest {
     const match = findTrapTeamForZip(next.colony_zip, teams);
@@ -85,6 +108,30 @@ export function CaseDetailTabs({
     setSaving(false);
   }
 
+  async function routeToTrap() {
+    setRouting(true);
+    const response = await fetch("/api/help-requests/route-to-trap", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ helpRequestId: hr.id }),
+    });
+    const result = await response.json().catch(() => null);
+    setRouting(false);
+
+    if (!response.ok) {
+      alert(result?.error ?? "Could not route case to trap team");
+      return;
+    }
+
+    setHr({
+      ...hr,
+      status: "routed_to_trap_team",
+      assigned_team_id: result.assignedTeamId ?? hr.assigned_team_id,
+      assigned_team_name: result.assignedTeamName ?? hr.assigned_team_name,
+    });
+    router.refresh();
+  }
+
   async function addFollowUp() {
     if (!followUpNote.trim()) return;
     const supabase = createClient();
@@ -106,12 +153,21 @@ export function CaseDetailTabs({
     const supabase = createClient();
     const { data } = await supabase
       .from("cats")
-      .insert({ help_request_id: hr.id, ...newCat })
+      .insert({
+        help_request_id: hr.id,
+        name: newCat.name || null,
+        gender: newCat.gender || null,
+        colors: newCat.colors || null,
+        microchip_id: newCat.microchip_id || null,
+        clinic_id: newCat.clinic_id || null,
+        clinic_name: newCat.clinic_name || null,
+        medical_notes: newCat.medical_notes || null,
+      })
       .select()
       .single();
     if (data) {
       setCats([...cats, data as Cat]);
-      setNewCat({ name: "", gender: "", colors: "", breed: "" });
+      setNewCat(EMPTY_CAT);
     }
   }
 
@@ -132,7 +188,7 @@ export function CaseDetailTabs({
 
   return (
     <Tabs defaultValue="colony">
-      <TabsList className="flex-wrap h-auto">
+      <TabsList className="flex-wrap h-auto text-base">
         <TabsTrigger value="colony">Colony & Reporter</TabsTrigger>
         <TabsTrigger value="intake">Intake Team</TabsTrigger>
         <TabsTrigger value="cats">Tracked Cats ({cats.length})</TabsTrigger>
@@ -150,12 +206,15 @@ export function CaseDetailTabs({
           teams={teams}
           userRole={userRole}
           canReviewMedical={canReviewMedical}
+          canRouteToTrap={canRouteToTrap}
           saving={saving}
+          routing={routing}
           followUpNote={followUpNote}
           onFollowUpNoteChange={setFollowUpNote}
           onAddFollowUp={addFollowUp}
           onChange={setHr}
           onSave={saveIntake}
+          onRouteToTrap={routeToTrap}
           onCloseCase={closeCase}
         />
       </TabsContent>
@@ -163,24 +222,40 @@ export function CaseDetailTabs({
       <TabsContent value="cats" className="space-y-4 mt-4">
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Colony Summary</CardTitle>
+            <CardTitle className="text-lg">Colony Summary</CardTitle>
           </CardHeader>
           <CardContent className="flex flex-wrap gap-2">
-            <Badge variant="secondary">{hr.cats_over_8_weeks} adults (8+ weeks)</Badge>
-            <Badge variant="secondary">{hr.kittens_under_8_weeks} kittens (&lt;8 weeks)</Badge>
+            <Badge variant="secondary" className="text-sm">
+              {hr.cats_over_8_weeks} adults (8+ weeks)
+            </Badge>
+            <Badge variant="secondary" className="text-sm">
+              {hr.kittens_under_8_weeks} kittens (&lt;8 weeks)
+            </Badge>
             {hr.pregnant_count > 0 && (
-              <Badge variant="secondary">{hr.pregnant_count} suspected pregnant</Badge>
+              <Badge variant="secondary" className="text-sm">
+                {hr.pregnant_count} suspected pregnant
+              </Badge>
             )}
           </CardContent>
         </Card>
+
         {cats.map((cat) => (
           <Card key={cat.id}>
-            <CardContent className="pt-4">
-              <p className="font-medium">{cat.name || "Unnamed cat"}</p>
-              <p className="text-sm text-muted-foreground">
-                {cat.colors} · {cat.gender} · {cat.breed}
+            <CardContent className="pt-6">
+              <p className="text-lg font-semibold">{cat.name || "Unnamed cat"}</p>
+              <p className="text-base text-muted-foreground mt-1">
+                {[cat.colors, cat.gender].filter(Boolean).join(" · ") || "—"}
               </p>
-              <div className="flex gap-2 mt-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
+                <DetailField alwaysShow label="Microchip ID" value={cat.microchip_id} />
+                <DetailField alwaysShow label="Clinic" value={cat.clinic_name} />
+                {cat.medical_notes && (
+                  <div className="sm:col-span-2">
+                    <DetailField alwaysShow label="Medical Notes" value={cat.medical_notes} />
+                  </div>
+                )}
+              </div>
+              <div className="flex flex-wrap gap-2 mt-4">
                 {cat.trapped_status && (
                   <Badge variant="secondary">Trapped: {cat.trapped_status}</Badge>
                 )}
@@ -194,32 +269,85 @@ export function CaseDetailTabs({
             </CardContent>
           </Card>
         ))}
+
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Add Tracked Cat</CardTitle>
+            <CardTitle className="text-lg">Add Tracked Cat</CardTitle>
           </CardHeader>
-          <CardContent className="grid grid-cols-2 gap-3">
-            <Input
-              placeholder="Name"
-              value={newCat.name}
-              onChange={(e) => setNewCat({ ...newCat, name: e.target.value })}
-            />
-            <Input
-              placeholder="Gender"
-              value={newCat.gender}
-              onChange={(e) => setNewCat({ ...newCat, gender: e.target.value })}
-            />
-            <Input
-              placeholder="Colors"
-              value={newCat.colors}
-              onChange={(e) => setNewCat({ ...newCat, colors: e.target.value })}
-            />
-            <Input
-              placeholder="Breed"
-              value={newCat.breed}
-              onChange={(e) => setNewCat({ ...newCat, breed: e.target.value })}
-            />
-            <Button onClick={addCat} className="col-span-2">
+          <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Name / Description</Label>
+              <Input
+                className="text-base"
+                placeholder="e.g. Orange tabby male"
+                value={newCat.name}
+                onChange={(e) => setNewCat({ ...newCat, name: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Gender</Label>
+              <Input
+                className="text-base"
+                placeholder="Male / Female"
+                value={newCat.gender}
+                onChange={(e) => setNewCat({ ...newCat, gender: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Colors / Markings</Label>
+              <Input
+                className="text-base"
+                placeholder="Colors"
+                value={newCat.colors}
+                onChange={(e) => setNewCat({ ...newCat, colors: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Microchip ID #</Label>
+              <Input
+                className="text-base"
+                placeholder="Microchip number"
+                value={newCat.microchip_id}
+                onChange={(e) => setNewCat({ ...newCat, microchip_id: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2 sm:col-span-2">
+              <Label className="text-sm font-medium">Clinic</Label>
+              <Select
+                value={newCat.clinic_id || "none"}
+                onValueChange={(v) => {
+                  const clinic = clinics.find((c) => c.id === v);
+                  setNewCat({
+                    ...newCat,
+                    clinic_id: v === "none" ? "" : v,
+                    clinic_name: clinic?.name ?? "",
+                  });
+                }}
+              >
+                <SelectTrigger className="text-base">
+                  <SelectValue placeholder="Select clinic" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Not yet assigned</SelectItem>
+                  {clinics.map((clinic) => (
+                    <SelectItem key={clinic.id} value={clinic.id}>
+                      {clinic.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2 sm:col-span-2">
+              <Label className="text-sm font-medium">Medical Notes</Label>
+              <Textarea
+                className="text-base"
+                placeholder="Injuries, illness, special handling..."
+                value={newCat.medical_notes}
+                onChange={(e) => setNewCat({ ...newCat, medical_notes: e.target.value })}
+                rows={3}
+              />
+            </div>
+            <Button onClick={addCat} className="sm:col-span-2">
               <Plus className="h-4 w-4 mr-2" />
               Add Cat
             </Button>
@@ -229,7 +357,7 @@ export function CaseDetailTabs({
 
       <TabsContent value="appointments" className="space-y-4 mt-4">
         {appointments.length === 0 ? (
-          <p className="text-muted-foreground">
+          <p className="text-base text-muted-foreground">
             No appointments linked to this case. Reserve slots from the{" "}
             <a href="/appointments" className="text-primary underline">
               Appointments calendar
@@ -239,26 +367,26 @@ export function CaseDetailTabs({
         ) : (
           appointments.map((appt) => (
             <Card key={appt.id}>
-              <CardContent className="pt-4 flex justify-between">
+              <CardContent className="pt-6 flex justify-between items-start">
                 <div>
-                  <p className="font-medium">{appt.clinic_name}</p>
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-lg font-semibold">{appt.clinic_name}</p>
+                  <p className="text-base text-muted-foreground mt-1">
                     {appt.date} · {appt.cat_name ?? "No cat assigned"}
                   </p>
                 </div>
-                <Badge>{appt.status}</Badge>
+                <Badge className="text-sm">{appt.status}</Badge>
               </CardContent>
             </Card>
           ))
         )}
       </TabsContent>
 
-      <TabsContent value="history" className="space-y-2 mt-4">
+      <TabsContent value="history" className="space-y-3 mt-4">
         {(hr.history_log ?? []).length === 0 ? (
-          <p className="text-sm text-muted-foreground">No history entries yet.</p>
+          <p className="text-base text-muted-foreground">No history entries yet.</p>
         ) : (
           (hr.history_log ?? []).slice().reverse().map((entry, i) => (
-            <div key={i} className="text-sm border-b pb-2">
+            <div key={i} className="text-base border-b pb-3">
               <span className="text-muted-foreground">{formatDateTime(entry.timestamp)}</span>
               <span className="mx-2">·</span>
               <span>{entry.details ?? entry.action}</span>

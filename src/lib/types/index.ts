@@ -232,6 +232,8 @@ export interface Cat {
   gender: string | null;
   colors: string | null;
   breed: string | null;
+  microchip_id: string | null;
+  medical_notes: string | null;
   description: string | null;
   estimated_status: string | null;
   trapped_status: string | null;

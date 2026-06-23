@@ -16,9 +16,9 @@ export function DetailField({ label, value, alwaysShow }: DetailFieldProps) {
   if (!alwaysShow && (value === null || value === undefined || value === "")) return null;
 
   return (
-    <div className="space-y-1">
-      <p className="text-xs font-medium text-muted-foreground">{label}</p>
-      <p className="text-sm whitespace-pre-wrap">{displayValue(value)}</p>
+    <div className="space-y-1.5">
+      <p className="text-sm font-medium text-muted-foreground">{label}</p>
+      <p className="text-base leading-relaxed whitespace-pre-wrap">{displayValue(value)}</p>
     </div>
   );
 }
@@ -31,10 +31,10 @@ export function DetailSection({
   children: ReactNode;
 }) {
   return (
-    <div className="space-y-3">
-      <h3 className="text-sm font-semibold tracking-tight">{title}</h3>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-4">{children}</div>
-    </div>
+    <section className="space-y-4">
+      <h3 className="text-lg font-semibold tracking-tight border-b pb-2">{title}</h3>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-5">{children}</div>
+    </section>
   );
 }
 

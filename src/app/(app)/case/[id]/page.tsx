@@ -55,30 +55,32 @@ export default async function CasePage({ params }: CasePageProps) {
             </Badge>
           )}
         </div>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 text-sm">
-          <div className="rounded-lg border p-3 space-y-1">
-            <p className="text-xs font-medium text-muted-foreground">Contact</p>
-            <p className="font-medium">{hr.contact_name || "—"}</p>
-            <p>{hr.contact_email || "—"}</p>
-            <p>{hr.contact_phone || "—"}</p>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="rounded-lg border p-4 space-y-1.5">
+            <p className="text-sm font-medium text-muted-foreground">Contact</p>
+            <p className="text-base font-semibold">{hr.contact_name || "—"}</p>
+            <p className="text-base">{hr.contact_email || "—"}</p>
+            <p className="text-base">{hr.contact_phone || "—"}</p>
           </div>
-          <div className="rounded-lg border p-3 space-y-1">
-            <p className="text-xs font-medium text-muted-foreground">Colony Location</p>
-            <p className="font-medium">{hr.colony_address || "—"}</p>
-            <p>
+          <div className="rounded-lg border p-4 space-y-1.5">
+            <p className="text-sm font-medium text-muted-foreground">Colony Location</p>
+            <p className="text-base font-semibold">{hr.colony_address || "—"}</p>
+            <p className="text-base">
               {[hr.colony_city, hr.colony_state, hr.colony_zip].filter(Boolean).join(", ") || "—"}
             </p>
-            {hr.colony_county && <p className="text-muted-foreground">{hr.colony_county} County</p>}
+            {hr.colony_county && (
+              <p className="text-base text-muted-foreground">{hr.colony_county} County</p>
+            )}
           </div>
-          <div className="rounded-lg border p-3 space-y-1">
-            <p className="text-xs font-medium text-muted-foreground">Colony Cats</p>
-            <p>
+          <div className="rounded-lg border p-4 space-y-1.5">
+            <p className="text-sm font-medium text-muted-foreground">Colony Cats</p>
+            <p className="text-base">
               {hr.cats_over_8_weeks} adult{hr.cats_over_8_weeks !== 1 ? "s" : ""},{" "}
               {hr.kittens_under_8_weeks} kitten{hr.kittens_under_8_weeks !== 1 ? "s" : ""}
               {hr.pregnant_count > 0 ? `, ${hr.pregnant_count} suspected pregnant` : ""}
             </p>
             {hr.assigned_team_name && (
-              <p className="text-muted-foreground">Team: {hr.assigned_team_name}</p>
+              <p className="text-base text-muted-foreground">Team: {hr.assigned_team_name}</p>
             )}
           </div>
         </div>
