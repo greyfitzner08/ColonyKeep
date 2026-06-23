@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { CaseCard } from "@/components/cases/case-card";
+import { CaseQueueView } from "@/components/cases/case-queue-view";
 import type { HelpRequest } from "@/lib/types";
 import { Inbox } from "lucide-react";
 
@@ -15,6 +15,8 @@ interface MyCasesSectionProps {
   showClaimHint?: boolean;
   hintHref?: string;
   hintLabel?: string;
+  canClaim?: boolean;
+  userEmail?: string;
 }
 
 export function MyCasesSection({
@@ -25,6 +27,8 @@ export function MyCasesSection({
   showClaimHint = false,
   hintHref = "/intake",
   hintLabel = "Go to intake queue",
+  canClaim = false,
+  userEmail = "",
 }: MyCasesSectionProps) {
   return (
     <Card>
@@ -46,11 +50,12 @@ export function MyCasesSection({
             )}
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {cases.map((helpRequest) => (
-              <CaseCard key={helpRequest.id} helpRequest={helpRequest} />
-            ))}
-          </div>
+          <CaseQueueView
+            cases={cases}
+            canClaim={canClaim}
+            userEmail={userEmail}
+            showControls
+          />
         )}
       </CardContent>
     </Card>

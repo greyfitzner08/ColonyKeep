@@ -61,7 +61,7 @@ export default async function IntakePage({ searchParams }: IntakePageProps) {
 
       {canImport && <CaseImporter />}
 
-      <Suspense fallback={<div className="h-10 animate-pulse rounded-md bg-muted" />}>
+      <Suspense fallback={<div className="h-24 animate-pulse rounded-lg bg-muted" />}>
         <IntakeFilters teams={teams ?? []} />
       </Suspense>
 

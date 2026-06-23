@@ -14,6 +14,26 @@ export function CaseImporter() {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const [backfilling, setBackfilling] = useState(false);
+
+  async function backfillTeams() {
+    setBackfilling(true);
+    setMessage(null);
+    setError(null);
+
+    const response = await fetch("/api/help-requests/backfill-teams", { method: "POST" });
+    const result = await response.json().catch(() => null);
+    setBackfilling(false);
+
+    if (!response.ok) {
+      setError(result?.error ?? "Team backfill failed");
+      return;
+    }
+
+    setMessage(`Assigned ${result.updated} unassigned case(s) to trap teams by colony ZIP.`);
+    router.refresh();
+  }
+
   async function importRows(csvText: string) {
     setImporting(true);
     setMessage(null);
@@ -98,6 +118,9 @@ export function CaseImporter() {
         </Button>
         <Button variant="ghost" size="sm" onClick={downloadTemplate}>
           Download template
+        </Button>
+        <Button variant="ghost" size="sm" disabled={backfilling} onClick={backfillTeams}>
+          {backfilling ? "Assigning teams..." : "Assign teams by ZIP"}
         </Button>
         {message && <p className="text-sm text-green-700 w-full">{message}</p>}
         {error && <p className="text-sm text-destructive w-full">{error}</p>}

@@ -49,6 +49,7 @@ export function CaseCard({ helpRequest: hr, claim }: CaseCardProps) {
           </div>
         </CardHeader>
         <CardContent className="space-y-2 text-sm">
+          <p className="font-medium">{hr.contact_name}</p>
           <div className="flex items-center gap-1 text-muted-foreground">
             <MapPin className="h-3.5 w-3.5 shrink-0" />
             <span>

@@ -168,6 +168,8 @@ export default async function DashboardPage() {
             cases={myCases}
             emptyMessage="You have not claimed any open cases yet."
             showClaimHint
+            canClaim
+            userEmail={email}
           />
         </>
       )}
@@ -185,6 +187,8 @@ export default async function DashboardPage() {
           showClaimHint
           hintHref="/trap-queue"
           hintLabel="Open trap queue"
+          canClaim={TRAP_ROLES.has(role!)}
+          userEmail={email}
         />
       )}
 

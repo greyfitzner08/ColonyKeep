@@ -1,13 +1,11 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { LayoutGrid, Table2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { CaseQueueControls } from "@/components/cases/case-queue-controls";
 import { getStatusOptionsForRole } from "@/lib/cases/statuses";
-import { INTAKE_SORT_OPTIONS, type IntakeSortKey } from "@/lib/cases/sort-intake-cases";
-import type { IntakeViewMode } from "@/components/cases/intake-queue-view";
-import { cn } from "@/lib/utils";
+import type { IntakeSortKey } from "@/lib/cases/sort-intake-cases";
+import type { CaseViewMode } from "@/components/cases/case-queue-view";
 
 interface IntakeFiltersProps {
   teams: { id: string; name: string }[];
@@ -17,7 +15,7 @@ export function IntakeFilters({ teams }: IntakeFiltersProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const intakeStatuses = getStatusOptionsForRole("inquiry_team");
-  const view = (searchParams.get("view") ?? "cards") as IntakeViewMode;
+  const view = (searchParams.get("view") ?? "cards") as CaseViewMode;
   const sort = (searchParams.get("sort") ?? "date_desc") as IntakeSortKey;
 
   function updateFilter(key: string, value: string) {
@@ -30,12 +28,15 @@ export function IntakeFilters({ teams }: IntakeFiltersProps) {
     router.push(`/intake?${params.toString()}`);
   }
 
-  function setView(nextView: IntakeViewMode) {
-    updateFilter("view", nextView);
-  }
-
   return (
-    <div className="flex flex-col gap-3">
+    <div className="space-y-4 rounded-lg border bg-muted/20 p-4">
+      <CaseQueueControls
+        view={view}
+        sort={sort}
+        onViewChange={(nextView) => updateFilter("view", nextView)}
+        onSortChange={(nextSort) => updateFilter("sort", nextSort)}
+      />
+
       <div className="flex flex-wrap gap-3">
         <Select value={searchParams.get("status") ?? "all"} onValueChange={(v) => updateFilter("status", v)}>
           <SelectTrigger className="w-[180px]"><SelectValue placeholder="Status" /></SelectTrigger>
@@ -64,40 +65,6 @@ export function IntakeFilters({ teams }: IntakeFiltersProps) {
             <SelectItem value="true">Medical Flags Only</SelectItem>
           </SelectContent>
         </Select>
-
-        <Select value={sort} onValueChange={(v) => updateFilter("sort", v)}>
-          <SelectTrigger className="w-[200px]"><SelectValue placeholder="Sort by" /></SelectTrigger>
-          <SelectContent>
-            {INTAKE_SORT_OPTIONS.map((option) => (
-              <SelectItem key={option.value} value={option.value}>
-                {option.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
-      <div className="flex items-center gap-1 w-fit rounded-lg border p-1">
-        <Button
-          type="button"
-          size="sm"
-          variant={view === "cards" ? "secondary" : "ghost"}
-          className={cn("gap-2", view === "cards" && "shadow-none")}
-          onClick={() => setView("cards")}
-        >
-          <LayoutGrid className="h-4 w-4" />
-          Cards
-        </Button>
-        <Button
-          type="button"
-          size="sm"
-          variant={view === "table" ? "secondary" : "ghost"}
-          className={cn("gap-2", view === "table" && "shadow-none")}
-          onClick={() => setView("table")}
-        >
-          <Table2 className="h-4 w-4" />
-          Table
-        </Button>
       </div>
     </div>
   );
