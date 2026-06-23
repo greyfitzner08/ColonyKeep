@@ -4,18 +4,22 @@ import { SupabaseConfigGate } from "@/components/layout/supabase-config-gate";
 import { hasSupabaseServerConfig } from "@/lib/supabase/env";
 import { MyShiftsCard } from "@/components/dashboard/my-shifts-card";
 import { MyCasesSection } from "@/components/dashboard/my-cases-section";
+import { CommunityStatsCard } from "@/components/dashboard/community-stats-card";
 import { sortCasesMedicalFirst } from "@/lib/cases/sort-cases";
+import {
+  canClaimShifts,
+  canManageAppointments,
+  isCaseWorker,
+} from "@/lib/permissions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { AlertTriangle, Calendar, Inbox, Kanban } from "lucide-react";
 import { formatDate } from "@/lib/utils";
-import type { HelpRequest, Shift, UserRole } from "@/lib/types";
+import type { HelpRequest, Shift } from "@/lib/types";
 
 const CLOSED_STATUSES = '("completed","closed")';
-const INTAKE_ROLES = new Set<UserRole>(["admin", "inquiry_team"]);
-const TRAP_ROLES = new Set<UserRole>(["trap_team_lead", "volunteer"]);
 
 function todayIsoDate() {
   return new Date().toISOString().split("T")[0];
@@ -28,17 +32,34 @@ export default async function DashboardPage() {
 
   const supabase = await createClient();
   const profile = await getCurrentProfile();
-  const role = profile?.role ?? null;
   const email = profile?.email ?? "";
   const today = todayIsoDate();
+  const caseWorker = isCaseWorker(profile);
+  const trapWorker =
+    caseWorker &&
+    (profile?.role === "admin" ||
+      profile?.role === "trap_team_lead" ||
+      profile?.role === "volunteer" ||
+      (profile?.volunteer_roles ?? []).some((role) =>
+        ["trapper", "trap_loaner", "transporter", "recovery"].includes(role)
+      ));
+  const intakeWorker =
+    caseWorker &&
+    (profile?.role === "admin" ||
+      profile?.role === "inquiry_team" ||
+      (profile?.volunteer_roles ?? []).includes("intake_representative"));
+  const showShifts = canClaimShifts(profile);
+  const showAppointments = canManageAppointments(profile);
 
-  const { data: myShiftsRaw } = await supabase
-    .from("shifts")
-    .select("*")
-    .contains("signed_up_emails", [email])
-    .gte("date", today)
-    .order("date")
-    .order("start_time");
+  const { data: myShiftsRaw } = showShifts
+    ? await supabase
+        .from("shifts")
+        .select("*")
+        .contains("signed_up_emails", [email])
+        .gte("date", today)
+        .order("date")
+        .order("start_time")
+    : { data: [] };
 
   const myShifts = (myShiftsRaw ?? []) as Shift[];
 
@@ -47,7 +68,7 @@ export default async function DashboardPage() {
   let overdueFollowUps: { id: string; case_number: string; follow_up_due_date: string }[] = [];
   let pendingAppointments = 0;
 
-  if (role && INTAKE_ROLES.has(role)) {
+  if (intakeWorker) {
     const [{ data: claimedCases }, { data: overdue }] = await Promise.all([
       supabase
         .from("help_requests")
@@ -67,7 +88,7 @@ export default async function DashboardPage() {
     overdueFollowUps = overdue ?? [];
   }
 
-  if (role && TRAP_ROLES.has(role)) {
+  if (trapWorker) {
     let teamCasesQuery = supabase
       .from("help_requests")
       .select("*")
@@ -87,7 +108,7 @@ export default async function DashboardPage() {
     teamCases = sortCasesMedicalFirst((teamCasesRaw ?? []) as HelpRequest[]);
   }
 
-  if (role === "clinic_coordination") {
+  if (showAppointments) {
     const { count } = await supabase
       .from("appointments")
       .select("*", { count: "exact", head: true })
@@ -96,9 +117,9 @@ export default async function DashboardPage() {
   }
 
   const quickLinks = [
-    INTAKE_ROLES.has(role!) && { href: "/intake", label: "Intake Queue", icon: Inbox },
-    TRAP_ROLES.has(role!) && { href: "/trap-queue", label: "Trap Queue", icon: Kanban },
-    role === "clinic_coordination" && {
+    intakeWorker && { href: "/intake", label: "Intake Queue", icon: Inbox },
+    trapWorker && { href: "/trap-queue", label: "Trap Queue", icon: Kanban },
+    showAppointments && {
       href: "/appointments",
       label: "Appointments",
       icon: Calendar,
@@ -131,9 +152,11 @@ export default async function DashboardPage() {
         )}
       </div>
 
-      <MyShiftsCard shifts={myShifts} />
+      {!caseWorker && <CommunityStatsCard />}
 
-      {role && INTAKE_ROLES.has(role) && (
+      {showShifts && <MyShiftsCard shifts={myShifts} />}
+
+      {intakeWorker && (
         <>
           {overdueFollowUps.length > 0 && (
             <Card className="border-orange-200 bg-orange-50">
@@ -174,7 +197,7 @@ export default async function DashboardPage() {
         </>
       )}
 
-      {role && TRAP_ROLES.has(role) && (
+      {trapWorker && (
         <MyCasesSection
           title="My Trap Work"
           description={
@@ -187,12 +210,12 @@ export default async function DashboardPage() {
           showClaimHint
           hintHref="/trap-queue"
           hintLabel="Open trap queue"
-          canClaim={TRAP_ROLES.has(role!)}
+          canClaim={trapWorker}
           userEmail={email}
         />
       )}
 
-      {role === "clinic_coordination" && (
+      {showAppointments && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -210,7 +233,7 @@ export default async function DashboardPage() {
         </Card>
       )}
 
-      {role === "admin" && myCases.length === 0 && (
+      {caseWorker && profile?.role === "admin" && myCases.length === 0 && (
         <Card>
           <CardContent className="py-6 text-sm text-muted-foreground">
             Claim cases from the intake queue to track them here, or use import on the intake page

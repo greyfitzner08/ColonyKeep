@@ -5,6 +5,7 @@ import { IntakeFilters } from "@/components/cases/intake-filters";
 import { IntakeQueueView, type IntakeViewMode } from "@/components/cases/intake-queue-view";
 import { CaseImporter } from "@/components/cases/case-importer";
 import { INTAKE_QUEUE_STATUSES } from "@/lib/cases/statuses";
+import { isCaseWorker } from "@/lib/permissions";
 import type { IntakeSortKey } from "@/lib/cases/sort-intake-cases";
 import type { HelpRequest, HelpRequestStatus } from "@/lib/types";
 
@@ -51,7 +52,7 @@ export default async function IntakePage({ searchParams }: IntakePageProps) {
   const sort = (params.sort ?? "date_desc") as IntakeSortKey;
 
   const canImport = profile?.role === "admin";
-  const canClaim = profile?.role === "admin" || profile?.role === "inquiry_team";
+  const canClaim = isCaseWorker(profile);
 
   return (
     <div className="space-y-6">

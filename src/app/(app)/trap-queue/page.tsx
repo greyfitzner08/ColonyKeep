@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
 import { sortCasesMedicalFirst } from "@/lib/cases/sort-cases";
+import { isCaseWorker } from "@/lib/permissions";
 import {
   buildTrapQueueQuery,
   trapQueueViewLabel,
@@ -9,20 +10,28 @@ import {
 } from "@/lib/cases/trap-queue-query";
 import { TrapQueueFilters } from "@/components/trap-queue/trap-queue-filters";
 import { TrapQueueKanban } from "@/components/trap-queue/trap-queue-kanban";
-import type { HelpRequest, UserRole } from "@/lib/types";
+import type { HelpRequest } from "@/lib/types";
 
 interface TrapQueuePageProps {
   searchParams: Promise<{ view?: string }>;
 }
 
-const TRAP_ROLES = new Set<UserRole>(["trap_team_lead", "volunteer", "admin"]);
+const TRAP_ROLES = new Set(["trap_team_lead", "volunteer", "admin"]);
 
 export default async function TrapQueuePage({ searchParams }: TrapQueuePageProps) {
   const params = await searchParams;
   const supabase = await createClient();
   const profile = await getCurrentProfile();
-  const role = profile?.role ?? null;
-  const isTrapRole = role != null && TRAP_ROLES.has(role);
+  const canWorkCases = isCaseWorker(profile);
+  const isTrapRole =
+    canWorkCases &&
+    (profile?.role === "admin" ||
+      profile?.role === "trap_team_lead" ||
+      profile?.role === "inquiry_team" ||
+      TRAP_ROLES.has(profile?.role ?? "") ||
+      (profile?.volunteer_roles ?? []).some((role) =>
+        ["trapper", "trap_loaner", "transporter", "recovery", "intake_representative"].includes(role)
+      ));
 
   const defaultView: TrapQueueView = isTrapRole ? "mine" : "all";
   const view = (params.view ?? defaultView) as TrapQueueView;

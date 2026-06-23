@@ -1,14 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireApiRole } from "@/lib/api/auth";
+import { requireCaseWorker } from "@/lib/api/auth";
 import { createServiceClient } from "@/lib/supabase/server";
 
 export async function POST(request: NextRequest) {
-  const { profile, response } = await requireApiRole([
-    "admin",
-    "inquiry_team",
-    "trap_team_lead",
-    "volunteer",
-  ]);
+  const { profile, response } = await requireCaseWorker();
   if (response) return response;
 
   const body = await request.json();

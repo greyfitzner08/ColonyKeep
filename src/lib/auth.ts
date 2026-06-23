@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
-import { getRolePermissions, isKnownUserRole } from "@/lib/constants";
+import { isKnownUserRole } from "@/lib/constants";
+import { canAccessRoute as profileCanAccessRoute } from "@/lib/permissions";
 import type { Profile, UserRole } from "@/lib/types";
 
 export async function getCurrentUser() {
@@ -34,12 +35,8 @@ export async function requireRole(allowedRoles: UserRole[]) {
   return profile;
 }
 
-export function canAccessRoute(role: UserRole | null, pathname: string): boolean {
-  const permissions = getRolePermissions(role);
-  if (!permissions) return false;
-  return permissions.routes.some(
-    (route) => pathname === route || pathname.startsWith(route + "/")
-  );
+export function canAccessRoute(profile: Profile | null, pathname: string): boolean {
+  return profileCanAccessRoute(profile, pathname);
 }
 
 export async function isApprovedVolunteer(): Promise<boolean> {

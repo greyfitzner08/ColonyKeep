@@ -1,19 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getCurrentProfile } from "@/lib/auth";
-import { isKnownUserRole } from "@/lib/constants";
+import { requireAppointmentManager } from "@/lib/api/auth";
 import { createClient } from "@/lib/supabase/server";
 
 export async function POST(request: NextRequest) {
+  const { profile, response } = await requireAppointmentManager();
+  if (response) return response;
+
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-  const profile = await getCurrentProfile();
-  if (!isKnownUserRole(profile?.role)) {
-    return NextResponse.json({ error: "Not approved" }, { status: 403 });
-  }
 
   const { appointmentId } = (await request.json()) as { appointmentId?: string };
   if (!appointmentId) {

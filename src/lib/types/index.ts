@@ -48,6 +48,7 @@ export type VolunteerRole =
   | "photographer"
   | "videographer"
   | "community_outreach"
+  | "youth_volunteer"
   | "other";
 
 export type ShiftType =

@@ -1,21 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getCurrentProfile } from "@/lib/auth";
-import { isKnownUserRole } from "@/lib/constants";
+import { requireShiftAccess } from "@/lib/api/auth";
 import { createClient } from "@/lib/supabase/server";
 import { sendShiftConfirmationEmail } from "@/lib/email";
 
 export async function POST(request: NextRequest) {
+  const { profile, response } = await requireShiftAccess();
+  if (response) return response;
+
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { shiftId, action } = await request.json();
   const email = user.email!;
-  const profile = await getCurrentProfile();
-
-  if (!isKnownUserRole(profile?.role)) {
-    return NextResponse.json({ error: "Not approved" }, { status: 403 });
-  }
 
   const { data: shift } = await supabase.from("shifts").select("*").eq("id", shiftId).single();
   if (!shift) return NextResponse.json({ error: "Shift not found" }, { status: 404 });
@@ -41,7 +40,7 @@ export async function POST(request: NextRequest) {
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
 
   if (action === "claim") {
-    await sendShiftConfirmationEmail(email, profile.full_name ?? email, {
+    await sendShiftConfirmationEmail(email, profile!.full_name ?? email, {
       event_name: shift.event_name,
       date: shift.date,
       start_time: shift.start_time,

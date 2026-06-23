@@ -22,8 +22,8 @@ import {
   BookOpen,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { getRolePermissions } from "@/lib/constants";
-import type { UserRole } from "@/lib/types";
+import { getProfilePermissions } from "@/lib/permissions";
+import type { Profile } from "@/lib/types";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 
@@ -46,15 +46,15 @@ const NAV_ITEMS = [
 ];
 
 interface SidebarProps {
-  role: UserRole | null;
+  profile: Profile | null;
   userName?: string | null;
 }
 
-export function Sidebar({ role, userName }: SidebarProps) {
+export function Sidebar({ profile, userName }: SidebarProps) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  const permissions = getRolePermissions(role);
+  const permissions = getProfilePermissions(profile);
   const allowedRoutes = permissions?.routes ?? [];
   const visibleItems = NAV_ITEMS.filter((item) =>
     allowedRoutes.some(

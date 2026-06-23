@@ -5,6 +5,8 @@ import {
   getSupabasePublishableKey,
   getSupabaseUrl,
 } from "@/lib/supabase/env";
+import { canAccessRoute } from "@/lib/permissions";
+import type { Profile } from "@/lib/types";
 
 const PUBLIC_ROUTES = ["/request", "/volunteer-signup", "/clinic-booking", "/login", "/auth", "/set-password"];
 
@@ -54,13 +56,20 @@ export async function updateSession(request: NextRequest) {
   if (user && pathname !== "/set-password" && !pathname.startsWith("/auth") && !isApi) {
     const { data: profile } = await supabase
       .from("profiles")
-      .select("must_change_password")
+      .select("role, volunteer_roles, must_change_password")
       .eq("id", user.id)
       .maybeSingle();
 
     if (profile?.must_change_password) {
       const url = request.nextUrl.clone();
       url.pathname = "/set-password";
+      url.search = "";
+      return NextResponse.redirect(url);
+    }
+
+    if (!canAccessRoute(profile as Profile, pathname)) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/";
       url.search = "";
       return NextResponse.redirect(url);
     }

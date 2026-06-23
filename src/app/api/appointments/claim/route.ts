@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getCurrentProfile } from "@/lib/auth";
-import { isKnownUserRole } from "@/lib/constants";
+import { requireAppointmentManager } from "@/lib/api/auth";
 import { createClient } from "@/lib/supabase/server";
 import { sendAppointmentConfirmationEmail } from "@/lib/email";
 
 export async function POST(request: NextRequest) {
+  const { profile, response } = await requireAppointmentManager();
+  if (response) return response;
+
   const supabase = await createClient();
   const {
     data: { user },
@@ -13,11 +15,6 @@ export async function POST(request: NextRequest) {
 
   const body = await request.json();
   const { appointmentId, helpRequestId, catId, catDetails } = body;
-  const profile = await getCurrentProfile();
-
-  if (!isKnownUserRole(profile?.role)) {
-    return NextResponse.json({ error: "Not approved" }, { status: 403 });
-  }
 
   const { data: appointment } = await supabase
     .from("appointments")
