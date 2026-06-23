@@ -9,8 +9,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { AddressAutocomplete } from "@/components/forms/address-autocomplete";
-import { createClient } from "@/lib/supabase/client";
-import { detectMedicalKeywords } from "@/lib/medical-flags";
 import Link from "next/link";
 
 const STEPS = ["Contact", "Location", "Colony Info", "Your Help", "Review"];
@@ -20,6 +18,7 @@ export default function RequestPage() {
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [caseNumber, setCaseNumber] = useState("");
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const [form, setForm] = useState({
     contact_name: "",
@@ -46,33 +45,21 @@ export default function RequestPage() {
   }
 
   async function handleSubmit() {
+    setSubmitError(null);
     setSubmitting(true);
-    const supabase = createClient();
-    const medicalFlags = detectMedicalKeywords(form.intake_notes);
-
-    const { data, error } = await supabase
-      .from("help_requests")
-      .insert({
-        ...form,
-        status: "new_intake",
-        medical_flags: medicalFlags,
-        history_log: [
-          {
-            timestamp: new Date().toISOString(),
-            action: "created",
-            actor_email: null,
-            actor_name: form.contact_name,
-            details: "Public intake form submission",
-          },
-        ],
-      })
-      .select("case_number")
-      .single();
+    const response = await fetch("/api/help-requests/create", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(form),
+    });
+    const result = await response.json().catch(() => null);
 
     setSubmitting(false);
-    if (!error && data) {
-      setCaseNumber(data.case_number);
+    if (response.ok && result?.caseNumber) {
+      setCaseNumber(result.caseNumber);
       setSubmitted(true);
+    } else {
+      setSubmitError(result?.error ?? "Unable to submit request");
     }
   }
 
@@ -233,6 +220,9 @@ export default function RequestPage() {
                 </Button>
               )}
             </div>
+            {submitError && (
+              <p className="text-sm text-destructive">{submitError}</p>
+            )}
           </CardContent>
         </Card>
       </div>

@@ -11,7 +11,6 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { createClient } from "@/lib/supabase/client";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import type { PublicClinicEvent, PublicBooking } from "@/lib/types";
 import { Plus } from "lucide-react";
@@ -26,6 +25,8 @@ export function ClinicEventsManager({ events, clinics, bookings }: ClinicEventsM
   const router = useRouter();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<string | null>(null);
+  const [createError, setCreateError] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
   const [form, setForm] = useState({
     clinic_id: "",
     title: "",
@@ -42,9 +43,16 @@ export function ClinicEventsManager({ events, clinics, bookings }: ClinicEventsM
 
   async function createEvent() {
     const clinic = clinics.find((c) => c.id === form.clinic_id);
-    if (!clinic) return;
-    const supabase = createClient();
-    await supabase.from("public_clinic_events").insert({
+    if (!clinic) {
+      setCreateError("Select a clinic before creating an event.");
+      return;
+    }
+    setCreateError(null);
+    setCreating(true);
+    const response = await fetch("/api/clinic-events/create", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
       clinic_id: form.clinic_id,
       clinic_name: clinic.name,
       title: form.title,
@@ -58,7 +66,16 @@ export function ClinicEventsManager({ events, clinics, bookings }: ClinicEventsM
       included_services: form.included_services.split(",").map((s) => s.trim()).filter(Boolean),
       addon_services: [],
       is_active: form.is_active,
+      }),
     });
+    const result = await response.json().catch(() => null);
+    setCreating(false);
+
+    if (!response.ok) {
+      setCreateError(result?.error ?? "Unable to create clinic event");
+      return;
+    }
+
     setDialogOpen(false);
     router.refresh();
   }
@@ -69,7 +86,7 @@ export function ClinicEventsManager({ events, clinics, bookings }: ClinicEventsM
 
   return (
     <div className="space-y-4">
-      <Button onClick={() => setDialogOpen(true)}><Plus className="h-4 w-4 mr-2" />Create Event</Button>
+      <Button onClick={() => { setCreateError(null); setDialogOpen(true); }}><Plus className="h-4 w-4 mr-2" />Create Event</Button>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {events.map((event) => {
@@ -145,7 +162,10 @@ export function ClinicEventsManager({ events, clinics, bookings }: ClinicEventsM
             <div className="space-y-1"><Label>Included Services (comma-separated)</Label><Input value={form.included_services} onChange={(e) => setForm({ ...form, included_services: e.target.value })} /></div>
             <div className="space-y-1"><Label>Payment URL</Label><Input value={form.payment_url} onChange={(e) => setForm({ ...form, payment_url: e.target.value })} /></div>
             <div className="space-y-1"><Label>Description</Label><Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></div>
-            <Button onClick={createEvent} className="w-full">Create Event</Button>
+            {createError && <p className="text-sm text-destructive">{createError}</p>}
+            <Button onClick={createEvent} className="w-full" disabled={creating}>
+              {creating ? "Creating..." : "Create Event"}
+            </Button>
           </div>
         </DialogContent>
       </Dialog>

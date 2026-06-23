@@ -175,6 +175,7 @@ export default function VolunteerSignupPage() {
     const supabase = createClient();
     const { error } = await supabase.from("volunteer_applications").insert({
       ...form,
+      why_volunteer: "Submitted via volunteer signup form",
       status: "pending",
     });
     // #region agent log

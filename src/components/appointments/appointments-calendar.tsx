@@ -48,6 +48,10 @@ export function AppointmentsCalendar({
   const [bulkDialog, setBulkDialog] = useState(false);
   const [bulkForm, setBulkForm] = useState({ clinic_id: "", date: "", count: 5 });
   const [claimForm, setClaimForm] = useState({ help_request_id: "", cat_name: "" });
+  const [bulkError, setBulkError] = useState<string | null>(null);
+  const [claimError, setClaimError] = useState<string | null>(null);
+  const [savingBulk, setSavingBulk] = useState(false);
+  const [savingClaim, setSavingClaim] = useState(false);
 
   const clinicColorMap = Object.fromEntries(
     clinics.map((c, i) => [c.id, CLINIC_COLORS[i % CLINIC_COLORS.length]])
@@ -67,24 +71,39 @@ export function AppointmentsCalendar({
 
   async function bulkCreate() {
     const clinic = clinics.find((c) => c.id === bulkForm.clinic_id);
-    if (!clinic) return;
-    const supabase = createClient();
-    const slots = Array.from({ length: bulkForm.count }, () => ({
+    if (!clinic) {
+      setBulkError("Select a clinic before creating slots.");
+      return;
+    }
+    setBulkError(null);
+    setSavingBulk(true);
+    const response = await fetch("/api/appointments/bulk-create", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
       clinic_id: clinic.id,
       clinic_name: clinic.name,
       date: bulkForm.date,
-      status: "available" as const,
-      total_slots: 1,
-      reserved_slots: 0,
-    }));
-    await supabase.from("appointments").insert(slots);
+      count: bulkForm.count,
+      }),
+    });
+    const result = await response.json().catch(() => null);
+    setSavingBulk(false);
+
+    if (!response.ok) {
+      setBulkError(result?.error ?? "Unable to create appointment slots");
+      return;
+    }
+
     setBulkDialog(false);
     router.refresh();
   }
 
   async function claimSlot() {
     if (!claimDialog || !claimForm.help_request_id) return;
-    await fetch("/api/appointments/claim", {
+    setClaimError(null);
+    setSavingClaim(true);
+    const response = await fetch("/api/appointments/claim", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -93,6 +112,14 @@ export function AppointmentsCalendar({
         catDetails: { name: claimForm.cat_name },
       }),
     });
+    const result = await response.json().catch(() => null);
+    setSavingClaim(false);
+
+    if (!response.ok) {
+      setClaimError(result?.error ?? "Unable to reserve appointment");
+      return;
+    }
+
     setClaimDialog(null);
     router.refresh();
   }
@@ -104,7 +131,7 @@ export function AppointmentsCalendar({
           <Button variant={view === "list" ? "default" : "outline"} size="sm" onClick={() => setView("list")}>List</Button>
           <Button variant={view === "month" ? "default" : "outline"} size="sm" onClick={() => setView("month")}>Month</Button>
         </div>
-        <Button onClick={() => setBulkDialog(true)}><Plus className="h-4 w-4 mr-2" />Bulk Create Slots</Button>
+        <Button onClick={() => { setBulkError(null); setBulkDialog(true); }}><Plus className="h-4 w-4 mr-2" />Bulk Create Slots</Button>
       </div>
 
       <div className="flex flex-wrap gap-3">
@@ -162,7 +189,7 @@ export function AppointmentsCalendar({
         </div>
       )}
 
-      <Dialog open={!!claimDialog} onOpenChange={() => setClaimDialog(null)}>
+      <Dialog open={!!claimDialog} onOpenChange={() => { setClaimError(null); setClaimDialog(null); }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Claim Appointment</DialogTitle>
@@ -186,7 +213,10 @@ export function AppointmentsCalendar({
               <Label>Cat Name</Label>
               <Input value={claimForm.cat_name} onChange={(e) => setClaimForm({ ...claimForm, cat_name: e.target.value })} />
             </div>
-            <Button onClick={claimSlot} className="w-full">Reserve Slot</Button>
+            {claimError && <p className="text-sm text-destructive">{claimError}</p>}
+            <Button onClick={claimSlot} className="w-full" disabled={savingClaim}>
+              {savingClaim ? "Reserving..." : "Reserve Slot"}
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
@@ -206,7 +236,10 @@ export function AppointmentsCalendar({
             </div>
             <div className="space-y-2"><Label>Date</Label><Input type="date" value={bulkForm.date} onChange={(e) => setBulkForm({ ...bulkForm, date: e.target.value })} /></div>
             <div className="space-y-2"><Label>Number of Slots</Label><Input type="number" min={1} value={bulkForm.count} onChange={(e) => setBulkForm({ ...bulkForm, count: parseInt(e.target.value) || 1 })} /></div>
-            <Button onClick={bulkCreate} className="w-full">Create Slots</Button>
+            {bulkError && <p className="text-sm text-destructive">{bulkError}</p>}
+            <Button onClick={bulkCreate} className="w-full" disabled={savingBulk}>
+              {savingBulk ? "Creating..." : "Create Slots"}
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
