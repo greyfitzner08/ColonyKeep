@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
+import { getCurrentProfile } from "@/lib/auth";
+import { isKnownUserRole } from "@/lib/constants";
 import { createClient } from "@/lib/supabase/server";
-import type { UserRole } from "@/lib/types";
+import type { Profile, UserRole } from "@/lib/types";
 
 export async function requireApiRole(allowedRoles: UserRole[]) {
   const supabase = await createClient();
@@ -15,18 +17,14 @@ export async function requireApiRole(allowedRoles: UserRole[]) {
     };
   }
 
-  const { data: profile, error } = await supabase
-    .from("profiles")
-    .select("id, email, full_name, role, team_id")
-    .eq("id", user.id)
-    .single();
+  const profile = await getCurrentProfile();
 
-  if (error || !profile?.role || !allowedRoles.includes(profile.role)) {
+  if (!isKnownUserRole(profile?.role) || !allowedRoles.includes(profile.role)) {
     return {
       profile: null,
       response: NextResponse.json({ error: "Forbidden" }, { status: 403 }),
     };
   }
 
-  return { profile, response: null };
+  return { profile: profile as Profile, response: null };
 }

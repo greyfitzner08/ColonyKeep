@@ -38,8 +38,16 @@ export function AdminPanel({ users, teams: initialTeams, roleDescriptions }: Adm
   });
 
   async function updateUserRole(userId: string, role: UserRole, teamId: string | null) {
-    const supabase = createClient();
-    await supabase.from("profiles").update({ role, team_id: teamId }).eq("id", userId);
+    const response = await fetch("/api/admin/profiles/update", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId, role, teamId }),
+    });
+    const result = await response.json().catch(() => null);
+    if (!response.ok) {
+      setTeamError(result?.error ?? "Unable to update user role");
+      return;
+    }
     router.refresh();
   }
 

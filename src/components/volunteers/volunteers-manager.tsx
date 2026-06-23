@@ -58,18 +58,18 @@ export function VolunteersManager({ applications, teams }: VolunteersManagerProp
         return;
       }
     } else {
-      const { createClient } = await import("@/lib/supabase/client");
-      const supabase = createClient();
-      const { error } = await supabase
-        .from("volunteer_applications")
-        .update({
+      const response = await fetch("/api/volunteers/update-status", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          applicationId: id,
           status: action === "reject" ? "rejected" : "needs_followup",
-          reviewed_at: new Date().toISOString(),
-        })
-        .eq("id", id);
+        }),
+      });
+      const result = await response.json().catch(() => null);
       setActingId(null);
-      if (error) {
-        setActionError(error.message);
+      if (!response.ok) {
+        setActionError(result?.error ?? "Unable to update application");
         return;
       }
     }

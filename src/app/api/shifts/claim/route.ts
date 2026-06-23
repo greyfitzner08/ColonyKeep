@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getCurrentProfile } from "@/lib/auth";
+import { isKnownUserRole } from "@/lib/constants";
 import { createClient } from "@/lib/supabase/server";
 import { sendShiftConfirmationEmail } from "@/lib/email";
 
@@ -9,14 +11,9 @@ export async function POST(request: NextRequest) {
 
   const { shiftId, action } = await request.json();
   const email = user.email!;
+  const profile = await getCurrentProfile();
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("full_name, role")
-    .eq("id", user.id)
-    .single();
-
-  if (!profile?.role) {
+  if (!isKnownUserRole(profile?.role)) {
     return NextResponse.json({ error: "Not approved" }, { status: 403 });
   }
 
