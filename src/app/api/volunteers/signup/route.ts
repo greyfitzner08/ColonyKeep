@@ -1,14 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
+import { getEmailValidationError, parsePrimaryEmail } from "@/lib/email-utils";
 
 export async function POST(request: NextRequest) {
   const body = await request.json();
+  const volunteerEmail = parsePrimaryEmail(body.email);
+  const emailError = getEmailValidationError(body.email);
+
+  if (!volunteerEmail || emailError) {
+    return NextResponse.json({ error: emailError ?? "Invalid email address" }, { status: 400 });
+  }
+
   const service = await createServiceClient();
 
   const { error } = await service.from("volunteer_applications").insert({
     status: "pending",
-    full_name: body.full_name,
-    email: body.email,
+    full_name: body.full_name?.trim(),
+    email: volunteerEmail,
     phone: body.phone,
     birthday: body.birthday,
     roles_requested: body.roles_requested ?? [],

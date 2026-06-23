@@ -52,6 +52,9 @@ export function CaseCard({ helpRequest: hr }: CaseCardProps) {
               {hr.cats_over_8_weeks} adults)
             </span>
           </div>
+          {hr.claimed_by_name && (
+            <p className="text-xs text-muted-foreground">Working: {hr.claimed_by_name}</p>
+          )}
           {hr.assigned_team_name && (
             <p className="text-xs text-muted-foreground">Team: {hr.assigned_team_name}</p>
           )}

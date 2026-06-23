@@ -1,7 +1,10 @@
 import { Suspense } from "react";
 import { createClient } from "@/lib/supabase/server";
-import { CaseCard } from "@/components/cases/case-card";
+import { getCurrentProfile } from "@/lib/auth";
 import { IntakeFilters } from "@/components/cases/intake-filters";
+import { IntakeCaseGrid } from "@/components/cases/intake-case-grid";
+import { CaseImporter } from "@/components/cases/case-importer";
+import { sortCasesMedicalFirst } from "@/lib/cases/sort-cases";
 import type { HelpRequest, HelpRequestStatus } from "@/lib/types";
 
 interface IntakePageProps {
@@ -11,6 +14,7 @@ interface IntakePageProps {
 export default async function IntakePage({ searchParams }: IntakePageProps) {
   const params = await searchParams;
   const supabase = await createClient();
+  const profile = await getCurrentProfile();
 
   let query = supabase.from("help_requests").select("*").order("created_at", { ascending: false });
 
@@ -33,6 +37,11 @@ export default async function IntakePage({ searchParams }: IntakePageProps) {
     );
   }
 
+  filtered = sortCasesMedicalFirst(filtered);
+
+  const canImport = profile?.role === "admin";
+  const canClaim = profile?.role === "admin" || profile?.role === "inquiry_team";
+
   return (
     <div className="space-y-6">
       <div>
@@ -40,17 +49,18 @@ export default async function IntakePage({ searchParams }: IntakePageProps) {
         <p className="text-muted-foreground">{filtered.length} cases</p>
       </div>
 
+      {canImport && <CaseImporter />}
+
       <Suspense fallback={<div className="h-10 animate-pulse rounded-md bg-muted" />}>
         <IntakeFilters teams={teams ?? []} />
       </Suspense>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {filtered.map((hr) => (
-          <CaseCard key={hr.id} helpRequest={hr} />
-        ))}
-        {filtered.length === 0 && (
-          <p className="col-span-full text-center text-muted-foreground py-12">No cases match your filters.</p>
-        )}
+        <IntakeCaseGrid
+          cases={filtered}
+          canClaim={canClaim}
+          userEmail={profile?.email ?? ""}
+        />
       </div>
     </div>
   );
