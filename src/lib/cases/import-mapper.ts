@@ -150,6 +150,37 @@ function normalizeHeader(header: string): string {
     .replace(/^_|_$/g, "");
 }
 
+export function scoreImportHeaderRow(cells: string[]): number {
+  let score = 0;
+  for (const cell of cells) {
+    if (HEADER_ALIASES[normalizeHeader(cell)]) {
+      score += 1;
+    }
+  }
+  return score;
+}
+
+export function findImportHeaderRowIndex(records: string[][]): number {
+  let bestIndex = 0;
+  let bestScore = 0;
+  const scanLimit = Math.min(records.length, 10);
+
+  for (let index = 0; index < scanLimit; index += 1) {
+    const score = scoreImportHeaderRow(records[index] ?? []);
+    if (score > bestScore) {
+      bestScore = score;
+      bestIndex = index;
+    }
+  }
+
+  return bestScore >= 3 ? bestIndex : 0;
+}
+
+function looksMisalignedCaseNumber(value: string | undefined): boolean {
+  if (!value) return false;
+  return value.includes(",") || value.length > 80;
+}
+
 export function normalizeImportRow(raw: Record<string, unknown>): Record<string, string> {
   const normalized: Record<string, string> = {};
 
@@ -252,6 +283,13 @@ export function mapImportRowToHelpRequest(
   if (!contactEmail && !row.phone_number && !row.case_number) {
     return {
       error: "Each row needs at least a Case Number, Email, or Phone Number.",
+    };
+  }
+
+  if (looksMisalignedCaseNumber(row.case_number)) {
+    return {
+      error:
+        "Case Number column looks misaligned. Check that the CSV uses quoted fields for notes and matches the export header row.",
     };
   }
 

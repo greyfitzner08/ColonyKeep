@@ -1,17 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireApiRole } from "@/lib/api/auth";
-import { createServiceClient } from "@/lib/supabase/server";
 import { applyTrapTeamAssignment } from "@/lib/cases/assign-team-by-zip";
 import { mapImportRowToHelpRequest } from "@/lib/cases/import-mapper";
+import { parseCaseImportCsv } from "@/lib/cases/parse-case-import-csv";
+import { createServiceClient } from "@/lib/supabase/server";
 
 export async function POST(request: NextRequest) {
   const { profile, response } = await requireApiRole(["admin"]);
   if (response) return response;
 
   const body = await request.json();
-  const rows = body.rows as Record<string, unknown>[] | undefined;
+  const csvText = typeof body.csvText === "string" ? body.csvText : undefined;
+  const parsedRows = csvText
+    ? parseCaseImportCsv(csvText)
+    : { rows: (body.rows as Record<string, unknown>[] | undefined) ?? [], headerRowIndex: 0 };
 
-  if (!rows?.length) {
+  const rows = parsedRows.rows;
+
+  if (!rows.length) {
     return NextResponse.json({ error: "No rows to import" }, { status: 400 });
   }
 
@@ -27,7 +33,10 @@ export async function POST(request: NextRequest) {
   for (let index = 0; index < rows.length; index += 1) {
     const mapped = mapImportRowToHelpRequest(rows[index], profile!.email);
     if (mapped.error || !mapped.record) {
-      errors.push({ row: index + 2, error: mapped.error ?? "Invalid row" });
+      errors.push({
+        row: index + parsedRows.headerRowIndex + 2,
+        error: mapped.error ?? "Invalid row",
+      });
       continue;
     }
 
@@ -41,7 +50,7 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (error) {
-      errors.push({ row: index + 2, error: error.message });
+      errors.push({ row: index + parsedRows.headerRowIndex + 2, error: error.message });
       continue;
     }
 

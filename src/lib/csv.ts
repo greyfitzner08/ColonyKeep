@@ -1,50 +1,86 @@
-function parseCsvLine(line: string): string[] {
-  const values: string[] = [];
-  let current = "";
+export function parseCsvRecords(text: string): string[][] {
+  const rows: string[][] = [];
+  let row: string[] = [];
+  let field = "";
   let inQuotes = false;
 
-  for (let index = 0; index < line.length; index += 1) {
-    const char = line[index];
-    const next = line[index + 1];
+  for (let index = 0; index < text.length; index += 1) {
+    const char = text[index];
+    const next = text[index + 1];
 
-    if (char === '"' && inQuotes && next === '"') {
-      current += '"';
-      index += 1;
+    if (inQuotes) {
+      if (char === '"' && next === '"') {
+        field += '"';
+        index += 1;
+        continue;
+      }
+      if (char === '"') {
+        inQuotes = false;
+        continue;
+      }
+      field += char;
       continue;
     }
 
     if (char === '"') {
-      inQuotes = !inQuotes;
+      inQuotes = true;
       continue;
     }
 
-    if (char === "," && !inQuotes) {
-      values.push(current);
-      current = "";
+    if (char === ",") {
+      row.push(field);
+      field = "";
       continue;
     }
 
-    current += char;
+    if (char === "\r") {
+      continue;
+    }
+
+    if (char === "\n") {
+      row.push(field);
+      field = "";
+      if (row.some((cell) => cell.trim().length > 0)) {
+        rows.push(row);
+      }
+      row = [];
+      continue;
+    }
+
+    field += char;
   }
 
-  values.push(current);
-  return values;
+  if (field.length > 0 || row.length > 0) {
+    row.push(field);
+    rows.push(row);
+  }
+
+  return rows;
+}
+
+export function recordsToObjects(
+  records: string[][],
+  headerRowIndex: number
+): Record<string, string>[] {
+  const headers = records[headerRowIndex] ?? [];
+  return records
+    .slice(headerRowIndex + 1)
+    .filter((record) => record.some((cell) => cell.trim().length > 0))
+    .map((record) => {
+      const row: Record<string, string> = {};
+      headers.forEach((header, index) => {
+        if (!header.trim()) return;
+        row[header] = record[index]?.trim() ?? "";
+      });
+      return row;
+    });
 }
 
 export function parseCsv(text: string): Record<string, string>[] {
-  const lines = text.trim().split(/\r?\n/).filter(Boolean);
-  if (lines.length < 2) return [];
+  const cleaned = text.replace(/^\uFEFF/, "").trim();
+  const records = parseCsvRecords(cleaned);
+  if (records.length < 2) return [];
 
-  const headers = parseCsvLine(lines[0]).map((header) =>
-    header.trim().toLowerCase().replace(/\s+/g, "_")
-  );
-
-  return lines.slice(1).map((line) => {
-    const values = parseCsvLine(line);
-    const row: Record<string, string> = {};
-    headers.forEach((header, index) => {
-      row[header] = values[index]?.trim() ?? "";
-    });
-    return row;
-  });
+  const headerRowIndex = 0;
+  return recordsToObjects(records, headerRowIndex);
 }

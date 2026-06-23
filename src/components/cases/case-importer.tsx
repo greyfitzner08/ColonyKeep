@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { buildCaseImportTemplateCsv, CASE_IMPORT_HEADERS } from "@/lib/cases/import-mapper";
-import { parseCsv } from "@/lib/csv";
 import { Upload } from "lucide-react";
 
 export function CaseImporter() {
@@ -15,7 +14,7 @@ export function CaseImporter() {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  async function importRows(rows: Record<string, string>[]) {
+  async function importRows(csvText: string) {
     setImporting(true);
     setMessage(null);
     setError(null);
@@ -23,7 +22,7 @@ export function CaseImporter() {
     const response = await fetch("/api/help-requests/import", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ rows }),
+      body: JSON.stringify({ csvText }),
     });
     const result = await response.json().catch(() => null);
     setImporting(false);
@@ -51,13 +50,12 @@ export function CaseImporter() {
     if (!file) return;
 
     const text = await file.text();
-    const rows = parseCsv(text);
-    if (rows.length === 0) {
+    if (!text.trim()) {
       setError("CSV file is empty or missing a header row.");
       return;
     }
 
-    await importRows(rows);
+    await importRows(text);
     event.target.value = "";
   }
 
