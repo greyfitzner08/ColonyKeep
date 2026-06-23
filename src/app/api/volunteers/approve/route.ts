@@ -2,90 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireApiRole } from "@/lib/api/auth";
 import { createServiceClient } from "@/lib/supabase/server";
 import { getRequestAppUrl } from "@/lib/app-url";
-import { formatAuthError, isAlreadyRegisteredAuthError } from "@/lib/auth-errors";
 import { getEmailValidationError, parsePrimaryEmail } from "@/lib/email-utils";
 import { sendVolunteerApprovalEmail } from "@/lib/email";
-import type { SupabaseClient } from "@supabase/supabase-js";
+import { ensureVolunteerAuthUser } from "@/lib/volunteers/approve-auth";
 
 function errorResponse(message: string, status = 400) {
   return NextResponse.json({ error: message }, { status });
-}
-
-async function findAuthUserIdByEmail(service: SupabaseClient, email: string) {
-  const { data, error } = await service.auth.admin.listUsers({ page: 1, perPage: 1000 });
-  if (error) return null;
-  return data.users.find((user) => user.email?.toLowerCase() === email.toLowerCase())?.id ?? null;
-}
-
-async function ensureAuthUser(
-  service: SupabaseClient,
-  email: string,
-  fullName: string,
-  redirectTo: string
-) {
-  const inviteResult = await service.auth.admin.generateLink({
-    type: "invite",
-    email,
-    options: {
-      data: { full_name: fullName },
-      redirectTo,
-    },
-  });
-
-  if (!inviteResult.error && inviteResult.data.user?.id) {
-    return {
-      userId: inviteResult.data.user.id,
-      passwordSetupUrl: inviteResult.data.properties?.action_link ?? null,
-    };
-  }
-
-  if (inviteResult.error && !isAlreadyRegisteredAuthError(inviteResult.error)) {
-    const createResult = await service.auth.admin.createUser({
-      email,
-      email_confirm: true,
-      user_metadata: { full_name: fullName },
-    });
-
-    if (createResult.error && !isAlreadyRegisteredAuthError(createResult.error)) {
-      const createMessage =
-        createResult.error.message?.trim() ||
-        formatAuthError(createResult.error, redirectTo);
-      return {
-        error: `Could not create volunteer login: ${createMessage}`,
-      };
-    }
-  }
-
-  const recoveryResult = await service.auth.admin.generateLink({
-    type: "recovery",
-    email,
-    options: { redirectTo },
-  });
-
-  if (recoveryResult.error) {
-    const existingUserId = await findAuthUserIdByEmail(service, email);
-    if (existingUserId) {
-      return {
-        userId: existingUserId,
-        passwordSetupUrl: null,
-        warning:
-          "Volunteer account exists but password setup link could not be generated. Ask them to use Forgot Password on the login page.",
-      };
-    }
-
-    return {
-      error: formatAuthError(recoveryResult.error, redirectTo),
-    };
-  }
-
-  if (!recoveryResult.data.user?.id) {
-    return { error: "Supabase did not return a user account for this volunteer." };
-  }
-
-  return {
-    userId: recoveryResult.data.user.id,
-    passwordSetupUrl: recoveryResult.data.properties?.action_link ?? null,
-  };
 }
 
 export async function POST(request: NextRequest) {
@@ -102,7 +24,6 @@ export async function POST(request: NextRequest) {
 
     const service = await createServiceClient();
     const appUrl = getRequestAppUrl(request);
-    const redirectTo = `${appUrl}/auth/callback?next=/set-password`;
 
     const { data: application, error: appError } = await service
       .from("volunteer_applications")
@@ -139,19 +60,19 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const authResult = await ensureAuthUser(
+    const authResult = await ensureVolunteerAuthUser(
       service,
       volunteerEmail,
       application.full_name,
-      redirectTo
+      appUrl
     );
 
-    if ("error" in authResult && authResult.error) {
+    if ("error" in authResult) {
       return errorResponse(authResult.error);
     }
 
     const { userId, passwordSetupUrl } = authResult;
-    const authWarning = "warning" in authResult ? authResult.warning : undefined;
+    const authWarning = authResult.warning;
 
     const { data: existingProfile } = await service
       .from("profiles")
@@ -238,9 +159,6 @@ export async function POST(request: NextRequest) {
             ? `Volunteer approved, but the welcome email failed: ${emailError.message}`
             : "Volunteer approved, but the welcome email could not be sent.";
       }
-    } else if (!authWarning) {
-      emailWarning =
-        "Volunteer approved. Ask them to visit the login page and use Forgot Password to set their password.";
     }
 
     return NextResponse.json({

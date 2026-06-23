@@ -16,11 +16,11 @@ export function formatAuthError(error: unknown, redirectTo?: string): string {
   }
 
   if (authError.status === 422) {
-    return `Supabase rejected the login redirect URL${redirectTo ? `: ${redirectTo}` : ""}. Add it under Supabase → Authentication → URL Configuration → Redirect URLs.`;
+    return `Supabase rejected the login redirect URL${redirectTo ? `: ${redirectTo}` : ""}. Add https://colony-keep.vercel.app/** under Supabase → Authentication → URL Configuration → Redirect URLs.`;
   }
 
   if (authError.status === 500) {
-    return `Supabase auth failed. Confirm your Site URL and Redirect URLs include ${redirectTo ?? "your production domain"} in Supabase → Authentication → URL Configuration.`;
+    return "Supabase could not finish creating the volunteer login. If this keeps happening, check Supabase Auth settings and confirm the auth user trigger is configured correctly.";
   }
 
   if (authError.code) {

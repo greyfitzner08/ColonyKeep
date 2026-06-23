@@ -51,10 +51,7 @@ export function VolunteersManager({ applications, teams }: VolunteersManagerProp
   const [interestFilter, setInterestFilter] = useState("all");
   const [approveRole, setApproveRole] = useState<UserRole>("volunteer");
   const [approveTeam, setApproveTeam] = useState<string>("none");
-  const [actionError, setActionError] = useState<string | null>(() => {
-    if (typeof window === "undefined") return null;
-    return sessionStorage.getItem("volunteerActionError");
-  });
+  const [actionError, setActionError] = useState<string | null>(null);
   const [actingId, setActingId] = useState<string | null>(null);
   const [updatingField, setUpdatingField] = useState<string | null>(null);
   const [actionNotes, setActionNotes] = useState<Record<string, string>>({});
@@ -90,12 +87,10 @@ export function VolunteersManager({ applications, teams }: VolunteersManagerProp
 
   function showActionError(message: string) {
     setActionError(message);
-    sessionStorage.setItem("volunteerActionError", message);
   }
 
   function clearActionError() {
     setActionError(null);
-    sessionStorage.removeItem("volunteerActionError");
   }
 
   async function handleAction(
@@ -159,8 +154,7 @@ export function VolunteersManager({ applications, teams }: VolunteersManagerProp
   }
 
   async function saveEmail(applicationId: string, email: string) {
-    setActionError(null);
-    sessionStorage.removeItem("volunteerActionError");
+    clearActionError();
     setSavingEmailId(applicationId);
     const response = await fetch("/api/volunteers/update-details", {
       method: "POST",
@@ -177,8 +171,7 @@ export function VolunteersManager({ applications, teams }: VolunteersManagerProp
   }
 
   async function saveFollowUpNotes(applicationId: string, adminNotes: string) {
-    setActionError(null);
-    sessionStorage.removeItem("volunteerActionError");
+    clearActionError();
     setSavingEmailId(applicationId);
     const response = await fetch("/api/volunteers/update-details", {
       method: "POST",
