@@ -242,18 +242,7 @@ function buildContactName(row: Record<string, string>) {
 }
 
 function buildIntakeNotes(row: Record<string, string>) {
-  const sections: string[] = [];
-
-  if (row.colony_notes) sections.push(row.colony_notes);
-  if (row.additional_notes) sections.push(`Additional notes: ${row.additional_notes}`);
-  if (row.relationship_to_cats) sections.push(`Relationship to cats: ${row.relationship_to_cats}`);
-  if (row.trapping_experience) sections.push(`Trapping experience: ${row.trapping_experience}`);
-  if (row.feeder_if_not) sections.push(`Feeder if not reporter: ${row.feeder_if_not}`);
-  if (row.apartment_name) sections.push(`Apartment/community: ${row.apartment_name}`);
-  if (row.trapper_trap_loaner) sections.push(`Trapper/trap loaner: ${row.trapper_trap_loaner}`);
-  if (row.resolution) sections.push(`Resolution: ${row.resolution}`);
-
-  return sections.join("\n\n").trim() || null;
+  return row.colony_notes?.trim() || null;
 }
 
 export function mapImportRowToHelpRequest(
@@ -346,7 +335,6 @@ export function mapImportRowToHelpRequest(
     outcome_other_count: parseInteger(row.outcome_other_count),
     cats_remaining: parseInteger(row.cats_remaining),
     intake_notes: intakeNotes,
-    colony_details_notes: intakeNotes,
     internal_notes: row.additional_notes ?? null,
     can_help_trapping: canHelp,
     has_traps_available: needTraps ?? false,
