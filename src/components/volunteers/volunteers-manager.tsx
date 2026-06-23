@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { VOLUNTEER_ROLES } from "@/lib/constants";
+import { getApiErrorMessage } from "@/lib/api/errors";
 import { getEmailValidationError, parsePrimaryEmail } from "@/lib/email-utils";
 import { formatDate } from "@/lib/utils";
 import type { VolunteerApplication, TrapTeam, UserRole, VolunteerRole } from "@/lib/types";
@@ -50,7 +51,10 @@ export function VolunteersManager({ applications, teams }: VolunteersManagerProp
   const [interestFilter, setInterestFilter] = useState("all");
   const [approveRole, setApproveRole] = useState<UserRole>("volunteer");
   const [approveTeam, setApproveTeam] = useState<string>("none");
-  const [actionError, setActionError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+    return sessionStorage.getItem("volunteerActionError");
+  });
   const [actingId, setActingId] = useState<string | null>(null);
   const [updatingField, setUpdatingField] = useState<string | null>(null);
   const [actionNotes, setActionNotes] = useState<Record<string, string>>({});
@@ -84,14 +88,33 @@ export function VolunteersManager({ applications, teams }: VolunteersManagerProp
     return emailEdits[app.id] ?? app.email;
   }
 
+  function showActionError(message: string) {
+    setActionError(message);
+    sessionStorage.setItem("volunteerActionError", message);
+  }
+
+  function clearActionError() {
+    setActionError(null);
+    sessionStorage.removeItem("volunteerActionError");
+  }
+
   async function handleAction(
     id: string,
     action: "approve" | "reject" | "followup",
-    adminNotes?: string
+    adminNotes?: string,
+    email?: string
   ) {
-    setActionError(null);
+    clearActionError();
     setActingId(id);
     if (action === "approve") {
+      const emailToUse = email ?? emailEdits[id];
+      const validationError = emailToUse ? getEmailValidationError(emailToUse) : null;
+      if (validationError) {
+        setActingId(null);
+        showActionError(validationError);
+        return;
+      }
+
       const response = await fetch("/api/volunteers/approve", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -99,14 +122,21 @@ export function VolunteersManager({ applications, teams }: VolunteersManagerProp
           applicationId: id,
           role: approveRole,
           teamId: approveTeam === "none" ? null : approveTeam,
+          email: emailToUse,
         }),
       });
       const result = await response.json().catch(() => null);
       setActingId(null);
       if (!response.ok) {
-        setActionError(result?.error ?? "Unable to approve volunteer");
+        showActionError(getApiErrorMessage(result, "Unable to approve volunteer"));
         return;
       }
+      if (result?.warning) {
+        showActionError(result.warning);
+        router.refresh();
+        return;
+      }
+      clearActionError();
     } else {
       const response = await fetch("/api/volunteers/update-status", {
         method: "POST",
@@ -120,15 +150,17 @@ export function VolunteersManager({ applications, teams }: VolunteersManagerProp
       const result = await response.json().catch(() => null);
       setActingId(null);
       if (!response.ok) {
-        setActionError(result?.error ?? "Unable to update application");
+        showActionError(getApiErrorMessage(result, "Unable to update application"));
         return;
       }
     }
+    clearActionError();
     router.refresh();
   }
 
   async function saveEmail(applicationId: string, email: string) {
     setActionError(null);
+    sessionStorage.removeItem("volunteerActionError");
     setSavingEmailId(applicationId);
     const response = await fetch("/api/volunteers/update-details", {
       method: "POST",
@@ -138,7 +170,7 @@ export function VolunteersManager({ applications, teams }: VolunteersManagerProp
     const result = await response.json().catch(() => null);
     setSavingEmailId(null);
     if (!response.ok) {
-      setActionError(result?.error ?? "Unable to update email");
+      showActionError(getApiErrorMessage(result, "Unable to update email"));
       return;
     }
     router.refresh();
@@ -146,6 +178,7 @@ export function VolunteersManager({ applications, teams }: VolunteersManagerProp
 
   async function saveFollowUpNotes(applicationId: string, adminNotes: string) {
     setActionError(null);
+    sessionStorage.removeItem("volunteerActionError");
     setSavingEmailId(applicationId);
     const response = await fetch("/api/volunteers/update-details", {
       method: "POST",
@@ -155,7 +188,7 @@ export function VolunteersManager({ applications, teams }: VolunteersManagerProp
     const result = await response.json().catch(() => null);
     setSavingEmailId(null);
     if (!response.ok) {
-      setActionError(result?.error ?? "Unable to save follow-up notes");
+      showActionError(getApiErrorMessage(result, "Unable to save follow-up notes"));
       return;
     }
     router.refresh();
@@ -176,7 +209,7 @@ export function VolunteersManager({ applications, teams }: VolunteersManagerProp
     const result = await response.json().catch(() => null);
     setUpdatingField(null);
     if (!response.ok) {
-      setActionError(result?.error ?? "Unable to update application");
+      showActionError(getApiErrorMessage(result, "Unable to update application"));
       return;
     }
     router.refresh();
@@ -197,7 +230,7 @@ export function VolunteersManager({ applications, teams }: VolunteersManagerProp
     const result = await response.json().catch(() => null);
     setActingId(null);
     if (!response.ok) {
-      setActionError(result?.error ?? "Unable to delete application");
+      showActionError(getApiErrorMessage(result, "Unable to delete application"));
       return;
     }
     if (expanded === id) setExpanded(null);
@@ -206,6 +239,19 @@ export function VolunteersManager({ applications, teams }: VolunteersManagerProp
 
   return (
     <div className="space-y-4">
+      {actionError && (
+        <div
+          className={`rounded-md border px-4 py-3 text-sm ${
+            actionError.startsWith("Volunteer approved")
+              ? "border-orange-200 bg-orange-50 text-orange-900"
+              : "border-destructive/30 bg-destructive/10 text-destructive"
+          }`}
+          role="alert"
+        >
+          {actionError}
+        </div>
+      )}
+
       <div className="flex flex-wrap gap-3">
         <Select value={filter} onValueChange={setFilter}>
           <SelectTrigger className="w-[200px]"><SelectValue placeholder="Status" /></SelectTrigger>
@@ -236,6 +282,7 @@ export function VolunteersManager({ applications, teams }: VolunteersManagerProp
       {filtered.map((app) => {
         const emailValue = emailForApp(app);
         const emailInvalid = Boolean(getEmailValidationError(emailValue));
+        const suggestedEmail = parsePrimaryEmail(emailValue);
         const canReview = REVIEWABLE_STATUSES.has(app.status);
 
         return (
@@ -303,14 +350,15 @@ export function VolunteersManager({ applications, teams }: VolunteersManagerProp
                       </Button>
                     </div>
                     {emailInvalid && (
-                      <p className="flex items-center gap-1 text-sm text-destructive">
+                      <p className="flex flex-wrap items-center gap-1 text-sm text-destructive">
                         <AlertTriangle className="h-4 w-4 shrink-0" />
-                        Fix the email address before approving. Use one valid address only.
-                        {parsePrimaryEmail(emailValue) && emailValue.trim() !== parsePrimaryEmail(emailValue) && (
-                          <span className="ml-1">
-                            Suggested: {parsePrimaryEmail(emailValue)}
-                          </span>
-                        )}
+                        <span>
+                          Fix the email address before approving. Use one valid address only.
+                          {suggestedEmail &&
+                            emailValue.trim().toLowerCase() !== suggestedEmail && (
+                              <> Suggested: {suggestedEmail}</>
+                            )}
+                        </span>
                       </p>
                     )}
                   </div>
@@ -401,7 +449,7 @@ export function VolunteersManager({ applications, teams }: VolunteersManagerProp
                       <Button
                         size="sm"
                         disabled={actingId === app.id || emailInvalid}
-                        onClick={() => handleAction(app.id, "approve")}
+                        onClick={() => handleAction(app.id, "approve", undefined, emailValue)}
                       >
                         <Check className="h-4 w-4 mr-1" />
                         {actingId === app.id ? "Working..." : "Approve"}
@@ -424,6 +472,18 @@ export function VolunteersManager({ applications, teams }: VolunteersManagerProp
                         <X className="h-4 w-4 mr-1" />Reject
                       </Button>
                     </div>
+                    {actionError && expanded === app.id && (
+                      <p
+                        className={`text-sm ${
+                          actionError.startsWith("Volunteer approved")
+                            ? "text-orange-700"
+                            : "text-destructive"
+                        }`}
+                        role="alert"
+                      >
+                        {actionError}
+                      </p>
+                    )}
                   </div>
                 )}
 
@@ -437,7 +497,6 @@ export function VolunteersManager({ applications, teams }: VolunteersManagerProp
                     <Trash2 className="h-4 w-4 mr-1" />
                     {actingId === app.id ? "Deleting..." : "Delete Application"}
                   </Button>
-                  {actionError && <p className="text-sm text-destructive">{actionError}</p>}
                 </div>
               </CardContent>
             )}
