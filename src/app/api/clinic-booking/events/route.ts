@@ -1,7 +1,20 @@
 import { NextResponse } from "next/server";
 import { availableSpots } from "@/lib/clinic-events/availability";
 import { createServiceClient } from "@/lib/supabase/server";
-import type { PublicBooking } from "@/lib/types";
+import type { PublicBooking, PublicClinicEvent } from "@/lib/types";
+
+function normalizeEvents(
+  rows: Array<Record<string, unknown>>
+): PublicClinicEvent[] {
+  return rows.map((row) => {
+    const clinics = row.clinics as { check_in_details?: string | null } | null;
+    const { clinics: _clinics, ...event } = row;
+    return {
+      ...(event as unknown as PublicClinicEvent),
+      check_in_details: clinics?.check_in_details ?? null,
+    };
+  });
+}
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -12,7 +25,7 @@ export async function GET(request: Request) {
 
   let eventsQuery = service
     .from("public_clinic_events")
-    .select("*")
+    .select("*, clinics(check_in_details)")
     .eq("is_active", true)
     .gte("date", today)
     .order("date");
@@ -44,5 +57,9 @@ export async function GET(request: Request) {
     available[event.id] = availableSpots(event.total_spots, bookingRows);
   }
 
-  return NextResponse.json({ events: events ?? [], counts, available });
+  return NextResponse.json({
+    events: normalizeEvents((events ?? []) as Array<Record<string, unknown>>),
+    counts,
+    available,
+  });
 }

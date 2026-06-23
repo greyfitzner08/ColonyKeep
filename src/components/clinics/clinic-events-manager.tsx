@@ -32,8 +32,18 @@ const emptyForm = {
   cost_description: "",
   payment_url: "",
   included_services: "",
+  pending_email_message: "",
+  confirmed_email_message: "",
   is_active: true,
   notes: "",
+};
+
+const STATUS_VARIANT: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
+  pending: "secondary",
+  confirmed: "default",
+  waitlist: "outline",
+  cancelled: "destructive",
+  expired: "outline",
 };
 
 export function ClinicEventsManager({ events, clinics, bookings }: ClinicEventsManagerProps) {
@@ -46,6 +56,7 @@ export function ClinicEventsManager({ events, clinics, bookings }: ClinicEventsM
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [updatingBookingId, setUpdatingBookingId] = useState<string | null>(null);
 
   function resetForm() {
     setForm(emptyForm);
@@ -78,6 +89,8 @@ export function ClinicEventsManager({ events, clinics, bookings }: ClinicEventsM
         addon_services: [],
         is_active: form.is_active,
         notes: form.notes,
+        pending_email_message: form.pending_email_message || null,
+        confirmed_email_message: form.confirmed_email_message || null,
       }),
     });
     const result = await response.json().catch(() => null);
@@ -106,6 +119,8 @@ export function ClinicEventsManager({ events, clinics, bookings }: ClinicEventsM
       cost_description: event.cost_description ?? "",
       payment_url: event.payment_url ?? "",
       included_services: event.included_services.join(", "),
+      pending_email_message: event.pending_email_message ?? "",
+      confirmed_email_message: event.confirmed_email_message ?? "",
       is_active: event.is_active,
       notes: event.notes ?? "",
     });
@@ -142,6 +157,8 @@ export function ClinicEventsManager({ events, clinics, bookings }: ClinicEventsM
         addon_services: editingEvent.addon_services,
         is_active: form.is_active,
         notes: form.notes,
+        pending_email_message: form.pending_email_message || null,
+        confirmed_email_message: form.confirmed_email_message || null,
       }),
     });
     const result = await response.json().catch(() => null);
@@ -166,9 +183,32 @@ export function ClinicEventsManager({ events, clinics, bookings }: ClinicEventsM
     });
   }
 
+  async function updateBookingStatus(bookingId: string, status: PublicBooking["status"]) {
+    setUpdatingBookingId(bookingId);
+    setError(null);
+    const response = await fetch("/api/clinic-events/bookings/update-status", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ booking_id: bookingId, status }),
+    });
+    const result = await response.json().catch(() => null);
+    setUpdatingBookingId(null);
+    if (!response.ok) {
+      setError(result?.error ?? "Unable to update booking");
+      return;
+    }
+    router.refresh();
+  }
+
+  const selectedEventData = events.find((e) => e.id === selectedEvent);
   const eventBookings = selectedEvent
     ? bookings.filter((b) => b.event_id === selectedEvent && b.contact_email !== "hold@pending.local")
     : [];
+
+  const pendingBookings = eventBookings.filter((b) => b.status === "pending");
+  const confirmedBookings = eventBookings.filter((b) => b.status === "confirmed");
+  const waitlistBookings = eventBookings.filter((b) => b.status === "waitlist");
+  const otherBookings = eventBookings.filter((b) => !["pending", "confirmed", "waitlist"].includes(b.status));
 
   const formFields = (
     <div className="space-y-3">
@@ -190,6 +230,24 @@ export function ClinicEventsManager({ events, clinics, bookings }: ClinicEventsM
       <div className="space-y-1"><Label>Payment URL</Label><Input value={form.payment_url} onChange={(e) => setForm({ ...form, payment_url: e.target.value })} /></div>
       <div className="space-y-1"><Label>Cost description</Label><Input value={form.cost_description} onChange={(e) => setForm({ ...form, cost_description: e.target.value })} /></div>
       <div className="space-y-1"><Label>Description</Label><Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></div>
+      <div className="space-y-1">
+        <Label>After-signup message (shown on screen + pending email)</Label>
+        <Textarea
+          value={form.pending_email_message}
+          onChange={(e) => setForm({ ...form, pending_email_message: e.target.value })}
+          placeholder="We received your request. Your spot is not confirmed until you receive a confirmation email from us."
+          rows={3}
+        />
+      </div>
+      <div className="space-y-1">
+        <Label>Confirmation email message (sent when you approve a booking)</Label>
+        <Textarea
+          value={form.confirmed_email_message}
+          onChange={(e) => setForm({ ...form, confirmed_email_message: e.target.value })}
+          placeholder="Your spot is confirmed! Arrive at…"
+          rows={3}
+        />
+      </div>
       <div className="space-y-1"><Label>Internal notes</Label><Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></div>
       <div className="flex items-center gap-2">
         <input
@@ -260,29 +318,48 @@ export function ClinicEventsManager({ events, clinics, bookings }: ClinicEventsM
         })}
       </div>
 
-      {selectedEvent && (
+      {selectedEvent && selectedEventData && (
         <Card>
           <CardHeader>
-            <CardTitle>Bookings for Event</CardTitle>
+            <CardTitle>Manage bookings — {selectedEventData.title}</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Pending requests need review. Confirm to send the confirmation email and lock the spot.
+              Move to backup list if full, or cancel to release the spot.
+            </p>
           </CardHeader>
-          <CardContent>
-            {eventBookings.length === 0 ? (
+          <CardContent className="space-y-6">
+            {error && <p className="text-sm text-destructive">{error}</p>}
+
+            <BookingGroup
+              title={`Pending review (${pendingBookings.length})`}
+              bookings={pendingBookings}
+              updatingId={updatingBookingId}
+              onConfirm={(id) => updateBookingStatus(id, "confirmed")}
+              onWaitlist={(id) => updateBookingStatus(id, "waitlist")}
+              onCancel={(id) => updateBookingStatus(id, "cancelled")}
+            />
+
+            <BookingGroup
+              title={`Confirmed (${confirmedBookings.length})`}
+              bookings={confirmedBookings}
+              updatingId={updatingBookingId}
+              onCancel={(id) => updateBookingStatus(id, "cancelled")}
+            />
+
+            <BookingGroup
+              title={`Backup list (${waitlistBookings.length})`}
+              bookings={waitlistBookings}
+              updatingId={updatingBookingId}
+              onConfirm={(id) => updateBookingStatus(id, "confirmed")}
+              onCancel={(id) => updateBookingStatus(id, "cancelled")}
+            />
+
+            {otherBookings.length > 0 && (
+              <BookingGroup title="Other" bookings={otherBookings} updatingId={updatingBookingId} />
+            )}
+
+            {eventBookings.length === 0 && (
               <p className="text-muted-foreground">No bookings yet</p>
-            ) : (
-              <div className="space-y-2">
-                {eventBookings.map((b) => (
-                  <div key={b.id} className="flex justify-between text-sm border-b pb-2">
-                    <div>
-                      <p className="font-medium">{b.contact_name}</p>
-                      <p className="text-muted-foreground">{b.cat_name ?? "Unnamed cat"} · {b.contact_email}</p>
-                    </div>
-                    <div className="text-right">
-                      <Badge variant="secondary">{b.status}</Badge>
-                      <p className="text-xs mt-1">{formatCurrency(b.total_price)}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
             )}
           </CardContent>
         </Card>
@@ -307,6 +384,61 @@ export function ClinicEventsManager({ events, clinics, bookings }: ClinicEventsM
           </Button>
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+function BookingGroup({
+  title,
+  bookings,
+  updatingId,
+  onConfirm,
+  onWaitlist,
+  onCancel,
+}: {
+  title: string;
+  bookings: PublicBooking[];
+  updatingId: string | null;
+  onConfirm?: (id: string) => void;
+  onWaitlist?: (id: string) => void;
+  onCancel?: (id: string) => void;
+}) {
+  if (bookings.length === 0) return null;
+
+  return (
+    <div className="space-y-2">
+      <h4 className="font-medium text-sm">{title}</h4>
+      {bookings.map((b) => (
+        <div key={b.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-sm border rounded-lg p-3">
+          <div>
+            <p className="font-medium">{b.contact_name}</p>
+            <p className="text-muted-foreground">
+              {b.cat_name ?? "Unnamed cat"} · {b.contact_email} · {b.contact_phone}
+            </p>
+            {b.cat_colors && <p className="text-xs text-muted-foreground">{b.cat_colors}{b.cat_gender ? ` · ${b.cat_gender}` : ""}</p>}
+            {b.notes && <p className="text-xs text-muted-foreground mt-1">{b.notes}</p>}
+          </div>
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
+            <Badge variant={STATUS_VARIANT[b.status] ?? "secondary"}>{b.status}</Badge>
+            <span className="text-xs text-muted-foreground">{formatCurrency(b.total_price)}</span>
+            {onConfirm && (
+              <Button size="sm" disabled={updatingId === b.id} onClick={() => onConfirm(b.id)}>
+                Confirm
+              </Button>
+            )}
+            {onWaitlist && (
+              <Button size="sm" variant="outline" disabled={updatingId === b.id} onClick={() => onWaitlist(b.id)}>
+                Backup list
+              </Button>
+            )}
+            {onCancel && (
+              <Button size="sm" variant="destructive" disabled={updatingId === b.id} onClick={() => onCancel(b.id)}>
+                Cancel
+              </Button>
+            )}
+          </div>
+        </div>
+      ))}
     </div>
   );
 }

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import { Cat, CheckCircle, Calendar, MapPin, Clock } from "lucide-react";
+import { Cat, CheckCircle, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,14 +10,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { EventDetailsSummary } from "@/components/clinics/event-details-summary";
 import type { PublicClinicEvent } from "@/lib/types";
-import { formatCurrency, formatDate } from "@/lib/utils";
+import { formatCurrency } from "@/lib/utils";
 import Link from "next/link";
 
 interface SpotForm {
   cat_name: string;
   cat_colors: string;
-  cat_breed: string;
   cat_gender: string;
   has_injuries: boolean;
   injury_details: string;
@@ -28,13 +28,15 @@ interface SpotForm {
 const emptySpot = (): SpotForm => ({
   cat_name: "",
   cat_colors: "",
-  cat_breed: "",
   cat_gender: "",
   has_injuries: false,
   injury_details: "",
   selected_addons: [],
   notes: "",
 });
+
+const DEFAULT_PENDING_MESSAGE =
+  "We received your request and will review it shortly. Your spot is not confirmed until you receive a confirmation email from our team.";
 
 function ClinicBookingContent() {
   const searchParams = useSearchParams();
@@ -190,25 +192,53 @@ function ClinicBookingContent() {
     setSubmitError(null);
   }
 
-  if (submitted) {
+  const pendingMessage =
+    selectedEvent?.pending_email_message?.trim() || DEFAULT_PENDING_MESSAGE;
+
+  if (submitted && selectedEvent) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-muted/30 p-4">
-        <Card className="max-w-md w-full text-center">
-          <CardHeader>
+        <Card className="max-w-lg w-full">
+          <CardHeader className="text-center">
             <CheckCircle className="mx-auto h-16 w-16 text-primary mb-4" />
-            <CardTitle>Booking Submitted</CardTitle>
-            <CardDescription>
-              Your {spots.length > 1 ? `${spots.length} bookings are` : "booking is"} pending
-              confirmation. You will receive an email with next steps.
-              {selectedEvent?.payment_url && (
-                <span className="block mt-2">
-                  <a href={selectedEvent.payment_url} className="text-primary underline" target="_blank" rel="noopener">
-                    Complete payment here
-                  </a>
-                </span>
-              )}
-            </CardDescription>
+            <CardTitle>Request submitted — not confirmed yet</CardTitle>
           </CardHeader>
+          <CardContent className="space-y-4">
+            <div
+              role="alert"
+              className="rounded-lg border-2 border-amber-500 bg-amber-50 px-4 py-3 text-sm"
+            >
+              <div className="flex gap-3">
+                <AlertTriangle className="h-5 w-5 shrink-0 text-amber-600" />
+                <div>
+                  <p className="font-semibold text-amber-950">
+                    Your spot is NOT confirmed until you receive a confirmation email
+                  </p>
+                  <p className="mt-1 text-amber-900/90">
+                    We received your request for {spots.length} cat
+                    {spots.length === 1 ? "" : "s"}. Our team will review it and email you at{" "}
+                    <strong>{contact.contact_email}</strong> when your spot is approved.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <p className="text-sm text-muted-foreground whitespace-pre-wrap">{pendingMessage}</p>
+
+            {selectedEvent.payment_url && (
+              <p className="text-sm">
+                When confirmed, you may need to complete payment:{" "}
+                <a
+                  href={selectedEvent.payment_url}
+                  className="text-primary underline"
+                  target="_blank"
+                  rel="noopener"
+                >
+                  payment link
+                </a>
+              </p>
+            )}
+          </CardContent>
         </Card>
       </div>
     );
@@ -223,7 +253,7 @@ function ClinicBookingContent() {
             <span className="text-xl font-semibold">TNVR Rescue</span>
           </Link>
           <h1 className="text-2xl font-bold">Book a Clinic Spot</h1>
-          <p className="text-muted-foreground mt-1">Reserve a spot at an upcoming TNVR clinic</p>
+          <p className="text-muted-foreground mt-1">Request a spot at an upcoming TNVR clinic</p>
         </div>
 
         {!selectedEvent ? (
@@ -251,167 +281,187 @@ function ClinicBookingContent() {
                     </div>
                     <CardDescription>{event.clinic_name}</CardDescription>
                   </CardHeader>
-                  <CardContent className="space-y-2 text-sm">
-                    <div className="flex items-center gap-2"><Calendar className="h-4 w-4" />{formatDate(event.date)}</div>
-                    <div className="flex items-center gap-2"><MapPin className="h-4 w-4" />{event.location}</div>
-                    <p className="font-medium">{formatCurrency(event.base_price)} base price</p>
-                    {event.included_services.length > 0 && (
-                      <p className="text-muted-foreground">Includes: {event.included_services.join(", ")}</p>
-                    )}
+                  <CardContent>
+                    <EventDetailsSummary
+                      event={event}
+                      checkInDetails={event.check_in_details}
+                      spotsAvailable={remaining}
+                      showNotConfirmedWarning
+                    />
                   </CardContent>
                 </Card>
               );
             })}
           </div>
         ) : step === 0 ? (
-          <Card>
-            <CardHeader>
-              <CardTitle>{selectedEvent.title}</CardTitle>
-              <CardDescription>{formatDate(selectedEvent.date)} — {selectedEvent.location}</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <p className="text-sm text-muted-foreground">
-                {available[selectedEvent.id] ?? selectedEvent.total_spots} spots available
-              </p>
-              <div className="space-y-2">
-                <Label>How many cats are you booking?</Label>
-                <Input
-                  type="number"
-                  min={1}
-                  max={Math.min(20, available[selectedEvent.id] ?? selectedEvent.total_spots)}
-                  value={spotCount}
-                  onChange={(e) =>
-                    setSpotCount(
-                      Math.min(
-                        Math.max(parseInt(e.target.value, 10) || 1, 1),
-                        Math.min(20, available[selectedEvent.id] ?? selectedEvent.total_spots)
+          <div className="space-y-4">
+            <EventDetailsSummary
+              event={selectedEvent}
+              checkInDetails={selectedEvent.check_in_details}
+              spotsAvailable={available[selectedEvent.id] ?? selectedEvent.total_spots}
+              showTimeLimit
+              showNotConfirmedWarning
+            />
+
+            <Card>
+              <CardHeader>
+                <CardTitle>How many cats?</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Number of spots to request</Label>
+                  <Input
+                    type="number"
+                    min={1}
+                    max={Math.min(20, available[selectedEvent.id] ?? selectedEvent.total_spots)}
+                    value={spotCount}
+                    onChange={(e) =>
+                      setSpotCount(
+                        Math.min(
+                          Math.max(parseInt(e.target.value, 10) || 1, 1),
+                          Math.min(20, available[selectedEvent.id] ?? selectedEvent.total_spots)
+                        )
                       )
-                    )
-                  }
-                />
-                <p className="text-xs text-muted-foreground">
-                  Spots are held for 10 minutes while you complete the form.
-                </p>
-              </div>
-              {submitError && <p className="text-sm text-destructive">{submitError}</p>}
-              <div className="flex justify-between pt-4">
-                <Button variant="outline" onClick={() => setSelectedEvent(null)}>Back</Button>
-                <Button onClick={startHold} disabled={holding}>
-                  {holding ? "Holding spots…" : `Hold ${spotCount} spot${spotCount === 1 ? "" : "s"}`}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+                    }
+                  />
+                </div>
+                {submitError && <p className="text-sm text-destructive">{submitError}</p>}
+                <div className="flex justify-between pt-2">
+                  <Button variant="outline" onClick={() => setSelectedEvent(null)}>Back</Button>
+                  <Button onClick={startHold} disabled={holding}>
+                    {holding ? "Starting…" : `Continue (${spotCount} spot${spotCount === 1 ? "" : "s"})`}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         ) : (
-          <Card>
-            <CardHeader>
-              <div className="flex justify-between items-start gap-4">
-                <div>
-                  <CardTitle>{selectedEvent.title}</CardTitle>
-                  <CardDescription>{formatDate(selectedEvent.date)} — {spots.length} spot{spots.length === 1 ? "" : "s"}</CardDescription>
-                </div>
-                {secondsLeft > 0 && (
-                  <Badge variant="outline" className="flex items-center gap-1 shrink-0">
-                    <Clock className="h-3 w-3" />
-                    {Math.floor(secondsLeft / 60)}:{String(secondsLeft % 60).padStart(2, "0")}
-                  </Badge>
-                )}
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              {step === 1 && (
-                <div className="space-y-4">
-                  <h3 className="font-semibold">Your contact information</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2"><Label>Name</Label><Input value={contact.contact_name} onChange={(e) => setContact({ ...contact, contact_name: e.target.value })} required /></div>
-                    <div className="space-y-2"><Label>Email</Label><Input type="email" value={contact.contact_email} onChange={(e) => setContact({ ...contact, contact_email: e.target.value })} required /></div>
-                  </div>
-                  <div className="space-y-2"><Label>Phone</Label><Input type="tel" value={contact.contact_phone} onChange={(e) => setContact({ ...contact, contact_phone: e.target.value })} required /></div>
-                </div>
-              )}
+          <div className="space-y-4">
+            <EventDetailsSummary
+              event={selectedEvent}
+              checkInDetails={selectedEvent.check_in_details}
+              showTimeLimit
+              showNotConfirmedWarning
+            />
 
-              {step === 2 && spots.map((spot, index) => (
-                <div key={index} className="rounded-lg border p-4 space-y-4">
-                  <h3 className="font-semibold">Cat {index + 1} of {spots.length}</h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2"><Label>Cat Name (if known)</Label><Input value={spot.cat_name} onChange={(e) => { const next = [...spots]; next[index] = { ...spot, cat_name: e.target.value }; setSpots(next); }} /></div>
-                    <div className="space-y-2"><Label>Gender</Label><Input value={spot.cat_gender} onChange={(e) => { const next = [...spots]; next[index] = { ...spot, cat_gender: e.target.value }; setSpots(next); }} placeholder="M/F/Unknown" /></div>
+            <Card>
+              <CardHeader>
+                <div className="flex justify-between items-start gap-4">
+                  <div>
+                    <CardTitle>Complete your request</CardTitle>
+                    <CardDescription>
+                      {spots.length} spot{spots.length === 1 ? "" : "s"} · step {step} of 2
+                    </CardDescription>
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2"><Label>Colors</Label><Input value={spot.cat_colors} onChange={(e) => { const next = [...spots]; next[index] = { ...spot, cat_colors: e.target.value }; setSpots(next); }} /></div>
-                    <div className="space-y-2"><Label>Breed</Label><Input value={spot.cat_breed} onChange={(e) => { const next = [...spots]; next[index] = { ...spot, cat_breed: e.target.value }; setSpots(next); }} /></div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Checkbox checked={spot.has_injuries} onCheckedChange={(v) => { const next = [...spots]; next[index] = { ...spot, has_injuries: !!v }; setSpots(next); }} />
-                    <Label>Cat has injuries or medical concerns</Label>
-                  </div>
-                  {spot.has_injuries && (
-                    <div className="space-y-2"><Label>Injury Details</Label><Textarea value={spot.injury_details} onChange={(e) => { const next = [...spots]; next[index] = { ...spot, injury_details: e.target.value }; setSpots(next); }} /></div>
+                  {secondsLeft > 0 && (
+                    <Badge variant="destructive" className="shrink-0 text-sm px-3 py-1">
+                      {Math.floor(secondsLeft / 60)}:{String(secondsLeft % 60).padStart(2, "0")} left
+                    </Badge>
                   )}
-                  {selectedEvent.addon_services.length > 0 && (
-                    <div className="space-y-3">
-                      <Label>Optional Add-on Services</Label>
-                      {selectedEvent.addon_services.map((addon) => (
-                        <div key={addon.name} className="flex items-center gap-2">
-                          <Checkbox
-                            checked={spot.selected_addons.includes(addon.name)}
-                            onCheckedChange={(v) => {
-                              const next = [...spots];
-                              next[index] = {
-                                ...spot,
-                                selected_addons: v
-                                  ? [...spot.selected_addons, addon.name]
-                                  : spot.selected_addons.filter((a) => a !== addon.name),
-                              };
-                              setSpots(next);
-                            }}
-                          />
-                          <Label>{addon.name} — {formatCurrency(addon.price)}</Label>
-                        </div>
-                      ))}
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {step === 1 && (
+                  <div className="space-y-4">
+                    <h3 className="font-semibold">Your contact information</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2"><Label>Name</Label><Input value={contact.contact_name} onChange={(e) => setContact({ ...contact, contact_name: e.target.value })} required /></div>
+                      <div className="space-y-2"><Label>Email</Label><Input type="email" value={contact.contact_email} onChange={(e) => setContact({ ...contact, contact_email: e.target.value })} required /></div>
                     </div>
-                  )}
-                  <div className="space-y-2"><Label>Notes</Label><Textarea value={spot.notes} onChange={(e) => { const next = [...spots]; next[index] = { ...spot, notes: e.target.value }; setSpots(next); }} /></div>
-                  <p className="text-sm text-muted-foreground">Spot total: {formatCurrency(calculateSpotTotal(spot))}</p>
-                </div>
-              ))}
-
-              {step === 2 && (
-                <div className="rounded-lg bg-muted p-4">
-                  <p className="font-semibold">Grand total: {formatCurrency(calculateGrandTotal())}</p>
-                  {selectedEvent.cost_description && (
-                    <p className="text-sm text-muted-foreground mt-1">{selectedEvent.cost_description}</p>
-                  )}
-                </div>
-              )}
-
-              {submitError && <p className="text-sm text-destructive">{submitError}</p>}
-
-              <div className="flex justify-between pt-4">
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    if (step === 1) cancelBooking();
-                    else setStep(step - 1);
-                  }}
-                >
-                  Back
-                </Button>
-                {step < 2 ? (
-                  <Button
-                    onClick={() => setStep(step + 1)}
-                    disabled={step === 1 && (!contact.contact_name || !contact.contact_email || !contact.contact_phone)}
-                  >
-                    Next
-                  </Button>
-                ) : (
-                  <Button onClick={handleSubmit} disabled={submitting}>
-                    {submitting ? "Submitting…" : `Confirm ${spots.length} booking${spots.length === 1 ? "" : "s"}`}
-                  </Button>
+                    <div className="space-y-2"><Label>Phone</Label><Input type="tel" value={contact.contact_phone} onChange={(e) => setContact({ ...contact, contact_phone: e.target.value })} required /></div>
+                  </div>
                 )}
-              </div>
-            </CardContent>
-          </Card>
+
+                {step === 2 && spots.map((spot, index) => (
+                  <div key={index} className="rounded-lg border p-4 space-y-4">
+                    <h3 className="font-semibold">Cat {index + 1} of {spots.length}</h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="space-y-2"><Label>Cat name (if known)</Label><Input value={spot.cat_name} onChange={(e) => { const next = [...spots]; next[index] = { ...spot, cat_name: e.target.value }; setSpots(next); }} /></div>
+                      <div className="space-y-2"><Label>Gender</Label><Input value={spot.cat_gender} onChange={(e) => { const next = [...spots]; next[index] = { ...spot, cat_gender: e.target.value }; setSpots(next); }} placeholder="M/F/Unknown" /></div>
+                    </div>
+                    <div className="space-y-2"><Label>Colors / markings</Label><Input value={spot.cat_colors} onChange={(e) => { const next = [...spots]; next[index] = { ...spot, cat_colors: e.target.value }; setSpots(next); }} /></div>
+                    <div className="flex items-center gap-2">
+                      <Checkbox checked={spot.has_injuries} onCheckedChange={(v) => { const next = [...spots]; next[index] = { ...spot, has_injuries: !!v }; setSpots(next); }} />
+                      <Label>Cat has injuries or medical concerns</Label>
+                    </div>
+                    {spot.has_injuries && (
+                      <div className="space-y-2"><Label>Injury details</Label><Textarea value={spot.injury_details} onChange={(e) => { const next = [...spots]; next[index] = { ...spot, injury_details: e.target.value }; setSpots(next); }} /></div>
+                    )}
+                    {selectedEvent.addon_services.length > 0 && (
+                      <div className="space-y-3">
+                        <Label>Optional add-on services</Label>
+                        {selectedEvent.addon_services.map((addon) => (
+                          <div key={addon.name} className="flex items-center gap-2">
+                            <Checkbox
+                              checked={spot.selected_addons.includes(addon.name)}
+                              onCheckedChange={(v) => {
+                                const next = [...spots];
+                                next[index] = {
+                                  ...spot,
+                                  selected_addons: v
+                                    ? [...spot.selected_addons, addon.name]
+                                    : spot.selected_addons.filter((a) => a !== addon.name),
+                                };
+                                setSpots(next);
+                              }}
+                            />
+                            <Label>{addon.name} — {formatCurrency(addon.price)}</Label>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    <div className="space-y-2"><Label>Notes</Label><Textarea value={spot.notes} onChange={(e) => { const next = [...spots]; next[index] = { ...spot, notes: e.target.value }; setSpots(next); }} /></div>
+                    <p className="text-sm text-muted-foreground">Estimated total: {formatCurrency(calculateSpotTotal(spot))}</p>
+                  </div>
+                ))}
+
+                {step === 2 && (
+                  <>
+                    <div className="rounded-lg bg-muted p-4">
+                      <p className="font-semibold">Estimated grand total: {formatCurrency(calculateGrandTotal())}</p>
+                      {selectedEvent.cost_description && (
+                        <p className="text-sm text-muted-foreground mt-1">{selectedEvent.cost_description}</p>
+                      )}
+                    </div>
+                    <div
+                      role="alert"
+                      className="rounded-lg border border-amber-400 bg-amber-50 px-4 py-3 text-sm text-amber-950"
+                    >
+                      By submitting, you are requesting a spot — not confirming one. You will receive
+                      email at <strong>{contact.contact_email || "your address"}</strong> when our
+                      team reviews your request.
+                    </div>
+                  </>
+                )}
+
+                {submitError && <p className="text-sm text-destructive">{submitError}</p>}
+
+                <div className="flex justify-between pt-4">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      if (step === 1) cancelBooking();
+                      else setStep(step - 1);
+                    }}
+                  >
+                    Back
+                  </Button>
+                  {step < 2 ? (
+                    <Button
+                      onClick={() => setStep(step + 1)}
+                      disabled={step === 1 && (!contact.contact_name || !contact.contact_email || !contact.contact_phone)}
+                    >
+                      Next
+                    </Button>
+                  ) : (
+                    <Button onClick={handleSubmit} disabled={submitting}>
+                      {submitting ? "Submitting…" : `Submit request (${spots.length} cat${spots.length === 1 ? "" : "s"})`}
+                    </Button>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         )}
       </div>
     </div>

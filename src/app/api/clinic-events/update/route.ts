@@ -29,6 +29,8 @@ export async function POST(request: NextRequest) {
       addon_services: body.addon_services ?? [],
       is_active: body.is_active ?? true,
       notes: body.notes ?? null,
+      pending_email_message: body.pending_email_message ?? null,
+      confirmed_email_message: body.confirmed_email_message ?? null,
     })
     .eq("id", body.id)
     .select()

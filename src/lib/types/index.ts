@@ -69,7 +69,8 @@ export type PublicBookingStatus =
   | "pending"
   | "confirmed"
   | "expired"
-  | "cancelled";
+  | "cancelled"
+  | "waitlist";
 
 export interface Profile {
   id: string;
@@ -361,10 +362,14 @@ export interface PublicClinicEvent {
   base_price: number;
   cost_description: string | null;
   payment_url: string | null;
+  pending_email_message: string | null;
+  confirmed_email_message: string | null;
   is_active: boolean;
   notes: string | null;
   created_at: string;
   updated_at: string;
+  /** Joined from clinics when loaded for public booking */
+  check_in_details?: string | null;
 }
 
 export interface LibraryDocument {

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import { sendPublicBookingPendingEmail } from "@/lib/email";
 import { createServiceClient } from "@/lib/supabase/server";
-import type { PublicBooking } from "@/lib/types";
+import type { PublicBooking, PublicClinicEvent } from "@/lib/types";
 
 interface SpotPayload {
   contact_name: string;
@@ -8,7 +9,6 @@ interface SpotPayload {
   contact_phone: string;
   cat_name?: string;
   cat_colors?: string;
-  cat_breed?: string;
   cat_gender?: string;
   has_injuries?: boolean;
   injury_details?: string;
@@ -73,7 +73,7 @@ export async function POST(request: NextRequest) {
         contact_phone: spot.contact_phone,
         cat_name: spot.cat_name ?? null,
         cat_colors: spot.cat_colors ?? null,
-        cat_breed: spot.cat_breed ?? null,
+        cat_breed: null,
         cat_gender: spot.cat_gender ?? null,
         has_injuries: spot.has_injuries ?? false,
         injury_details: spot.injury_details ?? null,
@@ -81,12 +81,43 @@ export async function POST(request: NextRequest) {
         notes: spot.notes ?? null,
         total_price: spot.total_price ?? 0,
         expires_at: confirmExpires.toISOString(),
+        hold_session_id: null,
         status: "pending",
       })
       .eq("id", hold.id);
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 400 });
+    }
+  }
+
+  const contact = spots[0];
+  const { data: event } = await service
+    .from("public_clinic_events")
+    .select("*")
+    .eq("id", holdRows[0].event_id)
+    .single();
+
+  if (event && contact) {
+    const eventRow = event as PublicClinicEvent;
+    try {
+      await sendPublicBookingPendingEmail(
+        contact.contact_email,
+        contact.contact_name,
+        {
+          title: eventRow.title,
+          clinic_name: eventRow.clinic_name,
+          date: eventRow.date,
+          location: eventRow.location,
+          pending_email_message: eventRow.pending_email_message,
+        },
+        spots.map((spot) => ({
+          cat_name: spot.cat_name,
+          total_price: spot.total_price ?? 0,
+        }))
+      );
+    } catch (emailError) {
+      console.error("[email] Failed to send pending booking email:", emailError);
     }
   }
 

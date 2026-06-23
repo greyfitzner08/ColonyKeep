@@ -24,6 +24,8 @@ export async function POST(request: NextRequest) {
       included_services: body.included_services ?? [],
       addon_services: body.addon_services ?? [],
       is_active: body.is_active ?? true,
+      pending_email_message: body.pending_email_message ?? null,
+      confirmed_email_message: body.confirmed_email_message ?? null,
     })
     .select()
     .single();
