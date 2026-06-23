@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import { sortIntakeCases, type IntakeSortKey } from "@/lib/cases/sort-intake-cases";
+import { filterCasesBySearch } from "@/lib/cases/search-cases";
 import type { CaseViewMode } from "@/components/cases/case-queue-view";
 import { IntakeCaseGrid } from "@/components/cases/intake-case-grid";
 import { IntakeCaseTable } from "@/components/cases/intake-case-table";
@@ -13,25 +14,37 @@ interface IntakeQueueViewProps {
   userEmail: string;
   view: CaseViewMode;
   sort: IntakeSortKey;
+  searchQuery?: string;
 }
 
-/** URL-driven case list for the intake page (controls live in IntakeFilters). */
 export function IntakeQueueView({
   cases,
   canClaim,
   userEmail,
   view,
   sort,
+  searchQuery = "",
 }: IntakeQueueViewProps) {
-  const sortedCases = useMemo(() => sortIntakeCases(cases, sort), [cases, sort]);
+  const visibleCases = useMemo(() => {
+    const searched = filterCasesBySearch(cases, searchQuery);
+    return sortIntakeCases(searched, sort);
+  }, [cases, searchQuery, sort]);
+
+  if (visibleCases.length === 0) {
+    return (
+      <p className="text-muted-foreground py-8 text-center">
+        {searchQuery.trim() ? "No cases match your search." : "No cases in this queue."}
+      </p>
+    );
+  }
 
   if (view === "table") {
-    return <IntakeCaseTable cases={sortedCases} canClaim={canClaim} userEmail={userEmail} />;
+    return <IntakeCaseTable cases={visibleCases} canClaim={canClaim} userEmail={userEmail} />;
   }
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-      <IntakeCaseGrid cases={sortedCases} canClaim={canClaim} userEmail={userEmail} />
+      <IntakeCaseGrid cases={visibleCases} canClaim={canClaim} userEmail={userEmail} />
     </div>
   );
 }

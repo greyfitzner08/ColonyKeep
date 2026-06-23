@@ -1,11 +1,13 @@
 "use client";
 
+import { useMemo, useState } from "react";
 import { IntakeCaseGrid } from "@/components/cases/intake-case-grid";
 import { IntakeCaseTable } from "@/components/cases/intake-case-table";
 import { CaseQueueControls } from "@/components/cases/case-queue-controls";
+import { CaseQueueSearch } from "@/components/cases/case-queue-search";
 import { sortIntakeCases, type IntakeSortKey } from "@/lib/cases/sort-intake-cases";
+import { filterCasesBySearch } from "@/lib/cases/search-cases";
 import type { HelpRequest } from "@/lib/types";
-import { useState } from "react";
 
 export type CaseViewMode = "cards" | "table";
 
@@ -28,24 +30,36 @@ export function CaseQueueView({
 }: CaseQueueViewProps) {
   const [view, setView] = useState<CaseViewMode>(initialView);
   const [sort, setSort] = useState<IntakeSortKey>(initialSort);
-  const sortedCases = sortIntakeCases(cases, sort);
+  const [search, setSearch] = useState("");
+
+  const visibleCases = useMemo(() => {
+    const searched = filterCasesBySearch(cases, search);
+    return sortIntakeCases(searched, sort);
+  }, [cases, search, sort]);
 
   return (
     <div className="space-y-4">
       {showControls && (
-        <CaseQueueControls
-          view={view}
-          sort={sort}
-          onViewChange={setView}
-          onSortChange={setSort}
-        />
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <CaseQueueSearch value={search} onChange={setSearch} className="w-full sm:max-w-sm" />
+          <CaseQueueControls
+            view={view}
+            sort={sort}
+            onViewChange={setView}
+            onSortChange={setSort}
+          />
+        </div>
       )}
 
-      {view === "table" ? (
-        <IntakeCaseTable cases={sortedCases} canClaim={canClaim} userEmail={userEmail} />
+      {visibleCases.length === 0 ? (
+        <p className="text-muted-foreground py-6 text-center text-sm">
+          {search.trim() ? "No cases match your search." : "No cases to show."}
+        </p>
+      ) : view === "table" ? (
+        <IntakeCaseTable cases={visibleCases} canClaim={canClaim} userEmail={userEmail} />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          <IntakeCaseGrid cases={sortedCases} canClaim={canClaim} userEmail={userEmail} />
+          <IntakeCaseGrid cases={visibleCases} canClaim={canClaim} userEmail={userEmail} />
         </div>
       )}
     </div>

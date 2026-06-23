@@ -15,6 +15,7 @@ interface IntakePageProps {
     medical?: string;
     view?: string;
     sort?: string;
+    q?: string;
   }>;
 }
 
@@ -71,6 +72,7 @@ export default async function IntakePage({ searchParams }: IntakePageProps) {
         userEmail={profile?.email ?? ""}
         view={view}
         sort={sort}
+        searchQuery={params.q ?? ""}
       />
     </div>
   );

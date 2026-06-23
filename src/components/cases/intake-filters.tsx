@@ -3,6 +3,7 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CaseQueueControls } from "@/components/cases/case-queue-controls";
+import { CaseQueueSearch } from "@/components/cases/case-queue-search";
 import { getStatusOptionsForRole } from "@/lib/cases/statuses";
 import type { IntakeSortKey } from "@/lib/cases/sort-intake-cases";
 import type { CaseViewMode } from "@/components/cases/case-queue-view";
@@ -17,6 +18,7 @@ export function IntakeFilters({ teams }: IntakeFiltersProps) {
   const intakeStatuses = getStatusOptionsForRole("inquiry_team");
   const view = (searchParams.get("view") ?? "cards") as CaseViewMode;
   const sort = (searchParams.get("sort") ?? "date_desc") as IntakeSortKey;
+  const search = searchParams.get("q") ?? "";
 
   function updateFilter(key: string, value: string) {
     const params = new URLSearchParams(searchParams.toString());
@@ -30,12 +32,15 @@ export function IntakeFilters({ teams }: IntakeFiltersProps) {
 
   return (
     <div className="space-y-4 rounded-lg border bg-muted/20 p-4">
-      <CaseQueueControls
-        view={view}
-        sort={sort}
-        onViewChange={(nextView) => updateFilter("view", nextView)}
-        onSortChange={(nextSort) => updateFilter("sort", nextSort)}
-      />
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <CaseQueueSearch value={search} onChange={(q) => updateFilter("q", q)} className="w-full lg:max-w-md" />
+        <CaseQueueControls
+          view={view}
+          sort={sort}
+          onViewChange={(nextView) => updateFilter("view", nextView)}
+          onSortChange={(nextSort) => updateFilter("sort", nextSort)}
+        />
+      </div>
 
       <div className="flex flex-wrap gap-3">
         <Select value={searchParams.get("status") ?? "all"} onValueChange={(v) => updateFilter("status", v)}>

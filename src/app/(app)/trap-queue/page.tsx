@@ -2,15 +2,13 @@ import { Suspense } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
 import { sortCasesMedicalFirst } from "@/lib/cases/sort-cases";
-import { getStatusLabel } from "@/lib/cases/statuses";
 import {
   buildTrapQueueQuery,
-  TRAP_KANBAN_STATUSES,
   trapQueueViewLabel,
   type TrapQueueView,
 } from "@/lib/cases/trap-queue-query";
 import { TrapQueueFilters } from "@/components/trap-queue/trap-queue-filters";
-import { TrapQueueBoard } from "@/components/trap-queue/trap-queue-board";
+import { TrapQueueKanban } from "@/components/trap-queue/trap-queue-kanban";
 import type { HelpRequest, UserRole } from "@/lib/types";
 
 interface TrapQueuePageProps {
@@ -45,14 +43,6 @@ export default async function TrapQueuePage({ searchParams }: TrapQueuePageProps
   const { data: helpRequests } = await query;
   const cases = sortCasesMedicalFirst((helpRequests ?? []) as HelpRequest[]);
 
-  const byStatus = TRAP_KANBAN_STATUSES.reduce(
-    (acc, status) => {
-      acc[status] = cases.filter((helpRequest) => helpRequest.status === status);
-      return acc;
-    },
-    {} as Record<(typeof TRAP_KANBAN_STATUSES)[number], HelpRequest[]>
-  );
-
   const viewLabel = trapQueueViewLabel(view, teams ?? [], myTeam?.name);
   const viewDescription =
     view === "mine"
@@ -81,32 +71,11 @@ export default async function TrapQueuePage({ searchParams }: TrapQueuePageProps
         </Suspense>
       </div>
 
-      <div className="flex gap-4 overflow-x-auto pb-4">
-        {TRAP_KANBAN_STATUSES.map((status) => {
-          const label = getStatusLabel(status, "trap");
-          const columnCases = byStatus[status];
-
-          return (
-            <div key={status} className="w-72 shrink-0">
-              <div className="mb-3 rounded-lg bg-muted p-3">
-                <h3 className="text-sm font-semibold">{label}</h3>
-                <span className="text-xs text-muted-foreground">{columnCases.length} cases</span>
-              </div>
-              <div className="space-y-3">
-                {columnCases.length === 0 ? (
-                  <p className="text-xs text-muted-foreground px-1">No cases</p>
-                ) : (
-                  <TrapQueueBoard
-                    cases={columnCases}
-                    canClaim={isTrapRole}
-                    userEmail={profile?.email ?? ""}
-                  />
-                )}
-              </div>
-            </div>
-          );
-        })}
-      </div>
+      <TrapQueueKanban
+        cases={cases}
+        canClaim={isTrapRole}
+        userEmail={profile?.email ?? ""}
+      />
     </div>
   );
 }

@@ -5,6 +5,7 @@ import { CaseDetailTabs } from "@/components/cases/case-detail-tabs";
 import { Badge } from "@/components/ui/badge";
 import { STATUS_COLORS } from "@/lib/constants";
 import { hasActiveMedicalFlag } from "@/lib/medical-flags";
+import { getStatusLabel } from "@/lib/cases/statuses";
 import { AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { HelpRequest, Cat, Appointment } from "@/lib/types";
@@ -43,46 +44,22 @@ export default async function CasePage({ params }: CasePageProps) {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4">
-        <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-wrap items-center gap-3">
           <h1 className="text-3xl font-bold">{hr.case_number}</h1>
           <Badge className={cn("text-sm", STATUS_COLORS[hr.status])}>
-            {hr.status.replace(/_/g, " ")}
+            {getStatusLabel(hr.status)}
           </Badge>
           {medical && (
             <Badge variant="destructive" className="gap-1">
-              <AlertTriangle className="h-3 w-3" /> Medical Alert
+              <AlertTriangle className="h-3 w-3" /> Medical
             </Badge>
           )}
         </div>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <div className="rounded-lg border p-4 space-y-1.5">
-            <p className="text-sm font-medium text-muted-foreground">Contact</p>
-            <p className="text-base font-semibold">{hr.contact_name || "—"}</p>
-            <p className="text-base">{hr.contact_email || "—"}</p>
-            <p className="text-base">{hr.contact_phone || "—"}</p>
-          </div>
-          <div className="rounded-lg border p-4 space-y-1.5">
-            <p className="text-sm font-medium text-muted-foreground">Colony Location</p>
-            <p className="text-base font-semibold">{hr.colony_address || "—"}</p>
-            <p className="text-base">
-              {[hr.colony_city, hr.colony_state, hr.colony_zip].filter(Boolean).join(", ") || "—"}
-            </p>
-            {hr.colony_county && (
-              <p className="text-base text-muted-foreground">{hr.colony_county} County</p>
-            )}
-          </div>
-          <div className="rounded-lg border p-4 space-y-1.5">
-            <p className="text-sm font-medium text-muted-foreground">Colony Cats</p>
-            <p className="text-base">
-              {hr.cats_over_8_weeks} adult{hr.cats_over_8_weeks !== 1 ? "s" : ""},{" "}
-              {hr.kittens_under_8_weeks} kitten{hr.kittens_under_8_weeks !== 1 ? "s" : ""}
-              {hr.pregnant_count > 0 ? `, ${hr.pregnant_count} suspected pregnant` : ""}
-            </p>
-            {hr.assigned_team_name && (
-              <p className="text-base text-muted-foreground">Team: {hr.assigned_team_name}</p>
-            )}
-          </div>
+        <div className="text-base text-muted-foreground">
+          {hr.contact_name}
+          {hr.colony_zip ? ` · ${hr.colony_zip}` : ""}
+          {hr.assigned_team_name ? ` · ${hr.assigned_team_name}` : ""}
         </div>
       </div>
 

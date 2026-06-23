@@ -21,9 +21,9 @@ import { findTrapTeamForZip } from "@/lib/cases/assign-team-by-zip";
 import { detectMedicalKeywords, mergeMedicalFlags } from "@/lib/medical-flags";
 import { formatDateTime } from "@/lib/utils";
 import type { HelpRequest, Cat, Appointment, FollowUpEntry, UserRole } from "@/lib/types";
-import { CaseColonyInfoSection } from "@/components/cases/case-colony-info-section";
+import { CaseReporterSection, CaseColonySection } from "@/components/cases/case-colony-info-section";
 import { CaseIntakeSection } from "@/components/cases/case-intake-section";
-import { DetailField } from "@/components/cases/case-detail-fields";
+import { InfoRow } from "@/components/cases/case-detail-fields";
 import { Plus } from "lucide-react";
 
 interface CaseDetailTabsProps {
@@ -82,7 +82,6 @@ export function CaseDetailTabs({
       .from("help_requests")
       .update({
         status: payload.status,
-        priority: payload.priority,
         follow_up_due_date: payload.follow_up_due_date,
         assigned_team_id: payload.assigned_team_id,
         assigned_team_name: payload.assigned_team_name,
@@ -187,17 +186,22 @@ export function CaseDetailTabs({
   }
 
   return (
-    <Tabs defaultValue="colony">
-      <TabsList className="flex-wrap h-auto text-base">
-        <TabsTrigger value="colony">Colony & Reporter</TabsTrigger>
+    <Tabs defaultValue="reporter">
+      <TabsList className="flex-wrap h-auto">
+        <TabsTrigger value="reporter">Reporter</TabsTrigger>
+        <TabsTrigger value="colony">Colony</TabsTrigger>
         <TabsTrigger value="intake">Intake Team</TabsTrigger>
         <TabsTrigger value="cats">Tracked Cats ({cats.length})</TabsTrigger>
         <TabsTrigger value="appointments">Appointments ({appointments.length})</TabsTrigger>
         <TabsTrigger value="history">History</TabsTrigger>
       </TabsList>
 
+      <TabsContent value="reporter" className="mt-4">
+        <CaseReporterSection helpRequest={hr} />
+      </TabsContent>
+
       <TabsContent value="colony" className="mt-4">
-        <CaseColonyInfoSection helpRequest={hr} />
+        <CaseColonySection helpRequest={hr} />
       </TabsContent>
 
       <TabsContent value="intake" className="mt-4">
@@ -247,11 +251,11 @@ export function CaseDetailTabs({
                 {[cat.colors, cat.gender].filter(Boolean).join(" · ") || "—"}
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
-                <DetailField alwaysShow label="Microchip ID" value={cat.microchip_id} />
-                <DetailField alwaysShow label="Clinic" value={cat.clinic_name} />
+                <InfoRow alwaysShow label="Microchip ID" value={cat.microchip_id} />
+                <InfoRow alwaysShow label="Clinic" value={cat.clinic_name} />
                 {cat.medical_notes && (
                   <div className="sm:col-span-2">
-                    <DetailField alwaysShow label="Medical Notes" value={cat.medical_notes} />
+                    <InfoRow alwaysShow label="Medical notes" value={cat.medical_notes} />
                   </div>
                 )}
               </div>
