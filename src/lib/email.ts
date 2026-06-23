@@ -92,6 +92,31 @@ export async function sendVolunteerApprovalEmail(
   });
 }
 
+export async function sendVolunteerPasswordResetEmail(
+  email: string,
+  name: string,
+  tempPassword: string
+): Promise<{ sent: boolean; error?: string }> {
+  const loginUrl = `${APP_URL}/login`;
+
+  return sendResendEmail({
+    to: email,
+    subject: "Your TNVR Rescue password was reset",
+    logLabel: "Volunteer password reset",
+    html: `
+      <h1>Password reset</h1>
+      <p>Hi ${name},</p>
+      <p>An administrator reset your volunteer portal password.</p>
+      <p>Sign in at <a href="${loginUrl}">${loginUrl}</a> using:</p>
+      <ul>
+        <li><strong>Email:</strong> ${email}</li>
+        <li><strong>Temporary password:</strong> ${tempPassword}</li>
+      </ul>
+      <p>You will be prompted to choose a new password when you sign in.</p>
+    `,
+  });
+}
+
 export async function sendShiftConfirmationEmail(
   email: string,
   name: string,

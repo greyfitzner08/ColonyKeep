@@ -125,6 +125,48 @@ export async function ensureVolunteerAuthUser(
   return { userId, isNewUser };
 }
 
+export async function resetVolunteerTemporaryPassword(
+  service: SupabaseClient,
+  email: string,
+  fullName: string
+): Promise<{ userId: string; created: boolean } | AuthUserError> {
+  const password = getDefaultVolunteerPassword();
+  let userId = await findAuthUserIdByEmail(service, email);
+  let created = false;
+
+  if (!userId) {
+    const createResult = await service.auth.admin.createUser({
+      email,
+      email_confirm: true,
+      password,
+      user_metadata: { full_name: fullName },
+    });
+
+    if (createResult.error) {
+      const message = createResult.error.message?.trim();
+      return {
+        error: message
+          ? `Could not create volunteer login: ${message}`
+          : "Could not create volunteer login.",
+      };
+    }
+
+    userId = createResult.data.user?.id ?? (await findAuthUserIdByEmail(service, email));
+    created = true;
+  } else {
+    const { error } = await service.auth.admin.updateUserById(userId, { password });
+    if (error) {
+      return { error: error.message ?? "Could not reset volunteer password." };
+    }
+  }
+
+  if (!userId) {
+    return { error: "Could not find or create a login account for this volunteer." };
+  }
+
+  return { userId, created };
+}
+
 export function formatAuthSetupError(error: unknown, redirectTo?: string): string {
   return formatAuthError(error, redirectTo);
 }

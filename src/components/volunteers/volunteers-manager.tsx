@@ -19,7 +19,7 @@ import {
 } from "@/lib/volunteers/role-requirements";
 import { formatDate } from "@/lib/utils";
 import type { VolunteerApplication, TrapTeam, UserRole, VolunteerRole, Profile } from "@/lib/types";
-import { ChevronDown, ChevronUp, Check, X, MessageCircle, Trash2, AlertTriangle } from "lucide-react";
+import { ChevronDown, ChevronUp, Check, X, MessageCircle, Trash2, AlertTriangle, KeyRound } from "lucide-react";
 
 interface VolunteersManagerProps {
   applications: VolunteerApplication[];
@@ -62,6 +62,7 @@ export function VolunteersManager({ applications, teams, profilesByEmail }: Volu
   const [actionNotes, setActionNotes] = useState<Record<string, string>>({});
   const [emailEdits, setEmailEdits] = useState<Record<string, string>>({});
   const [savingEmailId, setSavingEmailId] = useState<string | null>(null);
+  const [resettingPasswordId, setResettingPasswordId] = useState<string | null>(null);
 
   const filtered = useMemo(() => {
     let results = filter === "all"
@@ -213,6 +214,37 @@ export function VolunteersManager({ applications, teams, profilesByEmail }: Volu
     router.refresh();
   }
 
+  async function resetTemporaryPassword(applicationId: string, name: string) {
+    if (
+      !window.confirm(
+        `Reset the login password for ${name} to the temporary default?\n\nThey will sign in with FeralFelines123! and be prompted to choose a new password.`
+      )
+    ) {
+      return;
+    }
+
+    clearActionError();
+    setResettingPasswordId(applicationId);
+    const response = await fetch("/api/volunteers/reset-password", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ application_id: applicationId }),
+    });
+    const result = await response.json().catch(() => null);
+    setResettingPasswordId(null);
+
+    if (!response.ok) {
+      showActionError(getApiErrorMessage(result, "Unable to reset password"));
+      return;
+    }
+
+    const message = result?.email_warning
+      ? `${result.message} ${result.email_warning}`
+      : (result?.message ?? "Temporary password set. The volunteer must sign in and choose a new password.");
+    showActionError(message);
+    router.refresh();
+  }
+
   async function deleteApplication(id: string, name: string) {
     if (!window.confirm(`Delete the application for ${name}? This cannot be undone.`)) {
       return;
@@ -240,7 +272,9 @@ export function VolunteersManager({ applications, teams, profilesByEmail }: Volu
       {actionError && (
         <div
           className={`rounded-md border px-4 py-3 text-sm ${
-            actionError.startsWith("Volunteer approved")
+            actionError.startsWith("Volunteer approved") ||
+            actionError.includes("Temporary password") ||
+            actionError.includes("Password reset")
               ? "border-orange-200 bg-orange-50 text-orange-900"
               : "border-destructive/30 bg-destructive/10 text-destructive"
           }`}
@@ -499,7 +533,9 @@ export function VolunteersManager({ applications, teams, profilesByEmail }: Volu
                     {actionError && expanded === app.id && (
                       <p
                         className={`text-sm ${
-                          actionError.startsWith("Volunteer approved")
+                          actionError.startsWith("Volunteer approved") ||
+            actionError.includes("Temporary password") ||
+            actionError.includes("Password reset")
                             ? "text-orange-700"
                             : "text-destructive"
                         }`}
@@ -508,6 +544,27 @@ export function VolunteersManager({ applications, teams, profilesByEmail }: Volu
                         {actionError}
                       </p>
                     )}
+                  </div>
+                )}
+
+                {app.status === "approved" && (
+                  <div className="rounded-md border bg-muted/30 p-3 space-y-2">
+                    <p className="text-sm font-medium">Volunteer login</p>
+                    <p className="text-sm text-muted-foreground">
+                      Reset to the temporary password if they cannot sign in or never set one up.
+                      {linkedProfile?.must_change_password && (
+                        <> This volunteer is already flagged to change their password on next sign-in.</>
+                      )}
+                    </p>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={resettingPasswordId === app.id || actingId === app.id}
+                      onClick={() => resetTemporaryPassword(app.id, app.full_name)}
+                    >
+                      <KeyRound className="h-4 w-4 mr-1" />
+                      {resettingPasswordId === app.id ? "Resetting…" : "Reset to temporary password"}
+                    </Button>
                   </div>
                 )}
 

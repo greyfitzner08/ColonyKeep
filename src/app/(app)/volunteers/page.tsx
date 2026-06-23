@@ -21,7 +21,7 @@ export default async function VolunteersPage({ searchParams }: VolunteersPagePro
     query,
     supabase.from("trap_teams").select("*").eq("is_active", true),
     supabase.from("volunteer_role_requests").select("*").order("created_at", { ascending: false }),
-    supabase.from("profiles").select("email, volunteer_roles, role, full_name"),
+    supabase.from("profiles").select("email, volunteer_roles, role, full_name, must_change_password"),
   ]);
 
   const profilesByEmail = Object.fromEntries(
