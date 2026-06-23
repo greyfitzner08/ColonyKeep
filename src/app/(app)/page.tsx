@@ -3,6 +3,8 @@ import { getCurrentProfile } from "@/lib/auth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { SupabaseConfigGate } from "@/components/layout/supabase-config-gate";
+import { hasSupabaseServerConfig } from "@/lib/supabase/env";
 import Link from "next/link";
 import {
   Inbox,
@@ -16,6 +18,10 @@ import {
 import { formatDate } from "@/lib/utils";
 
 export default async function DashboardPage() {
+  if (!hasSupabaseServerConfig()) {
+    return <SupabaseConfigGate />;
+  }
+
   const supabase = await createClient();
   const profile = await getCurrentProfile();
 
