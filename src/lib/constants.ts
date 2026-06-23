@@ -147,11 +147,13 @@ export const ROLE_PERMISSIONS: Record<
 };
 
 export function isKnownUserRole(role: string | null | undefined): role is UserRole {
-  return role != null && role in ROLE_PERMISSIONS;
+  const normalized = role?.trim();
+  return normalized != null && normalized in ROLE_PERMISSIONS;
 }
 
 export function getRolePermissions(role: string | null | undefined) {
-  return isKnownUserRole(role) ? ROLE_PERMISSIONS[role] : null;
+  const normalized = role?.trim();
+  return isKnownUserRole(normalized) ? ROLE_PERMISSIONS[normalized] : null;
 }
 
 export const STATUS_COLORS: Record<HelpRequestStatus, string> = {
