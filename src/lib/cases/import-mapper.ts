@@ -187,6 +187,14 @@ function parseDate(value: string | undefined): string | null {
   return parsed.toISOString();
 }
 
+function mapPriority(value: string | undefined): string {
+  const normalized = value?.trim().toLowerCase();
+  if (!normalized) return "normal";
+  if (["high", "urgent", "emergency"].includes(normalized)) return "high";
+  if (["low"].includes(normalized)) return "low";
+  return normalized;
+}
+
 function mapStatus(value: string | undefined): HelpRequestStatus {
   if (!value) return "new_intake";
   const normalized = value.trim().toLowerCase();
@@ -291,7 +299,7 @@ export function mapImportRowToHelpRequest(
     outcome: row.outcome ?? null,
     resolution: row.resolution ?? null,
     closure_notes: row.resolution ?? null,
-    priority: row.priority ?? null,
+    priority: mapPriority(row.priority),
     trapper_trap_loaner: row.trapper_trap_loaner ?? null,
     additional_notes: row.additional_notes ?? null,
     outcome_tnvr_count: parseInteger(row.outcome_tnvr_count),
