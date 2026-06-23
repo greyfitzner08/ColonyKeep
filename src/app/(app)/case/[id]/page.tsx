@@ -27,10 +27,16 @@ export default async function CasePage({ params }: CasePageProps) {
 
   if (!helpRequest) notFound();
 
-  const [{ data: cats }, { data: appointments }, { data: teams }, { data: clinics }] =
+  const [{ data: cats }, { data: appointments }, { data: availableAppointments }, { data: teams }, { data: clinics }] =
     await Promise.all([
       supabase.from("cats").select("*").eq("help_request_id", id),
       supabase.from("appointments").select("*").eq("help_request_id", id),
+      supabase
+        .from("appointments")
+        .select("*")
+        .eq("status", "available")
+        .gte("date", new Date().toISOString().split("T")[0])
+        .order("date"),
       supabase.from("trap_teams").select("id, name, zip_codes").eq("is_active", true),
       supabase.from("clinics").select("id, name").eq("is_active", true),
     ]);
@@ -67,6 +73,7 @@ export default async function CasePage({ params }: CasePageProps) {
         helpRequest={hr}
         cats={(cats ?? []) as Cat[]}
         appointments={(appointments ?? []) as Appointment[]}
+        availableAppointments={(availableAppointments ?? []) as Appointment[]}
         teams={teams ?? []}
         clinics={clinics ?? []}
         userRole={profile?.role ?? null}

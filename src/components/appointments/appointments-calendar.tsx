@@ -12,14 +12,14 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogDescription,
 } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { createClient } from "@/lib/supabase/client";
+import { ClaimAppointmentDialog } from "@/components/appointments/claim-appointment-dialog";
 import { APPOINTMENT_STATUS_COLORS } from "@/lib/constants";
 import { formatDate, cn } from "@/lib/utils";
 import type { Appointment, Clinic } from "@/lib/types";
+import type { HelpRequestOption } from "@/lib/cases/help-request-options";
 import { Plus, Calendar } from "lucide-react";
 
 const CLINIC_COLORS = [
@@ -33,13 +33,16 @@ const CLINIC_COLORS = [
 interface AppointmentsCalendarProps {
   appointments: Appointment[];
   clinics: Clinic[];
-  helpRequests: { id: string; case_number: string; contact_name: string }[];
+  helpRequests: HelpRequestOption[];
+  /** Pre-link claims to this case (e.g. from /appointments?caseId=…) */
+  linkedHelpRequest?: HelpRequestOption | null;
 }
 
 export function AppointmentsCalendar({
   appointments: initial,
   clinics,
   helpRequests,
+  linkedHelpRequest = null,
 }: AppointmentsCalendarProps) {
   const router = useRouter();
   const [view, setView] = useState<"month" | "list">("list");
@@ -47,11 +50,8 @@ export function AppointmentsCalendar({
   const [claimDialog, setClaimDialog] = useState<Appointment | null>(null);
   const [bulkDialog, setBulkDialog] = useState(false);
   const [bulkForm, setBulkForm] = useState({ clinic_id: "", date: "", count: 5 });
-  const [claimForm, setClaimForm] = useState({ help_request_id: "", cat_name: "" });
   const [bulkError, setBulkError] = useState<string | null>(null);
-  const [claimError, setClaimError] = useState<string | null>(null);
   const [savingBulk, setSavingBulk] = useState(false);
-  const [savingClaim, setSavingClaim] = useState(false);
 
   const clinicColorMap = Object.fromEntries(
     clinics.map((c, i) => [c.id, CLINIC_COLORS[i % CLINIC_COLORS.length]])
@@ -81,10 +81,10 @@ export function AppointmentsCalendar({
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-      clinic_id: clinic.id,
-      clinic_name: clinic.name,
-      date: bulkForm.date,
-      count: bulkForm.count,
+        clinic_id: clinic.id,
+        clinic_name: clinic.name,
+        date: bulkForm.date,
+        count: bulkForm.count,
       }),
     });
     const result = await response.json().catch(() => null);
@@ -99,33 +99,17 @@ export function AppointmentsCalendar({
     router.refresh();
   }
 
-  async function claimSlot() {
-    if (!claimDialog || !claimForm.help_request_id) return;
-    setClaimError(null);
-    setSavingClaim(true);
-    const response = await fetch("/api/appointments/claim", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        appointmentId: claimDialog.id,
-        helpRequestId: claimForm.help_request_id,
-        catDetails: { name: claimForm.cat_name },
-      }),
-    });
-    const result = await response.json().catch(() => null);
-    setSavingClaim(false);
-
-    if (!response.ok) {
-      setClaimError(result?.error ?? "Unable to reserve appointment");
-      return;
-    }
-
-    setClaimDialog(null);
-    router.refresh();
-  }
-
   return (
     <div className="space-y-4">
+      {linkedHelpRequest && (
+        <div className="rounded-lg border bg-primary/5 px-4 py-3 text-sm">
+          Reserving slots for{" "}
+          <span className="font-medium">
+            {linkedHelpRequest.case_number} — {linkedHelpRequest.contact_name}
+          </span>
+        </div>
+      )}
+
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex gap-2">
           <Button variant={view === "list" ? "default" : "outline"} size="sm" onClick={() => setView("list")}>List</Button>
@@ -189,37 +173,12 @@ export function AppointmentsCalendar({
         </div>
       )}
 
-      <Dialog open={!!claimDialog} onOpenChange={() => { setClaimError(null); setClaimDialog(null); }}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Claim Appointment</DialogTitle>
-            <DialogDescription>
-              Link this slot to a help request case
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label>Help Request</Label>
-              <Select value={claimForm.help_request_id} onValueChange={(v) => setClaimForm({ ...claimForm, help_request_id: v })}>
-                <SelectTrigger><SelectValue placeholder="Select case" /></SelectTrigger>
-                <SelectContent>
-                  {helpRequests.map((hr) => (
-                    <SelectItem key={hr.id} value={hr.id}>{hr.case_number} — {hr.contact_name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Cat Name</Label>
-              <Input value={claimForm.cat_name} onChange={(e) => setClaimForm({ ...claimForm, cat_name: e.target.value })} />
-            </div>
-            {claimError && <p className="text-sm text-destructive">{claimError}</p>}
-            <Button onClick={claimSlot} className="w-full" disabled={savingClaim}>
-              {savingClaim ? "Reserving..." : "Reserve Slot"}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <ClaimAppointmentDialog
+        appointment={claimDialog}
+        onOpenChange={(open) => !open && setClaimDialog(null)}
+        helpRequests={helpRequests}
+        linkedHelpRequest={linkedHelpRequest}
+      />
 
       <Dialog open={bulkDialog} onOpenChange={setBulkDialog}>
         <DialogContent>

@@ -24,12 +24,14 @@ import type { HelpRequest, Cat, Appointment, FollowUpEntry, UserRole } from "@/l
 import { CaseReporterSection, CaseColonySection } from "@/components/cases/case-colony-info-section";
 import { CaseIntakeSection } from "@/components/cases/case-intake-section";
 import { InfoRow } from "@/components/cases/case-detail-fields";
+import { CaseAppointmentsSection } from "@/components/appointments/case-appointments-section";
 import { Plus } from "lucide-react";
 
 interface CaseDetailTabsProps {
   helpRequest: HelpRequest;
   cats: Cat[];
   appointments: Appointment[];
+  availableAppointments: Appointment[];
   teams: { id: string; name: string; zip_codes: string[] }[];
   clinics: { id: string; name: string }[];
   userRole: UserRole | null;
@@ -50,6 +52,7 @@ export function CaseDetailTabs({
   helpRequest: initial,
   cats: initialCats,
   appointments,
+  availableAppointments,
   teams,
   clinics,
   userRole,
@@ -359,30 +362,16 @@ export function CaseDetailTabs({
         </Card>
       </TabsContent>
 
-      <TabsContent value="appointments" className="space-y-4 mt-4">
-        {appointments.length === 0 ? (
-          <p className="text-base text-muted-foreground">
-            No appointments linked to this case. Reserve slots from the{" "}
-            <a href="/appointments" className="text-primary underline">
-              Appointments calendar
-            </a>
-            .
-          </p>
-        ) : (
-          appointments.map((appt) => (
-            <Card key={appt.id}>
-              <CardContent className="pt-6 flex justify-between items-start">
-                <div>
-                  <p className="text-lg font-semibold">{appt.clinic_name}</p>
-                  <p className="text-base text-muted-foreground mt-1">
-                    {appt.date} · {appt.cat_name ?? "No cat assigned"}
-                  </p>
-                </div>
-                <Badge className="text-sm">{appt.status}</Badge>
-              </CardContent>
-            </Card>
-          ))
-        )}
+      <TabsContent value="appointments" className="mt-4">
+        <CaseAppointmentsSection
+          helpRequest={{
+            id: hr.id,
+            case_number: hr.case_number,
+            contact_name: hr.contact_name,
+          }}
+          appointments={appointments}
+          availableAppointments={availableAppointments}
+        />
       </TabsContent>
 
       <TabsContent value="history" className="space-y-3 mt-4">
