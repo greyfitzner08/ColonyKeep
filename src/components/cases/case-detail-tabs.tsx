@@ -11,18 +11,22 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { createClient } from "@/lib/supabase/client";
-import { CASE_STATUSES } from "@/lib/constants";
+import { findTrapTeamForZip } from "@/lib/cases/assign-team-by-zip";
+import { getStatusOptionsForRole } from "@/lib/cases/statuses";
 import { detectMedicalKeywords, mergeMedicalFlags } from "@/lib/medical-flags";
 import { formatDateTime } from "@/lib/utils";
-import type { HelpRequest, Cat, Appointment, HelpRequestStatus, FollowUpEntry } from "@/lib/types";
+import type { HelpRequest, Cat, Appointment, HelpRequestStatus, FollowUpEntry, UserRole } from "@/lib/types";
+import { MedicalReviewActions } from "@/components/cases/medical-review-actions";
 import { Plus, Trash2 } from "lucide-react";
 
 interface CaseDetailTabsProps {
   helpRequest: HelpRequest;
   cats: Cat[];
   appointments: Appointment[];
-  teams: { id: string; name: string }[];
+  teams: { id: string; name: string; zip_codes: string[] }[];
   clinics: { id: string; name: string }[];
+  userRole: UserRole | null;
+  canReviewMedical: boolean;
 }
 
 export function CaseDetailTabs({
@@ -31,6 +35,8 @@ export function CaseDetailTabs({
   appointments,
   teams,
   clinics,
+  userRole,
+  canReviewMedical,
 }: CaseDetailTabsProps) {
   const router = useRouter();
   const [hr, setHr] = useState(initial);
@@ -38,6 +44,18 @@ export function CaseDetailTabs({
   const [saving, setSaving] = useState(false);
   const [newCat, setNewCat] = useState({ name: "", gender: "", colors: "", breed: "" });
   const [followUpNote, setFollowUpNote] = useState("");
+  const statusOptions = getStatusOptionsForRole(userRole);
+
+  function withTeamAssignment(next: HelpRequest): HelpRequest {
+    if (next.assigned_team_id) return next;
+    const match = findTrapTeamForZip(next.colony_zip, teams);
+    if (!match) return next;
+    return {
+      ...next,
+      assigned_team_id: match.id,
+      assigned_team_name: match.name,
+    };
+  }
 
   async function saveOverview() {
     setSaving(true);
@@ -46,18 +64,32 @@ export function CaseDetailTabs({
       hr.medical_flags ?? [],
       detectMedicalKeywords(hr.intake_notes ?? "")
     );
+    const payload = withTeamAssignment({ ...hr, medical_flags: medicalFlags });
     await supabase
       .from("help_requests")
-      .update({ ...hr, medical_flags: medicalFlags })
+      .update({
+        ...payload,
+        assigned_team: payload.assigned_team_name,
+      })
       .eq("id", hr.id);
+    setHr(payload);
     setSaving(false);
     router.refresh();
   }
 
   async function updateStatus(status: HelpRequestStatus) {
     const supabase = createClient();
-    await supabase.from("help_requests").update({ status }).eq("id", hr.id);
-    setHr({ ...hr, status });
+    const next = withTeamAssignment({ ...hr, status });
+    await supabase
+      .from("help_requests")
+      .update({
+        status: next.status,
+        assigned_team_id: next.assigned_team_id,
+        assigned_team_name: next.assigned_team_name,
+        assigned_team: next.assigned_team_name,
+      })
+      .eq("id", hr.id);
+    setHr(next);
     router.refresh();
   }
 
@@ -113,6 +145,7 @@ export function CaseDetailTabs({
       </TabsList>
 
       <TabsContent value="overview" className="space-y-4 mt-4">
+        {canReviewMedical && <MedicalReviewActions helpRequest={hr} />}
         <Card>
           <CardHeader><CardTitle>Case Details</CardTitle></CardHeader>
           <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -121,7 +154,7 @@ export function CaseDetailTabs({
               <Select value={hr.status} onValueChange={(v) => updateStatus(v as HelpRequestStatus)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {CASE_STATUSES.map((s) => (
+                  {statusOptions.map((s) => (
                     <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
                   ))}
                 </SelectContent>
@@ -135,6 +168,7 @@ export function CaseDetailTabs({
                   const team = teams.find((t) => t.id === v);
                   setHr({ ...hr, assigned_team_id: v === "none" ? null : v, assigned_team_name: team?.name ?? null });
                 }}
+                disabled={userRole === "inquiry_team"}
               >
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -142,6 +176,11 @@ export function CaseDetailTabs({
                   {teams.map((t) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
                 </SelectContent>
               </Select>
+              {userRole === "inquiry_team" && (
+                <p className="text-xs text-muted-foreground">
+                  Trap team is assigned automatically from colony ZIP ({hr.colony_zip || "missing"}).
+                </p>
+              )}
             </div>
             <div className="space-y-2"><Label>Contact Name</Label><Input value={hr.contact_name} onChange={(e) => setHr({ ...hr, contact_name: e.target.value })} /></div>
             <div className="space-y-2"><Label>Contact Email</Label><Input value={hr.contact_email} onChange={(e) => setHr({ ...hr, contact_email: e.target.value })} /></div>

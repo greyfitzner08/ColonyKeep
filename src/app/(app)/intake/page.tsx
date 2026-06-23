@@ -5,6 +5,7 @@ import { IntakeFilters } from "@/components/cases/intake-filters";
 import { IntakeCaseGrid } from "@/components/cases/intake-case-grid";
 import { CaseImporter } from "@/components/cases/case-importer";
 import { sortCasesMedicalFirst } from "@/lib/cases/sort-cases";
+import { INTAKE_QUEUE_STATUSES } from "@/lib/cases/statuses";
 import type { HelpRequest, HelpRequestStatus } from "@/lib/types";
 
 interface IntakePageProps {
@@ -20,6 +21,8 @@ export default async function IntakePage({ searchParams }: IntakePageProps) {
 
   if (params.status) {
     query = query.eq("status", params.status as HelpRequestStatus);
+  } else {
+    query = query.in("status", INTAKE_QUEUE_STATUSES);
   }
   if (params.team) {
     query = query.eq("assigned_team_id", params.team);
@@ -41,6 +44,8 @@ export default async function IntakePage({ searchParams }: IntakePageProps) {
 
   const canImport = profile?.role === "admin";
   const canClaim = profile?.role === "admin" || profile?.role === "inquiry_team";
+  const canReviewMedical =
+    profile?.role === "admin" || profile?.role === "inquiry_team";
 
   return (
     <div className="space-y-6">
@@ -59,6 +64,7 @@ export default async function IntakePage({ searchParams }: IntakePageProps) {
         <IntakeCaseGrid
           cases={filtered}
           canClaim={canClaim}
+          canReviewMedical={canReviewMedical}
           userEmail={profile?.email ?? ""}
         />
       </div>

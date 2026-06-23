@@ -2,16 +2,19 @@
 
 import { useRouter } from "next/navigation";
 import { CaseCard } from "@/components/cases/case-card";
+import { MedicalReviewActions } from "@/components/cases/medical-review-actions";
 import { Button } from "@/components/ui/button";
+import { needsMedicalReview } from "@/lib/medical-flags";
 import type { HelpRequest } from "@/lib/types";
 
 interface IntakeCaseGridProps {
   cases: HelpRequest[];
   canClaim: boolean;
+  canReviewMedical: boolean;
   userEmail: string;
 }
 
-export function IntakeCaseGrid({ cases, canClaim, userEmail }: IntakeCaseGridProps) {
+export function IntakeCaseGrid({ cases, canClaim, canReviewMedical, userEmail }: IntakeCaseGridProps) {
   const router = useRouter();
 
   async function claimCase(caseId: string) {
@@ -43,6 +46,9 @@ export function IntakeCaseGrid({ cases, canClaim, userEmail }: IntakeCaseGridPro
         return (
           <div key={helpRequest.id} className="space-y-2">
             <CaseCard helpRequest={helpRequest} />
+            {canReviewMedical && needsMedicalReview(helpRequest) && (
+              <MedicalReviewActions helpRequest={helpRequest} compact />
+            )}
             {canClaim && isUnclaimed && (
               <Button size="sm" variant="secondary" className="w-full" onClick={() => claimCase(helpRequest.id)}>
                 Claim case

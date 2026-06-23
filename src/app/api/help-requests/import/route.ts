@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireApiRole } from "@/lib/api/auth";
 import { createServiceClient } from "@/lib/supabase/server";
+import { applyTrapTeamAssignment } from "@/lib/cases/assign-team-by-zip";
 import { mapImportRowToHelpRequest } from "@/lib/cases/import-mapper";
 
 export async function POST(request: NextRequest) {
@@ -15,6 +16,11 @@ export async function POST(request: NextRequest) {
   }
 
   const service = await createServiceClient();
+  const { data: teams } = await service
+    .from("trap_teams")
+    .select("id, name, zip_codes, is_active")
+    .eq("is_active", true);
+
   const created: { case_number: string }[] = [];
   const errors: { row: number; error: string }[] = [];
 
@@ -25,9 +31,12 @@ export async function POST(request: NextRequest) {
       continue;
     }
 
+    const colonyZip = String(mapped.record.colony_zip ?? "");
+    const record = applyTrapTeamAssignment(mapped.record, colonyZip, teams ?? []);
+
     const { data, error } = await service
       .from("help_requests")
-      .insert(mapped.record)
+      .insert(record)
       .select("case_number")
       .single();
 

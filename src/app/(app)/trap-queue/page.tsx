@@ -1,8 +1,8 @@
 import { Suspense } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
-import { CASE_STATUSES } from "@/lib/constants";
 import { sortCasesMedicalFirst } from "@/lib/cases/sort-cases";
+import { getStatusLabel } from "@/lib/cases/statuses";
 import {
   buildTrapQueueQuery,
   TRAP_KANBAN_STATUSES,
@@ -83,7 +83,7 @@ export default async function TrapQueuePage({ searchParams }: TrapQueuePageProps
 
       <div className="flex gap-4 overflow-x-auto pb-4">
         {TRAP_KANBAN_STATUSES.map((status) => {
-          const label = CASE_STATUSES.find((entry) => entry.value === status)?.label ?? status;
+          const label = getStatusLabel(status, "trap");
           const columnCases = byStatus[status];
 
           return (

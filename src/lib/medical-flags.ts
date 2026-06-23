@@ -29,6 +29,15 @@ export function hasActiveMedicalFlag(
   return flags.length > 0;
 }
 
+export function needsMedicalReview(input: {
+  medical_flags?: MedicalFlag[];
+  medical_flag_dismissed: boolean;
+  medical_flag_forced: boolean;
+}): boolean {
+  if (input.medical_flag_dismissed || input.medical_flag_forced) return false;
+  return (input.medical_flags?.length ?? 0) > 0;
+}
+
 export function mergeMedicalFlags(
   existing: MedicalFlag[],
   newFlags: MedicalFlag[]

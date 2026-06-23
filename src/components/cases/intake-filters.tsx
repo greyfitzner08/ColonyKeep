@@ -2,7 +2,7 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { CASE_STATUSES } from "@/lib/constants";
+import { getStatusOptionsForRole } from "@/lib/cases/statuses";
 
 interface IntakeFiltersProps {
   teams: { id: string; name: string }[];
@@ -11,6 +11,7 @@ interface IntakeFiltersProps {
 export function IntakeFilters({ teams }: IntakeFiltersProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const intakeStatuses = getStatusOptionsForRole("inquiry_team");
 
   function updateFilter(key: string, value: string) {
     const params = new URLSearchParams(searchParams.toString());
@@ -27,8 +28,8 @@ export function IntakeFilters({ teams }: IntakeFiltersProps) {
       <Select value={searchParams.get("status") ?? "all"} onValueChange={(v) => updateFilter("status", v)}>
         <SelectTrigger className="w-[180px]"><SelectValue placeholder="Status" /></SelectTrigger>
         <SelectContent>
-          <SelectItem value="all">All Statuses</SelectItem>
-          {CASE_STATUSES.map((s) => (
+          <SelectItem value="all">All Intake Statuses</SelectItem>
+          {intakeStatuses.map((s) => (
             <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
           ))}
         </SelectContent>

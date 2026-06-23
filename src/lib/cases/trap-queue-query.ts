@@ -1,15 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { HelpRequestStatus } from "@/lib/types";
+import { TRAP_KANBAN_STATUSES } from "@/lib/cases/statuses";
 
-export const TRAP_KANBAN_STATUSES: HelpRequestStatus[] = [
-  "routed_to_trap_team",
-  "claimed",
-  "appointment_needed",
-  "appointment_reserved",
-  "cat_trapped",
-  "transported",
-  "checked_in",
-];
+export { TRAP_KANBAN_STATUSES } from "@/lib/cases/statuses";
 
 export type TrapQueueView = "mine" | "unassigned" | "all" | string;
 

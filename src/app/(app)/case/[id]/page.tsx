@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { getCurrentProfile } from "@/lib/auth";
 import { CaseDetailTabs } from "@/components/cases/case-detail-tabs";
 import { Badge } from "@/components/ui/badge";
 import { STATUS_COLORS } from "@/lib/constants";
@@ -15,6 +16,7 @@ interface CasePageProps {
 export default async function CasePage({ params }: CasePageProps) {
   const { id } = await params;
   const supabase = await createClient();
+  const profile = await getCurrentProfile();
 
   const { data: helpRequest } = await supabase
     .from("help_requests")
@@ -28,7 +30,7 @@ export default async function CasePage({ params }: CasePageProps) {
     await Promise.all([
       supabase.from("cats").select("*").eq("help_request_id", id),
       supabase.from("appointments").select("*").eq("help_request_id", id),
-      supabase.from("trap_teams").select("id, name").eq("is_active", true),
+      supabase.from("trap_teams").select("id, name, zip_codes").eq("is_active", true),
       supabase.from("clinics").select("id, name").eq("is_active", true),
     ]);
 
@@ -59,6 +61,8 @@ export default async function CasePage({ params }: CasePageProps) {
         appointments={(appointments ?? []) as Appointment[]}
         teams={teams ?? []}
         clinics={clinics ?? []}
+        userRole={profile?.role ?? null}
+        canReviewMedical={profile?.role === "admin" || profile?.role === "inquiry_team"}
       />
     </div>
   );
