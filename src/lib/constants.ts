@@ -1,5 +1,7 @@
 import type {
   HelpRequestStatus,
+  ShiftRequiredRole,
+  ShiftType,
   UserRole,
   VolunteerRole,
 } from "@/lib/types";
@@ -42,6 +44,23 @@ export const VOLUNTEER_ROLES: { value: VolunteerRole; label: string }[] = [
   { value: "videographer", label: "Videographer" },
   { value: "community_outreach", label: "Community Outreach" },
   { value: "other", label: "Other" },
+];
+
+export const SHIFT_TYPES: { value: ShiftType; label: string }[] = [
+  { value: "trapping", label: "Trapping" },
+  { value: "transport", label: "Transport" },
+  { value: "clinic", label: "Clinic" },
+  { value: "event", label: "Event" },
+  { value: "recovery", label: "Recovery" },
+  { value: "admin", label: "Admin" },
+  { value: "other", label: "Other" },
+];
+
+export const SHIFT_REQUIRED_ROLES: { value: ShiftRequiredRole; label: string }[] = [
+  { value: "any", label: "Any Volunteer" },
+  { value: "tnvr_volunteer", label: "TNVR Certified" },
+  { value: "intake_representative", label: "Intake Representative" },
+  { value: "event_volunteer", label: "Event Volunteer" },
 ];
 
 export const MEDICAL_KEYWORDS = [
