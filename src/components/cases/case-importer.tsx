@@ -4,11 +4,9 @@ import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { buildCaseImportTemplateCsv, CASE_IMPORT_HEADERS } from "@/lib/cases/import-mapper";
 import { parseCsv } from "@/lib/csv";
 import { Upload } from "lucide-react";
-
-const TEMPLATE = `contact_name,contact_email,contact_phone,colony_address,colony_city,colony_county,colony_zip,kittens_under_8_weeks,cats_over_8_weeks,intake_notes
-Jane Doe,jane@example.com,555-0100,123 Main St,Springfield,Greene,65801,2,5,One cat appears injured and limping`;
 
 export function CaseImporter() {
   const router = useRouter();
@@ -64,7 +62,7 @@ export function CaseImporter() {
   }
 
   function downloadTemplate() {
-    const blob = new Blob([TEMPLATE], { type: "text/csv" });
+    const blob = new Blob([buildCaseImportTemplateCsv()], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
@@ -78,8 +76,9 @@ export function CaseImporter() {
       <CardHeader>
         <CardTitle className="text-base">Import Cases</CardTitle>
         <CardDescription>
-          Admin only. Upload a CSV to bulk-create intake cases. Required columns: contact_name,
-          contact_email, contact_phone, colony_address, colony_city, colony_county, colony_zip.
+          Admin only. Upload a CSV using the Friends of Feral Felines case export columns.
+          Each row needs at least a Case Number, Email, or Phone Number. Download the template
+          for the full {CASE_IMPORT_HEADERS.length}-column header row.
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-wrap items-center gap-3">
