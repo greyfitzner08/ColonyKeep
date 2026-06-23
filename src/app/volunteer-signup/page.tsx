@@ -173,10 +173,12 @@ export default function VolunteerSignupPage() {
     });
     // #endregion
     const supabase = createClient();
-    const { error } = await supabase.from("volunteer_applications").insert({
+    const payload = {
       ...form,
-      why_volunteer: "Submitted via volunteer signup form",
       status: "pending",
+    };
+    const { error } = await supabase.from("volunteer_applications").insert({
+      ...payload,
     });
     // #region agent log
     debugLog("H5", "volunteer-signup/page.tsx:handleSubmit:result", "Submit finished", {
