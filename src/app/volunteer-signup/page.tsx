@@ -172,35 +172,25 @@ export default function VolunteerSignupPage() {
       emailDomain: form.email.includes("@") ? form.email.split("@")[1] : null,
     });
     // #endregion
-    const supabase = createClient();
-    const { error } = await supabase.from("volunteer_applications").insert({
-      status: "pending",
-      full_name: form.full_name,
-      email: form.email,
-      phone: form.phone,
-      birthday: form.birthday,
-      roles_requested: form.roles_requested,
-      prior_experience: form.prior_experience || null,
-      how_heard: form.how_heard || null,
-      liability_waiver_signed: form.liability_waiver_signed,
-      policy_signed: form.policy_signed,
-      tnvr_certificate_uploaded: form.tnvr_certificate_uploaded,
-      tnvr_certificate_url: form.tnvr_certificate_url,
+    const response = await fetch("/api/volunteers/signup", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(form),
     });
+    const result = await response.json().catch(() => null);
     // #region agent log
     debugLog("H5", "volunteer-signup/page.tsx:handleSubmit:result", "Submit finished", {
-      hasError: Boolean(error),
-      errorMessage: error?.message ?? null,
-      errorCode: error?.code ?? null,
-      errorHint: error?.hint ?? null,
+      hasError: !response.ok,
+      errorMessage: result?.error ?? null,
+      status: response.status,
     });
     // #endregion
     setSubmitting(false);
-    if (!error) {
+    if (response.ok) {
       setSubmitted(true);
       return;
     }
-    setSubmitError(error.message);
+    setSubmitError(result?.error ?? "Unable to submit application");
   }
 
   if (submitted) {
