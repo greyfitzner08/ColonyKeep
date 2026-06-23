@@ -62,25 +62,33 @@ export async function sendWelcomeEmail(
 export async function sendVolunteerApprovalEmail(
   email: string,
   name: string,
-  passwordSetupUrl: string
-): Promise<void> {
-  if (!resend) {
-    console.log(`[email] Volunteer approval email to ${email} (Resend not configured)`);
-    return;
-  }
-
-  await resend.emails.send({
-    from: FROM,
-    to: email,
-    subject: "Your TNVR Rescue volunteer account is ready",
-    html: `
+  options: { isNewUser: boolean; tempPassword?: string }
+): Promise<{ sent: boolean; error?: string }> {
+  const loginUrl = `${APP_URL}/login`;
+  const body = options.isNewUser
+    ? `
       <h1>Welcome, ${name}!</h1>
       <p>Your volunteer application has been approved.</p>
-      <p><strong>Username:</strong> ${email}</p>
-      <p><a href="${passwordSetupUrl}">Create your password</a></p>
-      <p>After setting your password, you can log in at <a href="${APP_URL}/login">${APP_URL}/login</a>.</p>
+      <p>Sign in at <a href="${loginUrl}">${loginUrl}</a> using:</p>
+      <ul>
+        <li><strong>Email:</strong> ${email}</li>
+        <li><strong>Temporary password:</strong> ${options.tempPassword ?? "FeralFelines123!"}</li>
+      </ul>
+      <p>You will be prompted to choose a new password the first time you sign in.</p>
       <p>Thank you for volunteering to help community cats!</p>
-    `,
+    `
+    : `
+      <h1>Welcome back, ${name}!</h1>
+      <p>Your volunteer application has been approved.</p>
+      <p>Sign in at <a href="${loginUrl}">${loginUrl}</a> with your existing account.</p>
+      <p>Thank you for volunteering to help community cats!</p>
+    `;
+
+  return sendResendEmail({
+    to: email,
+    subject: "Your TNVR Rescue volunteer account is ready",
+    logLabel: "Volunteer approval email",
+    html: body,
   });
 }
 

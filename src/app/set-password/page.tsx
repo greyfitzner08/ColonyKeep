@@ -34,10 +34,18 @@ export default function SetPasswordPage() {
     setLoading(true);
     const supabase = createClient();
     const { error: updateError } = await supabase.auth.updateUser({ password });
+    if (updateError) {
+      setLoading(false);
+      setError(updateError.message);
+      return;
+    }
+
+    const response = await fetch("/api/auth/complete-password-change", { method: "POST" });
+    const result = await response.json().catch(() => null);
     setLoading(false);
 
-    if (updateError) {
-      setError(updateError.message);
+    if (!response.ok) {
+      setError(result?.error ?? "Password saved, but account could not be updated. Try again.");
       return;
     }
 
@@ -54,7 +62,9 @@ export default function SetPasswordPage() {
             <span className="text-xl font-semibold">TNVR Rescue</span>
           </Link>
           <CardTitle>Create Your Password</CardTitle>
-          <CardDescription>Set a password to finish activating your volunteer account.</CardDescription>
+          <CardDescription>
+            Choose a new password to replace your temporary one. You must do this before using the portal.
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">

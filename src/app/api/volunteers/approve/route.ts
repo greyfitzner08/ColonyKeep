@@ -5,6 +5,7 @@ import { getRequestAppUrl } from "@/lib/app-url";
 import { getEmailValidationError, parsePrimaryEmail } from "@/lib/email-utils";
 import { sendVolunteerApprovalEmail } from "@/lib/email";
 import { ensureVolunteerAuthUser } from "@/lib/volunteers/approve-auth";
+import { getDefaultVolunteerPassword } from "@/lib/volunteers/default-password";
 
 function errorResponse(message: string, status = 400) {
   return NextResponse.json({ error: message }, { status });
@@ -71,8 +72,7 @@ export async function POST(request: NextRequest) {
       return errorResponse(authResult.error);
     }
 
-    const { userId, passwordSetupUrl } = authResult;
-    const authWarning = authResult.warning;
+    const { userId, isNewUser } = authResult;
 
     const { data: existingProfile } = await service
       .from("profiles")
@@ -95,6 +95,7 @@ export async function POST(request: NextRequest) {
           team_id: teamId ?? null,
           full_name: application.full_name,
           volunteer_roles: mergedVolunteerRoles,
+          ...(isNewUser ? { must_change_password: true } : {}),
         })
         .eq("id", existingProfile.id);
 
@@ -109,6 +110,7 @@ export async function POST(request: NextRequest) {
         role: role ?? "volunteer",
         team_id: teamId ?? null,
         volunteer_roles: application.roles_requested ?? [],
+        must_change_password: isNewUser,
       });
 
       if (profileError) {
@@ -154,25 +156,34 @@ export async function POST(request: NextRequest) {
       return errorResponse(`Could not mark application approved: ${approvalError.message}`);
     }
 
-    let emailWarning: string | undefined = authWarning;
-    if (passwordSetupUrl) {
-      try {
-        await sendVolunteerApprovalEmail(
-          volunteerEmail,
-          application.full_name,
-          passwordSetupUrl
-        );
-      } catch (emailError) {
+    let emailWarning: string | undefined;
+    try {
+      const emailResult = await sendVolunteerApprovalEmail(
+        volunteerEmail,
+        application.full_name,
+        {
+          isNewUser,
+          tempPassword: isNewUser ? getDefaultVolunteerPassword() : undefined,
+        }
+      );
+      if (!emailResult.sent) {
         emailWarning =
-          emailError instanceof Error
-            ? `Volunteer approved, but the welcome email failed: ${emailError.message}`
-            : "Volunteer approved, but the welcome email could not be sent.";
+          emailResult.error ??
+          (isNewUser
+            ? "Volunteer approved, but the welcome email could not be sent. Share the temporary login password manually."
+            : "Volunteer approved, but the welcome email could not be sent.");
       }
+    } catch (emailError) {
+      emailWarning =
+        emailError instanceof Error
+          ? `Volunteer approved, but the welcome email failed: ${emailError.message}`
+          : "Volunteer approved, but the welcome email could not be sent.";
     }
 
     return NextResponse.json({
       success: true,
       warning: emailWarning,
+      is_new_user: isNewUser,
     });
   } catch (error) {
     const message =

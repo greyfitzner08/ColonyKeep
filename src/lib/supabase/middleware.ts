@@ -6,7 +6,7 @@ import {
   getSupabaseUrl,
 } from "@/lib/supabase/env";
 
-const PUBLIC_ROUTES = ["/request", "/volunteer-signup", "/clinic-booking", "/login", "/auth"];
+const PUBLIC_ROUTES = ["/request", "/volunteer-signup", "/clinic-booking", "/login", "/auth", "/set-password"];
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
@@ -49,6 +49,21 @@ export async function updateSession(request: NextRequest) {
     url.pathname = "/login";
     url.searchParams.set("redirect", pathname);
     return NextResponse.redirect(url);
+  }
+
+  if (user && pathname !== "/set-password" && !pathname.startsWith("/auth") && !isApi) {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("must_change_password")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    if (profile?.must_change_password) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/set-password";
+      url.search = "";
+      return NextResponse.redirect(url);
+    }
   }
 
   return supabaseResponse;

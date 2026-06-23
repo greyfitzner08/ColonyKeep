@@ -1,9 +1,10 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { formatAuthError } from "@/lib/auth-errors";
+import { getDefaultVolunteerPassword } from "@/lib/volunteers/default-password";
 
 interface AuthUserResult {
   userId: string;
-  passwordSetupUrl: string | null;
+  isNewUser: boolean;
   warning?: string;
 }
 
@@ -68,24 +69,35 @@ async function tryGeneratePasswordLink(
   return null;
 }
 
-export async function ensureVolunteerAuthUser(
+/** @deprecated Invite links replaced by default temp password; kept for manual admin recovery. */
+export async function generateVolunteerPasswordSetupLink(
   service: SupabaseClient,
   email: string,
   fullName: string,
   appUrl: string
-): Promise<AuthUserResult | AuthUserError> {
-  const redirectCandidates = [
+): Promise<string | null> {
+  return tryGeneratePasswordLink(service, email, fullName, [
     `${appUrl}/auth/callback?next=/set-password`,
     `${appUrl}/auth/callback`,
     `${appUrl}/set-password`,
-  ];
+  ]);
+}
 
+export async function ensureVolunteerAuthUser(
+  service: SupabaseClient,
+  email: string,
+  fullName: string,
+  _appUrl: string
+): Promise<AuthUserResult | AuthUserError> {
   let userId = await findAuthUserIdByEmail(service, email);
+  let isNewUser = false;
 
   if (!userId) {
+    isNewUser = true;
     const createResult = await service.auth.admin.createUser({
       email,
       email_confirm: true,
+      password: getDefaultVolunteerPassword(),
       user_metadata: { full_name: fullName },
     });
 
@@ -100,6 +112,7 @@ export async function ensureVolunteerAuthUser(
         };
       }
       userId = existingUserId;
+      isNewUser = false;
     } else {
       userId = createResult.data.user?.id ?? (await findAuthUserIdByEmail(service, email));
     }
@@ -109,23 +122,7 @@ export async function ensureVolunteerAuthUser(
     return { error: "Could not create or find a login account for this volunteer." };
   }
 
-  const passwordSetupUrl = await tryGeneratePasswordLink(
-    service,
-    email,
-    fullName,
-    redirectCandidates
-  );
-
-  if (passwordSetupUrl) {
-    return { userId, passwordSetupUrl };
-  }
-
-  return {
-    userId,
-    passwordSetupUrl: null,
-    warning:
-      "Volunteer account created. They can sign in at the login page and use Forgot Password to set their password.",
-  };
+  return { userId, isNewUser };
 }
 
 export function formatAuthSetupError(error: unknown, redirectTo?: string): string {

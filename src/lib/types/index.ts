@@ -79,6 +79,9 @@ export interface Profile {
   role: UserRole | null;
   volunteer_roles: VolunteerRole[];
   team_id: string | null;
+  must_change_password: boolean;
+  tnvr_certificate_uploaded: boolean;
+  tnvr_certificate_url: string | null;
   created_at: string;
   updated_at: string;
 }

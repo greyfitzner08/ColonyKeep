@@ -24,14 +24,30 @@ export function LoginForm() {
     setLoading(true);
     setError("");
     const supabase = createClient();
-    const { error: authError } = await supabase.auth.signInWithPassword({ email, password });
+    const { data: authData, error: authError } = await supabase.auth.signInWithPassword({ email, password });
     setLoading(false);
     if (authError) {
       setError(authError.message);
-    } else {
-      router.push(redirect);
-      router.refresh();
+      return;
     }
+
+    const userId = authData.user?.id;
+    if (userId) {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("must_change_password")
+        .eq("id", userId)
+        .maybeSingle();
+
+      if (profile?.must_change_password) {
+        router.push("/set-password");
+        router.refresh();
+        return;
+      }
+    }
+
+    router.push(redirect);
+    router.refresh();
   }
 
   return (
