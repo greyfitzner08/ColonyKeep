@@ -3,6 +3,7 @@ import { requireApiRole } from "@/lib/api/auth";
 import { createServiceClient } from "@/lib/supabase/server";
 import type { VolunteerRole } from "@/lib/types";
 import { syncApplicationForRoleRequests } from "@/lib/volunteers/role-expansion";
+import { includesTrapVolunteerRole } from "@/lib/volunteers/role-requirements";
 
 export async function POST(request: NextRequest) {
   const { profile, response } = await requireApiRole([
@@ -53,13 +54,17 @@ export async function POST(request: NextRequest) {
     }
   }
 
+  const trapRoleExpansion = requestType === "add" && includesTrapVolunteerRole(requestedRoles);
+
   const requirementSnapshot = {
-    tnvr_certificate_uploaded:
-      application?.tnvr_certificate_uploaded ?? profile!.tnvr_certificate_uploaded ?? false,
-    tnvr_certificate_url:
-      application?.tnvr_certificate_url ?? profile!.tnvr_certificate_url ?? null,
+    tnvr_certificate_uploaded: trapRoleExpansion
+      ? false
+      : (application?.tnvr_certificate_uploaded ?? profile!.tnvr_certificate_uploaded ?? false),
+    tnvr_certificate_url: trapRoleExpansion
+      ? null
+      : (application?.tnvr_certificate_url ?? profile!.tnvr_certificate_url ?? null),
     intake_training: application?.intake_training ?? false,
-    shadow_completed: application?.shadow_completed ?? false,
+    shadow_completed: trapRoleExpansion ? false : (application?.shadow_completed ?? false),
     liability_waiver_signed: application?.liability_waiver_signed ?? false,
     policy_signed: application?.policy_signed ?? false,
     event_crash_course: application?.event_crash_course ?? false,

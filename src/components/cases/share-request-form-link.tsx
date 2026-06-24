@@ -4,18 +4,20 @@ import { useState } from "react";
 import { Check, Copy, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-export function ShareRequestFormLink() {
+interface ShareRequestFormLinkProps {
+  requestFormUrl: string;
+}
+
+export function ShareRequestFormLink({ requestFormUrl }: ShareRequestFormLinkProps) {
   const [copied, setCopied] = useState(false);
-  const requestUrl = typeof window === "undefined" ? "/request" : `${window.location.origin}/request`;
 
   async function copyLink() {
-    const url = `${window.location.origin}/request`;
     try {
-      await navigator.clipboard.writeText(url);
+      await navigator.clipboard.writeText(requestFormUrl);
       setCopied(true);
       window.setTimeout(() => setCopied(false), 2000);
     } catch {
-      window.prompt("Copy this link to share the request form:", url);
+      window.prompt("Copy this link to share the request form:", requestFormUrl);
     }
   }
 
@@ -35,7 +37,7 @@ export function ShareRequestFormLink() {
         )}
       </Button>
       <Button type="button" variant="ghost" size="sm" asChild>
-        <a href={requestUrl} target="_blank" rel="noreferrer">
+        <a href={requestFormUrl} target="_blank" rel="noreferrer">
           <ExternalLink className="h-4 w-4 mr-2" />
           Preview form
         </a>

@@ -29,11 +29,11 @@ export function requirementSourceForRoleRequest(
     liability_waiver_signed:
       roleRequest.liability_waiver_signed || base.liability_waiver_signed,
     policy_signed: roleRequest.policy_signed || base.policy_signed,
-    shadow_completed: roleRequest.shadow_completed || base.shadow_completed,
     intake_training: roleRequest.intake_training || base.intake_training,
-    tnvr_certificate_uploaded:
-      roleRequest.tnvr_certificate_uploaded || base.tnvr_certificate_uploaded,
     event_crash_course: roleRequest.event_crash_course || base.event_crash_course,
+    // Trap-specific requirements are verified per role request — not inherited from profile.
+    shadow_completed: roleRequest.shadow_completed ?? false,
+    tnvr_certificate_uploaded: roleRequest.tnvr_certificate_uploaded ?? false,
   };
 }
 
@@ -109,10 +109,6 @@ export async function syncApplicationForRoleRequests(
     .update({
       status: pending.length > 0 ? "needs_followup" : "pending",
       roles_requested: newRoles,
-      tnvr_certificate_uploaded:
-        application.tnvr_certificate_uploaded || profile.tnvr_certificate_uploaded || false,
-      tnvr_certificate_url:
-        application.tnvr_certificate_url ?? profile.tnvr_certificate_url ?? null,
     })
     .eq("id", application.id);
 }

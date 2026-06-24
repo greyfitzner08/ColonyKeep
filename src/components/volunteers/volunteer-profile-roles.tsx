@@ -20,6 +20,7 @@ import {
   rolesNeedingTnvrCert,
 } from "@/lib/volunteers/role-requirements";
 import { volunteerRequirementSource } from "@/lib/volunteers/requirement-source";
+import { TNVR_ROLES } from "@/lib/constants";
 import {
   ADULT_ONLY_VOLUNTEER_ROLES,
   hasRestrictedRoleForMinor,
@@ -103,9 +104,24 @@ export function VolunteerProfileRoles({
   );
 
   const source = volunteerRequirementSource(application, {
-    tnvr_certificate_uploaded: certUploaded || profile.tnvr_certificate_uploaded,
+    tnvr_certificate_uploaded: certUploaded,
     tnvr_certificate_url: profile.tnvr_certificate_url,
   });
+
+  const hasCertOnFile =
+    certUploaded &&
+    Boolean(certFileName || profile.tnvr_certificate_url || application?.tnvr_certificate_url);
+
+  function requirementSourceForPendingRole(role: VolunteerRole) {
+    if (TNVR_ROLES.includes(role) && !approvedRoles.includes(role)) {
+      return {
+        ...source,
+        tnvr_certificate_uploaded: certUploaded,
+        shadow_completed: false,
+      };
+    }
+    return source;
+  }
 
   const visibleRoles = signupRoles.filter(({ role_id: value }) => {
     if (isMinor && ADULT_ONLY_VOLUNTEER_ROLES.includes(value) && !approvedRoles.includes(value)) {
@@ -128,8 +144,7 @@ export function VolunteerProfileRoles({
       !pendingRemoveRoles.includes(role)
   );
 
-  const needsCertForAdditions =
-    rolesNeedingTnvrCert(rolesToAdd) && !(certUploaded || source.tnvr_certificate_uploaded);
+  const needsCertForAdditions = rolesNeedingTnvrCert(rolesToAdd) && !certUploaded;
 
   const hasChanges = rolesToAdd.length > 0 || rolesToRemove.length > 0;
 
@@ -235,10 +250,9 @@ export function VolunteerProfileRoles({
       <CardHeader>
         <CardTitle className="text-lg">My Volunteer Roles</CardTitle>
         <CardDescription>
-          Check roles you want to keep or add. Uncheck an active role to request removal. You can
-          request trapping-related roles before your TNVR certificate is uploaded — staff will
-          review requirements before granting new access. Your current roles stay active in the
-          meantime.
+          Check roles you want to keep or add. Uncheck an active role to request removal. Trapping-related
+          roles require staff to verify your TNVR certificate and shadow shift before approval — selecting
+          a role does not grant access until an admin approves it.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -250,7 +264,7 @@ export function VolunteerProfileRoles({
               const checked = selectedRoles.includes(value) || status === "pending-add";
               const disabled = status === "pending-add" || status === "pending-remove";
               const missing = !approvedRoles.includes(value)
-                ? missingRequirementsForRole(value, source)
+                ? missingRequirementsForRole(value, requirementSourceForPendingRole(value))
                 : [];
 
               return (
@@ -321,7 +335,7 @@ export function VolunteerProfileRoles({
             Stored on your profile even if you step back from trapping roles. Required again only
             when requesting new trapping-related roles without a certificate on file.
           </p>
-          {certUploaded ? (
+          {hasCertOnFile ? (
             <p className="text-sm text-green-700">
               Certificate on file{certFileName ? `: ${certFileName}` : ""}. Upload again to replace it.
             </p>

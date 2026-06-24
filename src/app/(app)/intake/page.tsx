@@ -6,6 +6,7 @@ import { IntakeQueueView, type IntakeViewMode } from "@/components/cases/intake-
 import { InquiryAdminMenu } from "@/components/cases/inquiry-admin-menu";
 import { ShareRequestFormLink } from "@/components/cases/share-request-form-link";
 import { INTAKE_QUEUE_STATUSES } from "@/lib/cases/statuses";
+import { getServerAppUrl } from "@/lib/app-url";
 import { isCaseWorker } from "@/lib/permissions";
 import type { IntakeSortKey } from "@/lib/cases/sort-intake-cases";
 import type { HelpRequest, HelpRequestStatus } from "@/lib/types";
@@ -54,6 +55,7 @@ export default async function IntakePage({ searchParams }: IntakePageProps) {
 
   const canImport = profile?.role === "admin";
   const canClaim = isCaseWorker(profile);
+  const requestFormUrl = `${await getServerAppUrl()}/request`;
 
   return (
     <div className="space-y-6">
@@ -62,7 +64,7 @@ export default async function IntakePage({ searchParams }: IntakePageProps) {
           <h1 className="text-3xl font-bold">Inquiry Queue</h1>
           <p className="text-muted-foreground">{filtered.length} cases</p>
           <div className="mt-2 flex flex-wrap items-center gap-2">
-            <ShareRequestFormLink />
+            <ShareRequestFormLink requestFormUrl={requestFormUrl} />
             <span className="text-sm text-muted-foreground">
               Share with community members — the link works even while you are logged in
             </span>

@@ -53,6 +53,10 @@ export function rolesNeedingTnvrCert(roles: VolunteerRole[]): boolean {
   return roles.some((role) => TNVR_ROLES.includes(role));
 }
 
+export function includesTrapVolunteerRole(roles: VolunteerRole[]): boolean {
+  return rolesNeedingTnvrCert(roles);
+}
+
 export function requirementLabel(field: RequirementField): string {
   const labels: Record<RequirementField, string> = {
     tnvr_certificate_uploaded: "TNVR certificate",

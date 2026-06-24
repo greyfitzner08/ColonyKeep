@@ -46,14 +46,19 @@ export async function updateSession(request: NextRequest) {
   );
   const isApi = pathname.startsWith("/api/");
 
-  if (!user && !isPublic && !isApi) {
+  // Public pages and APIs handle their own access rules — never redirect to the dashboard.
+  if (isPublic || isApi) {
+    return supabaseResponse;
+  }
+
+  if (!user) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     url.searchParams.set("redirect", pathname);
     return NextResponse.redirect(url);
   }
 
-  if (user && pathname !== "/set-password" && !pathname.startsWith("/auth") && !isApi && !isPublic) {
+  if (pathname !== "/set-password" && !pathname.startsWith("/auth")) {
     const { data: profile } = await supabase
       .from("profiles")
       .select("role, volunteer_roles, must_change_password")
