@@ -3,7 +3,7 @@ import { HotspotsMap } from "@/components/maps/hotspots-map";
 import type { HelpRequest } from "@/lib/types";
 
 const HOTSPOT_FIELDS =
-  "id, case_number, status, colony_address, colony_city, colony_zip, colony_lat, colony_lng";
+  "id, case_number, status, colony_address, colony_city, colony_state, colony_zip, colony_county, colony_lat, colony_lng, assigned_team_name";
 
 export default async function HotspotsPage() {
   const supabase = await createClient();

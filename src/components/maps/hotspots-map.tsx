@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import { STATUS_COLORS } from "@/lib/constants";
+import { formatSingleLineAddress } from "@/lib/cases/colony-notes";
+import { getStatusLabel } from "@/lib/cases/statuses";
 import type { HelpRequest, HelpRequestStatus } from "@/lib/types";
 
 const MapContainer = dynamic(
@@ -41,6 +43,18 @@ const DEFAULT_MARKER_COLOR = "#6b7280";
 
 function markerColor(status: HelpRequestStatus) {
   return STATUS_MARKER_COLORS[status] ?? DEFAULT_MARKER_COLOR;
+}
+
+function colonyAddress(hr: HelpRequest): string {
+  return (
+    formatSingleLineAddress([
+      hr.colony_address,
+      hr.colony_city,
+      hr.colony_state,
+      hr.colony_zip,
+      hr.colony_county,
+    ]) ?? "Address not available"
+  );
 }
 
 interface HotspotsMapProps {
@@ -95,12 +109,20 @@ export function HotspotsMap({ helpRequests }: HotspotsMapProps) {
               }}
             >
               <Popup>
-                <div className="text-sm">
+                <div className="space-y-1.5 text-sm min-w-[200px]">
                   <p className="font-semibold">{hr.case_number}</p>
-                  <p>{hr.colony_address}</p>
-                  <p>{hr.colony_city}, {hr.colony_zip}</p>
-                  <p className="capitalize">{hr.status.replace(/_/g, " ")}</p>
-                  <a href={`/case/${hr.id}`} className="text-primary underline">View case</a>
+                  <p className="text-muted-foreground">{colonyAddress(hr)}</p>
+                  <p>
+                    <span className="text-muted-foreground">Trap team:</span>{" "}
+                    {hr.assigned_team_name?.trim() || "Unassigned"}
+                  </p>
+                  <p>
+                    <span className="text-muted-foreground">Status:</span>{" "}
+                    {getStatusLabel(hr.status)}
+                  </p>
+                  <a href={`/case/${hr.id}`} className="inline-block text-primary underline font-medium">
+                    View full case
+                  </a>
                 </div>
               </Popup>
             </CircleMarker>

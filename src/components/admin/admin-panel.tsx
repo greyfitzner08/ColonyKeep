@@ -14,6 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { createClient } from "@/lib/supabase/client";
 import { VolunteerEligibilityBadges } from "@/components/admin/volunteer-eligibility-badges";
 import { VolunteerTeamPicker } from "@/components/admin/volunteer-team-picker";
+import { AdminUserVolunteerRoles } from "@/components/admin/admin-user-volunteer-roles";
 import { ROLE_PERMISSIONS, isKnownUserRole } from "@/lib/constants";
 import {
   getApplicationByEmail,
@@ -187,7 +188,7 @@ export function AdminPanel({
                         if (v !== "none") updateUserRole(user.id, v as UserRole);
                       }}
                     >
-                      <SelectTrigger className="w-[180px]"><SelectValue /></SelectTrigger>
+                      <SelectTrigger className="w-[180px]"><SelectValue placeholder="Platform role" /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="none">No Role</SelectItem>
                         {Object.entries(ROLE_PERMISSIONS).map(([role, { label }]) => (
@@ -215,6 +216,7 @@ export function AdminPanel({
                     Team assignment unlocks after TNVR certificate upload, field training, signed waiver/policy, and application approval.
                   </p>
                 )}
+                <AdminUserVolunteerRoles user={user} onError={setUserError} />
               </CardContent>
             </Card>
           );
