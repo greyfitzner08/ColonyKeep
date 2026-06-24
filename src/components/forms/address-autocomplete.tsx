@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 interface AddressParts {
   address: string;
   city: string;
+  state: string;
   county: string;
   zip: string;
   lat?: number;
@@ -64,7 +65,7 @@ export function AddressAutocomplete({
       const data = await res.json();
       onSelect(data);
     } catch {
-      onSelect({ address: prediction.description, city: "", county: "", zip: "" });
+      onSelect({ address: prediction.description, city: "", state: "", county: "", zip: "" });
     }
   }
 

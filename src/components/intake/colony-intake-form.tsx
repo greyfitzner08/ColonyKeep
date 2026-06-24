@@ -97,19 +97,25 @@ export function ColonyIntakeForm() {
   async function handleSubmit() {
     setSubmitError(null);
     setSubmitting(true);
-    const response = await fetch("/api/help-requests/create", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
-    });
-    const result = await response.json().catch(() => null);
 
-    setSubmitting(false);
-    if (response.ok && result?.caseNumber) {
-      setCaseNumber(result.caseNumber);
-      setSubmitted(true);
-    } else {
-      setSubmitError(result?.error ?? "Unable to submit request");
+    try {
+      const response = await fetch("/api/help-requests/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
+      const result = await response.json().catch(() => null);
+
+      if (response.ok && result?.caseNumber) {
+        setCaseNumber(result.caseNumber);
+        setSubmitted(true);
+      } else {
+        setSubmitError(result?.error ?? "Unable to submit request. Please try again.");
+      }
+    } catch {
+      setSubmitError("Network error — check your connection and try again.");
+    } finally {
+      setSubmitting(false);
     }
   }
 
@@ -257,6 +263,7 @@ export function ColonyIntakeForm() {
                   onSelect={(parts) => {
                     update("colony_address", parts.address);
                     update("colony_city", parts.city);
+                    update("colony_state", parts.state);
                     update("colony_county", parts.county);
                     update("colony_zip", parts.zip);
                     if (parts.lat) update("colony_lat", parts.lat);

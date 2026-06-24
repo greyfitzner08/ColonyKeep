@@ -4,6 +4,7 @@ import { getCurrentProfile } from "@/lib/auth";
 import { IntakeFilters } from "@/components/cases/intake-filters";
 import { IntakeQueueView, type IntakeViewMode } from "@/components/cases/intake-queue-view";
 import { InquiryAdminMenu } from "@/components/cases/inquiry-admin-menu";
+import { ShareRequestFormLink } from "@/components/cases/share-request-form-link";
 import { INTAKE_QUEUE_STATUSES } from "@/lib/cases/statuses";
 import { isCaseWorker } from "@/lib/permissions";
 import type { IntakeSortKey } from "@/lib/cases/sort-intake-cases";
@@ -60,12 +61,12 @@ export default async function IntakePage({ searchParams }: IntakePageProps) {
         <div>
           <h1 className="text-3xl font-bold">Inquiry Queue</h1>
           <p className="text-muted-foreground">{filtered.length} cases</p>
-          <p className="text-sm text-muted-foreground mt-1">
-            Share the public inquiry form:{" "}
-            <a href="/request" className="text-primary underline" target="_blank" rel="noreferrer">
-              /request
-            </a>
-          </p>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <ShareRequestFormLink />
+            <span className="text-sm text-muted-foreground">
+              Share the public form so community members can request help
+            </span>
+          </div>
         </div>
         {canImport && <InquiryAdminMenu />}
       </div>

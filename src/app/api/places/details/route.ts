@@ -39,6 +39,7 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({
     address,
     city: getComponent(components, "locality") || getComponent(components, "sublocality"),
+    state: getComponent(components, "administrative_area_level_1"),
     county: getComponent(components, "administrative_area_level_2"),
     zip: getComponent(components, "postal_code"),
     lat: result.geometry?.location?.lat,

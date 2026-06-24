@@ -1,17 +1,36 @@
 import { NextRequest, NextResponse } from "next/server";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { createServiceClient } from "@/lib/supabase/server";
-import { hasSupabaseAdminConfig } from "@/lib/supabase/env";
+import {
+  getSupabasePublishableKey,
+  getSupabaseUrl,
+  hasSupabaseAdminConfig,
+  hasSupabaseServerConfig,
+} from "@/lib/supabase/env";
 import { applyTrapTeamAssignment } from "@/lib/cases/assign-team-by-zip";
 import { mapCommunityIntakeToHelpRequest } from "@/lib/cases/public-intake";
 import { sanitizeHelpRequestRecord } from "@/lib/cases/help-request-insert";
 import { geocodeAddress } from "@/lib/geocode";
 
+async function getWriteClient(): Promise<SupabaseClient | null> {
+  if (hasSupabaseAdminConfig()) {
+    return createServiceClient();
+  }
+
+  if (!hasSupabaseServerConfig()) {
+    return null;
+  }
+
+  const { createClient } = await import("@supabase/supabase-js");
+  return createClient(getSupabaseUrl()!, getSupabasePublishableKey()!);
+}
+
 export async function POST(request: NextRequest) {
-  if (!hasSupabaseAdminConfig()) {
+  if (!hasSupabaseAdminConfig() && !hasSupabaseServerConfig()) {
     return NextResponse.json(
       {
         error:
-          "Intake submissions are temporarily unavailable. The server is missing database configuration.",
+          "Request submissions are temporarily unavailable. The server is missing database configuration.",
       },
       { status: 503 }
     );
@@ -41,44 +60,74 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: mapped.error ?? "Invalid submission" }, { status: 400 });
   }
 
-  const service = await createServiceClient();
-  const { data: teams } = await service
-    .from("trap_teams")
-    .select("id, name, zip_codes, is_active")
-    .eq("is_active", true);
-
-  const assigned = applyTrapTeamAssignment(
-    mapped.record,
-    String(mapped.record.colony_zip ?? ""),
-    teams ?? []
-  );
-
-  const record = sanitizeHelpRequestRecord(assigned);
-
-  if (!record.colony_lat || !record.colony_lng) {
-    const coords = await geocodeAddress({
-      colony_address: String(record.colony_address ?? ""),
-      colony_city: String(record.colony_city ?? ""),
-      colony_state: String(record.colony_state ?? ""),
-      colony_zip: String(record.colony_zip ?? ""),
-      colony_county: String(record.colony_county ?? ""),
-    });
-    if (coords) {
-      record.colony_lat = coords.lat;
-      record.colony_lng = coords.lng;
+  try {
+    const client = await getWriteClient();
+    if (!client) {
+      return NextResponse.json(
+        { error: "Request submissions are temporarily unavailable." },
+        { status: 503 }
+      );
     }
+
+    const { data: teams } = await client
+      .from("trap_teams")
+      .select("id, name, zip_codes, is_active")
+      .eq("is_active", true);
+
+    const assigned = applyTrapTeamAssignment(
+      mapped.record,
+      String(mapped.record.colony_zip ?? ""),
+      teams ?? []
+    );
+
+    const record = sanitizeHelpRequestRecord(assigned);
+
+    if (!record.colony_lat || !record.colony_lng) {
+      try {
+        const coords = await geocodeAddress({
+          colony_address: String(record.colony_address ?? ""),
+          colony_city: String(record.colony_city ?? ""),
+          colony_state: String(record.colony_state ?? ""),
+          colony_zip: String(record.colony_zip ?? ""),
+          colony_county: String(record.colony_county ?? ""),
+        });
+        if (coords) {
+          record.colony_lat = coords.lat;
+          record.colony_lng = coords.lng;
+        }
+      } catch (geocodeError) {
+        console.warn("help-requests/create geocode skipped:", geocodeError);
+      }
+    }
+
+    const { data, error } = await client.rpc("create_community_help_request", {
+      payload: record,
+    });
+
+    if (error) {
+      console.error("help-requests/create rpc failed:", error.message);
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
+
+    const row = Array.isArray(data) ? data[0] : data;
+    const caseNumber =
+      row && typeof row === "object" && "case_number" in row
+        ? String((row as { case_number: string }).case_number)
+        : "";
+
+    if (!caseNumber) {
+      return NextResponse.json(
+        { error: "Case was created but no case number was returned." },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({ caseNumber });
+  } catch (error) {
+    console.error("help-requests/create unexpected error:", error);
+    return NextResponse.json(
+      { error: "Unable to submit request. Please try again." },
+      { status: 500 }
+    );
   }
-
-  const { data, error } = await service
-    .from("help_requests")
-    .insert(record)
-    .select("case_number")
-    .single();
-
-  if (error) {
-    console.error("help-requests/create insert failed:", error.message);
-    return NextResponse.json({ error: error.message }, { status: 400 });
-  }
-
-  return NextResponse.json({ caseNumber: data.case_number });
 }

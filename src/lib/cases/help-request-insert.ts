@@ -72,6 +72,7 @@ export function sanitizeHelpRequestRecord(
   for (const [key, value] of Object.entries(record)) {
     if (!HELP_REQUEST_INSERT_COLUMNS.has(key)) continue;
     if (value === undefined) continue;
+    if (key === "case_number" && (value === null || value === "")) continue;
     sanitized[key] = value;
   }
 
