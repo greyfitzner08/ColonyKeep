@@ -82,14 +82,8 @@ export async function POST(request: NextRequest) {
   }
 
   const whyVolunteer =
-    (typeof body.why_volunteer === "string" ? body.why_volunteer.trim() : "") ||
-    (typeof body.prior_experience === "string" ? body.prior_experience.trim() : "");
-  if (!whyVolunteer) {
-    return NextResponse.json(
-      { error: "Please tell us why you want to volunteer or describe your experience" },
-      { status: 400 }
-    );
-  }
+    (typeof body.prior_experience === "string" ? body.prior_experience.trim() : "") ||
+    "Volunteer application";
 
   const supabase = await createClient();
   const {

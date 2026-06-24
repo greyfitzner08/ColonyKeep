@@ -140,7 +140,6 @@ export function VolunteerSignupWizard({ variant, profile, onSubmitted }: Volunte
       phone: profile?.phone ?? "",
       birthday,
       roles_requested: initialRoles as VolunteerRole[],
-      why_volunteer: "",
       prior_experience: "",
       how_heard: "",
       liability_waiver_signed: false,
@@ -208,8 +207,7 @@ export function VolunteerSignupWizard({ variant, profile, onSubmitted }: Volunte
       return form.roles_requested.length > 0;
     }
     if (currentStep === 2) {
-      if (variant === "gate") return Boolean(form.why_volunteer.trim());
-      return Boolean(form.why_volunteer.trim() || form.prior_experience.trim());
+      return true;
     }
     if (currentStep === 3) {
       return (
@@ -395,23 +393,11 @@ export function VolunteerSignupWizard({ variant, profile, onSubmitted }: Volunte
           {step === 2 && (
             <>
               <div className="space-y-2">
-                <Label>
-                  Why do you want to volunteer?
-                  {variant === "gate" ? "" : " (or describe your experience below)"}
-                </Label>
-                <Textarea
-                  value={form.why_volunteer}
-                  onChange={(e) => setForm({ ...form, why_volunteer: e.target.value })}
-                  rows={3}
-                  required={variant === "gate"}
-                />
-              </div>
-              <div className="space-y-2">
                 <Label>Prior experience with cats or TNVR</Label>
                 <Textarea
                   value={form.prior_experience}
                   onChange={(e) => setForm({ ...form, prior_experience: e.target.value })}
-                  rows={2}
+                  rows={3}
                 />
               </div>
               <div className="space-y-2">
@@ -528,11 +514,6 @@ export function VolunteerSignupWizard({ variant, profile, onSubmitted }: Volunte
 
               <div className="rounded-lg border p-4 space-y-2">
                 <p className="font-semibold">Background</p>
-                {form.why_volunteer && (
-                  <p>
-                    <span className="text-muted-foreground">Why volunteer:</span> {form.why_volunteer}
-                  </p>
-                )}
                 {form.prior_experience && (
                   <p>
                     <span className="text-muted-foreground">Experience:</span> {form.prior_experience}
