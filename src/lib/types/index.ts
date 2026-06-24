@@ -93,6 +93,9 @@ export interface TrapEquipmentItem {
   team_name: string | null;
   location: string | null;
   notes: string | null;
+  is_labeled: boolean;
+  equipment_label: string | null;
+  qr_code_data: string | null;
   logged_by_email: string;
   logged_by_name: string | null;
   created_at: string;

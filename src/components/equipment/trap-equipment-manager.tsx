@@ -1,14 +1,15 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Plus, Pencil, Trash2, QrCode, Tag } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -22,12 +23,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { EquipmentQrScanner } from "@/components/equipment/equipment-qr-scanner";
 import {
   TRAP_EQUIPMENT_STATUSES,
   TRAP_EQUIPMENT_TYPES,
   equipmentStatusLabel,
   equipmentTypeLabel,
 } from "@/lib/equipment/constants";
+import { parseEquipmentQrPayload } from "@/lib/equipment/qr-parse";
 import type {
   TrapEquipmentItem,
   TrapEquipmentStatus,
@@ -50,6 +53,9 @@ const emptyForm = {
   team_id: "" as string | null,
   location: "",
   notes: "",
+  is_labeled: false,
+  equipment_label: "",
+  qr_code_data: "" as string | null,
 };
 
 export function TrapEquipmentManager({
@@ -60,11 +66,13 @@ export function TrapEquipmentManager({
 }: TrapEquipmentManagerProps) {
   const router = useRouter();
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [scannerOpen, setScannerOpen] = useState(false);
   const [editing, setEditing] = useState<TrapEquipmentItem | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [scanNotice, setScanNotice] = useState<string | null>(null);
 
   const teamNameById = useMemo(
     () => new Map(teams.map((team) => [team.id, team.name])),
@@ -78,6 +86,7 @@ export function TrapEquipmentManager({
       team_id: defaultTeamId ?? "",
     });
     setSaveError(null);
+    setScanNotice(null);
     setDialogOpen(true);
   }
 
@@ -91,12 +100,37 @@ export function TrapEquipmentManager({
       team_id: item.team_id ?? "",
       location: item.location ?? "",
       notes: item.notes ?? "",
+      is_labeled: item.is_labeled,
+      equipment_label: item.equipment_label ?? "",
+      qr_code_data: item.qr_code_data,
     });
     setSaveError(null);
+    setScanNotice(null);
     setDialogOpen(true);
   }
 
+  const applyQrScan = useCallback((payload: string) => {
+    const parsed = parseEquipmentQrPayload(payload);
+    setForm((prev) => ({
+      ...prev,
+      equipment_type: parsed.equipment_type ?? prev.equipment_type,
+      description: parsed.description ?? prev.description,
+      location: parsed.location ?? prev.location,
+      notes: parsed.notes ?? prev.notes,
+      is_labeled: parsed.is_labeled ?? prev.is_labeled,
+      equipment_label: parsed.equipment_label ?? prev.equipment_label,
+      qr_code_data: parsed.qr_code_data,
+      quantity: parsed.is_labeled || parsed.equipment_label ? 1 : prev.quantity,
+    }));
+    setScanNotice("QR code scanned — review the fields below and save.");
+  }, []);
+
   async function save() {
+    if (form.is_labeled && !form.equipment_label.trim()) {
+      setSaveError("Enter the label text (e.g. Trap #3)");
+      return;
+    }
+
     setSaveError(null);
     setSaving(true);
 
@@ -116,6 +150,9 @@ export function TrapEquipmentManager({
         team_name: teamName,
         location: form.location.trim() || null,
         notes: form.notes.trim() || null,
+        is_labeled: form.is_labeled,
+        equipment_label: form.is_labeled ? form.equipment_label.trim() : null,
+        qr_code_data: form.qr_code_data,
       }),
     });
     const result = await response.json().catch(() => null);
@@ -167,7 +204,11 @@ export function TrapEquipmentManager({
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-end">
+      <div className="flex flex-wrap justify-end gap-2">
+        <Button variant="outline" onClick={() => setScannerOpen(true)}>
+          <QrCode className="mr-2 h-4 w-4" />
+          Scan QR Code
+        </Button>
         <Button onClick={openNew}>
           <Plus className="mr-2 h-4 w-4" />
           Log Equipment
@@ -177,7 +218,8 @@ export function TrapEquipmentManager({
       {initialItems.length === 0 ? (
         <Card>
           <CardContent className="py-10 text-center text-muted-foreground">
-            No equipment logged yet. Add traps, scanners, and other field gear for your team.
+            No equipment logged yet. Scan a trap QR code or add traps, scanners, and other field
+            gear for your team.
           </CardContent>
         </Card>
       ) : (
@@ -186,9 +228,18 @@ export function TrapEquipmentManager({
             <Card key={item.id}>
               <CardHeader className="pb-2">
                 <div className="flex items-start justify-between gap-2">
-                  <CardTitle className="text-base">
-                    {equipmentTypeLabel(item.equipment_type)}
-                  </CardTitle>
+                  <div className="space-y-1">
+                    <CardTitle className="text-base">
+                      {item.is_labeled && item.equipment_label
+                        ? item.equipment_label
+                        : equipmentTypeLabel(item.equipment_type)}
+                    </CardTitle>
+                    {item.is_labeled && item.equipment_label && (
+                      <p className="text-sm text-muted-foreground">
+                        {equipmentTypeLabel(item.equipment_type)}
+                      </p>
+                    )}
+                  </div>
                   <Badge variant={statusVariant(item.status)}>
                     {equipmentStatusLabel(item.status)}
                   </Badge>
@@ -198,6 +249,12 @@ export function TrapEquipmentManager({
                 )}
               </CardHeader>
               <CardContent className="space-y-3 text-sm">
+                {item.is_labeled && (
+                  <div className="flex items-center gap-1.5 text-muted-foreground">
+                    <Tag className="h-3.5 w-3.5" />
+                    <span>Physically labeled</span>
+                  </div>
+                )}
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Quantity</span>
                   <span className="font-medium">{item.quantity}</span>
@@ -246,12 +303,76 @@ export function TrapEquipmentManager({
         </div>
       )}
 
+      <EquipmentQrScanner
+        open={scannerOpen}
+        onOpenChange={setScannerOpen}
+        onScan={(payload) => {
+          if (!dialogOpen) {
+            openNew();
+          }
+          applyQrScan(payload);
+        }}
+      />
+
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editing ? "Edit Equipment" : "Log Equipment"}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                className="flex-1"
+                onClick={() => setScannerOpen(true)}
+              >
+                <QrCode className="mr-2 h-4 w-4" />
+                Scan QR Code
+              </Button>
+            </div>
+            {scanNotice && (
+              <p className="text-sm text-primary bg-primary/10 rounded-md px-3 py-2">{scanNotice}</p>
+            )}
+
+            <div className="rounded-lg border p-3 space-y-3">
+              <div className="flex items-start gap-2">
+                <Checkbox
+                  id="equipment-labeled"
+                  checked={form.is_labeled}
+                  onCheckedChange={(checked) =>
+                    setForm({
+                      ...form,
+                      is_labeled: !!checked,
+                      equipment_label: checked ? form.equipment_label : "",
+                      quantity: checked ? 1 : form.quantity,
+                    })
+                  }
+                />
+                <div className="space-y-1">
+                  <Label htmlFor="equipment-labeled" className="font-medium">
+                    Equipment has a physical label
+                  </Label>
+                  <p className="text-xs text-muted-foreground">
+                    Check this for individually tagged traps like &quot;Trap #3&quot;.
+                  </p>
+                </div>
+              </div>
+              {form.is_labeled && (
+                <div className="space-y-2 pl-6">
+                  <Label htmlFor="equipment-label">Label text</Label>
+                  <Input
+                    id="equipment-label"
+                    placeholder="e.g. Trap #3"
+                    value={form.equipment_label}
+                    onChange={(e) =>
+                      setForm({ ...form, equipment_label: e.target.value, quantity: 1 })
+                    }
+                  />
+                </div>
+              )}
+            </div>
+
             <div className="space-y-2">
               <Label>Equipment Type</Label>
               <Select
@@ -289,10 +410,14 @@ export function TrapEquipmentManager({
                   type="number"
                   min={1}
                   value={form.quantity}
+                  disabled={form.is_labeled}
                   onChange={(e) =>
                     setForm({ ...form, quantity: Math.max(1, Number(e.target.value) || 1) })
                   }
                 />
+                {form.is_labeled && (
+                  <p className="text-xs text-muted-foreground">Labeled items are logged as 1 unit.</p>
+                )}
               </div>
               <div className="space-y-2">
                 <Label>Status</Label>

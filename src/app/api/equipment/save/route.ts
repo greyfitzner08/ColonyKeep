@@ -71,6 +71,13 @@ export async function POST(request: NextRequest) {
     team_name: teamName,
     location: body.location ?? null,
     notes: body.notes ?? null,
+    is_labeled: Boolean(body.is_labeled),
+    equipment_label:
+      body.is_labeled && typeof body.equipment_label === "string"
+        ? body.equipment_label.trim() || null
+        : null,
+    qr_code_data:
+      typeof body.qr_code_data === "string" ? body.qr_code_data.trim() || null : null,
     logged_by_email: profile!.email,
     logged_by_name: profile!.full_name,
   };
