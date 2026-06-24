@@ -1,7 +1,7 @@
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
 import { SupabaseConfigGate } from "@/components/layout/supabase-config-gate";
-import { hasSupabaseServerConfig } from "@/lib/supabase/env";
+import { hasSupabaseServerConfig, hasSupabaseAdminConfig } from "@/lib/supabase/env";
 import { ConfigurableDashboard } from "@/components/dashboard/configurable-dashboard";
 import { fetchCommunityStats } from "@/components/dashboard/community-stats-card";
 import { fetchTrapTeamDashboardData } from "@/lib/dashboard/trap-team-data";
@@ -12,7 +12,6 @@ import {
   canViewTrapTeamSection,
   isCaseWorker,
 } from "@/lib/permissions";
-import { Inbox, Kanban, Calendar } from "lucide-react";
 import type { HelpRequest, Shift } from "@/lib/types";
 
 const CLOSED_STATUSES = '("completed","closed")';
@@ -27,12 +26,13 @@ export default async function DashboardPage() {
   }
 
   const supabase = await createClient();
-  const service = await createServiceClient();
   const profile = await getCurrentProfile();
 
   if (!profile?.id) {
     return null;
   }
+
+  const service = hasSupabaseAdminConfig() ? await createServiceClient() : null;
 
   const email = profile.email ?? "";
   const today = todayIsoDate();
@@ -126,26 +126,33 @@ export default async function DashboardPage() {
   const trapTeams = trapTeamsRaw ?? [];
   const initialTrapTeamId = profile.team_id ?? trapTeams[0]?.id ?? null;
 
-  const trapTeamData =
-    showTrapTeam && initialTrapTeamId
-      ? await fetchTrapTeamDashboardData(service, supabase, initialTrapTeamId)
-      : null;
+  let trapTeamData = null;
+  if (showTrapTeam && initialTrapTeamId && service) {
+    try {
+      trapTeamData = await fetchTrapTeamDashboardData(service, supabase, initialTrapTeamId);
+    } catch {
+      trapTeamData = null;
+    }
+  }
 
-  const communityStats = !caseWorker ? await fetchCommunityStats() : null;
+  let communityStats = null;
+  if (!caseWorker && hasSupabaseAdminConfig()) {
+    try {
+      communityStats = await fetchCommunityStats();
+    } catch {
+      communityStats = null;
+    }
+  }
 
   const trapTeamDescription = profile.team_id
     ? "Field cases for trapping and transport: assigned to your trap team or personally claimed by you. For intake follow-ups you claimed yourself, see My Cases."
     : "Trap and transport cases you personally claimed. Join a trap team to also see team-assigned cases.";
 
-  const quickLinks = [
-    intakeWorker && { href: "/intake", label: "Intake Queue", icon: Inbox },
-    trapWorker && { href: "/trap-queue", label: "Trap Queue", icon: Kanban },
-    showAppointments && {
-      href: "/appointments",
-      label: "Appointments",
-      icon: Calendar,
-    },
-  ].filter(Boolean) as { href: string; label: string; icon: typeof Inbox }[];
+  const quickLinks = {
+    intake: Boolean(intakeWorker),
+    trap: Boolean(trapWorker),
+    appointments: Boolean(showAppointments),
+  };
 
   return (
     <ConfigurableDashboard

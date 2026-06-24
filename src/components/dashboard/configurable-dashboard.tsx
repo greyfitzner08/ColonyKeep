@@ -22,16 +22,14 @@ import {
   trapTeamStorageKey,
 } from "@/lib/dashboard/sections";
 
-interface QuickLink {
-  href: string;
-  label: string;
-  icon: typeof Inbox;
-}
-
 interface ConfigurableDashboardProps {
   profileId: string;
   userName: string;
-  quickLinks: QuickLink[];
+  quickLinks: {
+    intake: boolean;
+    trap: boolean;
+    appointments: boolean;
+  };
   isAdmin: boolean;
   sections: {
     communityStats: boolean;
@@ -57,6 +55,12 @@ interface ConfigurableDashboardProps {
   pendingAppointments: number;
   communityStats: CommunityStats | null;
 }
+
+const QUICK_LINKS = [
+  { key: "intake" as const, href: "/intake", label: "Intake Queue", icon: Inbox },
+  { key: "trap" as const, href: "/trap-queue", label: "Trap Queue", icon: Kanban },
+  { key: "appointments" as const, href: "/appointments", label: "Appointments", icon: Calendar },
+];
 
 function readStoredOrder(profileId: string): DashboardSectionId[] | null {
   if (typeof window === "undefined") return null;
@@ -277,9 +281,9 @@ export function ConfigurableDashboard({
             Drag sections by the handle to reorder. Collapse any section you don&apos;t need right now.
           </p>
         </div>
-        {quickLinks.length > 0 && (
+        {QUICK_LINKS.some((link) => quickLinks[link.key]) && (
           <div className="flex flex-wrap gap-2">
-            {quickLinks.map((link) => {
+            {QUICK_LINKS.filter((link) => quickLinks[link.key]).map((link) => {
               const Icon = link.icon;
               return (
                 <Button key={link.href} asChild variant="outline">

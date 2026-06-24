@@ -17,7 +17,10 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
     return <VolunteerGate />;
   }
 
-  const needsBirthday = !profile?.birthday;
+  const needsBirthday =
+    profile != null &&
+    Object.prototype.hasOwnProperty.call(profile, "birthday") &&
+    !profile.birthday;
 
   return (
     <div className="min-h-screen bg-background">
