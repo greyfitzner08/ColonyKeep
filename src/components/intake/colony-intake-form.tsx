@@ -260,6 +260,8 @@ export function ColonyIntakeForm() {
             {step === 1 && (
               <>
                 <AddressAutocomplete
+                  defaultValue={form.colony_address}
+                  onAddressChange={(address) => update("colony_address", address)}
                   onSelect={(parts) => {
                     update("colony_address", parts.address);
                     update("colony_city", parts.city);
@@ -270,14 +272,6 @@ export function ColonyIntakeForm() {
                     if (parts.lng) update("colony_lng", parts.lng);
                   }}
                 />
-                <div className="space-y-2">
-                  <Label>Colony Street Address (no City/State/ZIP)</Label>
-                  <Input
-                    value={form.colony_address}
-                    onChange={(e) => update("colony_address", e.target.value)}
-                    required
-                  />
-                </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Colony City</Label>

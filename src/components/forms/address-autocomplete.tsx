@@ -16,6 +16,7 @@ interface AddressParts {
 
 interface AddressAutocompleteProps {
   onSelect: (parts: AddressParts) => void;
+  onAddressChange?: (address: string) => void;
   defaultValue?: string;
   label?: string;
 }
@@ -27,6 +28,7 @@ interface Prediction {
 
 export function AddressAutocomplete({
   onSelect,
+  onAddressChange,
   defaultValue = "",
   label = "Colony Address",
 }: AddressAutocompleteProps) {
@@ -34,6 +36,10 @@ export function AddressAutocomplete({
   const [predictions, setPredictions] = useState<Prediction[]>([]);
   const [open, setOpen] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
+  useEffect(() => {
+    setQuery(defaultValue);
+  }, [defaultValue]);
 
   useEffect(() => {
     if (query.length < 3) {
@@ -74,10 +80,15 @@ export function AddressAutocomplete({
       <Label>{label}</Label>
       <Input
         value={query}
-        onChange={(e) => setQuery(e.target.value)}
+        onChange={(e) => {
+          const value = e.target.value;
+          setQuery(value);
+          onAddressChange?.(value);
+        }}
         onFocus={() => predictions.length > 0 && setOpen(true)}
         placeholder="Start typing an address..."
         autoComplete="off"
+        required
       />
       {open && predictions.length > 0 && (
         <ul className="absolute z-50 mt-1 w-full rounded-md border bg-popover shadow-lg">
