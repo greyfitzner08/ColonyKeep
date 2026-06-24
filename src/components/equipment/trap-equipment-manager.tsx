@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { Plus, Pencil, Trash2, QrCode, Tag } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -23,20 +24,27 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { EquipmentQrScanner } from "@/components/equipment/equipment-qr-scanner";
+import { parseEquipmentQrPayload } from "@/lib/equipment/qr-parse";
 import {
   TRAP_EQUIPMENT_STATUSES,
   TRAP_EQUIPMENT_TYPES,
   equipmentStatusLabel,
   equipmentTypeLabel,
 } from "@/lib/equipment/constants";
-import { parseEquipmentQrPayload } from "@/lib/equipment/qr-parse";
 import type {
   TrapEquipmentItem,
   TrapEquipmentStatus,
   TrapEquipmentType,
   TrapTeam,
 } from "@/lib/types";
+
+const EquipmentQrScanner = dynamic(
+  () =>
+    import("@/components/equipment/equipment-qr-scanner").then(
+      (module) => module.EquipmentQrScanner
+    ),
+  { ssr: false }
+);
 
 interface TrapEquipmentManagerProps {
   items: TrapEquipmentItem[];
@@ -100,7 +108,7 @@ export function TrapEquipmentManager({
       team_id: item.team_id ?? "",
       location: item.location ?? "",
       notes: item.notes ?? "",
-      is_labeled: item.is_labeled,
+      is_labeled: item.is_labeled ?? false,
       equipment_label: item.equipment_label ?? "",
       qr_code_data: item.qr_code_data,
     });
@@ -124,6 +132,23 @@ export function TrapEquipmentManager({
     }));
     setScanNotice("QR code scanned — review the fields below and save.");
   }, []);
+
+  const handleQrScan = useCallback(
+    (payload: string) => {
+      setScannerOpen(false);
+      if (!dialogOpen) {
+        setEditing(null);
+        setForm({
+          ...emptyForm,
+          team_id: defaultTeamId ?? "",
+        });
+        setSaveError(null);
+        setDialogOpen(true);
+      }
+      applyQrScan(payload);
+    },
+    [applyQrScan, defaultTeamId, dialogOpen]
+  );
 
   async function save() {
     if (form.is_labeled && !form.equipment_label.trim()) {
@@ -230,11 +255,11 @@ export function TrapEquipmentManager({
                 <div className="flex items-start justify-between gap-2">
                   <div className="space-y-1">
                     <CardTitle className="text-base">
-                      {item.is_labeled && item.equipment_label
+                      {(item.is_labeled ?? false) && item.equipment_label
                         ? item.equipment_label
                         : equipmentTypeLabel(item.equipment_type)}
                     </CardTitle>
-                    {item.is_labeled && item.equipment_label && (
+                    {(item.is_labeled ?? false) && item.equipment_label && (
                       <p className="text-sm text-muted-foreground">
                         {equipmentTypeLabel(item.equipment_type)}
                       </p>
@@ -249,7 +274,7 @@ export function TrapEquipmentManager({
                 )}
               </CardHeader>
               <CardContent className="space-y-3 text-sm">
-                {item.is_labeled && (
+                {(item.is_labeled ?? false) && (
                   <div className="flex items-center gap-1.5 text-muted-foreground">
                     <Tag className="h-3.5 w-3.5" />
                     <span>Physically labeled</span>
@@ -303,16 +328,13 @@ export function TrapEquipmentManager({
         </div>
       )}
 
-      <EquipmentQrScanner
-        open={scannerOpen}
-        onOpenChange={setScannerOpen}
-        onScan={(payload) => {
-          if (!dialogOpen) {
-            openNew();
-          }
-          applyQrScan(payload);
-        }}
-      />
+      {scannerOpen && (
+        <EquipmentQrScanner
+          open={scannerOpen}
+          onOpenChange={setScannerOpen}
+          onScan={handleQrScan}
+        />
+      )}
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
