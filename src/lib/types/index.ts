@@ -124,6 +124,11 @@ export interface Profile {
   team_id: string | null;
   must_change_password: boolean;
   birthday: string | null;
+  home_street: string | null;
+  home_city: string | null;
+  home_state: string | null;
+  home_zip: string | null;
+  home_county: string | null;
   tnvr_certificate_uploaded: boolean;
   tnvr_certificate_url: string | null;
   created_at: string;
@@ -332,6 +337,11 @@ export interface VolunteerApplication {
   email: string;
   phone: string;
   birthday: string;
+  home_street: string | null;
+  home_city: string | null;
+  home_state: string | null;
+  home_zip: string | null;
+  home_county: string | null;
   roles_requested: VolunteerRole[];
   why_volunteer: string;
   prior_experience: string | null;

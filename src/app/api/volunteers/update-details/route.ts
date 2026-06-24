@@ -1,17 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireApiRole } from "@/lib/api/auth";
 import { createServiceClient } from "@/lib/supabase/server";
-import { getEmailValidationError, parsePrimaryEmail } from "@/lib/email-utils";
+import {
+  contactFieldsToApplicationUpdate,
+  parseVolunteerContactUpdate,
+} from "@/lib/volunteers/contact-fields";
+import { syncVolunteerContactRecords } from "@/lib/volunteers/contact-sync";
 
 export async function POST(request: NextRequest) {
   const { profile, response } = await requireApiRole(["admin"]);
   if (response) return response;
 
   const body = await request.json();
-  const { applicationId, email, fullName, adminNotes } = body as {
+  const { applicationId, adminNotes } = body as {
     applicationId?: string;
-    email?: string;
-    fullName?: string;
     adminNotes?: string;
   };
 
@@ -19,27 +21,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Missing applicationId" }, { status: 400 });
   }
 
+  const contactFields = parseVolunteerContactUpdate(body);
+  const applicationUpdate = contactFieldsToApplicationUpdate(contactFields);
+
   const updates: Record<string, string | null> = {
     reviewed_by: profile.email,
     reviewed_at: new Date().toISOString(),
+    ...applicationUpdate,
   };
-
-  if (email !== undefined) {
-    const normalizedEmail = parsePrimaryEmail(email);
-    const emailError = getEmailValidationError(email);
-    if (!normalizedEmail || emailError) {
-      return NextResponse.json({ error: emailError ?? "Invalid email address" }, { status: 400 });
-    }
-    updates.email = normalizedEmail;
-  }
-
-  if (fullName !== undefined) {
-    const trimmed = fullName.trim();
-    if (!trimmed) {
-      return NextResponse.json({ error: "Name is required" }, { status: 400 });
-    }
-    updates.full_name = trimmed;
-  }
 
   if (adminNotes !== undefined) {
     updates.admin_notes = adminNotes.trim() || null;
@@ -70,12 +59,25 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 400 });
   }
 
-  if (updates.full_name) {
-    const profileEmail = updates.email ?? existingApplication.email;
-    await service
+  if (Object.keys(contactFields).length > 0) {
+    const { data: linkedProfile } = await service
       .from("profiles")
-      .update({ full_name: updates.full_name })
-      .eq("email", profileEmail);
+      .select("id, email")
+      .eq("email", existingApplication.email)
+      .maybeSingle();
+
+    if (linkedProfile) {
+      const syncResult = await syncVolunteerContactRecords(service, {
+        userId: linkedProfile.id,
+        previousEmail: existingApplication.email,
+        fields: contactFields,
+        updateAuthEmail: true,
+      });
+
+      if (syncResult.error) {
+        return NextResponse.json({ error: syncResult.error }, { status: 400 });
+      }
+    }
   }
 
   return NextResponse.json({ success: true });

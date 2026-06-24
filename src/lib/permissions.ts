@@ -105,6 +105,7 @@ export function getProfilePermissions(profile: Profile | null): ProfilePermissio
       label: "Administrator",
       routes: [
         "/",
+        "/profile",
         "/intake",
         "/trap-queue",
         "/appointments",
@@ -134,7 +135,7 @@ export function getProfilePermissions(profile: Profile | null): ProfilePermissio
     };
   }
 
-  const routes = new Set<string>(["/", "/team-feed", "/my-impact", "/resources"]);
+  const routes = new Set<string>(["/", "/profile", "/team-feed", "/my-impact", "/resources"]);
 
   if (caseWorker) {
     routes.add("/intake");

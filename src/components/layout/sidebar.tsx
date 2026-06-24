@@ -21,6 +21,7 @@ import {
   Cat,
   BookOpen,
   Package,
+  UserRound,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getProfilePermissions } from "@/lib/permissions";
@@ -42,6 +43,7 @@ const NAV_ITEMS = [
   { href: "/shift-board", label: "Shift Board", icon: CalendarDays },
   { href: "/team-feed", label: "Team Feed", icon: MessageSquare },
   { href: "/my-impact", label: "My Impact", icon: Heart },
+  { href: "/profile", label: "My Profile", icon: UserRound },
   { href: "/resources", label: "Resources", icon: BookOpen },
   { href: "/reports", label: "Reports", icon: BarChart3 },
   { href: "/admin", label: "Admin", icon: Settings },

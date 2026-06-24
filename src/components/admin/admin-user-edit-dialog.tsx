@@ -10,7 +10,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -28,6 +27,12 @@ import {
   volunteerRoleLabel,
 } from "@/lib/volunteers/role-catalog";
 import { cn } from "@/lib/utils";
+import {
+  VolunteerContactFieldsForm,
+  emptyVolunteerContactFormValues,
+  type VolunteerContactFormValues,
+} from "@/components/volunteers/volunteer-contact-fields-form";
+import { isHomeAddressComplete } from "@/lib/volunteers/contact-fields";
 import type {
   Profile,
   RoleDescription,
@@ -65,7 +70,7 @@ export function AdminUserEditDialog({
   );
 
   const [platformRole, setPlatformRole] = useState<UserRole | "none">("none");
-  const [fullName, setFullName] = useState("");
+  const [contact, setContact] = useState<VolunteerContactFormValues>(emptyVolunteerContactFormValues());
   const [teamId, setTeamId] = useState<string>("none");
   const [volunteerRoles, setVolunteerRoles] = useState<VolunteerRole[]>([]);
   const [saving, setSaving] = useState(false);
@@ -73,7 +78,17 @@ export function AdminUserEditDialog({
   useEffect(() => {
     if (!user) return;
     setPlatformRole(isKnownUserRole(user.role) ? user.role : "none");
-    setFullName(user.full_name ?? "");
+    setContact({
+      full_name: user.full_name ?? "",
+      email: user.email,
+      phone: user.phone ?? "",
+      birthday: user.birthday ?? "",
+      home_street: user.home_street ?? "",
+      home_city: user.home_city ?? "",
+      home_state: user.home_state ?? "",
+      home_zip: user.home_zip ?? "",
+      home_county: user.home_county ?? "",
+    });
     setTeamId(user.team_id ?? "none");
     setVolunteerRoles(user.volunteer_roles ?? []);
   }, [user]);
@@ -92,26 +107,43 @@ export function AdminUserEditDialog({
     setSaving(true);
     onError(null);
 
-    const payload: {
-      userId: string;
-      role?: UserRole;
-      teamId?: string | null;
-      volunteer_roles?: VolunteerRole[];
-      fullName?: string;
-    } = { userId: user.id };
+    const payload: Record<string, unknown> = { userId: user.id };
 
     const nextPlatformRole = platformRole === "none" ? null : platformRole;
     const nextTeamId = teamId === "none" ? null : teamId;
-    const nextFullName = fullName.trim();
 
-    if (!nextFullName) {
+    if (!contact.full_name.trim()) {
       onError("Name is required");
       setSaving(false);
       return;
     }
+    if (!contact.phone.trim()) {
+      onError("Phone is required");
+      setSaving(false);
+      return;
+    }
+    if (!isHomeAddressComplete(contact)) {
+      onError("Home street, city, ZIP code, and county are required");
+      setSaving(false);
+      return;
+    }
 
-    if (nextFullName !== (user.full_name ?? "")) {
-      payload.fullName = nextFullName;
+    if (contact.full_name.trim() !== (user.full_name ?? "")) payload.fullName = contact.full_name.trim();
+    if (contact.email.trim() !== user.email) payload.email = contact.email.trim();
+    if (contact.phone.trim() !== (user.phone ?? "")) payload.phone = contact.phone.trim();
+    if ((contact.birthday || "") !== (user.birthday ?? "")) payload.birthday = contact.birthday || null;
+    if (contact.home_street.trim() !== (user.home_street ?? "")) {
+      payload.home_street = contact.home_street.trim();
+    }
+    if (contact.home_city.trim() !== (user.home_city ?? "")) {
+      payload.home_city = contact.home_city.trim();
+    }
+    if (contact.home_state.trim() !== (user.home_state ?? "")) {
+      payload.home_state = contact.home_state.trim();
+    }
+    if (contact.home_zip.trim() !== (user.home_zip ?? "")) payload.home_zip = contact.home_zip.trim();
+    if (contact.home_county.trim() !== (user.home_county ?? "")) {
+      payload.home_county = contact.home_county.trim();
     }
 
     if (nextPlatformRole !== user.role) {
@@ -141,7 +173,11 @@ export function AdminUserEditDialog({
       payload.volunteer_roles = nextVolunteerRoles;
     }
 
-    if (!payload.role && payload.teamId === undefined && !payload.volunteer_roles && !payload.fullName) {
+    const hasContactChanges = Object.keys(payload).some(
+      (key) => !["userId", "role", "teamId", "volunteer_roles"].includes(key)
+    );
+
+    if (!payload.role && payload.teamId === undefined && !payload.volunteer_roles && !hasContactChanges) {
       onOpenChange(false);
       setSaving(false);
       return;
@@ -168,7 +204,7 @@ export function AdminUserEditDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{user.full_name ?? user.email}</DialogTitle>
           <DialogDescription>{user.email}</DialogDescription>
@@ -177,14 +213,12 @@ export function AdminUserEditDialog({
         <div className="space-y-5">
           <VolunteerEligibilityBadges application={application ?? undefined} />
 
-          <div className="space-y-2">
-            <Label htmlFor="admin-user-full-name">Full name</Label>
-            <Input
-              id="admin-user-full-name"
-              value={fullName}
-              onChange={(event) => setFullName(event.target.value)}
-            />
-          </div>
+          <VolunteerContactFieldsForm
+            values={contact}
+            onChange={setContact}
+            showBirthday
+            idPrefix={`admin-user-${user.id}`}
+          />
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">

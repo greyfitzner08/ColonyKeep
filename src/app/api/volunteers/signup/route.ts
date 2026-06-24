@@ -8,6 +8,7 @@ import {
   isUnder18,
 } from "@/lib/volunteers/age-eligibility";
 import { isExemptFromVolunteerApplication } from "@/lib/volunteers/application-requirements";
+import { isHomeAddressComplete } from "@/lib/volunteers/contact-fields";
 import type { VolunteerRole } from "@/lib/types";
 
 export async function POST(request: NextRequest) {
@@ -36,6 +37,26 @@ export async function POST(request: NextRequest) {
   const birthday = typeof body.birthday === "string" ? body.birthday.trim() : "";
   if (!birthday) {
     return NextResponse.json({ error: "Birthday is required" }, { status: 400 });
+  }
+
+  const homeAddress = {
+    home_street: typeof body.home_street === "string" ? body.home_street.trim() : "",
+    home_city: typeof body.home_city === "string" ? body.home_city.trim() : "",
+    home_state: typeof body.home_state === "string" ? body.home_state.trim() : "",
+    home_zip: typeof body.home_zip === "string" ? body.home_zip.trim() : "",
+    home_county: typeof body.home_county === "string" ? body.home_county.trim() : "",
+  };
+
+  if (!isHomeAddressComplete(homeAddress)) {
+    return NextResponse.json(
+      { error: "Home street, city, ZIP code, and county are required" },
+      { status: 400 }
+    );
+  }
+
+  const phone = typeof body.phone === "string" ? body.phone.trim() : "";
+  if (!phone) {
+    return NextResponse.json({ error: "Phone is required" }, { status: 400 });
   }
 
   const rolesRequested = (body.roles_requested ?? []) as VolunteerRole[];
@@ -118,8 +139,13 @@ export async function POST(request: NextRequest) {
     reviewed_at: reviewedAt,
     full_name: body.full_name?.trim(),
     email: volunteerEmail,
-    phone: body.phone,
+    phone,
     birthday,
+    home_street: homeAddress.home_street,
+    home_city: homeAddress.home_city,
+    home_state: homeAddress.home_state || null,
+    home_zip: homeAddress.home_zip,
+    home_county: homeAddress.home_county,
     roles_requested: rolesRequested,
     why_volunteer: whyVolunteer,
     prior_experience: body.prior_experience || null,
@@ -140,7 +166,12 @@ export async function POST(request: NextRequest) {
       .update({
         full_name: body.full_name?.trim() || null,
         birthday,
-        phone: body.phone?.trim() || null,
+        phone,
+        home_street: homeAddress.home_street,
+        home_city: homeAddress.home_city,
+        home_state: homeAddress.home_state || null,
+        home_zip: homeAddress.home_zip,
+        home_county: homeAddress.home_county,
         ...(body.tnvr_certificate_uploaded && body.tnvr_certificate_url
           ? {
               tnvr_certificate_uploaded: true,

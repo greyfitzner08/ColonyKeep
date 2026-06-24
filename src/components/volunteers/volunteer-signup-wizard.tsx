@@ -31,13 +31,18 @@ import {
   filterSignupRoleDescriptions,
   volunteerRoleLabel,
 } from "@/lib/volunteers/role-catalog";
+import { isHomeAddressComplete, formatHomeAddress } from "@/lib/volunteers/contact-fields";
+import {
+  VolunteerContactFieldsForm,
+  type VolunteerContactFormValues,
+} from "@/components/volunteers/volunteer-contact-fields-form";
 import type { Profile, RoleDescription, VolunteerRole } from "@/lib/types";
 
 const STEPS = [
   {
     label: "About You",
     category: "personal" as const,
-    description: "Your name, contact info, and birthday",
+    description: "Your name, contact info, home address, and birthday",
   },
   {
     label: "Roles",
@@ -114,7 +119,17 @@ export interface VolunteerSignupWizardProps {
   variant: "page" | "gate";
   profile?: Pick<
     Profile,
-    "id" | "full_name" | "email" | "birthday" | "phone" | "volunteer_roles"
+    | "id"
+    | "full_name"
+    | "email"
+    | "birthday"
+    | "phone"
+    | "volunteer_roles"
+    | "home_street"
+    | "home_city"
+    | "home_state"
+    | "home_zip"
+    | "home_county"
   >;
   onSubmitted?: () => void;
 }
@@ -139,6 +154,11 @@ export function VolunteerSignupWizard({ variant, profile, onSubmitted }: Volunte
       email: profile?.email ?? "",
       phone: profile?.phone ?? "",
       birthday,
+      home_street: profile?.home_street ?? "",
+      home_city: profile?.home_city ?? "",
+      home_state: profile?.home_state ?? "",
+      home_zip: profile?.home_zip ?? "",
+      home_county: profile?.home_county ?? "",
       roles_requested: initialRoles as VolunteerRole[],
       prior_experience: "",
       how_heard: "",
@@ -200,7 +220,8 @@ export function VolunteerSignupWizard({ variant, profile, onSubmitted }: Volunte
         form.full_name.trim() &&
           (variant === "gate" ? true : form.email.trim()) &&
           form.phone.trim() &&
-          form.birthday
+          form.birthday &&
+          isHomeAddressComplete(form)
       );
     }
     if (currentStep === 1) {
@@ -299,58 +320,26 @@ export function VolunteerSignupWizard({ variant, profile, onSubmitted }: Volunte
           )}
 
           {step === 0 && (
-            <>
-              <div className="space-y-2">
-                <Label>Full name</Label>
-                <Input
-                  value={form.full_name}
-                  onChange={(e) => setForm({ ...form, full_name: e.target.value })}
-                  required
-                />
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Email</Label>
-                  <Input
-                    type="email"
-                    value={form.email}
-                    onChange={(e) => setForm({ ...form, email: e.target.value })}
-                    disabled={variant === "gate"}
-                    className={variant === "gate" ? "bg-muted" : undefined}
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Phone</Label>
-                  <Input
-                    type="tel"
-                    value={form.phone}
-                    onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                    required
-                  />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label>Birthday (required)</Label>
-                <Input
-                  type="date"
-                  value={form.birthday}
-                  onChange={(e) => {
-                    const nextBirthday = e.target.value;
-                    setForm((prev) => ({
-                      ...prev,
-                      birthday: nextBirthday,
-                      roles_requested: filterSignupRolesForAge(prev.roles_requested, nextBirthday),
-                    }));
-                  }}
-                  required
-                />
-                <p className="text-xs text-muted-foreground">
-                  Used for birthday celebrations on the team feed. Month and day only are shown to
-                  others.
-                </p>
-              </div>
-            </>
+            <VolunteerContactFieldsForm
+              values={form as VolunteerContactFormValues}
+              onChange={(values) =>
+                setForm((prev) => ({
+                  ...prev,
+                  ...values,
+                  ...(values.birthday !== prev.birthday
+                    ? {
+                        roles_requested: filterSignupRolesForAge(
+                          prev.roles_requested,
+                          values.birthday
+                        ),
+                      }
+                    : {}),
+                }))
+              }
+              emailReadOnly={variant === "gate"}
+              showBirthday
+              idPrefix="signup-contact"
+            />
           )}
 
           {step === 1 && (
@@ -497,6 +486,10 @@ export function VolunteerSignupWizard({ variant, profile, onSubmitted }: Volunte
                 </p>
                 <p>
                   <span className="text-muted-foreground">Birthday:</span> {form.birthday}
+                </p>
+                <p>
+                  <span className="text-muted-foreground">Home address:</span>{" "}
+                  {formatHomeAddress(form)}
                 </p>
               </div>
 
