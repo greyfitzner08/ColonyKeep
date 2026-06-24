@@ -1,5 +1,5 @@
 import { createClient, createServiceClient } from "@/lib/supabase/server";
-import { getCurrentProfile } from "@/lib/auth";
+import { getAppProfile } from "@/lib/auth";
 import { SupabaseConfigGate } from "@/components/layout/supabase-config-gate";
 import { hasSupabaseServerConfig, hasSupabaseAdminConfig } from "@/lib/supabase/env";
 import { ConfigurableDashboard } from "@/components/dashboard/configurable-dashboard";
@@ -26,7 +26,7 @@ export default async function DashboardPage() {
   }
 
   const supabase = await createClient();
-  const profile = await getCurrentProfile();
+  const profile = await getAppProfile();
 
   if (!profile?.id) {
     return null;

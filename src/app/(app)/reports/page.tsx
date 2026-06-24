@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { getCurrentProfile } from "@/lib/auth";
+import { getAppProfile } from "@/lib/auth";
 import { ReportsDashboard } from "@/components/reports/reports-dashboard";
 import type {
   ReportAppointment,
@@ -14,7 +14,7 @@ const HELP_REQUEST_REPORT_FIELDS =
   "id, case_number, status, contact_name, contact_email, colony_city, colony_county, colony_zip, kittens_under_8_weeks, cats_over_8_weeks, assigned_team_id, assigned_team_name, claimed_by_email, claimed_by_name, trapper_trap_loaner, created_at";
 
 export default async function ReportsPage() {
-  const profile = await getCurrentProfile();
+  const profile = await getAppProfile();
   if (profile?.role !== "admin") redirect("/");
 
   const supabase = await createClient();

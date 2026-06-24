@@ -1,8 +1,8 @@
-import { getCurrentProfile } from "@/lib/auth";
+import { getAppProfile } from "@/lib/auth";
 import { VolunteerProfileContactPanel } from "@/components/volunteers/volunteer-profile-contact-panel";
 
 export default async function ProfilePage() {
-  const profile = await getCurrentProfile();
+  const profile = await getAppProfile();
   if (!profile) return null;
 
   return (

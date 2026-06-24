@@ -1,12 +1,12 @@
 import { createClient } from "@/lib/supabase/server";
-import { getCurrentProfile } from "@/lib/auth";
+import { getAppProfile } from "@/lib/auth";
 import { documentVisibleToProfile } from "@/lib/permissions";
 import { LibraryManager } from "@/components/resources/library-manager";
 import type { LibraryDocument } from "@/lib/types";
 
 export default async function ResourcesPage() {
   const supabase = await createClient();
-  const profile = await getCurrentProfile();
+  const profile = await getAppProfile();
 
   const { data: documents } = await supabase
     .from("library_documents")

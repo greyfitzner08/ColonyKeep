@@ -1,11 +1,11 @@
 import { createClient } from "@/lib/supabase/server";
-import { getCurrentProfile } from "@/lib/auth";
+import { getAppProfile } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { AdminPanel } from "@/components/admin/admin-panel";
 import type { Profile, TrapTeam, RoleDescription, VolunteerApplication } from "@/lib/types";
 
 export default async function AdminPage() {
-  const profile = await getCurrentProfile();
+  const profile = await getAppProfile();
   if (profile?.role !== "admin") redirect("/");
 
   const supabase = await createClient();

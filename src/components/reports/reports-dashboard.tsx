@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Download, Filter, RotateCcw } from "lucide-react";
+import { ChevronDown, Download, Filter, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -28,6 +28,7 @@ import {
   runReport,
 } from "@/lib/reports/aggregations";
 import { downloadCsv, reportToCsv } from "@/lib/reports/export-csv";
+import { cn } from "@/lib/utils";
 
 const REPORT_TYPES: { value: ReportType; label: string; hint: string }[] = [
   {
@@ -114,6 +115,8 @@ export function ReportsDashboard({
 }: ReportsDashboardProps) {
   const [filters, setFilters] = useState<ReportFilters>(DEFAULT_REPORT_FILTERS);
   const [reportType, setReportType] = useState<ReportType>("inquiries_by_zip");
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [reportTypesOpen, setReportTypesOpen] = useState(false);
 
   const options = useMemo(
     () => reportFilterOptions(helpRequests, teams, clinics),
@@ -140,6 +143,19 @@ export function ReportsDashboard({
     downloadCsv(`tnvr-report-${slug}.csv`, reportToCsv(result));
   }
 
+  function activeFilterCount() {
+    let count = 0;
+    if (filters.dateFrom) count += 1;
+    if (filters.dateTo) count += 1;
+    if (filters.zip) count += 1;
+    if (filters.teamId) count += 1;
+    if (filters.clinicId) count += 1;
+    if (filters.trapper.trim()) count += 1;
+    if (filters.status) count += 1;
+    if (filters.intakeOnly) count += 1;
+    return count;
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -156,13 +172,33 @@ export function ReportsDashboard({
       </div>
 
       <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-lg flex items-center gap-2">
-            <Filter className="h-4 w-4" />
-            Filters
-          </CardTitle>
-          <CardDescription>Refine any report below. Leave dates blank for all time.</CardDescription>
+        <CardHeader
+          className="pb-3 cursor-pointer select-none"
+          onClick={() => setFiltersOpen((open) => !open)}
+        >
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Filter className="h-4 w-4" />
+                Filters
+                {activeFilterCount() > 0 && (
+                  <span className="text-xs font-normal text-muted-foreground">
+                    ({activeFilterCount()} active)
+                  </span>
+                )}
+              </CardTitle>
+              <CardDescription>
+                {filtersOpen
+                  ? "Refine any report below. Leave dates blank for all time."
+                  : "Click to set ZIP, team, clinic, trapper, dates, and status filters."}
+              </CardDescription>
+            </div>
+            <ChevronDown
+              className={cn("h-5 w-5 shrink-0 text-muted-foreground transition-transform", filtersOpen && "rotate-180")}
+            />
+          </div>
         </CardHeader>
+        {filtersOpen && (
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
             <div className="space-y-2">
@@ -289,8 +325,33 @@ export function ReportsDashboard({
             </Button>
           </div>
         </CardContent>
+        )}
       </Card>
 
+      <Card>
+        <CardHeader
+          className="pb-3 cursor-pointer select-none"
+          onClick={() => setReportTypesOpen((open) => !open)}
+        >
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <CardTitle className="text-lg">Report type</CardTitle>
+              <CardDescription>
+                {reportTypesOpen
+                  ? "Choose which report to run with the filters above."
+                  : `Current: ${activeReport?.label ?? "Inquiries by ZIP"}`}
+              </CardDescription>
+            </div>
+            <ChevronDown
+              className={cn(
+                "h-5 w-5 shrink-0 text-muted-foreground transition-transform",
+                reportTypesOpen && "rotate-180"
+              )}
+            />
+          </div>
+        </CardHeader>
+        {reportTypesOpen && (
+        <CardContent>
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
         {REPORT_TYPES.map((entry) => (
           <button
@@ -308,6 +369,9 @@ export function ReportsDashboard({
           </button>
         ))}
       </div>
+        </CardContent>
+        )}
+      </Card>
 
       <Card>
         <CardHeader>

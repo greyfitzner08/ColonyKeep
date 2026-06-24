@@ -1,13 +1,13 @@
 import { redirect } from "next/navigation";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
-import { getCurrentProfile } from "@/lib/auth";
+import { getAppProfile } from "@/lib/auth";
 import { canManageTrapEquipment } from "@/lib/permissions";
 import { buildVolunteerOptions } from "@/lib/equipment/volunteers";
 import { TrapEquipmentManager } from "@/components/equipment/trap-equipment-manager";
 import type { TrapEquipmentItem, TrapTeam } from "@/lib/types";
 
 export default async function EquipmentPage() {
-  const profile = await getCurrentProfile();
+  const profile = await getAppProfile();
   if (!canManageTrapEquipment(profile)) redirect("/");
 
   const supabase = await createClient();

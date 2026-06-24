@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { getCurrentProfile } from "@/lib/auth";
+import { getAppProfile } from "@/lib/auth";
 import { CaseDetailTabs } from "@/components/cases/case-detail-tabs";
 import { Badge } from "@/components/ui/badge";
 import { STATUS_COLORS } from "@/lib/constants";
@@ -17,7 +17,7 @@ interface CasePageProps {
 export default async function CasePage({ params }: CasePageProps) {
   const { id } = await params;
   const supabase = await createClient();
-  const profile = await getCurrentProfile();
+  const profile = await getAppProfile();
 
   const { data: helpRequest } = await supabase
     .from("help_requests")

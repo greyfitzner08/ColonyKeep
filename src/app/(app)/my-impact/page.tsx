@@ -1,11 +1,11 @@
 import { createClient } from "@/lib/supabase/server";
-import { getCurrentProfile } from "@/lib/auth";
+import { getAppProfile } from "@/lib/auth";
 import { MyImpactDashboard } from "@/components/volunteers/my-impact-dashboard";
 import { VolunteerProfileRoles } from "@/components/volunteers/volunteer-profile-roles";
 import type { VolunteerHours, Shift, VolunteerApplication, VolunteerRoleRequest } from "@/lib/types";
 
 export default async function MyImpactPage() {
-  const profile = await getCurrentProfile();
+  const profile = await getAppProfile();
   const supabase = await createClient();
   const email = profile?.email ?? "";
 

@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import { createClient } from "@/lib/supabase/server";
-import { getCurrentProfile } from "@/lib/auth";
+import { getAppProfile } from "@/lib/auth";
 import { sortCasesMedicalFirst } from "@/lib/cases/sort-cases";
 import { isCaseWorker } from "@/lib/permissions";
 import {
@@ -21,7 +21,7 @@ const TRAP_ROLES = new Set(["trap_team_lead", "volunteer", "admin"]);
 export default async function TrapQueuePage({ searchParams }: TrapQueuePageProps) {
   const params = await searchParams;
   const supabase = await createClient();
-  const profile = await getCurrentProfile();
+  const profile = await getAppProfile();
   const canWorkCases = isCaseWorker(profile);
   const isTrapRole =
     canWorkCases &&

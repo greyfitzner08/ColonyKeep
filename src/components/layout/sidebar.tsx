@@ -25,10 +25,11 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getProfilePermissions } from "@/lib/permissions";
-import type { Profile } from "@/lib/types";
+import type { Profile, UserRole } from "@/lib/types";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { LogoutButton } from "@/components/layout/logout-button";
+import { AdminRolePreviewControl } from "@/components/admin/admin-role-preview";
 
 const NAV_ITEMS = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
@@ -52,9 +53,11 @@ const NAV_ITEMS = [
 interface SidebarProps {
   profile: Profile | null;
   userName?: string | null;
+  isAdmin?: boolean;
+  previewRole?: UserRole | null;
 }
 
-export function Sidebar({ profile, userName }: SidebarProps) {
+export function Sidebar({ profile, userName, isAdmin = false, previewRole = null }: SidebarProps) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -97,11 +100,14 @@ export function Sidebar({ profile, userName }: SidebarProps) {
       })}
       {userName && (
         <div className="mt-auto border-t border-sidebar-border pt-4 px-2 space-y-2">
+          {isAdmin && <AdminRolePreviewControl previewRole={previewRole} />}
           <div>
             <p className="text-xs text-sidebar-foreground/60">Signed in as</p>
             <p className="text-sm font-medium text-sidebar-foreground truncate">{userName}</p>
             {permissions && (
-              <p className="text-xs text-sidebar-foreground/60">{permissions.label}</p>
+              <p className="text-xs text-sidebar-foreground/60">
+                {previewRole ? `${permissions.label} (preview)` : permissions.label}
+              </p>
             )}
           </div>
           <LogoutButton />

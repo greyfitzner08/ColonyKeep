@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import { createClient } from "@/lib/supabase/server";
-import { getCurrentProfile } from "@/lib/auth";
+import { getAppProfile } from "@/lib/auth";
 import { IntakeFilters } from "@/components/cases/intake-filters";
 import { IntakeQueueView, type IntakeViewMode } from "@/components/cases/intake-queue-view";
 import { InquiryAdminMenu } from "@/components/cases/inquiry-admin-menu";
@@ -25,7 +25,7 @@ interface IntakePageProps {
 export default async function IntakePage({ searchParams }: IntakePageProps) {
   const params = await searchParams;
   const supabase = await createClient();
-  const profile = await getCurrentProfile();
+  const profile = await getAppProfile();
 
   let query = supabase.from("help_requests").select("*").order("created_at", { ascending: false });
 

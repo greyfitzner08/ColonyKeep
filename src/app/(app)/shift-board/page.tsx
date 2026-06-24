@@ -1,11 +1,11 @@
 import { createClient } from "@/lib/supabase/server";
-import { getCurrentProfile } from "@/lib/auth";
+import { getAppProfile } from "@/lib/auth";
 import { ShiftBoard } from "@/components/shifts/shift-board";
 import type { Shift } from "@/lib/types";
 
 export default async function ShiftBoardPage() {
   const supabase = await createClient();
-  const profile = await getCurrentProfile();
+  const profile = await getAppProfile();
 
   const { data: shifts } = await supabase
     .from("shifts")

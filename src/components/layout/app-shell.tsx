@@ -1,5 +1,6 @@
-import { getCurrentProfile } from "@/lib/auth";
+import { getSessionProfiles } from "@/lib/auth";
 import { Sidebar } from "@/components/layout/sidebar";
+import { AdminRolePreviewBanner } from "@/components/admin/admin-role-preview";
 import { VolunteerGate } from "@/components/layout/volunteer-gate";
 import { VolunteerApplicationGate } from "@/components/layout/volunteer-application-gate";
 import { VolunteerRequirementsGate } from "@/components/layout/volunteer-requirements-gate";
@@ -20,10 +21,11 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
     return <SupabaseConfigGate />;
   }
 
-  const profile = await getCurrentProfile();
+  const { actualProfile: profile, effectiveProfile, previewRole } = await getSessionProfiles();
+  const isActualAdmin = profile?.role === "admin";
 
   let application: VolunteerApplication | null = null;
-  if (profile?.email) {
+  if (!isActualAdmin && profile?.email) {
     const supabase = await createClient();
     const { data } = await supabase
       .from("volunteer_applications")
@@ -35,33 +37,44 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
     application = (data as VolunteerApplication | null) ?? null;
   }
 
-  if (profile && requiresVolunteerApplication(profile, application)) {
-    return <VolunteerApplicationGate profile={profile} />;
+  if (!isActualAdmin && effectiveProfile && requiresVolunteerApplication(effectiveProfile, application)) {
+    return <VolunteerApplicationGate profile={effectiveProfile} />;
   }
 
-  if (profile && isApplicationPendingReview(profile, application)) {
+  if (!isActualAdmin && effectiveProfile && isApplicationPendingReview(effectiveProfile, application)) {
     return <VolunteerGate />;
   }
 
-  if (profile && application && requiresVolunteerRequirementCompletion(profile, application)) {
-    return <VolunteerRequirementsGate profile={profile} application={application} />;
+  if (
+    !isActualAdmin &&
+    effectiveProfile &&
+    application &&
+    requiresVolunteerRequirementCompletion(effectiveProfile, application)
+  ) {
+    return <VolunteerRequirementsGate profile={effectiveProfile} application={application} />;
   }
 
-  if (!isKnownUserRole(profile?.role)) {
+  if (!isKnownUserRole(effectiveProfile?.role)) {
     return <VolunteerGate />;
   }
 
   const needsBirthday =
-    profile != null &&
-    Object.prototype.hasOwnProperty.call(profile, "birthday") &&
-    !profile.birthday;
+    effectiveProfile != null &&
+    Object.prototype.hasOwnProperty.call(effectiveProfile, "birthday") &&
+    !effectiveProfile.birthday;
 
   return (
     <div className="min-h-screen bg-background">
+      {previewRole && <AdminRolePreviewBanner previewRole={previewRole} />}
       {needsBirthday && (
-        <BirthdayGate userName={profile.full_name ?? profile.email} />
+        <BirthdayGate userName={effectiveProfile.full_name ?? effectiveProfile.email} />
       )}
-      <Sidebar profile={profile} userName={profile.full_name ?? profile.email} />
+      <Sidebar
+        profile={effectiveProfile}
+        isAdmin={isActualAdmin}
+        previewRole={previewRole}
+        userName={effectiveProfile.full_name ?? effectiveProfile.email}
+      />
       <main className="lg:pl-64">
         <div className="container mx-auto p-4 lg:p-8 pt-16 lg:pt-8">{children}</div>
       </main>

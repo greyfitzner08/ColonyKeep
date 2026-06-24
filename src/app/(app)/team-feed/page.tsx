@@ -1,5 +1,5 @@
 import { createClient, createServiceClient } from "@/lib/supabase/server";
-import { getCurrentProfile } from "@/lib/auth";
+import { getAppProfile } from "@/lib/auth";
 import { TeamFeed } from "@/components/team/team-feed";
 import { announcementVisibleToProfile } from "@/lib/team-feed/visibility";
 import type { TeamAnnouncement } from "@/lib/types";
@@ -34,7 +34,7 @@ function upcomingBirthdays(people: { full_name: string; birthday: string }[]) {
 export default async function TeamFeedPage() {
   const supabase = await createClient();
   const service = await createServiceClient();
-  const profile = await getCurrentProfile();
+  const profile = await getAppProfile();
 
   const [{ data: announcementsRaw }, { data: profilesWithBirthdays }, { data: trapTeams }] =
     await Promise.all([
