@@ -20,6 +20,7 @@ import {
   X,
   Cat,
   BookOpen,
+  Package,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getProfilePermissions } from "@/lib/permissions";
@@ -36,6 +37,7 @@ const NAV_ITEMS = [
   { href: "/clinics", label: "Clinics", icon: Building2 },
   { href: "/clinic-events", label: "Clinic Events", icon: Stethoscope },
   { href: "/hotspots", label: "Hotspots Map", icon: Map },
+  { href: "/equipment", label: "Equipment", icon: Package },
   { href: "/volunteers", label: "Volunteers", icon: Users },
   { href: "/shift-board", label: "Shift Board", icon: CalendarDays },
   { href: "/team-feed", label: "Team Feed", icon: MessageSquare },

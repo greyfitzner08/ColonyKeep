@@ -3,6 +3,7 @@ import { isKnownUserRole } from "@/lib/constants";
 import {
   canClaimShifts,
   canManageAppointments,
+  canManageTrapEquipment,
   isCaseWorker,
 } from "@/lib/permissions";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
@@ -104,6 +105,30 @@ export async function requireShiftAccess() {
   if (response) return { profile, response };
 
   if (!canClaimShifts(profile)) {
+    return {
+      profile: null,
+      response: NextResponse.json({ error: "Forbidden" }, { status: 403 }),
+    };
+  }
+
+  return { profile, response: null };
+}
+
+export async function requireTrapEquipmentAccess() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return {
+      profile: null,
+      response: NextResponse.json({ error: "Unauthorized" }, { status: 401 }),
+    };
+  }
+
+  const profile = await loadProfile(user.id);
+  if (!profile || !canManageTrapEquipment(profile)) {
     return {
       profile: null,
       response: NextResponse.json({ error: "Forbidden" }, { status: 403 }),

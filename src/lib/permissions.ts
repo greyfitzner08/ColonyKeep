@@ -45,8 +45,18 @@ function hasVolunteerRole(profile: Profile, roles: VolunteerRole[]): boolean {
   return roles.some((role) => mine.includes(role));
 }
 
-function hasTnvrVolunteerRole(profile: Profile): boolean {
+function hasTnvrVolunteerInterest(profile: Profile): boolean {
   return hasVolunteerRole(profile, TNVR_ROLES);
+}
+
+export function hasTnvrVolunteerRole(profile: Profile | null): boolean {
+  if (!profile?.role) return false;
+  if (profile.role === "admin" || profile.role === "trap_team_lead") return true;
+  return hasTnvrVolunteerInterest(profile);
+}
+
+export function canManageTrapEquipment(profile: Profile | null): boolean {
+  return hasTnvrVolunteerRole(profile);
 }
 
 export function isCaseWorker(profile: Profile | null): boolean {
@@ -54,7 +64,7 @@ export function isCaseWorker(profile: Profile | null): boolean {
   if (profile.role === "admin") return true;
   if (profile.role === "inquiry_team" || profile.role === "trap_team_lead") return true;
   if (hasVolunteerRole(profile, ["intake_representative"])) return true;
-  if (hasTnvrVolunteerRole(profile)) return true;
+  if (hasTnvrVolunteerInterest(profile)) return true;
   return false;
 }
 
@@ -62,7 +72,7 @@ export function canManageAppointments(profile: Profile | null): boolean {
   if (!profile?.role) return false;
   if (profile.role === "admin") return true;
   if (profile.role === "trap_team_lead" || profile.role === "clinic_coordination") return true;
-  if (hasTnvrVolunteerRole(profile)) return true;
+  if (hasTnvrVolunteerInterest(profile)) return true;
   return false;
 }
 
@@ -71,7 +81,7 @@ export function canViewTrapTeamSection(profile: Profile | null): boolean {
   if (profile.role === "admin") return true;
   if (!profile.team_id) return false;
   if (profile.role === "trap_team_lead") return true;
-  return hasTnvrVolunteerRole(profile);
+  return hasTnvrVolunteerInterest(profile);
 }
 
 export function canClaimShifts(profile: Profile | null): boolean {
@@ -108,6 +118,7 @@ export function getProfilePermissions(profile: Profile | null): ProfilePermissio
         "/reports",
         "/admin",
         "/resources",
+        "/equipment",
       ],
       canEditCases: true,
       canViewIntakeQueue: true,
@@ -142,6 +153,10 @@ export function getProfilePermissions(profile: Profile | null): ProfilePermissio
 
   if (shifts) {
     routes.add("/shift-board");
+  }
+
+  if (canManageTrapEquipment(profile)) {
+    routes.add("/equipment");
   }
 
   if (!caseWorker) {

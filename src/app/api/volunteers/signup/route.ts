@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createServiceClient } from "@/lib/supabase/server";
+import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { getEmailValidationError, parsePrimaryEmail } from "@/lib/email-utils";
 import { hasRestrictedRoleForMinor, isUnder18 } from "@/lib/volunteers/age-eligibility";
 import type { VolunteerRole } from "@/lib/types";
@@ -52,6 +52,29 @@ export async function POST(request: NextRequest) {
 
   const service = await createServiceClient();
 
+  const { data: existing } = await service
+    .from("volunteer_applications")
+    .select("id")
+    .eq("email", volunteerEmail)
+    .maybeSingle();
+
+  if (existing) {
+    return NextResponse.json(
+      { error: "An application is already on file for this email." },
+      { status: 400 }
+    );
+  }
+
+  const whyVolunteer =
+    (typeof body.why_volunteer === "string" ? body.why_volunteer.trim() : "") ||
+    (typeof body.prior_experience === "string" ? body.prior_experience.trim() : "");
+  if (!whyVolunteer) {
+    return NextResponse.json(
+      { error: "Please tell us why you want to volunteer or describe your experience" },
+      { status: 400 }
+    );
+  }
+
   const { error } = await service.from("volunteer_applications").insert({
     status: "pending",
     full_name: body.full_name?.trim(),
@@ -59,6 +82,7 @@ export async function POST(request: NextRequest) {
     phone: body.phone,
     birthday,
     roles_requested: rolesRequested,
+    why_volunteer: whyVolunteer,
     prior_experience: body.prior_experience || null,
     how_heard: body.how_heard || null,
     liability_waiver_signed: Boolean(body.liability_waiver_signed),
@@ -69,6 +93,20 @@ export async function POST(request: NextRequest) {
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 400 });
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (user) {
+    await service
+      .from("profiles")
+      .update({
+        full_name: body.full_name?.trim() || null,
+        birthday,
+      })
+      .eq("id", user.id);
   }
 
   return NextResponse.json({ ok: true });

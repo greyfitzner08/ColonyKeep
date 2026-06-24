@@ -145,6 +145,7 @@ export const ROLE_PERMISSIONS: Record<
       "/team-feed",
       "/my-impact",
       "/resources",
+      "/equipment",
     ],
   },
   clinic_coordination: {

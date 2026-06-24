@@ -73,6 +73,32 @@ export type PublicBookingStatus =
   | "cancelled"
   | "waitlist";
 
+export type TrapEquipmentType =
+  | "gravity_trap"
+  | "drop_trap"
+  | "transfer_trap"
+  | "microchip_scanner"
+  | "trap_divider"
+  | "other";
+
+export type TrapEquipmentStatus = "available" | "loaned" | "maintenance" | "retired";
+
+export interface TrapEquipmentItem {
+  id: string;
+  equipment_type: TrapEquipmentType;
+  description: string | null;
+  quantity: number;
+  status: TrapEquipmentStatus;
+  team_id: string | null;
+  team_name: string | null;
+  location: string | null;
+  notes: string | null;
+  logged_by_email: string;
+  logged_by_name: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Profile {
   id: string;
   email: string;
