@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Cat, ChevronLeft, ChevronRight, CheckCircle } from "lucide-react";
+import { Cat, ChevronLeft, ChevronRight, CheckCircle, MapPin, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -20,7 +20,61 @@ import { AddressAutocomplete } from "@/components/forms/address-autocomplete";
 import { NEWSLETTER_SIGNUP_DESCRIPTION, NEWSLETTER_SIGNUP_LABEL } from "@/lib/constants";
 import type { CommunityIntakeSubmission } from "@/lib/cases/public-intake";
 
-const STEPS = ["Your Info", "Colony Location", "About the Cats", "Trapping & Help", "Review"];
+const STEPS = [
+  {
+    label: "About You",
+    category: "reporter" as const,
+    description: "Who is reporting this colony and how we can reach you",
+  },
+  {
+    label: "Colony Location",
+    category: "colony" as const,
+    description: "Where the cats live — this may differ from your home address",
+  },
+  {
+    label: "About the Cats",
+    category: "colony" as const,
+    description: "How many cats are there and what is happening at the colony",
+  },
+  {
+    label: "How You Can Help",
+    category: "reporter" as const,
+    description: "Your trapping experience and willingness to assist",
+  },
+  {
+    label: "Review",
+    category: "review" as const,
+    description: "Confirm your report before submitting",
+  },
+];
+
+function FormSectionBanner({
+  variant,
+  title,
+  description,
+}: {
+  variant: "reporter" | "colony";
+  title: string;
+  description: string;
+}) {
+  const Icon = variant === "reporter" ? User : Cat;
+  const styles =
+    variant === "reporter"
+      ? "border-blue-200 bg-blue-50 text-blue-950"
+      : "border-amber-200 bg-amber-50 text-amber-950";
+
+  return (
+    <div className={`rounded-lg border px-4 py-3 ${styles}`}>
+      <div className="flex items-start gap-3">
+        <Icon className="h-5 w-5 mt-0.5 shrink-0" aria-hidden />
+        <div>
+          <p className="font-semibold">{title}</p>
+          <p className="text-sm opacity-80 mt-0.5">{description}</p>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 const EMPTY_FORM: CommunityIntakeSubmission = {
   contact_first_name: "",
@@ -148,32 +202,65 @@ export function ColonyIntakeForm() {
           <p className="text-muted-foreground mt-1">
             Community inquiry form — your report goes directly into our inquiry queue
           </p>
+          <div className="mt-4 flex flex-wrap justify-center gap-3 text-sm">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-blue-900">
+              <User className="h-3.5 w-3.5" aria-hidden />
+              About you (the reporter)
+            </span>
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-amber-900">
+              <Cat className="h-3.5 w-3.5" aria-hidden />
+              About the cats &amp; colony
+            </span>
+          </div>
         </div>
 
         <div className="flex flex-wrap justify-center gap-2 mb-6">
-          {STEPS.map((label, i) => (
+          {STEPS.map((entry, i) => (
             <div
-              key={label}
-              className={`text-xs px-2 py-1 rounded-full ${
+              key={entry.label}
+              className={`text-xs px-2 py-1 rounded-full border ${
                 i === step
-                  ? "bg-primary text-white"
+                  ? entry.category === "colony"
+                    ? "bg-amber-600 text-white border-amber-600"
+                    : entry.category === "reporter"
+                      ? "bg-blue-600 text-white border-blue-600"
+                      : "bg-primary text-white border-primary"
                   : i < step
-                    ? "bg-primary/20 text-primary"
-                    : "bg-muted text-muted-foreground"
+                    ? entry.category === "colony"
+                      ? "bg-amber-100 text-amber-900 border-amber-200"
+                      : entry.category === "reporter"
+                        ? "bg-blue-100 text-blue-900 border-blue-200"
+                        : "bg-primary/20 text-primary border-primary/20"
+                    : "bg-muted text-muted-foreground border-transparent"
               }`}
             >
-              {label}
+              {entry.label}
             </div>
           ))}
         </div>
 
         <Card>
           <CardContent className="pt-6 space-y-4">
+            {STEPS[step].category !== "review" && (
+              <FormSectionBanner
+                variant={STEPS[step].category}
+                title={
+                  STEPS[step].category === "reporter"
+                    ? "Questions about you"
+                    : "Questions about the colony"
+                }
+                description={STEPS[step].description}
+              />
+            )}
+
             {step === 0 && (
               <>
+                <p className="text-sm text-muted-foreground">
+                  Tell us about yourself — the person submitting this report.
+                </p>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label>First Name</Label>
+                    <Label>Your first name</Label>
                     <Input
                       value={form.contact_first_name}
                       onChange={(e) => update("contact_first_name", e.target.value)}
@@ -181,7 +268,7 @@ export function ColonyIntakeForm() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>Last Name</Label>
+                    <Label>Your last name</Label>
                     <Input
                       value={form.contact_last_name}
                       onChange={(e) => update("contact_last_name", e.target.value)}
@@ -190,7 +277,7 @@ export function ColonyIntakeForm() {
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label>Street Address</Label>
+                  <Label>Your home street address</Label>
                   <Input
                     value={form.contact_street}
                     onChange={(e) => update("contact_street", e.target.value)}
@@ -198,14 +285,14 @@ export function ColonyIntakeForm() {
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label>City</Label>
+                    <Label>Your city</Label>
                     <Input
                       value={form.contact_city}
                       onChange={(e) => update("contact_city", e.target.value)}
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>State</Label>
+                    <Label>Your state</Label>
                     <Input
                       value={form.contact_state}
                       onChange={(e) => update("contact_state", e.target.value)}
@@ -214,14 +301,14 @@ export function ColonyIntakeForm() {
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label>ZIP Code</Label>
+                    <Label>Your ZIP code</Label>
                     <Input
                       value={form.contact_zip}
                       onChange={(e) => update("contact_zip", e.target.value)}
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>County</Label>
+                    <Label>Your county</Label>
                     <Input
                       value={form.contact_county}
                       onChange={(e) => update("contact_county", e.target.value)}
@@ -229,7 +316,7 @@ export function ColonyIntakeForm() {
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label>Email</Label>
+                  <Label>Your email</Label>
                   <Input
                     type="email"
                     value={form.contact_email}
@@ -238,7 +325,7 @@ export function ColonyIntakeForm() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>Phone Number</Label>
+                  <Label>Your phone number</Label>
                   <Input
                     type="tel"
                     value={form.contact_phone}
@@ -259,7 +346,13 @@ export function ColonyIntakeForm() {
 
             {step === 1 && (
               <>
+                <p className="text-sm text-muted-foreground flex items-start gap-2">
+                  <MapPin className="h-4 w-4 mt-0.5 shrink-0 text-amber-700" aria-hidden />
+                  Where are the cats located? Use the colony address even if it is different from
+                  your home address above.
+                </p>
                 <AddressAutocomplete
+                  label="Colony address"
                   defaultValue={form.colony_address}
                   onAddressChange={(address) => update("colony_address", address)}
                   onSelect={(parts) => {
@@ -319,6 +412,9 @@ export function ColonyIntakeForm() {
 
             {step === 2 && (
               <>
+                <p className="text-sm text-muted-foreground">
+                  Answer about the cats at this colony — not about you personally.
+                </p>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Cats over 8 weeks</Label>
@@ -385,6 +481,10 @@ export function ColonyIntakeForm() {
 
             {step === 3 && (
               <>
+                <p className="text-sm text-muted-foreground">
+                  These questions are about you and whether you can help with trapping — not about
+                  the cats themselves.
+                </p>
                 <div className="space-y-2">
                   <Label>Do you have trapping experience?</Label>
                   <YesNoSelect
@@ -448,29 +548,67 @@ export function ColonyIntakeForm() {
             )}
 
             {step === 4 && (
-              <div className="space-y-3 text-sm">
-                <p>
-                  <strong>Contact:</strong> {form.contact_first_name} {form.contact_last_name} —{" "}
-                  {form.contact_email} — {form.contact_phone}
-                </p>
-                <p>
-                  <strong>Colony:</strong> {form.colony_address}, {form.colony_city},{" "}
-                  {form.colony_state} {form.colony_zip} ({form.colony_county})
-                </p>
-                <p>
-                  <strong>Cats:</strong> {form.cats_over_8_weeks} adults, {form.kittens_under_8_weeks}{" "}
-                  kittens, {form.pregnant_count} suspected pregnant
-                </p>
-                {form.relationship_to_cats && (
-                  <p>
-                    <strong>Relationship:</strong> {form.relationship_to_cats}
+              <div className="space-y-4 text-sm">
+                <div className="rounded-lg border border-blue-200 bg-blue-50/50 p-4 space-y-2">
+                  <p className="font-semibold text-blue-950 flex items-center gap-2">
+                    <User className="h-4 w-4" aria-hidden />
+                    About you
                   </p>
-                )}
-                {form.intake_notes && (
                   <p>
-                    <strong>Notes:</strong> {form.intake_notes}
+                    {form.contact_first_name} {form.contact_last_name} — {form.contact_email} —{" "}
+                    {form.contact_phone}
                   </p>
-                )}
+                  {form.relationship_to_cats && (
+                    <p>
+                      <span className="text-muted-foreground">Relationship to cats:</span>{" "}
+                      {form.relationship_to_cats}
+                    </p>
+                  )}
+                  {form.how_heard && (
+                    <p>
+                      <span className="text-muted-foreground">How you heard about us:</span>{" "}
+                      {form.how_heard}
+                    </p>
+                  )}
+                </div>
+
+                <div className="rounded-lg border border-amber-200 bg-amber-50/50 p-4 space-y-2">
+                  <p className="font-semibold text-amber-950 flex items-center gap-2">
+                    <Cat className="h-4 w-4" aria-hidden />
+                    About the colony
+                  </p>
+                  <p>
+                    {form.colony_address}, {form.colony_city}, {form.colony_state} {form.colony_zip}{" "}
+                    ({form.colony_county})
+                  </p>
+                  <p>
+                    {form.cats_over_8_weeks} cats over 8 weeks, {form.kittens_under_8_weeks} kittens
+                    under 8 weeks, {form.pregnant_count} suspected pregnant
+                  </p>
+                  {form.feeding_cats && (
+                    <p>
+                      <span className="text-muted-foreground">Feeding cats:</span> {form.feeding_cats}
+                      {form.feeding_cats === "No" && form.feeder_if_not
+                        ? ` — feeder: ${form.feeder_if_not}`
+                        : ""}
+                    </p>
+                  )}
+                  {form.intake_notes && (
+                    <p>
+                      <span className="text-muted-foreground">Colony notes:</span> {form.intake_notes}
+                    </p>
+                  )}
+                </div>
+
+                <div className="rounded-lg border p-4 space-y-1">
+                  <p className="font-semibold">Your help with trapping</p>
+                  <p className="text-muted-foreground">
+                    Experience: {form.trapping_experience || "—"} · Need traps: {form.need_traps || "—"}{" "}
+                    · Willing to trap/transport: {form.willing_to_trap_transport || "—"} · Able to
+                    trap/transport: {form.able_to_trap_transport || "—"} · Recovery space:{" "}
+                    {form.has_recovery_space || "—"}
+                  </p>
+                </div>
               </div>
             )}
 
