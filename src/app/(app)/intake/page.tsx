@@ -59,6 +59,12 @@ export default async function IntakePage({ searchParams }: IntakePageProps) {
       <div>
         <h1 className="text-3xl font-bold">Intake Queue</h1>
         <p className="text-muted-foreground">{filtered.length} cases</p>
+        <p className="text-sm text-muted-foreground mt-1">
+          Share the public intake form:{" "}
+          <a href="/request" className="text-primary underline" target="_blank" rel="noreferrer">
+            /request
+          </a>
+        </p>
       </div>
 
       {canImport && <CaseImporter />}

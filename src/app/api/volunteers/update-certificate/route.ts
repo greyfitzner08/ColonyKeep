@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireApiRole } from "@/lib/api/auth";
 import { createServiceClient } from "@/lib/supabase/server";
+import { syncApplicationForRoleRequests } from "@/lib/volunteers/role-expansion";
 
 export async function POST(request: NextRequest) {
   const { profile, response } = await requireApiRole([
@@ -69,6 +70,16 @@ export async function POST(request: NextRequest) {
 
   if (profileError) {
     return NextResponse.json({ error: profileError.message }, { status: 400 });
+  }
+
+  const { data: refreshedProfile } = await service
+    .from("profiles")
+    .select("volunteer_roles, tnvr_certificate_uploaded, tnvr_certificate_url")
+    .eq("id", profile!.id)
+    .single();
+
+  if (refreshedProfile) {
+    await syncApplicationForRoleRequests(service, email, refreshedProfile);
   }
 
   return NextResponse.json({ success: true, certificate_url: certificateUrl });

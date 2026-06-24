@@ -72,7 +72,13 @@ export function VolunteerRoleRequestsPanel({ requests }: VolunteerRoleRequestsPa
             {error}
           </p>
         )}
-        {pending.map((request) => (
+        {pending.map((request) => {
+          const allReady = request.requested_roles.every(
+            (role) => missingRequirementsForRole(role, request).length === 0
+          );
+          const isRemoval = (request.request_type ?? "add") === "remove";
+
+          return (
           <div key={request.id} className="rounded-lg border p-4 space-y-3">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
@@ -128,11 +134,17 @@ export function VolunteerRoleRequestsPanel({ requests }: VolunteerRoleRequestsPa
             <div className="flex flex-wrap gap-2">
               <Button
                 size="sm"
-                disabled={actingId === request.id}
+                disabled={actingId === request.id || (!isRemoval && !allReady)}
                 onClick={() => reviewRequest(request.id, "approve")}
               >
                 <Check className="h-4 w-4 mr-1" />
-                {actingId === request.id ? "Working…" : (request.request_type ?? "add") === "remove" ? "Approve removal" : "Approve roles"}
+                {actingId === request.id
+                  ? "Working…"
+                  : isRemoval
+                    ? "Approve removal"
+                    : allReady
+                      ? "Approve roles"
+                      : "Requirements pending"}
               </Button>
               <Button
                 size="sm"
@@ -145,7 +157,8 @@ export function VolunteerRoleRequestsPanel({ requests }: VolunteerRoleRequestsPa
               </Button>
             </div>
           </div>
-        ))}
+          );
+        })}
       </CardContent>
     </Card>
   );

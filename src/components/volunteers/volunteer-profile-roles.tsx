@@ -187,10 +187,6 @@ export function VolunteerProfileRoles({
 
   async function submitRoleChanges() {
     if (!hasChanges) return;
-    if (needsCertForAdditions) {
-      setError("Upload your TNVR certificate before requesting trapping-related roles.");
-      return;
-    }
 
     if (isMinor && hasRestrictedRoleForMinor(rolesToAdd).length > 0) {
       setError("Some selected roles are not available to volunteers under 18.");
@@ -239,8 +235,10 @@ export function VolunteerProfileRoles({
       <CardHeader>
         <CardTitle className="text-lg">My Volunteer Roles</CardTitle>
         <CardDescription>
-          Check roles you want to keep or add. Uncheck an active role to request removal — your
-          qualifications (like TNVR certificate) stay on file for future requests.
+          Check roles you want to keep or add. Uncheck an active role to request removal. You can
+          request trapping-related roles before your TNVR certificate is uploaded — staff will
+          review requirements before granting new access. Your current roles stay active in the
+          meantime.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -343,13 +341,14 @@ export function VolunteerProfileRoles({
 
         {needsCertForAdditions && (
           <p className="text-sm text-amber-700">
-            Upload your TNVR certificate before requesting trapping-related roles.
+            Trapping-related roles need a TNVR certificate before staff can approve them. You can
+            submit the request now and upload your certificate below.
           </p>
         )}
 
         <Button
           onClick={submitRoleChanges}
-          disabled={submitting || !hasChanges || needsCertForAdditions}
+          disabled={submitting || !hasChanges}
         >
           {submitting ? "Submitting…" : "Submit role changes"}
         </Button>

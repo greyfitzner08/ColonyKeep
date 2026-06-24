@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireApiRole } from "@/lib/api/auth";
 import { createServiceClient } from "@/lib/supabase/server";
 import type { VolunteerRole } from "@/lib/types";
-import { rolesNeedingTnvrCert } from "@/lib/volunteers/role-requirements";
+import { syncApplicationForRoleRequests } from "@/lib/volunteers/role-expansion";
 
 export async function POST(request: NextRequest) {
   const { profile, response } = await requireApiRole([
@@ -44,16 +44,26 @@ export async function POST(request: NextRequest) {
       );
     }
   } else {
-    const hasTnvrCert = Boolean(
-      application?.tnvr_certificate_uploaded || profile!.tnvr_certificate_uploaded
-    );
-    if (rolesNeedingTnvrCert(requestedRoles) && !hasTnvrCert) {
+    const alreadyHeld = requestedRoles.filter((role) => currentRoles.includes(role));
+    if (alreadyHeld.length > 0) {
       return NextResponse.json(
-        { error: "Upload your TNVR certificate before requesting trapping-related roles." },
+        { error: "You already have one or more of the selected roles." },
         { status: 400 }
       );
     }
   }
+
+  const requirementSnapshot = {
+    tnvr_certificate_uploaded:
+      application?.tnvr_certificate_uploaded ?? profile!.tnvr_certificate_uploaded ?? false,
+    tnvr_certificate_url:
+      application?.tnvr_certificate_url ?? profile!.tnvr_certificate_url ?? null,
+    intake_training: application?.intake_training ?? false,
+    shadow_completed: application?.shadow_completed ?? false,
+    liability_waiver_signed: application?.liability_waiver_signed ?? false,
+    policy_signed: application?.policy_signed ?? false,
+    event_crash_course: application?.event_crash_course ?? false,
+  };
 
   const { data, error } = await service
     .from("volunteer_role_requests")
@@ -65,21 +75,17 @@ export async function POST(request: NextRequest) {
       requested_roles: requestedRoles,
       request_type: requestType,
       status: "pending",
-      tnvr_certificate_uploaded:
-        application?.tnvr_certificate_uploaded ?? profile!.tnvr_certificate_uploaded ?? false,
-      tnvr_certificate_url:
-        application?.tnvr_certificate_url ?? profile!.tnvr_certificate_url ?? null,
-      intake_training: application?.intake_training ?? false,
-      shadow_completed: application?.shadow_completed ?? false,
-      liability_waiver_signed: application?.liability_waiver_signed ?? false,
-      policy_signed: application?.policy_signed ?? false,
-      event_crash_course: application?.event_crash_course ?? false,
+      ...requirementSnapshot,
     })
     .select()
     .single();
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 400 });
+  }
+
+  if (requestType === "add") {
+    await syncApplicationForRoleRequests(service, profile!.email, profile!);
   }
 
   return NextResponse.json({ request: data });

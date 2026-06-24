@@ -17,6 +17,7 @@ import {
   missingRequirementsForRole,
   requirementLabel,
 } from "@/lib/volunteers/role-requirements";
+import { pendingNewRoles } from "@/lib/volunteers/role-expansion";
 import { formatDate } from "@/lib/utils";
 import type { VolunteerApplication, TrapTeam, UserRole, VolunteerRole, Profile } from "@/lib/types";
 import { ChevronDown, ChevronUp, Check, X, MessageCircle, Trash2, AlertTriangle, KeyRound } from "lucide-react";
@@ -317,8 +318,11 @@ export function VolunteersManager({ applications, teams, profilesByEmail }: Volu
         const suggestedEmail = parsePrimaryEmail(emailValue);
         const canReview = REVIEWABLE_STATUSES.has(app.status);
         const linkedProfile = profilesByEmail[app.email.toLowerCase()];
-        const approvedRoles = linkedProfile?.volunteer_roles ?? [];
-        const rolesReady = (app.roles_requested ?? []).every(
+        const approvedRoles = (linkedProfile?.volunteer_roles ?? []) as VolunteerRole[];
+        const newRoles = pendingNewRoles(app, approvedRoles);
+        const isRoleExpansion = approvedRoles.length > 0 && newRoles.length > 0;
+        const rolesToReview = isRoleExpansion ? newRoles : (app.roles_requested ?? []);
+        const rolesReady = rolesToReview.every(
           (role) => missingRequirementsForRole(role, app).length === 0
         );
 
@@ -340,7 +344,7 @@ export function VolunteersManager({ applications, teams, profilesByEmail }: Volu
                     </p>
                   </div>
                   <div className="flex flex-wrap gap-1">
-                    {(app.roles_requested ?? []).map((role) => {
+                    {rolesToReview.map((role) => {
                       const missing = missingRequirementsForRole(role, app);
                       return (
                         <Badge
@@ -356,7 +360,12 @@ export function VolunteersManager({ applications, teams, profilesByEmail }: Volu
                   </div>
                   {approvedRoles.length > 0 && (
                     <p className="text-xs text-muted-foreground">
-                      Approved interests: {approvedRoles.map(roleLabel).join(", ")}
+                      Active access (unchanged): {approvedRoles.map(roleLabel).join(", ")}
+                    </p>
+                  )}
+                  {isRoleExpansion && (
+                    <p className="text-xs text-primary">
+                      Role expansion request — approving only adds the roles listed above.
                     </p>
                   )}
                 </div>
@@ -377,7 +386,7 @@ export function VolunteersManager({ applications, teams, profilesByEmail }: Volu
                   <div>
                     <p><strong>Phone:</strong> {app.phone}</p>
                     <p><strong>Birthday:</strong> {app.birthday ? formatDate(app.birthday) : "—"}</p>
-                    <p><strong>Roles:</strong> {(app.roles_requested ?? []).map(roleLabel).join(", ") || "—"}</p>
+                    <p><strong>Roles:</strong> {rolesToReview.map(roleLabel).join(", ") || "—"}</p>
                   </div>
                   <div>
                     <p><strong>Experience:</strong> {app.prior_experience ?? "—"}</p>

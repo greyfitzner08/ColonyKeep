@@ -76,7 +76,7 @@ export async function POST(request: NextRequest) {
 
     const { data: existingProfile } = await service
       .from("profiles")
-      .select("id, role, volunteer_roles")
+      .select("id, role, volunteer_roles, team_id, tnvr_certificate_uploaded, tnvr_certificate_url")
       .eq("email", volunteerEmail)
       .maybeSingle();
 
@@ -91,13 +91,17 @@ export async function POST(request: NextRequest) {
       const { error: profileUpdateError } = await service
         .from("profiles")
         .update({
-          role: existingProfile.role ?? role ?? "volunteer",
-          team_id: teamId ?? null,
+          role: existingProfile.role || role || "volunteer",
+          ...(teamId ? { team_id: teamId } : {}),
           full_name: application.full_name,
           birthday: application.birthday ?? null,
           volunteer_roles: mergedVolunteerRoles,
-          tnvr_certificate_uploaded: application.tnvr_certificate_uploaded ?? false,
-          tnvr_certificate_url: application.tnvr_certificate_url ?? null,
+          tnvr_certificate_uploaded:
+            application.tnvr_certificate_uploaded ??
+            existingProfile.tnvr_certificate_uploaded ??
+            false,
+          tnvr_certificate_url:
+            application.tnvr_certificate_url ?? existingProfile.tnvr_certificate_url ?? null,
           ...(isNewUser ? { must_change_password: true } : {}),
         })
         .eq("id", existingProfile.id);

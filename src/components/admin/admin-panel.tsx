@@ -14,6 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { createClient } from "@/lib/supabase/client";
 import { VolunteerTeamPicker } from "@/components/admin/volunteer-team-picker";
 import { AdminUsersManager } from "@/components/admin/admin-users-manager";
+import { VolunteerImporter } from "@/components/volunteers/volunteer-importer";
 import { getTeamEligibleVolunteers } from "@/lib/volunteers/eligibility";
 import type { Profile, TrapTeam, RoleDescription, VolunteerApplication } from "@/lib/types";
 import { Plus, Pencil, X } from "lucide-react";
@@ -138,6 +139,7 @@ export function AdminPanel({
         <TabsTrigger value="users">Users</TabsTrigger>
         <TabsTrigger value="teams">Trap Teams</TabsTrigger>
         <TabsTrigger value="roles">Role Descriptions</TabsTrigger>
+        <TabsTrigger value="imports">Data Import</TabsTrigger>
       </TabsList>
 
       <TabsContent value="users" className="mt-4">
@@ -249,6 +251,10 @@ export function AdminPanel({
             </CardContent>
           </Card>
         ))}
+      </TabsContent>
+
+      <TabsContent value="imports" className="mt-4 space-y-4">
+        <VolunteerImporter />
       </TabsContent>
 
       <Dialog open={teamDialog} onOpenChange={setTeamDialog}>
