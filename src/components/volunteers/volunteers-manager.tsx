@@ -574,7 +574,9 @@ export function VolunteersManager({
           <div>
             <p><strong>Phone:</strong> {app.phone}</p>
             <p><strong>Birthday:</strong> {app.birthday ? formatDate(app.birthday) : "—"}</p>
-            <p><strong>Roles:</strong> {selectedApprovalRoles.map(roleLabel).join(", ") || "—"}</p>
+            {isRoleExpansion && (
+              <p><strong>Roles:</strong> {selectedApprovalRoles.map(roleLabel).join(", ") || "—"}</p>
+            )}
           </div>
           <div>
             <p><strong>Experience:</strong> {app.prior_experience ?? "—"}</p>
@@ -677,7 +679,7 @@ export function VolunteersManager({
         </div>
 
         {canReview && (
-          <div className="space-y-3 border-t pt-4">
+          <div className="space-y-4 border-t pt-4">
             <div className="space-y-2">
               <Label htmlFor={`notes-${app.id}`}>
                 {app.status === "needs_followup" ? "Follow-up notes" : "Follow-up notes (optional)"}
@@ -703,40 +705,92 @@ export function VolunteersManager({
               )}
             </div>
 
-            <div className="flex flex-wrap items-end gap-3">
-              {!isRoleExpansion && (
-                <>
-                  <div className="space-y-2 min-w-[220px] flex-1">
-                    <Label className="text-xs">Volunteer roles on approval</Label>
-                    <div className="grid gap-2 sm:grid-cols-2">
-                      {selectableApprovalRoles.map((entry) => (
-                        <label
-                          key={entry.role_id}
-                          htmlFor={`approve-role-${app.id}-${entry.role_id}`}
-                          className="flex items-center gap-2 rounded-md border bg-background px-2 py-1.5 text-sm cursor-pointer"
-                        >
-                          <Checkbox
-                            id={`approve-role-${app.id}-${entry.role_id}`}
-                            checked={selectedApprovalRoles.includes(entry.role_id)}
-                            onCheckedChange={() => toggleApprovalRole(app.id, entry.role_id)}
-                          />
-                          <span>{entry.label}</span>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs">Team</Label>
+            {!isRoleExpansion && (
+              <div className="rounded-lg border bg-muted/20 p-4 space-y-4">
+                <div className="space-y-1">
+                  <p className="text-sm font-medium">Volunteer roles on approval</p>
+                  <p className="text-xs text-muted-foreground">
+                    Confirm or adjust the roles this volunteer will receive. Options match the signup
+                    form{app.birthday ? " and this applicant's age" : ""}.
+                  </p>
+                </div>
+
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {selectableApprovalRoles.map((entry) => {
+                    const selected = selectedApprovalRoles.includes(entry.role_id);
+                    const missing = missingRequirementsForRole(
+                      entry.role_id,
+                      requirementSource,
+                      roleCatalog
+                    );
+
+                    return (
+                      <label
+                        key={entry.role_id}
+                        htmlFor={`approve-role-${app.id}-${entry.role_id}`}
+                        className={cn(
+                          "flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition-colors",
+                          selected
+                            ? "border-primary bg-primary/5"
+                            : "bg-background hover:bg-muted/40"
+                        )}
+                      >
+                        <Checkbox
+                          id={`approve-role-${app.id}-${entry.role_id}`}
+                          className="mt-0.5"
+                          checked={selected}
+                          onCheckedChange={() => toggleApprovalRole(app.id, entry.role_id)}
+                        />
+                        <div className="min-w-0 flex-1 space-y-1">
+                          <p className="text-sm font-medium leading-none">{entry.label}</p>
+                          {entry.description && (
+                            <p className="text-xs text-muted-foreground line-clamp-2">
+                              {entry.description}
+                            </p>
+                          )}
+                          {selected && missing.length > 0 && (
+                            <p className="text-xs text-amber-800">
+                              Needs: {missing.map(requirementLabel).join(", ")}
+                            </p>
+                          )}
+                          {selected && missing.length === 0 && (
+                            <p className="text-xs text-green-700">Requirements complete</p>
+                          )}
+                        </div>
+                      </label>
+                    );
+                  })}
+                </div>
+
+                <div className="flex flex-col gap-2 border-t pt-4 sm:flex-row sm:items-end sm:justify-between">
+                  <div className="space-y-1.5 sm:min-w-[220px]">
+                    <Label htmlFor={`approve-team-${app.id}`} className="text-xs">
+                      Trap team (optional)
+                    </Label>
                     <Select value={approveTeam} onValueChange={setApproveTeam}>
-                      <SelectTrigger className="w-[180px]"><SelectValue placeholder="Optional" /></SelectTrigger>
+                      <SelectTrigger id={`approve-team-${app.id}`} className="w-full sm:w-[240px]">
+                        <SelectValue placeholder="No team assignment" />
+                      </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="none">None</SelectItem>
-                        {teams.map((t) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
+                        <SelectItem value="none">No team assignment</SelectItem>
+                        {teams.map((t) => (
+                          <SelectItem key={t.id} value={t.id}>
+                            {t.name}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
-                </>
-              )}
+                  <p className="text-xs text-muted-foreground">
+                    {selectedApprovalRoles.length === 0
+                      ? "Select at least one role to approve."
+                      : `${selectedApprovalRoles.length} role${selectedApprovalRoles.length === 1 ? "" : "s"} selected`}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            <div className="flex flex-wrap gap-2 border-t pt-4">
               <Button
                 size="sm"
                 disabled={actingId === app.id || emailInvalid || !rolesReady}
