@@ -1,16 +1,22 @@
-import { createServiceClient } from "@/lib/supabase/server";
-import { backfillHelpRequestCoordinates } from "@/lib/help-requests/geocode-backfill";
+import { createClient } from "@/lib/supabase/server";
 import { HotspotsMap } from "@/components/maps/hotspots-map";
 import type { HelpRequest } from "@/lib/types";
 
-export default async function HotspotsPage() {
-  const service = await createServiceClient();
-  const { data } = await service.from("help_requests").select("*");
+const HOTSPOT_FIELDS =
+  "id, case_number, status, colony_address, colony_city, colony_zip, colony_lat, colony_lng";
 
-  const helpRequests = await backfillHelpRequestCoordinates(
-    service,
-    (data ?? []) as HelpRequest[]
-  );
+export default async function HotspotsPage() {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("help_requests")
+    .select(HOTSPOT_FIELDS)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    throw new Error(`Unable to load colony hotspots: ${error.message}`);
+  }
+
+  const helpRequests = (data ?? []) as HelpRequest[];
 
   const withCoords = helpRequests.filter((hr) => hr.colony_lat && hr.colony_lng);
 

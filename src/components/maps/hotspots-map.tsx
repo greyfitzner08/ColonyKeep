@@ -37,6 +37,12 @@ const STATUS_MARKER_COLORS: Record<HelpRequestStatus, string> = {
   closed: "#6b7280",
 };
 
+const DEFAULT_MARKER_COLOR = "#6b7280";
+
+function markerColor(status: HelpRequestStatus) {
+  return STATUS_MARKER_COLORS[status] ?? DEFAULT_MARKER_COLOR;
+}
+
 interface HotspotsMapProps {
   helpRequests: HelpRequest[];
 }
@@ -83,8 +89,8 @@ export function HotspotsMap({ helpRequests }: HotspotsMapProps) {
               center={[hr.colony_lat!, hr.colony_lng!]}
               radius={8}
               pathOptions={{
-                color: STATUS_MARKER_COLORS[hr.status],
-                fillColor: STATUS_MARKER_COLORS[hr.status],
+                color: markerColor(hr.status),
+                fillColor: markerColor(hr.status),
                 fillOpacity: 0.7,
               }}
             >

@@ -21,7 +21,40 @@ import { APPOINTMENT_STATUS_COLORS } from "@/lib/constants";
 import { formatDate, cn } from "@/lib/utils";
 import type { Appointment, Clinic, Cat } from "@/lib/types";
 import type { HelpRequestOption } from "@/lib/cases/help-request-options";
-import { Plus, Calendar } from "lucide-react";
+import { Plus, Calendar, ChevronLeft, ChevronRight } from "lucide-react";
+
+const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+function toDateKey(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function buildMonthGrid(year: number, month: number) {
+  const firstDay = new Date(year, month, 1);
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const startWeekday = firstDay.getDay();
+  const totalCells = Math.ceil((startWeekday + daysInMonth) / 7) * 7;
+
+  return Array.from({ length: totalCells }, (_, index) => {
+    const dayOffset = index - startWeekday + 1;
+    const date = new Date(year, month, dayOffset);
+    return {
+      date: toDateKey(date),
+      day: date.getDate(),
+      inMonth: date.getMonth() === month,
+    };
+  });
+}
+
+function monthLabel(year: number, month: number) {
+  return new Date(year, month, 1).toLocaleDateString("en-US", {
+    month: "long",
+    year: "numeric",
+  });
+}
 
 const CLINIC_COLORS = [
   "border-l-blue-500",
@@ -48,7 +81,12 @@ export function AppointmentsCalendar({
   linkedCats = [],
 }: AppointmentsCalendarProps) {
   const router = useRouter();
-  const [view, setView] = useState<"month" | "list">("list");
+  const [view, setView] = useState<"month" | "list">("month");
+  const [monthCursor, setMonthCursor] = useState(() => {
+    const now = new Date();
+    return { year: now.getFullYear(), month: now.getMonth() };
+  });
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [selectedClinics, setSelectedClinics] = useState<string[]>(clinics.map((c) => c.id));
   const [claimDialog, setClaimDialog] = useState<Appointment | null>(null);
   const [detailDialog, setDetailDialog] = useState<Appointment | null>(null);
@@ -74,6 +112,58 @@ export function AppointmentsCalendar({
     },
     {} as Record<string, Appointment[]>
   );
+
+  const monthGrid = buildMonthGrid(monthCursor.year, monthCursor.month);
+  const selectedDayAppointments = selectedDate ? grouped[selectedDate] ?? [] : [];
+
+  function shiftMonth(delta: number) {
+    setMonthCursor((current) => {
+      const next = new Date(current.year, current.month + delta, 1);
+      return { year: next.getFullYear(), month: next.getMonth() };
+    });
+    setSelectedDate(null);
+  }
+
+  function renderAppointmentCard(appt: Appointment) {
+    return (
+      <Card
+        key={appt.id}
+        className={cn("border-l-4 cursor-pointer hover:shadow-md", clinicColorMap[appt.clinic_id])}
+        onClick={() => openAppointment(appt)}
+      >
+        <CardContent className="pt-4">
+          <div className="flex justify-between items-start gap-2">
+            <div>
+              <p className="font-medium text-sm">{appt.clinic_name}</p>
+              {appt.cat_name && <p className="text-xs text-muted-foreground">{appt.cat_name}</p>}
+              {appt.reserved_by_name && appt.status !== "available" && (
+                <p className="text-xs text-muted-foreground">
+                  Claimed by {appt.reserved_by_name}
+                </p>
+              )}
+              {appt.help_request_id && <p className="text-xs text-primary">Linked to case</p>}
+            </div>
+            <div className="flex flex-col items-end gap-1">
+              <Badge className={cn("text-xs", APPOINTMENT_STATUS_COLORS[appt.status])}>
+                {appt.status}
+              </Badge>
+              {appt.status === "reserved" && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 text-xs"
+                  disabled={unreserveId === appt.id}
+                  onClick={(e) => unreserve(appt.id, e)}
+                >
+                  {unreserveId === appt.id ? "…" : "Un-reserve"}
+                </Button>
+              )}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   async function bulkCreate() {
     const clinic = clinics.find((c) => c.id === bulkForm.clinic_id);
@@ -173,55 +263,112 @@ export function AppointmentsCalendar({
 
       {view === "list" && (
         <div className="space-y-6">
-          {Object.entries(grouped)
-            .sort(([a], [b]) => a.localeCompare(b))
-            .map(([date, appts]) => (
-              <div key={date}>
-                <h3 className="font-semibold mb-3 flex items-center gap-2">
-                  <Calendar className="h-4 w-4" />{formatDate(date)}
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                  {appts.map((appt) => (
-                    <Card
-                      key={appt.id}
-                      className={cn("border-l-4 cursor-pointer hover:shadow-md", clinicColorMap[appt.clinic_id])}
-                      onClick={() => openAppointment(appt)}
-                    >
-                      <CardContent className="pt-4">
-                        <div className="flex justify-between items-start gap-2">
-                          <div>
-                            <p className="font-medium text-sm">{appt.clinic_name}</p>
-                            {appt.cat_name && <p className="text-xs text-muted-foreground">{appt.cat_name}</p>}
-                            {appt.reserved_by_name && appt.status !== "available" && (
-                              <p className="text-xs text-muted-foreground">
-                                Claimed by {appt.reserved_by_name}
-                              </p>
-                            )}
-                            {appt.help_request_id && <p className="text-xs text-primary">Linked to case</p>}
-                          </div>
-                          <div className="flex flex-col items-end gap-1">
-                            <Badge className={cn("text-xs", APPOINTMENT_STATUS_COLORS[appt.status])}>
-                              {appt.status}
-                            </Badge>
-                            {appt.status === "reserved" && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="h-7 text-xs"
-                                disabled={unreserveId === appt.id}
-                                onClick={(e) => unreserve(appt.id, e)}
-                              >
-                                {unreserveId === appt.id ? "…" : "Un-reserve"}
-                              </Button>
-                            )}
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
+          {Object.keys(grouped).length === 0 ? (
+            <p className="text-sm text-muted-foreground py-8 text-center">
+              No appointments match the selected clinics.
+            </p>
+          ) : (
+            Object.entries(grouped)
+              .sort(([a], [b]) => a.localeCompare(b))
+              .map(([date, appts]) => (
+                <div key={date}>
+                  <h3 className="font-semibold mb-3 flex items-center gap-2">
+                    <Calendar className="h-4 w-4" />
+                    {formatDate(date)}
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {appts.map((appt) => renderAppointmentCard(appt))}
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))
+          )}
+        </div>
+      )}
+
+      {view === "month" && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between gap-4">
+            <Button type="button" variant="outline" size="icon" onClick={() => shiftMonth(-1)}>
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <h3 className="font-semibold">{monthLabel(monthCursor.year, monthCursor.month)}</h3>
+            <Button type="button" variant="outline" size="icon" onClick={() => shiftMonth(1)}>
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+
+          <div className="rounded-lg border overflow-hidden">
+            <div className="grid grid-cols-7 bg-muted/50 border-b">
+              {WEEKDAY_LABELS.map((label) => (
+                <div key={label} className="px-2 py-2 text-center text-xs font-medium text-muted-foreground">
+                  {label}
+                </div>
+              ))}
+            </div>
+            <div className="grid grid-cols-7">
+              {monthGrid.map((cell) => {
+                const dayAppointments = grouped[cell.date] ?? [];
+                const isSelected = selectedDate === cell.date;
+                const isToday = cell.date === toDateKey(new Date());
+
+                return (
+                  <button
+                    key={cell.date}
+                    type="button"
+                    onClick={() => setSelectedDate(cell.date)}
+                    className={cn(
+                      "min-h-24 border-b border-r p-2 text-left transition-colors hover:bg-muted/40",
+                      !cell.inMonth && "bg-muted/20 text-muted-foreground",
+                      isSelected && "bg-primary/10 ring-1 ring-inset ring-primary/30",
+                      isToday && cell.inMonth && "font-semibold"
+                    )}
+                  >
+                    <span className="text-sm">{cell.day}</span>
+                    {dayAppointments.length > 0 && (
+                      <div className="mt-2 space-y-1">
+                        {dayAppointments.slice(0, 2).map((appt) => (
+                          <div
+                            key={appt.id}
+                            className={cn(
+                              "truncate rounded px-1.5 py-0.5 text-[10px] text-white",
+                              appt.status === "available" ? "bg-green-600" : "bg-blue-600"
+                            )}
+                          >
+                            {appt.clinic_name}
+                          </div>
+                        ))}
+                        {dayAppointments.length > 2 && (
+                          <p className="text-[10px] text-muted-foreground">
+                            +{dayAppointments.length - 2} more
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {selectedDate ? (
+            <div>
+              <h3 className="font-semibold mb-3 flex items-center gap-2">
+                <Calendar className="h-4 w-4" />
+                {formatDate(selectedDate)}
+              </h3>
+              {selectedDayAppointments.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No appointments on this day.</p>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {selectedDayAppointments.map((appt) => renderAppointmentCard(appt))}
+                </div>
+              )}
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              Select a day to view appointment details.
+            </p>
+          )}
         </div>
       )}
 

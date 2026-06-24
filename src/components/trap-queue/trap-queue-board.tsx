@@ -26,7 +26,7 @@ export function TrapQueueBoard({ cases, canClaim, userEmail }: TrapQueueBoardPro
   }
 
   return (
-    <>
+    <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
       {cases.map((helpRequest) => (
         <CaseCard
           key={helpRequest.id}
@@ -42,6 +42,6 @@ export function TrapQueueBoard({ cases, canClaim, userEmail }: TrapQueueBoardPro
           }
         />
       ))}
-    </>
+    </div>
   );
 }

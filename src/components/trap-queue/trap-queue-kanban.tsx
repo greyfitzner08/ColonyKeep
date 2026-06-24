@@ -1,12 +1,14 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { Button } from "@/components/ui/button";
 import { getStatusLabel } from "@/lib/cases/statuses";
 import { TRAP_KANBAN_STATUSES } from "@/lib/cases/trap-queue-query";
 import { filterCasesBySearch } from "@/lib/cases/search-cases";
 import { CaseQueueSearch } from "@/components/cases/case-queue-search";
 import { TrapQueueBoard } from "@/components/trap-queue/trap-queue-board";
-import type { HelpRequest } from "@/lib/types";
+import { cn } from "@/lib/utils";
+import type { HelpRequest, HelpRequestStatus } from "@/lib/types";
 
 interface TrapQueueKanbanProps {
   cases: HelpRequest[];
@@ -14,8 +16,12 @@ interface TrapQueueKanbanProps {
   userEmail: string;
 }
 
+type TrapStatusFilter = "all" | (typeof TRAP_KANBAN_STATUSES)[number];
+
 export function TrapQueueKanban({ cases, canClaim, userEmail }: TrapQueueKanbanProps) {
   const [search, setSearch] = useState("");
+  const [activeStatus, setActiveStatus] = useState<TrapStatusFilter>("all");
+
   const filtered = useMemo(() => filterCasesBySearch(cases, search), [cases, search]);
 
   const byStatus = useMemo(
@@ -30,37 +36,50 @@ export function TrapQueueKanban({ cases, canClaim, userEmail }: TrapQueueKanbanP
     [filtered]
   );
 
+  const visibleCases =
+    activeStatus === "all" ? filtered : byStatus[activeStatus as HelpRequestStatus];
+
   return (
     <div className="space-y-4">
       <CaseQueueSearch value={search} onChange={setSearch} className="w-full max-w-md" />
+
+      <div className="flex flex-wrap gap-1 rounded-lg border bg-background p-1">
+        <Button
+          type="button"
+          size="sm"
+          variant={activeStatus === "all" ? "secondary" : "ghost"}
+          className={cn("shadow-none", activeStatus === "all" && "shadow-none")}
+          onClick={() => setActiveStatus("all")}
+        >
+          All ({filtered.length})
+        </Button>
+        {TRAP_KANBAN_STATUSES.map((status) => {
+          const count = byStatus[status].length;
+          const label = getStatusLabel(status, "trap");
+
+          return (
+            <Button
+              key={status}
+              type="button"
+              size="sm"
+              variant={activeStatus === status ? "secondary" : "ghost"}
+              className={cn("shadow-none", activeStatus === status && "shadow-none")}
+              onClick={() => setActiveStatus(status)}
+            >
+              {label} ({count})
+            </Button>
+          );
+        })}
+      </div>
 
       {filtered.length === 0 ? (
         <p className="text-muted-foreground py-8 text-center">
           {search.trim() ? "No cases match your search." : "No cases in this view."}
         </p>
+      ) : visibleCases.length === 0 ? (
+        <p className="text-muted-foreground py-8 text-center">No cases in this status.</p>
       ) : (
-        <div className="flex gap-4 overflow-x-auto pb-4">
-          {TRAP_KANBAN_STATUSES.map((status) => {
-            const columnCases = byStatus[status];
-            const label = getStatusLabel(status, "trap");
-
-            return (
-              <div key={status} className="w-72 shrink-0">
-                <div className="mb-3 rounded-lg bg-muted p-3">
-                  <h3 className="text-sm font-semibold">{label}</h3>
-                  <span className="text-xs text-muted-foreground">{columnCases.length} cases</span>
-                </div>
-                <div className="space-y-3">
-                  {columnCases.length === 0 ? (
-                    <p className="text-xs text-muted-foreground px-1">No cases</p>
-                  ) : (
-                    <TrapQueueBoard cases={columnCases} canClaim={canClaim} userEmail={userEmail} />
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
+        <TrapQueueBoard cases={visibleCases} canClaim={canClaim} userEmail={userEmail} />
       )}
     </div>
   );
