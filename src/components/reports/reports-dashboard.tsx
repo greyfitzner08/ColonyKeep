@@ -115,8 +115,7 @@ export function ReportsDashboard({
 }: ReportsDashboardProps) {
   const [filters, setFilters] = useState<ReportFilters>(DEFAULT_REPORT_FILTERS);
   const [reportType, setReportType] = useState<ReportType>("inquiries_by_zip");
-  const [filtersOpen, setFiltersOpen] = useState(false);
-  const [reportTypesOpen, setReportTypesOpen] = useState(false);
+  const [setupOpen, setSetupOpen] = useState(false);
 
   const options = useMemo(
     () => reportFilterOptions(helpRequests, teams, clinics),
@@ -174,33 +173,65 @@ export function ReportsDashboard({
       <Card>
         <CardHeader
           className="pb-3 cursor-pointer select-none"
-          onClick={() => setFiltersOpen((open) => !open)}
+          onClick={() => setSetupOpen((open) => !open)}
         >
           <div className="flex items-start justify-between gap-3">
             <div>
               <CardTitle className="text-lg flex items-center gap-2">
                 <Filter className="h-4 w-4" />
-                Filters
-                {activeFilterCount() > 0 && (
-                  <span className="text-xs font-normal text-muted-foreground">
-                    ({activeFilterCount()} active)
-                  </span>
-                )}
+                Report setup
               </CardTitle>
               <CardDescription>
-                {filtersOpen
-                  ? "Refine any report below. Leave dates blank for all time."
-                  : "Click to set ZIP, team, clinic, trapper, dates, and status filters."}
+                {setupOpen
+                  ? "Choose a report type and refine with filters. Leave dates blank for all time."
+                  : `${activeReport?.label ?? "Inquiries by ZIP"}${
+                      activeFilterCount() > 0 ? ` · ${activeFilterCount()} filter${activeFilterCount() === 1 ? "" : "s"} active` : ""
+                    }`}
               </CardDescription>
             </div>
             <ChevronDown
-              className={cn("h-5 w-5 shrink-0 text-muted-foreground transition-transform", filtersOpen && "rotate-180")}
+              className={cn(
+                "h-5 w-5 shrink-0 text-muted-foreground transition-transform",
+                setupOpen && "rotate-180"
+              )}
             />
           </div>
         </CardHeader>
-        {filtersOpen && (
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+        {setupOpen && (
+          <CardContent className="space-y-6">
+            <div className="space-y-3">
+              <div>
+                <p className="text-sm font-medium">Report type</p>
+                <p className="text-xs text-muted-foreground">Choose which report to run.</p>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+                {REPORT_TYPES.map((entry) => (
+                  <button
+                    key={entry.value}
+                    type="button"
+                    onClick={() => setReportType(entry.value)}
+                    className={cn(
+                      "rounded-lg border p-3 text-left transition-colors",
+                      reportType === entry.value
+                        ? "border-primary bg-primary/5"
+                        : "hover:bg-muted/50"
+                    )}
+                  >
+                    <p className="font-medium text-sm">{entry.label}</p>
+                    <p className="text-xs text-muted-foreground mt-1">{entry.hint}</p>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-4 border-t pt-6">
+              <div>
+                <p className="text-sm font-medium">Filters</p>
+                <p className="text-xs text-muted-foreground">
+                  Narrow results by date, location, team, clinic, trapper, or status.
+                </p>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
             <div className="space-y-2">
               <Label htmlFor="report-date-from">From date</Label>
               <Input
@@ -318,58 +349,14 @@ export function ReportsDashboard({
             </div>
           </div>
 
-          <div className="flex justify-end">
-            <Button type="button" variant="ghost" size="sm" onClick={resetFilters}>
-              <RotateCcw className="h-4 w-4 mr-2" />
-              Reset filters
-            </Button>
-          </div>
-        </CardContent>
-        )}
-      </Card>
-
-      <Card>
-        <CardHeader
-          className="pb-3 cursor-pointer select-none"
-          onClick={() => setReportTypesOpen((open) => !open)}
-        >
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <CardTitle className="text-lg">Report type</CardTitle>
-              <CardDescription>
-                {reportTypesOpen
-                  ? "Choose which report to run with the filters above."
-                  : `Current: ${activeReport?.label ?? "Inquiries by ZIP"}`}
-              </CardDescription>
+              <div className="flex justify-end">
+                <Button type="button" variant="ghost" size="sm" onClick={resetFilters}>
+                  <RotateCcw className="h-4 w-4 mr-2" />
+                  Reset filters
+                </Button>
+              </div>
             </div>
-            <ChevronDown
-              className={cn(
-                "h-5 w-5 shrink-0 text-muted-foreground transition-transform",
-                reportTypesOpen && "rotate-180"
-              )}
-            />
-          </div>
-        </CardHeader>
-        {reportTypesOpen && (
-        <CardContent>
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
-        {REPORT_TYPES.map((entry) => (
-          <button
-            key={entry.value}
-            type="button"
-            onClick={() => setReportType(entry.value)}
-            className={`rounded-lg border p-3 text-left transition-colors ${
-              reportType === entry.value
-                ? "border-primary bg-primary/5"
-                : "hover:bg-muted/50"
-            }`}
-          >
-            <p className="font-medium text-sm">{entry.label}</p>
-            <p className="text-xs text-muted-foreground mt-1">{entry.hint}</p>
-          </button>
-        ))}
-      </div>
-        </CardContent>
+          </CardContent>
         )}
       </Card>
 
