@@ -43,8 +43,6 @@ const EMPTY_CAT = {
   gender: "",
   colors: "",
   microchip_id: "",
-  clinic_id: "",
-  clinic_name: "",
   medical_notes: "",
 };
 
@@ -161,8 +159,6 @@ export function CaseDetailTabs({
         gender: newCat.gender || null,
         colors: newCat.colors || null,
         microchip_id: newCat.microchip_id || null,
-        clinic_id: newCat.clinic_id || null,
-        clinic_name: newCat.clinic_name || null,
         medical_notes: newCat.medical_notes || null,
       })
       .select()
@@ -294,32 +290,6 @@ export function CaseDetailTabs({
                 value={newCat.microchip_id}
                 onChange={(e) => setNewCat({ ...newCat, microchip_id: e.target.value })}
               />
-            </div>
-            <div className="space-y-2 sm:col-span-2">
-              <Label className="text-sm font-medium">Clinic</Label>
-              <Select
-                value={newCat.clinic_id || "none"}
-                onValueChange={(v) => {
-                  const clinic = clinics.find((c) => c.id === v);
-                  setNewCat({
-                    ...newCat,
-                    clinic_id: v === "none" ? "" : v,
-                    clinic_name: clinic?.name ?? "",
-                  });
-                }}
-              >
-                <SelectTrigger className="text-base">
-                  <SelectValue placeholder="Select clinic" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">Not yet assigned</SelectItem>
-                  {clinics.map((clinic) => (
-                    <SelectItem key={clinic.id} value={clinic.id}>
-                      {clinic.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
             </div>
             <div className="space-y-2 sm:col-span-2">
               <Label className="text-sm font-medium">Medical Notes</Label>

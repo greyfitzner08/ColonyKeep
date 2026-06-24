@@ -17,19 +17,21 @@ export const INTAKE_EDITABLE_STATUSES: HelpRequestStatus[] = [
   "closed",
 ];
 
-/** Active statuses shown on trap queue boards. */
-export const TRAP_QUEUE_STATUSES: HelpRequestStatus[] = [
+/** Statuses shown on trap queue navigation and loaded into the trap queue view. */
+export const TRAP_KANBAN_STATUSES: HelpRequestStatus[] = [
   "routed_to_trap_team",
   "claimed",
   "appointment_needed",
   "appointment_reserved",
+];
+
+/** Statuses trap team may set on a case (includes post-appointment workflow). */
+export const TRAP_QUEUE_STATUSES: HelpRequestStatus[] = [
+  ...TRAP_KANBAN_STATUSES,
   "cat_trapped",
   "transported",
   "checked_in",
 ];
-
-/** Kanban columns on the trap queue page (appointment statuses trap-only). */
-export const TRAP_KANBAN_STATUSES: HelpRequestStatus[] = [...TRAP_QUEUE_STATUSES];
 
 const TRAP_STATUS_LABEL_OVERRIDES: Partial<Record<HelpRequestStatus, string>> = {
   appointment_reserved: "Appointment Scheduled",
