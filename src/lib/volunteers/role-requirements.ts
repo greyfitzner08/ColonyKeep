@@ -47,21 +47,12 @@ export const VOLUNTEER_ROLE_REQUIREMENTS: RoleRequirement[] = [
 
 const REQUIREMENT_FIELD_SET = new Set<string>(REQUIREMENT_FIELD_OPTIONS.map((entry) => entry.key));
 
-function parseRequirementFields(values: string[] | null | undefined): RequirementField[] {
-  if (!values) return [];
-  return values.filter((value): value is RequirementField => REQUIREMENT_FIELD_SET.has(value));
-}
-
-/** Resolve configured requirements for a role, falling back to built-in defaults. */
+/** Resolve tracked (system) requirements for a role, falling back to built-in defaults. */
 export function requirementsForRole(
   role: VolunteerRole,
   catalog: RoleDescription[] = []
 ): RequirementField[] {
-  const entry = catalog.find((item) => item.role_id === role);
-  if (entry && Array.isArray(entry.requirements)) {
-    return parseRequirementFields(entry.requirements);
-  }
-  return VOLUNTEER_ROLE_REQUIREMENTS.find((item) => item.role === role)?.requires ?? [];
+  return trackedRequirementsForRole(role, catalog);
 }
 
 export function getRoleRequirement(
@@ -103,4 +94,40 @@ export function requirementLabel(field: RequirementField): string {
     event_crash_course: "Event crash course",
   };
   return labels[field];
+}
+
+export function isKnownRequirementField(value: string): value is RequirementField {
+  return REQUIREMENT_FIELD_SET.has(value);
+}
+
+export function displayRequirementLabel(value: string): string {
+  return isKnownRequirementField(value) ? requirementLabel(value) : value;
+}
+
+/** All requirements configured for a role, including custom labels. */
+export function configuredRequirementsForRole(
+  role: VolunteerRole,
+  catalog: RoleDescription[] = []
+): string[] {
+  const entry = catalog.find((item) => item.role_id === role);
+  if (entry && Array.isArray(entry.requirements)) {
+    return entry.requirements;
+  }
+  return (
+    VOLUNTEER_ROLE_REQUIREMENTS.find((item) => item.role === role)?.requires.map(String) ?? []
+  );
+}
+
+export function trackedRequirementsForRole(
+  role: VolunteerRole,
+  catalog: RoleDescription[] = []
+): RequirementField[] {
+  return configuredRequirementsForRole(role, catalog).filter(isKnownRequirementField);
+}
+
+export function customRequirementsForRole(
+  role: VolunteerRole,
+  catalog: RoleDescription[] = []
+): string[] {
+  return configuredRequirementsForRole(role, catalog).filter((value) => !isKnownRequirementField(value));
 }
