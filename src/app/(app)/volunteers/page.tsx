@@ -43,6 +43,7 @@ export default async function VolunteersPage({ searchParams }: VolunteersPagePro
         applications={(applications ?? []) as VolunteerApplication[]}
         teams={(teams ?? []) as TrapTeam[]}
         profilesByEmail={profilesByEmail}
+        roleRequests={(roleRequests ?? []) as VolunteerRoleRequest[]}
       />
     </div>
   );

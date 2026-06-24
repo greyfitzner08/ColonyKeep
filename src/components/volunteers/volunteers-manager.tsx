@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -14,18 +14,47 @@ import { VOLUNTEER_ROLES } from "@/lib/constants";
 import { getApiErrorMessage } from "@/lib/api/errors";
 import { getEmailValidationError, parsePrimaryEmail } from "@/lib/email-utils";
 import {
-  missingRequirementsForRole,
+  getRoleRequirement,
   requirementLabel,
+  type RequirementField,
 } from "@/lib/volunteers/role-requirements";
-import { pendingNewRoles } from "@/lib/volunteers/role-expansion";
-import { formatDate } from "@/lib/utils";
-import type { VolunteerApplication, TrapTeam, UserRole, VolunteerRole, Profile } from "@/lib/types";
-import { ChevronDown, ChevronUp, Check, X, MessageCircle, Trash2, AlertTriangle, KeyRound } from "lucide-react";
+import {
+  applicationMatchesFilter,
+  attentionPriority,
+  countApplicationsNeedingAttention,
+  getApplicationReviewContext,
+  requirementSourceForApplication,
+  type ApplicationReviewContext,
+  type ApplicationStatusFilter,
+  type ApplicationViewMode,
+} from "@/lib/volunteers/application-review";
+import { cn, formatDate } from "@/lib/utils";
+import type {
+  VolunteerApplication,
+  TrapTeam,
+  UserRole,
+  VolunteerRole,
+  VolunteerRoleRequest,
+  Profile,
+} from "@/lib/types";
+import {
+  ChevronDown,
+  ChevronUp,
+  Check,
+  X,
+  MessageCircle,
+  Trash2,
+  AlertTriangle,
+  KeyRound,
+  LayoutGrid,
+  Table2,
+} from "lucide-react";
 
 interface VolunteersManagerProps {
   applications: VolunteerApplication[];
   teams: TrapTeam[];
   profilesByEmail: Record<string, Profile>;
+  roleRequests?: VolunteerRoleRequest[];
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -44,16 +73,30 @@ const ADMIN_CHECKBOX_FIELDS = [
   { key: "event_crash_course", label: "Event Crash Course" },
 ] as const;
 
-const REVIEWABLE_STATUSES = new Set(["pending", "needs_followup"]);
-
 function roleLabel(role: VolunteerRole) {
   return VOLUNTEER_ROLES.find((entry) => entry.value === role)?.label ?? role;
 }
 
-export function VolunteersManager({ applications, teams, profilesByEmail }: VolunteersManagerProps) {
+function requirementFieldsForRoles(roles: VolunteerRole[]): RequirementField[] {
+  const fields = new Set<RequirementField>();
+  for (const role of roles) {
+    for (const field of getRoleRequirement(role)?.requires ?? []) {
+      fields.add(field);
+    }
+  }
+  return Array.from(fields);
+}
+
+export function VolunteersManager({
+  applications,
+  teams,
+  profilesByEmail,
+  roleRequests = [],
+}: VolunteersManagerProps) {
   const router = useRouter();
   const [expanded, setExpanded] = useState<string | null>(null);
-  const [filter, setFilter] = useState("all");
+  const [filter, setFilter] = useState<ApplicationStatusFilter>("needs_attention");
+  const [viewMode, setViewMode] = useState<ApplicationViewMode>("cards");
   const [interestFilter, setInterestFilter] = useState("all");
   const [approveRole, setApproveRole] = useState<UserRole>("volunteer");
   const [approveTeam, setApproveTeam] = useState<string>("none");
@@ -66,24 +109,31 @@ export function VolunteersManager({ applications, teams, profilesByEmail }: Volu
   const [savingEmailId, setSavingEmailId] = useState<string | null>(null);
   const [resettingPasswordId, setResettingPasswordId] = useState<string | null>(null);
 
+  const attentionCount = useMemo(
+    () => countApplicationsNeedingAttention(applications, profilesByEmail, roleRequests),
+    [applications, profilesByEmail, roleRequests]
+  );
+
   const filtered = useMemo(() => {
-    let results = filter === "all"
-      ? applications
-      : applications.filter((application) => application.status === filter);
+    let results = applications.filter((application) =>
+      applicationMatchesFilter(application, filter, profilesByEmail, roleRequests)
+    );
 
     if (interestFilter !== "all") {
-      results = results.filter((application) =>
-        (application.roles_requested ?? []).includes(interestFilter as VolunteerRole)
-      );
+      results = results.filter((application) => {
+        const context = getApplicationReviewContext(application, profilesByEmail, roleRequests);
+        return context.rolesToReview.includes(interestFilter as VolunteerRole);
+      });
     }
 
     return [...results].sort((a, b) => {
-      const aRoles = (a.roles_requested ?? []).map(roleLabel).join(", ");
-      const bRoles = (b.roles_requested ?? []).map(roleLabel).join(", ");
-      if (aRoles !== bRoles) return aRoles.localeCompare(bRoles);
+      const priorityDiff =
+        attentionPriority(a, profilesByEmail, roleRequests) -
+        attentionPriority(b, profilesByEmail, roleRequests);
+      if (priorityDiff !== 0) return priorityDiff;
       return a.full_name.localeCompare(b.full_name);
     });
-  }, [applications, filter, interestFilter]);
+  }, [applications, filter, interestFilter, profilesByEmail, roleRequests]);
 
   function notesForApp(app: VolunteerApplication) {
     return actionNotes[app.id] ?? app.admin_notes ?? "";
@@ -219,15 +269,25 @@ export function VolunteersManager({ applications, teams, profilesByEmail }: Volu
   async function updateApplicationField(
     applicationId: string,
     field: (typeof ADMIN_CHECKBOX_FIELDS)[number]["key"],
-    value: boolean
+    value: boolean,
+    context?: ApplicationReviewContext
   ) {
     setActionError(null);
     setUpdatingField(`${applicationId}:${field}`);
-    const response = await fetch("/api/volunteers/update-application", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ applicationId, field, value }),
-    });
+
+    const primaryRoleRequest = context?.pendingRoleRequests[0];
+    const response = primaryRoleRequest
+      ? await fetch("/api/volunteers/role-requests/update-requirements", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ request_id: primaryRoleRequest.id, field, value }),
+        })
+      : await fetch("/api/volunteers/update-application", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ applicationId, field, value }),
+        });
+
     const result = await response.json().catch(() => null);
     setUpdatingField(null);
     if (!response.ok) {
@@ -290,6 +350,364 @@ export function VolunteersManager({ applications, teams, profilesByEmail }: Volu
     router.refresh();
   }
 
+  function renderApplicationDetails(app: VolunteerApplication, context: ApplicationReviewContext) {
+    const emailValue = emailForApp(app);
+    const nameValue = nameForApp(app);
+    const emailInvalid = Boolean(getEmailValidationError(emailValue));
+    const suggestedEmail = parsePrimaryEmail(emailValue);
+    const { linkedProfile, rolesToReview, canReview, isRoleExpansion, approvedRoles } = context;
+    const requirementSource = requirementSourceForApplication(app, context);
+    const relevantRequirementFields = requirementFieldsForRoles(rolesToReview);
+
+    return (
+      <div className="space-y-4">
+        {isRoleExpansion && (
+          <div className="rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-sm">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="h-5 w-5 text-amber-700 mt-0.5 shrink-0" />
+              <div className="space-y-2">
+                <p className="font-semibold text-amber-950">Additional volunteer roles requested</p>
+                <p className="text-amber-900">
+                  {app.full_name} already has access as:{" "}
+                  <span className="font-medium">{approvedRoles.map(roleLabel).join(", ")}</span>.
+                  They are requesting new roles that require separate training verification.
+                </p>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {rolesToReview.map((role) => {
+                    const missing = context.missingByRole[role] ?? [];
+                    return (
+                      <div
+                        key={role}
+                        className={cn(
+                          "rounded-md border px-3 py-2",
+                          missing.length === 0 ? "border-green-200 bg-green-50" : "border-amber-200 bg-white"
+                        )}
+                      >
+                        <p className="font-medium text-foreground">{roleLabel(role)}</p>
+                        {missing.length === 0 ? (
+                          <p className="text-muted-foreground">Requirements complete</p>
+                        ) : (
+                          <p className="text-amber-900">
+                            Still need: {missing.map(requirementLabel).join(", ")}
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+                {context.pendingRoleRequests.length > 0 && (
+                  <p className="text-xs text-amber-800">
+                    Trap-specific requirements (shadow, TNVR certificate) are tracked per role
+                    request — check them off below after verification.
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+          <div>
+            <p><strong>Phone:</strong> {app.phone}</p>
+            <p><strong>Birthday:</strong> {app.birthday ? formatDate(app.birthday) : "—"}</p>
+            <p><strong>Roles:</strong> {rolesToReview.map(roleLabel).join(", ") || "—"}</p>
+          </div>
+          <div>
+            <p><strong>Experience:</strong> {app.prior_experience ?? "—"}</p>
+            <p><strong>How heard:</strong> {app.how_heard ?? "—"}</p>
+          </div>
+        </div>
+
+        <div className="space-y-3 rounded-md border p-3">
+          <div className="space-y-2">
+            <Label htmlFor={`name-${app.id}`}>Full name</Label>
+            <div className="flex flex-wrap items-end gap-2">
+              <Input
+                id={`name-${app.id}`}
+                value={nameValue}
+                onChange={(event) =>
+                  setNameEdits((prev) => ({ ...prev, [app.id]: event.target.value }))
+                }
+                className="max-w-md"
+              />
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={savingEmailId === app.id || nameValue === app.full_name}
+                onClick={() => saveName(app.id, nameValue)}
+              >
+                {savingEmailId === app.id ? "Saving..." : "Save Name"}
+              </Button>
+            </div>
+          </div>
+
+          {canReview && (
+            <div className="space-y-2">
+              <Label htmlFor={`email-${app.id}`}>Email</Label>
+              <div className="flex flex-wrap items-end gap-2">
+                <Input
+                  id={`email-${app.id}`}
+                  type="email"
+                  value={emailValue}
+                  onChange={(event) =>
+                    setEmailEdits((prev) => ({ ...prev, [app.id]: event.target.value }))
+                  }
+                  className="max-w-md"
+                />
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={savingEmailId === app.id || emailValue === app.email}
+                  onClick={() => saveEmail(app.id, emailValue)}
+                >
+                  {savingEmailId === app.id ? "Saving..." : "Save Email"}
+                </Button>
+              </div>
+              {emailInvalid && (
+                <p className="flex flex-wrap items-center gap-1 text-sm text-destructive">
+                  <AlertTriangle className="h-4 w-4 shrink-0" />
+                  <span>
+                    Fix the email address before approving. Use one valid address only.
+                    {suggestedEmail && emailValue.trim().toLowerCase() !== suggestedEmail && (
+                      <> Suggested: {suggestedEmail}</>
+                    )}
+                  </span>
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+
+        {app.admin_notes && !canReview && (
+          <div className="rounded-md border bg-muted/40 p-3 text-sm">
+            <p className="font-medium">Follow-up notes</p>
+            <p className="mt-1 whitespace-pre-wrap text-muted-foreground">{app.admin_notes}</p>
+          </div>
+        )}
+
+        <div className="space-y-2">
+          <Label className="text-sm font-medium">Training & Requirements</Label>
+          <div className="flex flex-wrap gap-4">
+            {ADMIN_CHECKBOX_FIELDS.filter(({ key }) => relevantRequirementFields.includes(key)).map(
+              ({ key, label }) => {
+                const fieldKey = `${app.id}:${key}`;
+                const checked = Boolean(requirementSource[key]);
+                return (
+                  <div key={key} className="flex items-center gap-2">
+                    <Checkbox
+                      id={fieldKey}
+                      checked={checked}
+                      disabled={updatingField === fieldKey}
+                      onCheckedChange={(value) =>
+                        updateApplicationField(app.id, key, value === true, context)
+                      }
+                    />
+                    <Label htmlFor={fieldKey} className="text-sm font-normal">
+                      {label}
+                    </Label>
+                  </div>
+                );
+              }
+            )}
+          </div>
+        </div>
+
+        {canReview && (
+          <div className="space-y-3 border-t pt-4">
+            <div className="space-y-2">
+              <Label htmlFor={`notes-${app.id}`}>
+                {app.status === "needs_followup" ? "Follow-up notes" : "Follow-up notes (optional)"}
+              </Label>
+              <Textarea
+                id={`notes-${app.id}`}
+                placeholder="Why does this volunteer need follow-up?"
+                value={notesForApp(app)}
+                onChange={(event) =>
+                  setActionNotes((prev) => ({ ...prev, [app.id]: event.target.value }))
+                }
+                rows={3}
+              />
+              {app.status === "needs_followup" && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={savingEmailId === app.id || notesForApp(app) === (app.admin_notes ?? "")}
+                  onClick={() => saveFollowUpNotes(app.id, notesForApp(app))}
+                >
+                  {savingEmailId === app.id ? "Saving..." : "Save Notes"}
+                </Button>
+              )}
+            </div>
+
+            <div className="flex flex-wrap items-end gap-3">
+              <div className="space-y-1">
+                <Label className="text-xs">Role on Approval</Label>
+                <Select value={approveRole} onValueChange={(v) => setApproveRole(v as UserRole)}>
+                  <SelectTrigger className="w-[180px]"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="volunteer">Volunteer</SelectItem>
+                    <SelectItem value="trap_team_lead">Trap Team Lead</SelectItem>
+                    <SelectItem value="inquiry_team">Inquiry Team</SelectItem>
+                    <SelectItem value="clinic_coordination">Clinic Coordination</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Team</Label>
+                <Select value={approveTeam} onValueChange={setApproveTeam}>
+                  <SelectTrigger className="w-[180px]"><SelectValue placeholder="Optional" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">None</SelectItem>
+                    {teams.map((t) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <Button
+                size="sm"
+                disabled={actingId === app.id || emailInvalid || !context.rolesReady}
+                onClick={() => handleAction(app.id, "approve", undefined, emailValue)}
+              >
+                <Check className="h-4 w-4 mr-1" />
+                {actingId === app.id
+                  ? "Working..."
+                  : context.rolesReady
+                    ? isRoleExpansion
+                      ? "Approve new roles"
+                      : "Approve"
+                    : "Complete requirements first"}
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => handleAction(app.id, "followup", notesForApp(app))}
+                disabled={actingId === app.id}
+              >
+                <MessageCircle className="h-4 w-4 mr-1" />
+                {app.status === "needs_followup" ? "Update Follow-up" : "Follow-up"}
+              </Button>
+              <Button
+                size="sm"
+                variant="destructive"
+                onClick={() => handleAction(app.id, "reject", notesForApp(app))}
+                disabled={actingId === app.id}
+              >
+                <X className="h-4 w-4 mr-1" />Reject
+              </Button>
+            </div>
+            {actionError && expanded === app.id && (
+              <p
+                className={`text-sm ${
+                  actionError.startsWith("Volunteer approved") ||
+                  actionError.includes("Temporary password") ||
+                  actionError.includes("Password reset")
+                    ? "text-orange-700"
+                    : "text-destructive"
+                }`}
+                role="alert"
+              >
+                {actionError}
+              </p>
+            )}
+          </div>
+        )}
+
+        {app.status === "approved" && (
+          <div className="rounded-md border bg-muted/30 p-3 space-y-2">
+            <p className="text-sm font-medium">Volunteer login</p>
+            <p className="text-sm text-muted-foreground">
+              Reset to the temporary password if they cannot sign in or never set one up.
+              {linkedProfile?.must_change_password && (
+                <> This volunteer is already flagged to change their password on next sign-in.</>
+              )}
+            </p>
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={resettingPasswordId === app.id || actingId === app.id}
+              onClick={() => resetTemporaryPassword(app.id, app.full_name)}
+            >
+              <KeyRound className="h-4 w-4 mr-1" />
+              {resettingPasswordId === app.id ? "Resetting…" : "Reset to temporary password"}
+            </Button>
+          </div>
+        )}
+
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t pt-4">
+          <Button
+            size="sm"
+            variant="destructive"
+            onClick={() => deleteApplication(app.id, app.full_name)}
+            disabled={actingId === app.id}
+          >
+            <Trash2 className="h-4 w-4 mr-1" />
+            {actingId === app.id ? "Deleting..." : "Delete Application"}
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  function renderApplicationSummary(app: VolunteerApplication, context: ApplicationReviewContext) {
+    const { linkedProfile, rolesToReview, canReview, isRoleExpansion, approvedRoles } = context;
+
+    return (
+      <>
+        <div>
+          <p className="font-medium">{app.full_name}</p>
+          <p className="text-sm text-muted-foreground">
+            {app.email} · Applied {formatDate(app.created_at)}
+            {linkedProfile?.role && (
+              <> · Platform role: {linkedProfile.role.replace(/_/g, " ")}</>
+            )}
+          </p>
+        </div>
+        {isRoleExpansion && (
+          <div className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-950">
+            <p className="font-medium flex items-center gap-1.5">
+              <AlertTriangle className="h-4 w-4 shrink-0" />
+              New roles requested — training required before approval
+            </p>
+            <p className="mt-1 text-amber-900">
+              Current roles: {approvedRoles.map(roleLabel).join(", ")}. New:{" "}
+              {rolesToReview.map(roleLabel).join(", ")}.
+              {!context.rolesReady && (
+                <> Missing: {context.allMissingRequirements.map(requirementLabel).join(", ")}.</>
+              )}
+            </p>
+          </div>
+        )}
+        <div className="flex flex-wrap gap-1">
+          {rolesToReview.map((role) => {
+            const missing = context.missingByRole[role] ?? [];
+            return (
+              <Badge
+                key={role}
+                variant={missing.length === 0 ? "secondary" : "outline"}
+                className={cn("text-xs", missing.length > 0 && "border-amber-400 text-amber-900 bg-amber-50")}
+              >
+                {roleLabel(role)}
+                {missing.length > 0 && ` · needs ${missing.map(requirementLabel).join(", ")}`}
+              </Badge>
+            );
+          })}
+        </div>
+        {isRoleExpansion && approvedRoles.length > 0 && (
+          <p className="text-xs text-muted-foreground">
+            Existing access unchanged: {approvedRoles.map(roleLabel).join(", ")}
+          </p>
+        )}
+        {canReview && (
+          <Badge
+            variant="outline"
+            className={context.rolesReady ? "text-green-700 border-green-300" : "text-amber-800 border-amber-300 bg-amber-50"}
+          >
+            {context.rolesReady ? "Ready to approve" : "Requirements pending"}
+          </Badge>
+        )}
+      </>
+    );
+  }
+
   return (
     <div className="space-y-4">
       {actionError && (
@@ -307,95 +725,99 @@ export function VolunteersManager({ applications, teams, profilesByEmail }: Volu
         </div>
       )}
 
-      <div className="flex flex-wrap gap-3">
-        <Select value={filter} onValueChange={setFilter}>
-          <SelectTrigger className="w-[200px]"><SelectValue placeholder="Status" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Statuses</SelectItem>
-            <SelectItem value="pending">Pending</SelectItem>
-            <SelectItem value="approved">Approved</SelectItem>
-            <SelectItem value="rejected">Rejected</SelectItem>
-            <SelectItem value="needs_followup">Needs Follow-up</SelectItem>
-          </SelectContent>
-        </Select>
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex flex-wrap gap-3">
+          <Select value={filter} onValueChange={(value) => setFilter(value as ApplicationStatusFilter)}>
+            <SelectTrigger className="w-[240px]"><SelectValue placeholder="Status" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="needs_attention">
+                Needs attention{attentionCount > 0 ? ` (${attentionCount})` : ""}
+              </SelectItem>
+              <SelectItem value="all">All statuses</SelectItem>
+              <SelectItem value="pending">Pending</SelectItem>
+              <SelectItem value="needs_followup">Needs follow-up</SelectItem>
+              <SelectItem value="approved">Approved</SelectItem>
+              <SelectItem value="rejected">Rejected</SelectItem>
+            </SelectContent>
+          </Select>
 
-        <Select value={interestFilter} onValueChange={setInterestFilter}>
-          <SelectTrigger className="w-[240px]"><SelectValue placeholder="Volunteer interest" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Interests</SelectItem>
-            {VOLUNTEER_ROLES.map((role) => (
-              <SelectItem key={role.value} value={role.value}>{role.label}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+          <Select value={interestFilter} onValueChange={setInterestFilter}>
+            <SelectTrigger className="w-[240px]"><SelectValue placeholder="Volunteer interest" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All interests</SelectItem>
+              {VOLUNTEER_ROLES.map((role) => (
+                <SelectItem key={role.value} value={role.value}>{role.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <p className="text-sm text-muted-foreground self-center">
+            {filtered.length} shown
+          </p>
+        </div>
+
+        <div className="flex items-center gap-1 w-fit rounded-lg border bg-background p-1">
+          <Button
+            type="button"
+            size="sm"
+            variant={viewMode === "cards" ? "secondary" : "ghost"}
+            className={cn("gap-2", viewMode === "cards" && "shadow-none")}
+            onClick={() => setViewMode("cards")}
+          >
+            <LayoutGrid className="h-4 w-4" />
+            Cards
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant={viewMode === "table" ? "secondary" : "ghost"}
+            className={cn("gap-2", viewMode === "table" && "shadow-none")}
+            onClick={() => setViewMode("table")}
+          >
+            <Table2 className="h-4 w-4" />
+            Table
+          </Button>
+        </div>
       </div>
 
       {filtered.length === 0 && (
-        <p className="text-sm text-muted-foreground">No applications match your filters.</p>
+        <p className="text-sm text-muted-foreground">
+          {filter === "needs_attention"
+            ? "No applications need attention right now."
+            : "No applications match your filters."}
+        </p>
       )}
 
-      {filtered.map((app) => {
-        const emailValue = emailForApp(app);
-        const nameValue = nameForApp(app);
-        const emailInvalid = Boolean(getEmailValidationError(emailValue));
-        const suggestedEmail = parsePrimaryEmail(emailValue);
-        const canReview = REVIEWABLE_STATUSES.has(app.status);
-        const linkedProfile = profilesByEmail[app.email.toLowerCase()];
-        const approvedRoles = (linkedProfile?.volunteer_roles ?? []) as VolunteerRole[];
-        const newRoles = pendingNewRoles(app, approvedRoles);
-        const isRoleExpansion = approvedRoles.length > 0 && newRoles.length > 0;
-        const rolesToReview = isRoleExpansion ? newRoles : (app.roles_requested ?? []);
-        const rolesReady = rolesToReview.every(
-          (role) => missingRequirementsForRole(role, app).length === 0
-        );
+      {viewMode === "cards" && filtered.map((app) => {
+        const context = getApplicationReviewContext(app, profilesByEmail, roleRequests);
 
         return (
-          <Card key={app.id}>
+          <Card
+            key={app.id}
+            className={cn(
+              context.isRoleExpansion && !context.rolesReady && "border-amber-300 shadow-sm",
+              context.needsAttention && !context.isRoleExpansion && "border-primary/20"
+            )}
+          >
             <CardHeader
               className="cursor-pointer"
               onClick={() => setExpanded(expanded === app.id ? null : app.id)}
             >
-              <div className="flex items-center justify-between gap-4">
-                <div className="space-y-2 min-w-0">
-                  <div>
-                    <CardTitle className="text-base">{app.full_name}</CardTitle>
-                    <p className="text-sm text-muted-foreground">
-                      {app.email} · Applied {formatDate(app.created_at)}
-                      {linkedProfile?.role && (
-                        <> · Platform role: {linkedProfile.role.replace(/_/g, " ")}</>
-                      )}
-                    </p>
-                  </div>
-                  <div className="flex flex-wrap gap-1">
-                    {rolesToReview.map((role) => {
-                      const missing = missingRequirementsForRole(role, app);
-                      return (
-                        <Badge
-                          key={role}
-                          variant={missing.length === 0 ? "secondary" : "outline"}
-                          className={`text-xs ${missing.length > 0 ? "border-amber-400 text-amber-900" : ""}`}
-                        >
-                          {roleLabel(role)}
-                          {missing.length > 0 && ` · needs ${missing.map(requirementLabel).join(", ")}`}
-                        </Badge>
-                      );
-                    })}
-                  </div>
-                  {approvedRoles.length > 0 && (
-                    <p className="text-xs text-muted-foreground">
-                      Active access (unchanged): {approvedRoles.map(roleLabel).join(", ")}
-                    </p>
-                  )}
-                  {isRoleExpansion && (
-                    <p className="text-xs text-primary">
-                      Role expansion request — approving only adds the roles listed above.
-                    </p>
-                  )}
+              <div className="flex items-start justify-between gap-4">
+                <div className="space-y-2 min-w-0 flex-1">
+                  {renderApplicationSummary(app, context)}
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
-                  {canReview && (
-                    <Badge variant="outline" className={rolesReady ? "text-green-700" : "text-amber-700"}>
-                      {rolesReady ? "Ready to approve" : "Requirements pending"}
+                  {context.attentionLabel && (
+                    <Badge
+                      variant="outline"
+                      className={cn(
+                        context.isRoleExpansion && !context.rolesReady
+                          ? "border-amber-400 bg-amber-50 text-amber-900"
+                          : "border-primary/30 text-primary"
+                      )}
+                    >
+                      {context.attentionLabel}
                     </Badge>
                   )}
                   <Badge className={STATUS_COLORS[app.status]}>{app.status.replace(/_/g, " ")}</Badge>
@@ -405,241 +827,109 @@ export function VolunteersManager({ applications, teams, profilesByEmail }: Volu
             </CardHeader>
             {expanded === app.id && (
               <CardContent className="space-y-4 border-t pt-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <p><strong>Phone:</strong> {app.phone}</p>
-                    <p><strong>Birthday:</strong> {app.birthday ? formatDate(app.birthday) : "—"}</p>
-                    <p><strong>Roles:</strong> {rolesToReview.map(roleLabel).join(", ") || "—"}</p>
-                  </div>
-                  <div>
-                    <p><strong>Experience:</strong> {app.prior_experience ?? "—"}</p>
-                    <p><strong>How heard:</strong> {app.how_heard ?? "—"}</p>
-                  </div>
-                </div>
-
-                <div className="space-y-3 rounded-md border p-3">
-                  <div className="space-y-2">
-                    <Label htmlFor={`name-${app.id}`}>Full name</Label>
-                    <div className="flex flex-wrap items-end gap-2">
-                      <Input
-                        id={`name-${app.id}`}
-                        value={nameValue}
-                        onChange={(event) =>
-                          setNameEdits((prev) => ({ ...prev, [app.id]: event.target.value }))
-                        }
-                        className="max-w-md"
-                      />
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        disabled={savingEmailId === app.id || nameValue === app.full_name}
-                        onClick={() => saveName(app.id, nameValue)}
-                      >
-                        {savingEmailId === app.id ? "Saving..." : "Save Name"}
-                      </Button>
-                    </div>
-                  </div>
-
-                  {canReview && (
-                    <div className="space-y-2">
-                      <Label htmlFor={`email-${app.id}`}>Email</Label>
-                      <div className="flex flex-wrap items-end gap-2">
-                        <Input
-                          id={`email-${app.id}`}
-                          type="email"
-                          value={emailValue}
-                          onChange={(event) =>
-                            setEmailEdits((prev) => ({ ...prev, [app.id]: event.target.value }))
-                          }
-                          className="max-w-md"
-                        />
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          disabled={savingEmailId === app.id || emailValue === app.email}
-                          onClick={() => saveEmail(app.id, emailValue)}
-                        >
-                          {savingEmailId === app.id ? "Saving..." : "Save Email"}
-                        </Button>
-                      </div>
-                      {emailInvalid && (
-                        <p className="flex flex-wrap items-center gap-1 text-sm text-destructive">
-                          <AlertTriangle className="h-4 w-4 shrink-0" />
-                          <span>
-                            Fix the email address before approving. Use one valid address only.
-                            {suggestedEmail &&
-                              emailValue.trim().toLowerCase() !== suggestedEmail && (
-                                <> Suggested: {suggestedEmail}</>
-                              )}
-                          </span>
-                        </p>
-                      )}
-                    </div>
-                  )}
-                </div>
-
-                {app.admin_notes && !canReview && (
-                  <div className="rounded-md border bg-muted/40 p-3 text-sm">
-                    <p className="font-medium">Follow-up notes</p>
-                    <p className="mt-1 whitespace-pre-wrap text-muted-foreground">{app.admin_notes}</p>
-                  </div>
-                )}
-
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium">Training & Requirements</Label>
-                  <div className="flex flex-wrap gap-4">
-                    {ADMIN_CHECKBOX_FIELDS.map(({ key, label }) => {
-                      const fieldKey = `${app.id}:${key}`;
-                      const checked = Boolean(app[key as keyof VolunteerApplication]);
-                      return (
-                        <div key={key} className="flex items-center gap-2">
-                          <Checkbox
-                            id={fieldKey}
-                            checked={checked}
-                            disabled={updatingField === fieldKey}
-                            onCheckedChange={(value) =>
-                              updateApplicationField(app.id, key, value === true)
-                            }
-                          />
-                          <Label htmlFor={fieldKey} className="text-sm font-normal">
-                            {label}
-                          </Label>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {canReview && (
-                  <div className="space-y-3 border-t pt-4">
-                    <div className="space-y-2">
-                      <Label htmlFor={`notes-${app.id}`}>
-                        {app.status === "needs_followup" ? "Follow-up notes" : "Follow-up notes (optional)"}
-                      </Label>
-                      <Textarea
-                        id={`notes-${app.id}`}
-                        placeholder="Why does this volunteer need follow-up?"
-                        value={notesForApp(app)}
-                        onChange={(event) =>
-                          setActionNotes((prev) => ({ ...prev, [app.id]: event.target.value }))
-                        }
-                        rows={3}
-                      />
-                      {app.status === "needs_followup" && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          disabled={savingEmailId === app.id || notesForApp(app) === (app.admin_notes ?? "")}
-                          onClick={() => saveFollowUpNotes(app.id, notesForApp(app))}
-                        >
-                          {savingEmailId === app.id ? "Saving..." : "Save Notes"}
-                        </Button>
-                      )}
-                    </div>
-
-                    <div className="flex flex-wrap items-end gap-3">
-                      <div className="space-y-1">
-                        <Label className="text-xs">Role on Approval</Label>
-                        <Select value={approveRole} onValueChange={(v) => setApproveRole(v as UserRole)}>
-                          <SelectTrigger className="w-[180px]"><SelectValue /></SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="volunteer">Volunteer</SelectItem>
-                            <SelectItem value="trap_team_lead">Trap Team Lead</SelectItem>
-                            <SelectItem value="inquiry_team">Inquiry Team</SelectItem>
-                            <SelectItem value="clinic_coordination">Clinic Coordination</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-1">
-                        <Label className="text-xs">Team</Label>
-                        <Select value={approveTeam} onValueChange={setApproveTeam}>
-                          <SelectTrigger className="w-[180px]"><SelectValue placeholder="Optional" /></SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="none">None</SelectItem>
-                            {teams.map((t) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <Button
-                        size="sm"
-                        disabled={actingId === app.id || emailInvalid}
-                        onClick={() => handleAction(app.id, "approve", undefined, emailValue)}
-                      >
-                        <Check className="h-4 w-4 mr-1" />
-                        {actingId === app.id ? "Working..." : "Approve"}
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleAction(app.id, "followup", notesForApp(app))}
-                        disabled={actingId === app.id}
-                      >
-                        <MessageCircle className="h-4 w-4 mr-1" />
-                        {app.status === "needs_followup" ? "Update Follow-up" : "Follow-up"}
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="destructive"
-                        onClick={() => handleAction(app.id, "reject", notesForApp(app))}
-                        disabled={actingId === app.id}
-                      >
-                        <X className="h-4 w-4 mr-1" />Reject
-                      </Button>
-                    </div>
-                    {actionError && expanded === app.id && (
-                      <p
-                        className={`text-sm ${
-                          actionError.startsWith("Volunteer approved") ||
-            actionError.includes("Temporary password") ||
-            actionError.includes("Password reset")
-                            ? "text-orange-700"
-                            : "text-destructive"
-                        }`}
-                        role="alert"
-                      >
-                        {actionError}
-                      </p>
-                    )}
-                  </div>
-                )}
-
-                {app.status === "approved" && (
-                  <div className="rounded-md border bg-muted/30 p-3 space-y-2">
-                    <p className="text-sm font-medium">Volunteer login</p>
-                    <p className="text-sm text-muted-foreground">
-                      Reset to the temporary password if they cannot sign in or never set one up.
-                      {linkedProfile?.must_change_password && (
-                        <> This volunteer is already flagged to change their password on next sign-in.</>
-                      )}
-                    </p>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      disabled={resettingPasswordId === app.id || actingId === app.id}
-                      onClick={() => resetTemporaryPassword(app.id, app.full_name)}
-                    >
-                      <KeyRound className="h-4 w-4 mr-1" />
-                      {resettingPasswordId === app.id ? "Resetting…" : "Reset to temporary password"}
-                    </Button>
-                  </div>
-                )}
-
-                <div className="flex flex-wrap items-center justify-between gap-3 border-t pt-4">
-                  <Button
-                    size="sm"
-                    variant="destructive"
-                    onClick={() => deleteApplication(app.id, app.full_name)}
-                    disabled={actingId === app.id}
-                  >
-                    <Trash2 className="h-4 w-4 mr-1" />
-                    {actingId === app.id ? "Deleting..." : "Delete Application"}
-                  </Button>
-                </div>
+                {renderApplicationDetails(app, context)}
               </CardContent>
             )}
           </Card>
         );
       })}
+
+      {viewMode === "table" && filtered.length > 0 && (
+        <div className="rounded-lg border overflow-hidden">
+          <div className="hidden md:grid md:grid-cols-[minmax(0,1.1fr)_minmax(0,0.8fr)_minmax(0,1fr)_minmax(0,1fr)_auto] gap-3 px-4 py-3 bg-muted/40 text-xs font-medium text-muted-foreground border-b">
+            <span>Applicant</span>
+            <span>Status</span>
+            <span>Attention</span>
+            <span>Roles / requirements</span>
+            <span className="text-right">Actions</span>
+          </div>
+          <div className="divide-y">
+            {filtered.map((app) => {
+              const context = getApplicationReviewContext(app, profilesByEmail, roleRequests);
+              const isExpanded = expanded === app.id;
+
+              return (
+                <div key={app.id}>
+                  <div
+                    className={cn(
+                      "grid gap-3 px-4 py-4 md:grid-cols-[minmax(0,1.1fr)_minmax(0,0.8fr)_minmax(0,1fr)_minmax(0,1fr)_auto] md:items-center",
+                      context.isRoleExpansion && !context.rolesReady && "bg-amber-50/60"
+                    )}
+                  >
+                    <div className="min-w-0">
+                      <p className="font-medium truncate">{app.full_name}</p>
+                      <p className="text-sm text-muted-foreground truncate">{app.email}</p>
+                      <p className="text-xs text-muted-foreground md:hidden">
+                        Applied {formatDate(app.created_at)}
+                      </p>
+                    </div>
+                    <div>
+                      <Badge className={STATUS_COLORS[app.status]}>{app.status.replace(/_/g, " ")}</Badge>
+                    </div>
+                    <div className="space-y-1">
+                      {context.attentionLabel ? (
+                        <Badge
+                          variant="outline"
+                          className={cn(
+                            "text-xs",
+                            context.isRoleExpansion && !context.rolesReady
+                              ? "border-amber-400 bg-amber-50 text-amber-900"
+                              : "border-primary/30 text-primary"
+                          )}
+                        >
+                          {context.attentionLabel}
+                        </Badge>
+                      ) : (
+                        <span className="text-sm text-muted-foreground">—</span>
+                      )}
+                      {context.attentionDetail && (
+                        <p className="text-xs text-muted-foreground line-clamp-2">{context.attentionDetail}</p>
+                      )}
+                    </div>
+                    <div className="flex flex-wrap gap-1">
+                      {context.rolesToReview.map((role) => {
+                        const missing = context.missingByRole[role] ?? [];
+                        return (
+                          <Badge
+                            key={role}
+                            variant={missing.length === 0 ? "secondary" : "outline"}
+                            className={cn(
+                              "text-[11px]",
+                              missing.length > 0 && "border-amber-400 text-amber-900 bg-amber-50"
+                            )}
+                          >
+                            {roleLabel(role)}
+                          </Badge>
+                        );
+                      })}
+                      {!context.rolesReady && context.allMissingRequirements.length > 0 && (
+                        <span className="text-xs text-amber-900 w-full">
+                          Needs: {context.allMissingRequirements.map(requirementLabel).join(", ")}
+                        </span>
+                      )}
+                    </div>
+                    <div className="md:text-right">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setExpanded(isExpanded ? null : app.id)}
+                      >
+                        {isExpanded ? "Hide" : "Review"}
+                      </Button>
+                    </div>
+                  </div>
+                  {isExpanded && (
+                    <div className="border-t bg-muted/10 px-4 py-4">
+                      {renderApplicationDetails(app, context)}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
