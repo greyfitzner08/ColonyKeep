@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { getEmailValidationError, parsePrimaryEmail } from "@/lib/email-utils";
-import { hasRestrictedRoleForMinor, isUnder18 } from "@/lib/volunteers/age-eligibility";
+import { invalidRolesForMinorSignup, isUnder18 } from "@/lib/volunteers/age-eligibility";
 import type { VolunteerRole } from "@/lib/types";
 
 export async function POST(request: NextRequest) {
@@ -38,12 +38,12 @@ export async function POST(request: NextRequest) {
   }
 
   if (isUnder18(birthday)) {
-    const restricted = hasRestrictedRoleForMinor(rolesRequested);
+    const restricted = invalidRolesForMinorSignup(rolesRequested);
     if (restricted.length > 0) {
       return NextResponse.json(
         {
           error:
-            "Volunteers under 18 cannot apply for intake, trapping, trap loan, or grant writing roles.",
+            "Volunteers under 18 can only apply for photographer, videographer, social media, crafter, and community outreach roles.",
         },
         { status: 400 }
       );

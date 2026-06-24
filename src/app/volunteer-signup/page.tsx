@@ -10,10 +10,11 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { createClient } from "@/lib/supabase/client";
 import { TNVR_ROLES, LIABILITY_WAIVER_URL, POLICY_URL } from "@/lib/constants";
-import { ADULT_ONLY_VOLUNTEER_ROLES, isUnder18 } from "@/lib/volunteers/age-eligibility";
+import { filterSignupRolesForAge, isRoleAllowedOnSignup, isUnder18, invalidRolesForMinorSignup } from "@/lib/volunteers/age-eligibility";
 import {
   resolveVolunteerRoleCatalog,
   signupVolunteerRoleOptions,
+  filterSignupRoleDescriptions,
 } from "@/lib/volunteers/role-catalog";
 import type { VolunteerRole, RoleDescription } from "@/lib/types";
 import Link from "next/link";
@@ -46,10 +47,7 @@ export default function VolunteerSignupPage() {
   const roleCatalog = resolveVolunteerRoleCatalog(roleDescriptions);
   const signupRoles = signupVolunteerRoleOptions(roleCatalog);
 
-  const visibleRoleDescriptions = signupRoles.filter((rd) => {
-    if (!isMinor) return true;
-    return !ADULT_ONLY_VOLUNTEER_ROLES.includes(rd.role_id);
-  });
+  const visibleRoleDescriptions = filterSignupRoleDescriptions(signupRoles, form.birthday);
 
   const submitDisabled =
     submitting ||
@@ -76,7 +74,7 @@ export default function VolunteerSignupPage() {
   }, []);
 
   function toggleRole(role: VolunteerRole) {
-    if (isMinor && ADULT_ONLY_VOLUNTEER_ROLES.includes(role)) return;
+    if (!isRoleAllowedOnSignup(role, form.birthday)) return;
     setForm((prev) => ({
       ...prev,
       roles_requested: prev.roles_requested.includes(role)
@@ -175,13 +173,11 @@ export default function VolunteerSignupPage() {
                   value={form.birthday}
                   onChange={(e) => {
                     const nextBirthday = e.target.value;
-                    setForm((prev) => {
-                      const minor = nextBirthday ? isUnder18(nextBirthday) : false;
-                      const roles = minor
-                        ? prev.roles_requested.filter((r) => !ADULT_ONLY_VOLUNTEER_ROLES.includes(r))
-                        : prev.roles_requested;
-                      return { ...prev, birthday: nextBirthday, roles_requested: roles };
-                    });
+                    setForm((prev) => ({
+                      ...prev,
+                      birthday: nextBirthday,
+                      roles_requested: filterSignupRolesForAge(prev.roles_requested, nextBirthday),
+                    }));
                   }}
                   required
                 />
@@ -197,10 +193,17 @@ export default function VolunteerSignupPage() {
             <CardContent className="space-y-3">
               {isMinor && (
                 <p className="text-sm text-muted-foreground rounded-md border bg-muted/40 p-3">
-                  Some roles require volunteers to be 18 or older and are hidden from this application.
+                  Volunteers under 18 can apply for photographer, videographer, social media, crafter,
+                  and community outreach roles.
                 </p>
               )}
-              {visibleRoleDescriptions.map((rd) => (
+              {!form.birthday && (
+                <p className="text-sm text-muted-foreground rounded-md border bg-muted/40 p-3">
+                  Enter your birthday above to see which roles you can apply for.
+                </p>
+              )}
+              {form.birthday &&
+                visibleRoleDescriptions.map((rd) => (
                 <div key={rd.role_id} className="border rounded-lg p-3">
                   <div className="flex items-start gap-2">
                     <Checkbox

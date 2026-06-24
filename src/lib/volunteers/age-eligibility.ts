@@ -1,6 +1,18 @@
 import type { VolunteerRole } from "@/lib/types";
 
-/** Volunteer interests restricted to adults (18+). */
+/** Roles volunteers under 18 may select on public signup. */
+export const MINOR_SIGNUP_VOLUNTEER_ROLES: VolunteerRole[] = [
+  "photographer",
+  "videographer",
+  "social_media",
+  "crafter",
+  "community_outreach",
+];
+
+/** Admin-facing label for minors — not selectable on public signup. */
+export const ADMIN_ONLY_VOLUNTEER_ROLES: VolunteerRole[] = ["youth_volunteer"];
+
+/** @deprecated Use isRoleAllowedOnSignup — kept for profile role expansion checks. */
 export const ADULT_ONLY_VOLUNTEER_ROLES: VolunteerRole[] = [
   "intake_representative",
   "trapper",
@@ -32,14 +44,41 @@ export function isUnder18(birthday: string): boolean {
   return age !== null && age < 18;
 }
 
+export function isRoleAllowedOnSignup(
+  role: VolunteerRole,
+  birthday: string | null | undefined
+): boolean {
+  if (ADMIN_ONLY_VOLUNTEER_ROLES.includes(role)) return false;
+  if (!birthday || isAdult(birthday)) return true;
+  return MINOR_SIGNUP_VOLUNTEER_ROLES.includes(role);
+}
+
+export function filterSignupRolesForAge(
+  roles: VolunteerRole[],
+  birthday: string | null | undefined
+): VolunteerRole[] {
+  return roles.filter((role) => isRoleAllowedOnSignup(role, birthday));
+}
+
+export function invalidRolesForMinorSignup(roles: VolunteerRole[]): VolunteerRole[] {
+  return roles.filter((role) => !MINOR_SIGNUP_VOLUNTEER_ROLES.includes(role));
+}
+
+/** @deprecated Use invalidRolesForMinorSignup */
+export function hasRestrictedRoleForMinor(roles: VolunteerRole[]): VolunteerRole[] {
+  return invalidRolesForMinorSignup(roles);
+}
+
+/** @deprecated Use filterSignupRolesForAge */
 export function filterRolesForAge(
   roles: VolunteerRole[],
   birthday: string | null | undefined
 ): VolunteerRole[] {
-  if (!birthday || isAdult(birthday)) return roles;
-  return roles.filter((role) => !ADULT_ONLY_VOLUNTEER_ROLES.includes(role));
+  return filterSignupRolesForAge(roles, birthday);
 }
 
-export function hasRestrictedRoleForMinor(roles: VolunteerRole[]): VolunteerRole[] {
+export function hasRestrictedRoleForMinorProfileExpansion(
+  roles: VolunteerRole[]
+): VolunteerRole[] {
   return roles.filter((role) => ADULT_ONLY_VOLUNTEER_ROLES.includes(role));
 }

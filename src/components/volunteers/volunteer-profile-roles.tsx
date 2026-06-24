@@ -22,8 +22,7 @@ import {
 import { volunteerRequirementSource } from "@/lib/volunteers/requirement-source";
 import { TNVR_ROLES } from "@/lib/constants";
 import {
-  ADULT_ONLY_VOLUNTEER_ROLES,
-  hasRestrictedRoleForMinor,
+  isRoleAllowedOnSignup,
   isUnder18,
 } from "@/lib/volunteers/age-eligibility";
 import type { Profile, VolunteerApplication, VolunteerRole, VolunteerRoleRequest, RoleDescription } from "@/lib/types";
@@ -124,10 +123,8 @@ export function VolunteerProfileRoles({
   }
 
   const visibleRoles = signupRoles.filter(({ role_id: value }) => {
-    if (isMinor && ADULT_ONLY_VOLUNTEER_ROLES.includes(value) && !approvedRoles.includes(value)) {
-      return false;
-    }
-    return true;
+    if (approvedRoles.includes(value)) return true;
+    return isRoleAllowedOnSignup(value, birthday);
   });
 
   const rolesToAdd = selectedRoles.filter(
@@ -149,7 +146,7 @@ export function VolunteerProfileRoles({
   const hasChanges = rolesToAdd.length > 0 || rolesToRemove.length > 0;
 
   function toggleRole(role: VolunteerRole) {
-    if (isMinor && ADULT_ONLY_VOLUNTEER_ROLES.includes(role) && !approvedRoles.includes(role)) {
+    if (!approvedRoles.includes(role) && !isRoleAllowedOnSignup(role, birthday)) {
       return;
     }
     if (pendingAddRoles.includes(role) || pendingRemoveRoles.includes(role)) return;
@@ -203,8 +200,12 @@ export function VolunteerProfileRoles({
   async function submitRoleChanges() {
     if (!hasChanges) return;
 
-    if (isMinor && hasRestrictedRoleForMinor(rolesToAdd).length > 0) {
-      setError("Some selected roles are not available to volunteers under 18.");
+    if (rolesToAdd.some((role) => !isRoleAllowedOnSignup(role, birthday))) {
+      setError(
+        isMinor
+          ? "Some selected roles are not available to volunteers under 18."
+          : "One or more selected roles cannot be requested."
+      );
       return;
     }
 
@@ -308,7 +309,8 @@ export function VolunteerProfileRoles({
           </div>
           {isMinor && (
             <p className="text-xs text-muted-foreground">
-              Intake, trapping, trap loan, and grant writing roles require you to be 18 or older.
+              Under 18, you can request photographer, videographer, social media, crafter, and
+              community outreach roles. Trapping and intake roles require you to be 18 or older.
             </p>
           )}
         </div>
