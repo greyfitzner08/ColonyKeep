@@ -96,16 +96,26 @@ export interface TrapEquipmentItem {
   is_labeled: boolean;
   equipment_label: string | null;
   qr_code_data: string | null;
+  assigned_to_profile_id: string | null;
   logged_by_email: string;
   logged_by_name: string | null;
   created_at: string;
   updated_at: string;
 }
 
+export interface EquipmentVolunteerOption {
+  id: string;
+  email: string;
+  full_name: string | null;
+  phone: string | null;
+  volunteer_roles: VolunteerRole[];
+}
+
 export interface Profile {
   id: string;
   email: string;
   full_name: string | null;
+  phone: string | null;
   role: UserRole | null;
   volunteer_roles: VolunteerRole[];
   team_id: string | null;

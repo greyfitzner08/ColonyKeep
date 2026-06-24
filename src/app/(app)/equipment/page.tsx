@@ -1,7 +1,8 @@
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
 import { canManageTrapEquipment } from "@/lib/permissions";
+import { buildVolunteerOptions } from "@/lib/equipment/volunteers";
 import { TrapEquipmentManager } from "@/components/equipment/trap-equipment-manager";
 import type { TrapEquipmentItem, TrapTeam } from "@/lib/types";
 
@@ -10,7 +11,9 @@ export default async function EquipmentPage() {
   if (!canManageTrapEquipment(profile)) redirect("/");
 
   const supabase = await createClient();
+  const service = await createServiceClient();
   const isAdmin = profile?.role === "admin";
+  const teamFilterId = isAdmin ? null : profile?.team_id ?? null;
 
   let itemsQuery = supabase
     .from("trap_equipment_items")
@@ -22,11 +25,38 @@ export default async function EquipmentPage() {
     itemsQuery = itemsQuery.eq("team_id", profile.team_id);
   }
 
-  const [{ data: items }, { data: teams }] = await Promise.all([
-    itemsQuery,
-    supabase.from("trap_teams").select("id, name").eq("is_active", true).order("name"),
-  ]);
+  let profilesQuery = service
+    .from("profiles")
+    .select("id, email, full_name, volunteer_roles, team_id, role, phone")
+    .not("role", "is", null);
 
+  if (teamFilterId) {
+    profilesQuery = profilesQuery.eq("team_id", teamFilterId);
+  }
+
+  const [{ data: items }, { data: teams }, { data: profiles }, { data: applications }] =
+    await Promise.all([
+      itemsQuery,
+      supabase.from("trap_teams").select("id, name").eq("is_active", true).order("name"),
+      profilesQuery,
+      service.from("volunteer_applications").select("email, phone"),
+    ]);
+
+  const phonesByEmail = new Map<string, string>();
+  for (const entry of profiles ?? []) {
+    if (entry.phone?.trim()) {
+      phonesByEmail.set(entry.email.toLowerCase(), entry.phone.trim());
+    }
+  }
+  for (const application of applications ?? []) {
+    const email = application.email?.toLowerCase();
+    const phone = application.phone?.trim();
+    if (email && phone && !phonesByEmail.has(email)) {
+      phonesByEmail.set(email, phone);
+    }
+  }
+
+  const volunteers = buildVolunteerOptions(profiles ?? [], phonesByEmail, teamFilterId);
   const userTeam = teams?.find((team) => team.id === profile?.team_id) ?? null;
 
   return (
@@ -34,13 +64,15 @@ export default async function EquipmentPage() {
       <div>
         <h1 className="text-3xl font-bold">Trap Equipment</h1>
         <p className="text-muted-foreground">
-          Log traps, scanners, and other field equipment for your trap team.
+          Track traps, scanners, and field gear. Assign loaned equipment to TNVR volunteers and
+          see borrower contact info at a glance.
           {userTeam ? ` Viewing inventory for ${userTeam.name}.` : " Viewing all teams."}
         </p>
       </div>
       <TrapEquipmentManager
         items={(items ?? []) as TrapEquipmentItem[]}
         teams={(teams ?? []) as TrapTeam[]}
+        volunteers={volunteers}
         defaultTeamId={profile?.team_id ?? null}
         isAdmin={isAdmin}
       />

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireTrapEquipmentAccess } from "@/lib/api/auth";
+import { isTnvrVolunteerProfile } from "@/lib/equipment/volunteers";
 import { createServiceClient } from "@/lib/supabase/server";
 import type { TrapEquipmentStatus, TrapEquipmentType } from "@/lib/types";
 
@@ -62,6 +63,32 @@ export async function POST(request: NextRequest) {
     teamName = team?.name ?? null;
   }
 
+  let assignedToProfileId =
+    typeof body.assigned_to_profile_id === "string" && body.assigned_to_profile_id.trim()
+      ? body.assigned_to_profile_id.trim()
+      : null;
+
+  if (status !== "loaned") {
+    assignedToProfileId = null;
+  } else if (assignedToProfileId) {
+    const { data: assignee } = await service
+      .from("profiles")
+      .select("id, team_id, role, volunteer_roles")
+      .eq("id", assignedToProfileId)
+      .maybeSingle();
+
+    if (!assignee || !isTnvrVolunteerProfile(assignee)) {
+      return NextResponse.json({ error: "Select a valid TNVR volunteer" }, { status: 400 });
+    }
+
+    if (!isAdmin && teamId && assignee.team_id !== teamId) {
+      return NextResponse.json(
+        { error: "Volunteer must be on your trap team" },
+        { status: 400 }
+      );
+    }
+  }
+
   const payload = {
     equipment_type: equipmentType,
     description: body.description ?? null,
@@ -78,6 +105,7 @@ export async function POST(request: NextRequest) {
         : null,
     qr_code_data:
       typeof body.qr_code_data === "string" ? body.qr_code_data.trim() || null : null,
+    assigned_to_profile_id: assignedToProfileId,
     logged_by_email: profile!.email,
     logged_by_name: profile!.full_name,
   };
