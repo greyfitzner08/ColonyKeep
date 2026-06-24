@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -16,6 +16,11 @@ import {
   rolesNeedingTnvrCert,
 } from "@/lib/volunteers/role-requirements";
 import { volunteerRequirementSource } from "@/lib/volunteers/requirement-source";
+import {
+  ADULT_ONLY_VOLUNTEER_ROLES,
+  hasRestrictedRoleForMinor,
+  isUnder18,
+} from "@/lib/volunteers/age-eligibility";
 import type { Profile, VolunteerApplication, VolunteerRole, VolunteerRoleRequest } from "@/lib/types";
 
 interface VolunteerProfileRolesProps {
@@ -34,7 +39,14 @@ export function VolunteerProfileRoles({
   roleRequests,
 }: VolunteerProfileRolesProps) {
   const router = useRouter();
-  const [selectedRoles, setSelectedRoles] = useState<VolunteerRole[]>([]);
+  const approvedRoles = useMemo(
+    () => profile.volunteer_roles ?? [],
+    [profile.volunteer_roles]
+  );
+  const birthday = profile.birthday ?? application?.birthday ?? null;
+  const isMinor = birthday ? isUnder18(birthday) : false;
+
+  const [selectedRoles, setSelectedRoles] = useState<VolunteerRole[]>(approvedRoles);
   const [submitting, setSubmitting] = useState(false);
   const [uploadingCert, setUploadingCert] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -45,26 +57,75 @@ export function VolunteerProfileRoles({
     (application?.tnvr_certificate_url ?? profile.tnvr_certificate_url)?.split("/").pop() ?? null
   );
 
-  const approvedRoles = profile.volunteer_roles ?? [];
+  useEffect(() => {
+    setSelectedRoles(approvedRoles);
+  }, [approvedRoles, roleRequests]);
+
   const pendingRequests = roleRequests.filter((request) => request.status === "pending");
+
+  const pendingAddRoles = useMemo(
+    () =>
+      pendingRequests
+        .filter((request) => (request.request_type ?? "add") === "add")
+        .flatMap((request) => request.requested_roles),
+    [pendingRequests]
+  );
+
+  const pendingRemoveRoles = useMemo(
+    () =>
+      pendingRequests
+        .filter((request) => request.request_type === "remove")
+        .flatMap((request) => request.requested_roles),
+    [pendingRequests]
+  );
+
   const source = volunteerRequirementSource(application, {
     tnvr_certificate_uploaded: certUploaded || profile.tnvr_certificate_uploaded,
     tnvr_certificate_url: profile.tnvr_certificate_url,
   });
 
-  const availableToRequest = VOLUNTEER_ROLES.filter(
-    (entry) =>
-      !approvedRoles.includes(entry.value) &&
-      !pendingRequests.some((request) => request.requested_roles.includes(entry.value))
+  const visibleRoles = VOLUNTEER_ROLES.filter(({ value }) => {
+    if (isMinor && ADULT_ONLY_VOLUNTEER_ROLES.includes(value) && !approvedRoles.includes(value)) {
+      return false;
+    }
+    return true;
+  });
+
+  const rolesToAdd = selectedRoles.filter(
+    (role) =>
+      !approvedRoles.includes(role) &&
+      !pendingAddRoles.includes(role) &&
+      !pendingRemoveRoles.includes(role)
   );
 
-  const needsCertForSelection =
-    rolesNeedingTnvrCert(selectedRoles) && !(certUploaded || source.tnvr_certificate_uploaded);
+  const rolesToRemove = approvedRoles.filter(
+    (role) =>
+      !selectedRoles.includes(role) &&
+      !pendingAddRoles.includes(role) &&
+      !pendingRemoveRoles.includes(role)
+  );
+
+  const needsCertForAdditions =
+    rolesNeedingTnvrCert(rolesToAdd) && !(certUploaded || source.tnvr_certificate_uploaded);
+
+  const hasChanges = rolesToAdd.length > 0 || rolesToRemove.length > 0;
 
   function toggleRole(role: VolunteerRole) {
+    if (isMinor && ADULT_ONLY_VOLUNTEER_ROLES.includes(role) && !approvedRoles.includes(role)) {
+      return;
+    }
+    if (pendingAddRoles.includes(role) || pendingRemoveRoles.includes(role)) return;
+
     setSelectedRoles((prev) =>
       prev.includes(role) ? prev.filter((item) => item !== role) : [...prev, role]
     );
+  }
+
+  function roleStatus(role: VolunteerRole): "approved" | "pending-add" | "pending-remove" | "none" {
+    if (pendingAddRoles.includes(role)) return "pending-add";
+    if (pendingRemoveRoles.includes(role)) return "pending-remove";
+    if (approvedRoles.includes(role)) return "approved";
+    return "none";
   }
 
   async function handleCertUpload(event: React.ChangeEvent<HTMLInputElement>) {
@@ -101,60 +162,132 @@ export function VolunteerProfileRoles({
     router.refresh();
   }
 
-  async function submitRequest() {
-    if (selectedRoles.length === 0) return;
-    if (needsCertForSelection) {
+  async function submitRoleChanges() {
+    if (!hasChanges) return;
+    if (needsCertForAdditions) {
       setError("Upload your TNVR certificate before requesting trapping-related roles.");
+      return;
+    }
+
+    if (isMinor && hasRestrictedRoleForMinor(rolesToAdd).length > 0) {
+      setError("Some selected roles are not available to volunteers under 18.");
       return;
     }
 
     setError(null);
     setSubmitting(true);
-    const response = await fetch("/api/volunteers/role-requests/create", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ requested_roles: selectedRoles }),
-    });
-    const result = await response.json().catch(() => null);
-    setSubmitting(false);
-    if (!response.ok) {
-      setError(result?.error ?? "Unable to submit role request");
-      return;
+
+    try {
+      if (rolesToAdd.length > 0) {
+        const response = await fetch("/api/volunteers/role-requests/create", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ requested_roles: rolesToAdd, request_type: "add" }),
+        });
+        const result = await response.json().catch(() => null);
+        if (!response.ok) {
+          throw new Error(result?.error ?? "Unable to submit role addition request");
+        }
+      }
+
+      if (rolesToRemove.length > 0) {
+        const response = await fetch("/api/volunteers/role-requests/create", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ requested_roles: rolesToRemove, request_type: "remove" }),
+        });
+        const result = await response.json().catch(() => null);
+        if (!response.ok) {
+          throw new Error(result?.error ?? "Unable to submit role removal request");
+        }
+      }
+
+      setSelectedRoles(approvedRoles);
+      router.refresh();
+    } catch (submitError) {
+      setError(submitError instanceof Error ? submitError.message : "Unable to submit role changes");
+    } finally {
+      setSubmitting(false);
     }
-    setSelectedRoles([]);
-    router.refresh();
   }
 
   return (
     <Card>
       <CardHeader>
         <CardTitle className="text-lg">My Volunteer Roles</CardTitle>
+        <CardDescription>
+          Check roles you want to keep or add. Uncheck an active role to request removal — your
+          qualifications (like TNVR certificate) stay on file for future requests.
+        </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
-        <div>
-          <p className="text-sm font-medium mb-2">Approved interests</p>
-          {approvedRoles.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No approved volunteer roles yet.</p>
-          ) : (
-            <div className="flex flex-wrap gap-2">
-              {approvedRoles.map((role) => (
-                <Badge key={role}>{roleLabel(role)}</Badge>
-              ))}
-            </div>
+      <CardContent className="space-y-6">
+        <div className="space-y-3">
+          <p className="text-sm font-medium">Your volunteer interests</p>
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            {visibleRoles.map(({ value, label }) => {
+              const status = roleStatus(value);
+              const checked = selectedRoles.includes(value) || status === "pending-add";
+              const disabled = status === "pending-add" || status === "pending-remove";
+              const missing = !approvedRoles.includes(value)
+                ? missingRequirementsForRole(value, source)
+                : [];
+
+              return (
+                <div
+                  key={value}
+                  className={`rounded-lg border p-3 space-y-2 ${
+                    status === "approved" ? "border-primary/30 bg-primary/5" : ""
+                  }`}
+                >
+                  <div className="flex items-start gap-2">
+                    <Checkbox
+                      id={`role-${value}`}
+                      checked={checked}
+                      disabled={disabled}
+                      onCheckedChange={() => toggleRole(value)}
+                    />
+                    <div className="min-w-0 flex-1">
+                      <Label htmlFor={`role-${value}`} className="font-medium leading-snug">
+                        {label}
+                      </Label>
+                      {status === "approved" && (
+                        <p className="text-xs text-muted-foreground mt-0.5">Active — uncheck to request removal</p>
+                      )}
+                      {status === "pending-add" && (
+                        <Badge variant="outline" className="mt-1 text-xs">Pending approval</Badge>
+                      )}
+                      {status === "pending-remove" && (
+                        <Badge variant="outline" className="mt-1 text-xs">Removal pending</Badge>
+                      )}
+                      {missing.length > 0 && status === "none" && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Needs: {missing.map(requirementLabel).join(", ")}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          {isMinor && (
+            <p className="text-xs text-muted-foreground">
+              Intake, trapping, trap loan, and grant writing roles require you to be 18 or older.
+            </p>
           )}
         </div>
 
         {pendingRequests.length > 0 && (
-          <div>
-            <p className="text-sm font-medium mb-2">Pending role requests</p>
+          <div className="rounded-md border bg-muted/30 p-3 text-sm space-y-2">
+            <p className="font-medium">Pending requests</p>
             {pendingRequests.map((request) => (
-              <div key={request.id} className="rounded-md border p-3 text-sm space-y-2">
-                <div className="flex flex-wrap gap-2">
-                  {request.requested_roles.map((role) => (
-                    <Badge key={role} variant="outline">{roleLabel(role)}</Badge>
-                  ))}
-                </div>
-                <p className="text-muted-foreground">Waiting for admin review</p>
+              <div key={request.id} className="flex flex-wrap gap-1.5">
+                <span className="text-muted-foreground">
+                  {(request.request_type ?? "add") === "remove" ? "Remove:" : "Add:"}
+                </span>
+                {request.requested_roles.map((role) => (
+                  <Badge key={role} variant="secondary">{roleLabel(role)}</Badge>
+                ))}
               </div>
             ))}
           </div>
@@ -163,7 +296,8 @@ export function VolunteerProfileRoles({
         <div className="space-y-2 border-t pt-4">
           <p className="text-sm font-medium">TNVR certificate</p>
           <p className="text-sm text-muted-foreground">
-            Required for trapping, transport, trap loan, and recovery roles. PDF or image files accepted.
+            Stored on your profile even if you step back from trapping roles. Required again only
+            when requesting new trapping-related roles without a certificate on file.
           </p>
           {certUploaded ? (
             <p className="text-sm text-green-700">
@@ -181,47 +315,20 @@ export function VolunteerProfileRoles({
           {uploadingCert && <p className="text-sm text-muted-foreground">Uploading…</p>}
         </div>
 
-        {availableToRequest.length > 0 && (
-          <div className="space-y-3 border-t pt-4">
-            <p className="text-sm font-medium">Request additional roles</p>
-            <p className="text-sm text-muted-foreground">
-              Your current permissions stay the same while new roles are reviewed.
-            </p>
-            {needsCertForSelection && (
-              <p className="text-sm text-amber-700">
-                Upload your TNVR certificate above before submitting trapping-related roles.
-              </p>
-            )}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              {availableToRequest.map(({ value, label }) => {
-                const missing = missingRequirementsForRole(value, source);
-                return (
-                  <div key={value} className="rounded-md border p-3 space-y-2">
-                    <div className="flex items-center gap-2">
-                      <Checkbox
-                        checked={selectedRoles.includes(value)}
-                        onCheckedChange={() => toggleRole(value)}
-                      />
-                      <Label className="font-normal">{label}</Label>
-                    </div>
-                    {missing.length > 0 && (
-                      <p className="text-xs text-muted-foreground pl-6">
-                        Needs: {missing.map(requirementLabel).join(", ")}
-                      </p>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-            {error && <p className="text-sm text-destructive">{error}</p>}
-            <Button
-              onClick={submitRequest}
-              disabled={submitting || selectedRoles.length === 0 || needsCertForSelection}
-            >
-              {submitting ? "Submitting…" : "Request selected roles"}
-            </Button>
-          </div>
+        {error && <p className="text-sm text-destructive">{error}</p>}
+
+        {needsCertForAdditions && (
+          <p className="text-sm text-amber-700">
+            Upload your TNVR certificate before requesting trapping-related roles.
+          </p>
         )}
+
+        <Button
+          onClick={submitRoleChanges}
+          disabled={submitting || !hasChanges || needsCertForAdditions}
+        >
+          {submitting ? "Submitting…" : "Submit role changes"}
+        </Button>
       </CardContent>
     </Card>
   );

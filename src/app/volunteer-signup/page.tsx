@@ -10,6 +10,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { createClient } from "@/lib/supabase/client";
 import { TNVR_ROLES, VOLUNTEER_ROLES, LIABILITY_WAIVER_URL, POLICY_URL } from "@/lib/constants";
+import { ADULT_ONLY_VOLUNTEER_ROLES, isUnder18 } from "@/lib/volunteers/age-eligibility";
 import type { VolunteerRole, RoleDescription } from "@/lib/types";
 import Link from "next/link";
 
@@ -41,14 +42,31 @@ export default function VolunteerSignupPage() {
     tnvr_certificate_uploaded: false,
     tnvr_certificate_url: null as string | null,
   });
+  const [liabilityOpened, setLiabilityOpened] = useState(false);
+  const [policyOpened, setPolicyOpened] = useState(false);
 
   const needsTnvrCert = form.roles_requested.some((r) => TNVR_ROLES.includes(r));
+  const isMinor = form.birthday ? isUnder18(form.birthday) : false;
+
+  const visibleRoleDescriptions = roleDescriptions.filter((rd) => {
+    if (!isMinor) return true;
+    return !ADULT_ONLY_VOLUNTEER_ROLES.includes(rd.role_id);
+  });
+
   const submitDisabled =
     submitting ||
+    !form.birthday ||
+    !liabilityOpened ||
+    !policyOpened ||
     !form.liability_waiver_signed ||
     !form.policy_signed ||
     form.roles_requested.length === 0 ||
     (needsTnvrCert && !form.tnvr_certificate_uploaded);
+
+  function markDocOpened(doc: "liability" | "policy") {
+    if (doc === "liability") setLiabilityOpened(true);
+    if (doc === "policy") setPolicyOpened(true);
+  }
 
   useEffect(() => {
     const supabase = createClient();
@@ -60,6 +78,7 @@ export default function VolunteerSignupPage() {
   }, []);
 
   function toggleRole(role: VolunteerRole) {
+    if (isMinor && ADULT_ONLY_VOLUNTEER_ROLES.includes(role)) return;
     setForm((prev) => ({
       ...prev,
       roles_requested: prev.roles_requested.includes(role)
@@ -90,7 +109,11 @@ export default function VolunteerSignupPage() {
     const response = await fetch("/api/volunteers/signup", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
+      body: JSON.stringify({
+        ...form,
+        liability_waiver_opened: liabilityOpened,
+        policy_opened: policyOpened,
+      }),
     });
     const result = await response.json().catch(() => null);
     setSubmitting(false);
@@ -148,8 +171,25 @@ export default function VolunteerSignupPage() {
                 </div>
               </div>
               <div className="space-y-2">
-                <Label>Birthday</Label>
-                <Input type="date" value={form.birthday} onChange={(e) => setForm({ ...form, birthday: e.target.value })} required />
+                <Label>Birthday (required)</Label>
+                <Input
+                  type="date"
+                  value={form.birthday}
+                  onChange={(e) => {
+                    const nextBirthday = e.target.value;
+                    setForm((prev) => {
+                      const minor = nextBirthday ? isUnder18(nextBirthday) : false;
+                      const roles = minor
+                        ? prev.roles_requested.filter((r) => !ADULT_ONLY_VOLUNTEER_ROLES.includes(r))
+                        : prev.roles_requested;
+                      return { ...prev, birthday: nextBirthday, roles_requested: roles };
+                    });
+                  }}
+                  required
+                />
+                <p className="text-xs text-muted-foreground">
+                  Used for birthday celebrations on the team feed. Month and day only are shown to others.
+                </p>
               </div>
             </CardContent>
           </Card>
@@ -157,7 +197,12 @@ export default function VolunteerSignupPage() {
           <Card className="mb-4">
             <CardHeader><CardTitle className="text-lg">Roles of Interest</CardTitle></CardHeader>
             <CardContent className="space-y-3">
-              {roleDescriptions.map((rd) => (
+              {isMinor && (
+                <p className="text-sm text-muted-foreground rounded-md border bg-muted/40 p-3">
+                  Some roles require volunteers to be 18 or older and are hidden from this application.
+                </p>
+              )}
+              {visibleRoleDescriptions.map((rd) => (
                 <div key={rd.role_id} className="border rounded-lg p-3">
                   <div className="flex items-start gap-2">
                     <Checkbox
@@ -192,27 +237,59 @@ export default function VolunteerSignupPage() {
           <Card className="mb-6">
             <CardHeader><CardTitle className="text-lg">Requirements</CardTitle></CardHeader>
             <CardContent className="space-y-4">
-              <div className="flex items-center gap-2">
+              <div className="flex items-start gap-2">
                 <Checkbox
                   id="waiver"
                   checked={form.liability_waiver_signed}
+                  disabled={!liabilityOpened}
                   onCheckedChange={(v) => setForm({ ...form, liability_waiver_signed: !!v })}
                 />
-                <Label htmlFor="waiver">
-                  I have read and agree to the{" "}
-                  <a href={LIABILITY_WAIVER_URL} target="_blank" rel="noopener" className="text-primary underline">Liability Waiver</a>
-                </Label>
+                <div className="space-y-1">
+                  <Label htmlFor="waiver">
+                    I have read and agree to the{" "}
+                    <a
+                      href={LIABILITY_WAIVER_URL}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-primary underline"
+                      onClick={() => markDocOpened("liability")}
+                    >
+                      Liability Waiver
+                    </a>
+                  </Label>
+                  {!liabilityOpened && (
+                    <p className="text-xs text-muted-foreground">
+                      Open the waiver link before you can agree.
+                    </p>
+                  )}
+                </div>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-start gap-2">
                 <Checkbox
                   id="policy"
                   checked={form.policy_signed}
+                  disabled={!policyOpened}
                   onCheckedChange={(v) => setForm({ ...form, policy_signed: !!v })}
                 />
-                <Label htmlFor="policy">
-                  I have read and agree to the{" "}
-                  <a href="https://zealous-sherbet-f24.notion.site/Core-Policies-309a52ca229f817381b3cb6b68e5fadb" target="_blank" rel="noopener" className="text-primary underline">Policy & Procedures</a>
-                </Label>
+                <div className="space-y-1">
+                  <Label htmlFor="policy">
+                    I have read and agree to the{" "}
+                    <a
+                      href={POLICY_URL}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-primary underline"
+                      onClick={() => markDocOpened("policy")}
+                    >
+                      Policy & Procedures
+                    </a>
+                  </Label>
+                  {!policyOpened && (
+                    <p className="text-xs text-muted-foreground">
+                      Open the policy link before you can agree.
+                    </p>
+                  )}
+                </div>
               </div>
               {needsTnvrCert && (
                 <div className="space-y-2 border-t pt-4">

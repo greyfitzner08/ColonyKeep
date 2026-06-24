@@ -1,17 +1,19 @@
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
 import { TeamFeed } from "@/components/team/team-feed";
+import { announcementVisibleToProfile } from "@/lib/team-feed/visibility";
 import type { TeamAnnouncement } from "@/lib/types";
 
-function upcomingBirthdays(applications: { full_name: string; birthday: string }[]) {
+function upcomingBirthdays(people: { full_name: string; birthday: string }[]) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const horizon = new Date(today);
   horizon.setDate(horizon.getDate() + 14);
 
-  return applications
-    .filter((app) => {
-      const bday = new Date(`${app.birthday}T12:00:00`);
+  return people
+    .filter((person) => person.birthday)
+    .filter((person) => {
+      const bday = new Date(`${person.birthday}T12:00:00`);
       const thisYear = new Date(today.getFullYear(), bday.getMonth(), bday.getDate());
       if (thisYear < today) {
         thisYear.setFullYear(thisYear.getFullYear() + 1);
@@ -31,42 +33,45 @@ function upcomingBirthdays(applications: { full_name: string; birthday: string }
 
 export default async function TeamFeedPage() {
   const supabase = await createClient();
+  const service = await createServiceClient();
   const profile = await getCurrentProfile();
 
-  let query = supabase
-    .from("team_announcements")
-    .select("*")
-    .order("pinned", { ascending: false })
-    .order("created_at", { ascending: false });
+  const [{ data: announcementsRaw }, { data: profilesWithBirthdays }, { data: trapTeams }] =
+    await Promise.all([
+      supabase
+        .from("team_announcements")
+        .select("*")
+        .order("pinned", { ascending: false })
+        .order("created_at", { ascending: false }),
+      service
+        .from("profiles")
+        .select("full_name, birthday, email")
+        .not("birthday", "is", null)
+        .not("full_name", "is", null),
+      supabase.from("trap_teams").select("id, name").eq("is_active", true).order("name"),
+    ]);
 
-  if (profile?.role !== "admin") {
-    const teamFilter = profile?.team_id
-      ? `team_id.is.null,team_id.eq.${profile.team_id}`
-      : "team_id.is.null";
-    query = query.or(teamFilter);
-  }
+  const announcements = ((announcementsRaw ?? []) as TeamAnnouncement[]).filter((post) =>
+    announcementVisibleToProfile(post, profile)
+  );
 
-  const [{ data: announcements }, { data: birthdayApps }] = await Promise.all([
-    query,
-    supabase
-      .from("volunteer_applications")
-      .select("full_name, birthday")
-      .eq("status", "approved")
-      .not("birthday", "is", null),
-  ]);
+  const birthdayPeople = (profilesWithBirthdays ?? [])
+    .filter((p) => p.full_name && p.birthday)
+    .map((p) => ({ full_name: p.full_name as string, birthday: p.birthday as string }));
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold">Team Feed</h1>
         <p className="text-muted-foreground">
-          Celebrate birthdays, volunteer wins, and milestones together
+          Share updates with everyone, your trap team, or specific roles
         </p>
       </div>
       <TeamFeed
-        announcements={(announcements ?? []) as TeamAnnouncement[]}
+        announcements={announcements}
         profile={profile}
-        upcomingBirthdays={upcomingBirthdays((birthdayApps ?? []) as { full_name: string; birthday: string }[])}
+        trapTeams={trapTeams ?? []}
+        upcomingBirthdays={upcomingBirthdays(birthdayPeople)}
       />
     </div>
   );

@@ -16,8 +16,14 @@ export async function POST(request: NextRequest) {
 
   const body = await request.json();
   const requestedRoles = (body.requested_roles ?? []) as VolunteerRole[];
+  const requestType = (body.request_type ?? "add") as "add" | "remove";
+
   if (requestedRoles.length === 0) {
     return NextResponse.json({ error: "Select at least one role" }, { status: 400 });
+  }
+
+  if (requestType !== "add" && requestType !== "remove") {
+    return NextResponse.json({ error: "Invalid request type" }, { status: 400 });
   }
 
   const service = await createServiceClient();
@@ -27,14 +33,26 @@ export async function POST(request: NextRequest) {
     .eq("email", profile!.email)
     .maybeSingle();
 
-  const hasTnvrCert = Boolean(
-    application?.tnvr_certificate_uploaded || profile!.tnvr_certificate_uploaded
-  );
-  if (rolesNeedingTnvrCert(requestedRoles) && !hasTnvrCert) {
-    return NextResponse.json(
-      { error: "Upload your TNVR certificate before requesting trapping-related roles." },
-      { status: 400 }
+  const currentRoles = (profile!.volunteer_roles ?? []) as VolunteerRole[];
+
+  if (requestType === "remove") {
+    const invalid = requestedRoles.filter((role) => !currentRoles.includes(role));
+    if (invalid.length > 0) {
+      return NextResponse.json(
+        { error: "You can only request removal of roles you currently hold." },
+        { status: 400 }
+      );
+    }
+  } else {
+    const hasTnvrCert = Boolean(
+      application?.tnvr_certificate_uploaded || profile!.tnvr_certificate_uploaded
     );
+    if (rolesNeedingTnvrCert(requestedRoles) && !hasTnvrCert) {
+      return NextResponse.json(
+        { error: "Upload your TNVR certificate before requesting trapping-related roles." },
+        { status: 400 }
+      );
+    }
   }
 
   const { data, error } = await service
@@ -45,6 +63,7 @@ export async function POST(request: NextRequest) {
       email: profile!.email,
       full_name: profile!.full_name,
       requested_roles: requestedRoles,
+      request_type: requestType,
       status: "pending",
       tnvr_certificate_uploaded:
         application?.tnvr_certificate_uploaded ?? profile!.tnvr_certificate_uploaded ?? false,

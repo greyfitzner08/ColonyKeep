@@ -81,6 +81,7 @@ export interface Profile {
   volunteer_roles: VolunteerRole[];
   team_id: string | null;
   must_change_password: boolean;
+  birthday: string | null;
   tnvr_certificate_uploaded: boolean;
   tnvr_certificate_url: string | null;
   created_at: string;
@@ -350,6 +351,8 @@ export interface TeamAnnouncement {
   message: string;
   team_id: string | null;
   team_name: string | null;
+  audience: "all" | "team" | "roles";
+  view_roles: string[];
   author_email: string;
   author_name: string;
   pinned: boolean;
@@ -404,6 +407,7 @@ export interface VolunteerRoleRequest {
   email: string;
   full_name: string | null;
   requested_roles: VolunteerRole[];
+  request_type: "add" | "remove";
   status: "pending" | "approved" | "rejected";
   tnvr_certificate_uploaded: boolean;
   tnvr_certificate_url: string | null;

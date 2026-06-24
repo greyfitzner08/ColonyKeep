@@ -54,9 +54,12 @@ export async function POST(request: NextRequest) {
     .single();
 
   const currentRoles = (existingProfile?.volunteer_roles ?? []) as VolunteerRole[];
-  const mergedRoles = Array.from(
-    new Set([...currentRoles, ...((roleRequest.requested_roles ?? []) as VolunteerRole[])])
-  );
+  const requestType = (roleRequest.request_type ?? "add") as "add" | "remove";
+
+  const mergedRoles =
+    requestType === "remove"
+      ? currentRoles.filter((role) => !roleRequest.requested_roles.includes(role))
+      : Array.from(new Set([...currentRoles, ...((roleRequest.requested_roles ?? []) as VolunteerRole[])]));
 
   const { error: profileError } = await service
     .from("profiles")

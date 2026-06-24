@@ -15,7 +15,7 @@ export default async function ResourcesPage() {
     .order("title");
 
   const visibleDocuments = ((documents ?? []) as LibraryDocument[]).filter((doc) =>
-    doc.is_active !== false && documentVisibleToProfile(doc.view_roles, profile)
+    doc.is_active !== false && documentVisibleToProfile(doc.view_roles, profile, doc.section)
   );
 
   return (

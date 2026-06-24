@@ -16,6 +16,7 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { ClaimAppointmentDialog } from "@/components/appointments/claim-appointment-dialog";
+import { AppointmentDetailDialog } from "@/components/appointments/appointment-detail-dialog";
 import { APPOINTMENT_STATUS_COLORS } from "@/lib/constants";
 import { formatDate, cn } from "@/lib/utils";
 import type { Appointment, Clinic, Cat } from "@/lib/types";
@@ -50,6 +51,7 @@ export function AppointmentsCalendar({
   const [view, setView] = useState<"month" | "list">("list");
   const [selectedClinics, setSelectedClinics] = useState<string[]>(clinics.map((c) => c.id));
   const [claimDialog, setClaimDialog] = useState<Appointment | null>(null);
+  const [detailDialog, setDetailDialog] = useState<Appointment | null>(null);
   const [unreserveId, setUnreserveId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [bulkDialog, setBulkDialog] = useState(false);
@@ -103,8 +105,8 @@ export function AppointmentsCalendar({
     router.refresh();
   }
 
-  async function unreserve(appointmentId: string, event: React.MouseEvent) {
-    event.stopPropagation();
+  async function unreserve(appointmentId: string, event?: React.MouseEvent) {
+    event?.stopPropagation();
     setActionError(null);
     setUnreserveId(appointmentId);
     const response = await fetch("/api/appointments/unreserve", {
@@ -118,7 +120,16 @@ export function AppointmentsCalendar({
       setActionError(result?.error ?? "Unable to release appointment");
       return;
     }
+    setDetailDialog(null);
     router.refresh();
+  }
+
+  function openAppointment(appt: Appointment) {
+    if (appt.status === "available") {
+      setClaimDialog(appt);
+    } else {
+      setDetailDialog(appt);
+    }
   }
 
   return (
@@ -174,13 +185,18 @@ export function AppointmentsCalendar({
                     <Card
                       key={appt.id}
                       className={cn("border-l-4 cursor-pointer hover:shadow-md", clinicColorMap[appt.clinic_id])}
-                      onClick={() => appt.status === "available" && setClaimDialog(appt)}
+                      onClick={() => openAppointment(appt)}
                     >
                       <CardContent className="pt-4">
                         <div className="flex justify-between items-start gap-2">
                           <div>
                             <p className="font-medium text-sm">{appt.clinic_name}</p>
                             {appt.cat_name && <p className="text-xs text-muted-foreground">{appt.cat_name}</p>}
+                            {appt.reserved_by_name && appt.status !== "available" && (
+                              <p className="text-xs text-muted-foreground">
+                                Claimed by {appt.reserved_by_name}
+                              </p>
+                            )}
                             {appt.help_request_id && <p className="text-xs text-primary">Linked to case</p>}
                           </div>
                           <div className="flex flex-col items-end gap-1">
@@ -215,6 +231,13 @@ export function AppointmentsCalendar({
         helpRequests={helpRequests}
         linkedHelpRequest={linkedHelpRequest}
         cats={linkedCats}
+      />
+
+      <AppointmentDetailDialog
+        appointment={detailDialog}
+        onOpenChange={(open) => !open && setDetailDialog(null)}
+        onUnreserve={(id) => unreserve(id)}
+        unreserveLoading={unreserveId === detailDialog?.id}
       />
 
       <Dialog open={bulkDialog} onOpenChange={setBulkDialog}>

@@ -57,9 +57,13 @@ export function VolunteerRoleRequestsPanel({ requests }: VolunteerRoleRequestsPa
   return (
     <Card className="border-primary/30">
       <CardHeader>
-        <CardTitle className="text-lg">Pending role expansion requests</CardTitle>
+        <CardTitle className="text-lg">
+          {pending.some((r) => (r.request_type ?? "add") === "remove")
+            ? "Pending role change requests"
+            : "Pending role expansion requests"}
+        </CardTitle>
         <p className="text-sm text-muted-foreground">
-          Approving adds roles without changing the volunteer&apos;s platform access level.
+          Approving additions grants new interests. Approving removals keeps qualifications on file.
         </p>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -74,12 +78,15 @@ export function VolunteerRoleRequestsPanel({ requests }: VolunteerRoleRequestsPa
               <div>
                 <p className="font-medium">{request.full_name ?? request.email}</p>
                 <p className="text-sm text-muted-foreground">
-                  {request.email} · Requested {formatDate(request.created_at)}
+                  {request.email} · {(request.request_type ?? "add") === "remove" ? "Removal" : "Addition"} ·{" "}
+                  Requested {formatDate(request.created_at)}
                 </p>
               </div>
               <div className="flex flex-wrap gap-1">
                 {request.requested_roles.map((role) => (
-                  <Badge key={role}>{roleLabel(role)}</Badge>
+                  <Badge key={role} variant={(request.request_type ?? "add") === "remove" ? "destructive" : "default"}>
+                    {roleLabel(role)}
+                  </Badge>
                 ))}
               </div>
             </div>
@@ -125,7 +132,7 @@ export function VolunteerRoleRequestsPanel({ requests }: VolunteerRoleRequestsPa
                 onClick={() => reviewRequest(request.id, "approve")}
               >
                 <Check className="h-4 w-4 mr-1" />
-                {actingId === request.id ? "Working…" : "Approve roles"}
+                {actingId === request.id ? "Working…" : (request.request_type ?? "add") === "remove" ? "Approve removal" : "Approve roles"}
               </Button>
               <Button
                 size="sm"

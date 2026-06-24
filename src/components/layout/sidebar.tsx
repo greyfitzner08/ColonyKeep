@@ -26,6 +26,7 @@ import { getProfilePermissions } from "@/lib/permissions";
 import type { Profile } from "@/lib/types";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { LogoutButton } from "@/components/layout/logout-button";
 
 const NAV_ITEMS = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
@@ -92,12 +93,15 @@ export function Sidebar({ profile, userName }: SidebarProps) {
         );
       })}
       {userName && (
-        <div className="mt-auto border-t border-sidebar-border pt-4 px-2">
-          <p className="text-xs text-sidebar-foreground/60">Signed in as</p>
-          <p className="text-sm font-medium text-sidebar-foreground truncate">{userName}</p>
-          {permissions && (
-            <p className="text-xs text-sidebar-foreground/60">{permissions.label}</p>
-          )}
+        <div className="mt-auto border-t border-sidebar-border pt-4 px-2 space-y-2">
+          <div>
+            <p className="text-xs text-sidebar-foreground/60">Signed in as</p>
+            <p className="text-sm font-medium text-sidebar-foreground truncate">{userName}</p>
+            {permissions && (
+              <p className="text-xs text-sidebar-foreground/60">{permissions.label}</p>
+            )}
+          </div>
+          <LogoutButton />
         </div>
       )}
     </nav>

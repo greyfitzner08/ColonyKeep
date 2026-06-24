@@ -94,7 +94,10 @@ export async function POST(request: NextRequest) {
           role: existingProfile.role ?? role ?? "volunteer",
           team_id: teamId ?? null,
           full_name: application.full_name,
+          birthday: application.birthday ?? null,
           volunteer_roles: mergedVolunteerRoles,
+          tnvr_certificate_uploaded: application.tnvr_certificate_uploaded ?? false,
+          tnvr_certificate_url: application.tnvr_certificate_url ?? null,
           ...(isNewUser ? { must_change_password: true } : {}),
         })
         .eq("id", existingProfile.id);
@@ -107,9 +110,12 @@ export async function POST(request: NextRequest) {
         id: userId,
         email: volunteerEmail,
         full_name: application.full_name,
+        birthday: application.birthday ?? null,
         role: role ?? "volunteer",
         team_id: teamId ?? null,
         volunteer_roles: application.roles_requested ?? [],
+        tnvr_certificate_uploaded: application.tnvr_certificate_uploaded ?? false,
+        tnvr_certificate_url: application.tnvr_certificate_url ?? null,
         must_change_password: isNewUser,
       });
 

@@ -187,7 +187,7 @@ export default async function DashboardPage() {
 
           <MyCasesSection
             title="My Cases"
-            description="Cases you are working on. Possible injury or illness cases are pinned to the top."
+            description="Intake work you personally claimed from the queue. These are your assigned follow-ups — not trap-team field work. Medical cases are pinned to the top."
             cases={myCases}
             emptyMessage="You have not claimed any open cases yet."
             showClaimHint
@@ -202,8 +202,8 @@ export default async function DashboardPage() {
           title="My Trap Work"
           description={
             profile?.team_id
-              ? "Cases assigned to your trap team or personally claimed by you. Medical cases appear first."
-              : "Cases you have personally claimed. Join a trap team to also see team-assigned cases."
+              ? "Field cases for trapping and transport: assigned to your trap team or personally claimed by you. For intake follow-ups you claimed yourself, see My Cases above."
+              : "Trap and transport cases you personally claimed. Join a trap team to also see team-assigned cases."
           }
           cases={teamCases}
           emptyMessage="No team or personal trap cases right now."

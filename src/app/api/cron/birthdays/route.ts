@@ -12,24 +12,19 @@ export async function GET(request: NextRequest) {
   const month = today.getMonth() + 1;
   const day = today.getDate();
 
-  const { data: applications } = await supabase
-    .from("volunteer_applications")
+  const { data: profiles } = await supabase
+    .from("profiles")
     .select("full_name, email, birthday, team_id")
-    .eq("status", "approved");
+    .not("birthday", "is", null)
+    .not("full_name", "is", null);
 
-  const birthdayVolunteers = (applications ?? []).filter((app) => {
-    const bday = new Date(app.birthday);
+  const birthdayVolunteers = (profiles ?? []).filter((profile) => {
+    const bday = new Date(`${profile.birthday}T12:00:00`);
     return bday.getMonth() + 1 === month && bday.getDate() === day;
   });
 
   for (const volunteer of birthdayVolunteers) {
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("team_id")
-      .eq("email", volunteer.email)
-      .single();
-
-    const teamId = profile?.team_id ?? volunteer.team_id;
+    const teamId = volunteer.team_id;
     let teamName: string | null = null;
 
     if (teamId) {
@@ -60,6 +55,7 @@ export async function GET(request: NextRequest) {
       is_birthday: true,
       birthday_person_name: volunteer.full_name,
       pinned: false,
+      audience: "all",
     });
   }
 

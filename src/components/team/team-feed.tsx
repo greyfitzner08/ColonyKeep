@@ -2,40 +2,98 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { createClient } from "@/lib/supabase/client";
 import { formatDateTime } from "@/lib/utils";
-import type { TeamAnnouncement, Profile } from "@/lib/types";
-import { Pin, Cake, MessageCircle, Pencil, X, Check } from "lucide-react";
+import { VOLUNTEER_ROLES } from "@/lib/constants";
+import type { TeamAnnouncement, Profile, UserRole } from "@/lib/types";
+import type { FeedAudience } from "@/lib/team-feed/visibility";
+import { Pin, Cake, MessageCircle, Pencil, X, Check, Users, Globe, Send } from "lucide-react";
+
+const PLATFORM_ROLES: { value: UserRole; label: string }[] = [
+  { value: "admin", label: "Administrators" },
+  { value: "inquiry_team", label: "Inquiry Team" },
+  { value: "trap_team_lead", label: "Trap Team Leads" },
+  { value: "clinic_coordination", label: "Clinic Coordination" },
+  { value: "volunteer", label: "Volunteers (platform role)" },
+];
+
+interface TrapTeamOption {
+  id: string;
+  name: string;
+}
 
 interface TeamFeedProps {
   announcements: TeamAnnouncement[];
   profile: Profile | null;
   upcomingBirthdays: { full_name: string; birthday: string }[];
+  trapTeams: TrapTeamOption[];
 }
 
-export function TeamFeed({ announcements: initial, profile, upcomingBirthdays }: TeamFeedProps) {
+function audienceLabel(post: TeamAnnouncement): string {
+  const audience = (post.audience ?? "all") as FeedAudience;
+  if (audience === "all") return "Everyone";
+  if (audience === "team") return post.team_name ?? "Specific team";
+  if (audience === "roles") {
+    const count = post.view_roles?.length ?? 0;
+    return count === 0 ? "Selected roles" : `${count} role${count === 1 ? "" : "s"}`;
+  }
+  return "Everyone";
+}
+
+export function TeamFeed({
+  announcements: initial,
+  profile,
+  upcomingBirthdays,
+  trapTeams,
+}: TeamFeedProps) {
   const router = useRouter();
   const [message, setMessage] = useState("");
+  const [audience, setAudience] = useState<FeedAudience>("all");
+  const [teamId, setTeamId] = useState<string>(profile?.team_id ?? "");
+  const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
   const [commentTexts, setCommentTexts] = useState<Record<string, string>>({});
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editText, setEditText] = useState("");
 
+  function toggleRole(role: string) {
+    setSelectedRoles((prev) =>
+      prev.includes(role) ? prev.filter((r) => r !== role) : [...prev, role]
+    );
+  }
+
   async function postAnnouncement() {
     if (!message.trim() || !profile) return;
+    if (audience === "team" && !teamId) return;
+    if (audience === "roles" && selectedRoles.length === 0) return;
+
+    const team = trapTeams.find((t) => t.id === teamId);
     const supabase = createClient();
     await supabase.from("team_announcements").insert({
       message,
-      team_id: null,
-      team_name: null,
+      audience,
+      view_roles: audience === "roles" ? selectedRoles : [],
+      team_id: audience === "team" ? teamId : null,
+      team_name: audience === "team" ? (team?.name ?? null) : null,
       author_email: profile.email,
       author_name: profile.full_name ?? profile.email,
     });
     setMessage("");
+    setAudience("all");
+    setSelectedRoles([]);
     router.refresh();
   }
 
@@ -73,125 +131,269 @@ export function TeamFeed({ announcements: initial, profile, upcomingBirthdays }:
     router.refresh();
   }
 
+  const canPost =
+    message.trim().length > 0 &&
+    (audience !== "team" || Boolean(teamId)) &&
+    (audience !== "roles" || selectedRoles.length > 0);
+
   return (
-    <div className="space-y-6 max-w-2xl">
+    <div className="mx-auto w-full max-w-3xl space-y-6">
       {upcomingBirthdays.length > 0 && (
-        <Card className="border-pink-200 bg-pink-50/60">
-          <CardHeader className="pb-2">
+        <Card className="border-pink-200 bg-gradient-to-br from-pink-50 to-white">
+          <CardHeader className="pb-3">
             <div className="flex items-center gap-2 text-pink-800">
               <Cake className="h-5 w-5" />
-              <span className="font-semibold">Upcoming birthdays</span>
+              <CardTitle className="text-base">Upcoming birthdays</CardTitle>
             </div>
           </CardHeader>
-          <CardContent className="space-y-2 text-sm">
+          <CardContent className="grid gap-2 sm:grid-cols-2">
             {upcomingBirthdays.map((person) => (
-              <p key={person.full_name}>
-                <strong>{person.full_name}</strong> —{" "}
-                {new Date(`${person.birthday}T12:00:00`).toLocaleDateString(undefined, {
-                  month: "long",
-                  day: "numeric",
-                })}
-              </p>
+              <div key={person.full_name} className="rounded-md border border-pink-100 bg-white/80 px-3 py-2 text-sm">
+                <p className="font-medium">{person.full_name}</p>
+                <p className="text-muted-foreground">
+                  {new Date(`${person.birthday}T12:00:00`).toLocaleDateString(undefined, {
+                    month: "long",
+                    day: "numeric",
+                  })}
+                </p>
+              </div>
             ))}
-            <p className="text-muted-foreground pt-1">
-              Drop a note on the feed to celebrate them — or share wins from TNVR work and everyday life!
-            </p>
           </CardContent>
         </Card>
       )}
 
       <Card>
-        <CardContent className="pt-4 space-y-3">
-          <Textarea
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            placeholder="Share an update, celebrate a volunteer win, a life milestone (new job, wedding, certification), or cheer someone on..."
-            rows={3}
-          />
-          <Button onClick={postAnnouncement}>Post to team feed</Button>
+        <CardHeader>
+          <CardTitle className="text-lg">New post</CardTitle>
+          <CardDescription>Share updates, wins, and milestones with your chosen audience.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-5">
+          <div className="space-y-2">
+            <Label htmlFor="feed-message">Message</Label>
+            <Textarea
+              id="feed-message"
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              placeholder="What's happening with the team?"
+              rows={4}
+              className="resize-none"
+            />
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label>Audience</Label>
+              <Select value={audience} onValueChange={(v) => setAudience(v as FeedAudience)}>
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Everyone on the platform</SelectItem>
+                  <SelectItem value="team">A specific trap team</SelectItem>
+                  <SelectItem value="roles">Specific roles</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {audience === "team" && (
+              <div className="space-y-2">
+                <Label>Trap team</Label>
+                <Select value={teamId} onValueChange={setTeamId}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select a team" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {trapTeams.map((team) => (
+                      <SelectItem key={team.id} value={team.id}>
+                        {team.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+          </div>
+
+          {audience === "roles" && (
+            <div className="space-y-4 rounded-lg border bg-muted/30 p-4">
+              <div>
+                <p className="text-sm font-medium mb-3">Platform roles</p>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {PLATFORM_ROLES.map((role) => (
+                    <label
+                      key={role.value}
+                      htmlFor={`platform-${role.value}`}
+                      className="flex items-center gap-2 rounded-md border bg-background px-3 py-2 cursor-pointer"
+                    >
+                      <Checkbox
+                        id={`platform-${role.value}`}
+                        checked={selectedRoles.includes(role.value)}
+                        onCheckedChange={() => toggleRole(role.value)}
+                      />
+                      <span className="text-sm">{role.label}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <p className="text-sm font-medium mb-3">Volunteer interests</p>
+                <div className="grid gap-2 sm:grid-cols-2 max-h-52 overflow-y-auto pr-1">
+                  {VOLUNTEER_ROLES.map((role) => (
+                    <label
+                      key={role.value}
+                      htmlFor={`volunteer-${role.value}`}
+                      className="flex items-center gap-2 rounded-md border bg-background px-3 py-2 cursor-pointer"
+                    >
+                      <Checkbox
+                        id={`volunteer-${role.value}`}
+                        checked={selectedRoles.includes(role.value)}
+                        onCheckedChange={() => toggleRole(role.value)}
+                      />
+                      <span className="text-sm">{role.label}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="flex justify-end border-t pt-4">
+            <Button onClick={postAnnouncement} disabled={!canPost} className="gap-2">
+              <Send className="h-4 w-4" />
+              Post to feed
+            </Button>
+          </div>
         </CardContent>
       </Card>
 
-      {initial.map((post) => {
-        const isAuthor = profile?.email === post.author_email;
-        const isEditing = editingId === post.id;
-
-        return (
-          <Card
-            key={post.id}
-            className={post.pinned ? "border-primary" : post.is_birthday ? "border-pink-300 bg-pink-50" : ""}
-          >
-            <CardHeader className="pb-2">
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex flex-wrap items-center gap-2">
-                  {post.pinned && <Pin className="h-4 w-4 text-primary" />}
-                  {post.is_birthday && <Cake className="h-4 w-4 text-pink-500" />}
-                  <span className="font-medium text-sm">{post.author_name}</span>
-                  <span className="text-xs text-muted-foreground">{formatDateTime(post.created_at)}</span>
-                  {post.team_name && <Badge variant="secondary">{post.team_name}</Badge>}
-                </div>
-                {isAuthor && !post.is_birthday && !isEditing && (
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => {
-                      setEditingId(post.id);
-                      setEditText(post.message);
-                    }}
-                  >
-                    <Pencil className="h-4 w-4" />
-                  </Button>
-                )}
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {isEditing ? (
-                <div className="space-y-2">
-                  <Textarea value={editText} onChange={(e) => setEditText(e.target.value)} rows={3} />
-                  <div className="flex gap-2">
-                    <Button size="sm" onClick={() => saveEdit(post.id)}>
-                      <Check className="h-4 w-4 mr-1" />
-                      Save
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => {
-                        setEditingId(null);
-                        setEditText("");
-                      }}
-                    >
-                      <X className="h-4 w-4 mr-1" />
-                      Cancel
-                    </Button>
-                  </div>
-                </div>
-              ) : (
-                <p className="whitespace-pre-wrap">{post.message}</p>
-              )}
-
-              {(post.comments ?? []).map((comment, i) => (
-                <div key={i} className="ml-4 border-l-2 pl-3 text-sm">
-                  <p className="font-medium text-xs">{comment.author_name}</p>
-                  <p>{comment.text}</p>
-                </div>
-              ))}
-
-              <div className="flex gap-2">
-                <Input
-                  value={commentTexts[post.id] ?? ""}
-                  onChange={(e) => setCommentTexts({ ...commentTexts, [post.id]: e.target.value })}
-                  placeholder="Add a comment..."
-                  className="text-sm"
-                />
-                <Button size="sm" variant="outline" onClick={() => addComment(post.id)}>
-                  <MessageCircle className="h-4 w-4" />
-                </Button>
-              </div>
+      <div className="space-y-4">
+        {initial.length === 0 && (
+          <Card>
+            <CardContent className="py-10 text-center text-sm text-muted-foreground">
+              No posts yet. Be the first to share something with the team!
             </CardContent>
           </Card>
-        );
-      })}
+        )}
+
+        {initial.map((post) => {
+          const isAuthor = profile?.email === post.author_email;
+          const isEditing = editingId === post.id;
+          const postAudience = (post.audience ?? "all") as FeedAudience;
+
+          return (
+            <Card
+              key={post.id}
+              className={post.pinned ? "border-primary shadow-sm" : post.is_birthday ? "border-pink-300 bg-pink-50/50" : ""}
+            >
+              <CardHeader className="pb-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 space-y-2">
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                      {post.pinned && <Pin className="h-4 w-4 text-primary shrink-0" />}
+                      {post.is_birthday && <Cake className="h-4 w-4 text-pink-500 shrink-0" />}
+                      <span className="font-semibold text-sm">{post.author_name}</span>
+                      <span className="text-xs text-muted-foreground">{formatDateTime(post.created_at)}</span>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      <Badge variant="outline" className="text-xs gap-1">
+                        {postAudience === "all" ? (
+                          <Globe className="h-3 w-3" />
+                        ) : (
+                          <Users className="h-3 w-3" />
+                        )}
+                        {audienceLabel(post)}
+                      </Badge>
+                      {post.team_name && postAudience === "team" && (
+                        <Badge variant="secondary" className="text-xs">{post.team_name}</Badge>
+                      )}
+                    </div>
+                  </div>
+                  {isAuthor && !post.is_birthday && !isEditing && (
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="shrink-0"
+                      onClick={() => {
+                        setEditingId(post.id);
+                        setEditText(post.message);
+                      }}
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {isEditing ? (
+                  <div className="space-y-3">
+                    <Textarea value={editText} onChange={(e) => setEditText(e.target.value)} rows={4} />
+                    <div className="flex gap-2">
+                      <Button size="sm" onClick={() => saveEdit(post.id)}>
+                        <Check className="h-4 w-4 mr-1" />
+                        Save
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setEditingId(null);
+                          setEditText("");
+                        }}
+                      >
+                        <X className="h-4 w-4 mr-1" />
+                        Cancel
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="whitespace-pre-wrap text-sm leading-relaxed">{post.message}</p>
+                )}
+
+                {postAudience === "roles" && (post.view_roles?.length ?? 0) > 0 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {post.view_roles.map((role) => (
+                      <Badge key={role} variant="secondary" className="text-xs font-normal">
+                        {VOLUNTEER_ROLES.find((r) => r.value === role)?.label ??
+                          PLATFORM_ROLES.find((r) => r.value === role)?.label ??
+                          role}
+                      </Badge>
+                    ))}
+                  </div>
+                )}
+
+                {(post.comments ?? []).length > 0 && (
+                  <div className="space-y-2 rounded-lg bg-muted/40 p-3">
+                    {(post.comments ?? []).map((comment, i) => (
+                      <div key={i} className="text-sm">
+                        <p className="font-medium text-xs text-muted-foreground">{comment.author_name}</p>
+                        <p>{comment.text}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <div className="flex items-center gap-2 pt-1">
+                  <Input
+                    value={commentTexts[post.id] ?? ""}
+                    onChange={(e) => setCommentTexts({ ...commentTexts, [post.id]: e.target.value })}
+                    placeholder="Write a comment..."
+                    className="text-sm"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !e.shiftKey) {
+                        e.preventDefault();
+                        addComment(post.id);
+                      }
+                    }}
+                  />
+                  <Button size="icon" variant="outline" className="shrink-0" onClick={() => addComment(post.id)}>
+                    <MessageCircle className="h-4 w-4" />
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
     </div>
   );
 }
