@@ -64,7 +64,7 @@ export default async function IntakePage({ searchParams }: IntakePageProps) {
           <div className="mt-2 flex flex-wrap items-center gap-2">
             <ShareRequestFormLink />
             <span className="text-sm text-muted-foreground">
-              Share the public form so community members can request help
+              Share with community members — the link works even while you are logged in
             </span>
           </div>
         </div>

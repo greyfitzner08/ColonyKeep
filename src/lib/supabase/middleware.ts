@@ -53,7 +53,7 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  if (user && pathname !== "/set-password" && !pathname.startsWith("/auth") && !isApi) {
+  if (user && pathname !== "/set-password" && !pathname.startsWith("/auth") && !isApi && !isPublic) {
     const { data: profile } = await supabase
       .from("profiles")
       .select("role, volunteer_roles, must_change_password")
