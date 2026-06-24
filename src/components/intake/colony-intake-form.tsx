@@ -29,7 +29,7 @@ const STEPS = [
   {
     label: "Colony Location",
     category: "colony" as const,
-    description: "Where the cats live — this may differ from your home address",
+    description: "Where the cats live",
   },
   {
     label: "About the Cats",
@@ -110,6 +110,45 @@ const EMPTY_FORM: CommunityIntakeSubmission = {
   consent_communications: false,
 };
 
+function homeAddressComplete(form: CommunityIntakeSubmission) {
+  return Boolean(
+    form.contact_street.trim() &&
+      form.contact_city.trim() &&
+      form.contact_zip.trim() &&
+      form.contact_county.trim()
+  );
+}
+
+function colonyAddressComplete(form: CommunityIntakeSubmission) {
+  return Boolean(
+    form.colony_address.trim() &&
+      form.colony_city.trim() &&
+      form.colony_zip.trim() &&
+      form.colony_county.trim()
+  );
+}
+
+function copyHomeAddressToColony(form: CommunityIntakeSubmission): CommunityIntakeSubmission {
+  return {
+    ...form,
+    colony_address: form.contact_street,
+    colony_city: form.contact_city,
+    colony_state: form.contact_state,
+    colony_zip: form.contact_zip,
+    colony_county: form.contact_county,
+    colony_lat: null,
+    colony_lng: null,
+  };
+}
+
+const CONTACT_ADDRESS_FIELDS = new Set<keyof CommunityIntakeSubmission>([
+  "contact_street",
+  "contact_city",
+  "contact_state",
+  "contact_zip",
+  "contact_county",
+]);
+
 function YesNoSelect({
   value,
   onChange,
@@ -140,12 +179,63 @@ export function ColonyIntakeForm() {
   const [caseNumber, setCaseNumber] = useState("");
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [form, setForm] = useState<CommunityIntakeSubmission>(EMPTY_FORM);
+  const [colonyAtDifferentAddress, setColonyAtDifferentAddress] = useState("");
 
   function update<K extends keyof CommunityIntakeSubmission>(
     field: K,
     value: CommunityIntakeSubmission[K]
   ) {
-    setForm((prev) => ({ ...prev, [field]: value }));
+    setForm((prev) => {
+      const next = { ...prev, [field]: value };
+      if (colonyAtDifferentAddress === "No" && CONTACT_ADDRESS_FIELDS.has(field)) {
+        return copyHomeAddressToColony(next);
+      }
+      return next;
+    });
+  }
+
+  function handleColonyLocationAnswer(value: string) {
+    setColonyAtDifferentAddress(value);
+    if (value === "No") {
+      setForm((prev) => copyHomeAddressToColony(prev));
+    } else if (value === "Yes") {
+      setForm((prev) => ({
+        ...prev,
+        colony_address: "",
+        colony_city: "",
+        colony_state: "",
+        colony_county: "",
+        colony_zip: "",
+        colony_lat: null,
+        colony_lng: null,
+      }));
+    }
+  }
+
+  function canAdvanceFromStep(currentStep: number) {
+    if (currentStep === 0) {
+      return Boolean(
+        form.contact_first_name &&
+          form.contact_last_name &&
+          form.contact_email &&
+          form.contact_phone
+      );
+    }
+    if (currentStep === 1) {
+      if (!colonyAtDifferentAddress) return false;
+      if (colonyAtDifferentAddress === "No") {
+        return homeAddressComplete(form);
+      }
+      return colonyAddressComplete(form);
+    }
+    return true;
+  }
+
+  function goToNextStep() {
+    if (step === 1 && colonyAtDifferentAddress === "No") {
+      setForm((prev) => copyHomeAddressToColony(prev));
+    }
+    setStep((current) => current + 1);
   }
 
   async function handleSubmit() {
@@ -153,10 +243,12 @@ export function ColonyIntakeForm() {
     setSubmitting(true);
 
     try {
+      const submission =
+        colonyAtDifferentAddress === "No" ? copyHomeAddressToColony(form) : form;
       const response = await fetch("/api/help-requests/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify(submission),
       });
       const result = await response.json().catch(() => null);
 
@@ -333,62 +425,141 @@ export function ColonyIntakeForm() {
 
             {step === 1 && (
               <>
-                <AddressAutocomplete
-                  label="Colony address"
-                  defaultValue={form.colony_address}
-                  onAddressChange={(address) => update("colony_address", address)}
-                  onSelect={(parts) => {
-                    update("colony_address", parts.address);
-                    update("colony_city", parts.city);
-                    update("colony_state", parts.state);
-                    update("colony_county", parts.county);
-                    update("colony_zip", parts.zip);
-                    if (parts.lat) update("colony_lat", parts.lat);
-                    if (parts.lng) update("colony_lng", parts.lng);
-                  }}
-                />
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Colony City</Label>
-                    <Input
-                      value={form.colony_city}
-                      onChange={(e) => update("colony_city", e.target.value)}
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Colony State</Label>
-                    <Input
-                      value={form.colony_state}
-                      onChange={(e) => update("colony_state", e.target.value)}
-                    />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Colony ZIP Code</Label>
-                    <Input
-                      value={form.colony_zip}
-                      onChange={(e) => update("colony_zip", e.target.value)}
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Colony County</Label>
-                    <Input
-                      value={form.colony_county}
-                      onChange={(e) => update("colony_county", e.target.value)}
-                      required
-                    />
-                  </div>
-                </div>
                 <div className="space-y-2">
-                  <Label>Apartment community name (if applicable)</Label>
-                  <Input
-                    value={form.apartment_name}
-                    onChange={(e) => update("apartment_name", e.target.value)}
+                  <Label>Is the colony at a different address than your home?</Label>
+                  <YesNoSelect
+                    id="colony_at_different_address"
+                    value={colonyAtDifferentAddress}
+                    onChange={handleColonyLocationAnswer}
                   />
                 </div>
+
+                {colonyAtDifferentAddress === "No" && (
+                  <>
+                    {homeAddressComplete(form) ? (
+                      <div className="rounded-md border bg-muted/30 p-3 text-sm space-y-1">
+                        <p className="font-medium">We&apos;ll use your home address for the colony:</p>
+                        <p>
+                          {form.contact_street}, {form.contact_city}, {form.contact_state}{" "}
+                          {form.contact_zip} ({form.contact_county})
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="space-y-4 rounded-md border border-dashed p-4">
+                        <p className="text-sm text-muted-foreground">
+                          Please enter your home address — we&apos;ll use it as the colony location.
+                        </p>
+                        <div className="space-y-2">
+                          <Label>Your home street address</Label>
+                          <Input
+                            value={form.contact_street}
+                            onChange={(e) => update("contact_street", e.target.value)}
+                            required
+                          />
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label>Your city</Label>
+                            <Input
+                              value={form.contact_city}
+                              onChange={(e) => update("contact_city", e.target.value)}
+                              required
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label>Your state</Label>
+                            <Input
+                              value={form.contact_state}
+                              onChange={(e) => update("contact_state", e.target.value)}
+                            />
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label>Your ZIP code</Label>
+                            <Input
+                              value={form.contact_zip}
+                              onChange={(e) => update("contact_zip", e.target.value)}
+                              required
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label>Your county</Label>
+                            <Input
+                              value={form.contact_county}
+                              onChange={(e) => update("contact_county", e.target.value)}
+                              required
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {colonyAtDifferentAddress === "Yes" && (
+                  <>
+                    <AddressAutocomplete
+                      label="Colony address"
+                      defaultValue={form.colony_address}
+                      onAddressChange={(address) => update("colony_address", address)}
+                      onSelect={(parts) => {
+                        update("colony_address", parts.address);
+                        update("colony_city", parts.city);
+                        update("colony_state", parts.state);
+                        update("colony_county", parts.county);
+                        update("colony_zip", parts.zip);
+                        if (parts.lat) update("colony_lat", parts.lat);
+                        if (parts.lng) update("colony_lng", parts.lng);
+                      }}
+                    />
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Colony City</Label>
+                        <Input
+                          value={form.colony_city}
+                          onChange={(e) => update("colony_city", e.target.value)}
+                          required
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Colony State</Label>
+                        <Input
+                          value={form.colony_state}
+                          onChange={(e) => update("colony_state", e.target.value)}
+                        />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Colony ZIP Code</Label>
+                        <Input
+                          value={form.colony_zip}
+                          onChange={(e) => update("colony_zip", e.target.value)}
+                          required
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Colony County</Label>
+                        <Input
+                          value={form.colony_county}
+                          onChange={(e) => update("colony_county", e.target.value)}
+                          required
+                        />
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                {colonyAtDifferentAddress && (
+                  <div className="space-y-2">
+                    <Label>Apartment community name (if applicable)</Label>
+                    <Input
+                      value={form.apartment_name}
+                      onChange={(e) => update("apartment_name", e.target.value)}
+                    />
+                  </div>
+                )}
               </>
             )}
 
@@ -592,18 +763,7 @@ export function ColonyIntakeForm() {
                 <ChevronLeft className="h-4 w-4" /> Back
               </Button>
               {step < STEPS.length - 1 ? (
-                <Button
-                  onClick={() => setStep(step + 1)}
-                  disabled={
-                    (step === 0 &&
-                      (!form.contact_first_name ||
-                        !form.contact_last_name ||
-                        !form.contact_email ||
-                        !form.contact_phone)) ||
-                    (step === 1 &&
-                      (!form.colony_address || !form.colony_city || !form.colony_zip || !form.colony_county))
-                  }
-                >
+                <Button onClick={goToNextStep} disabled={!canAdvanceFromStep(step)}>
                   Next <ChevronRight className="h-4 w-4" />
                 </Button>
               ) : (
