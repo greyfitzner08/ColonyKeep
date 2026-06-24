@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { resolveCountyFromAutocomplete } from "@/lib/counties";
 
 function getComponent(
   components: Array<{ long_name: string; short_name: string; types: string[] }>,
@@ -35,12 +36,14 @@ export async function GET(request: NextRequest) {
   const streetNumber = getComponent(components, "street_number");
   const route = getComponent(components, "route");
   const address = [streetNumber, route].filter(Boolean).join(" ") || result.formatted_address;
+  const state = getComponent(components, "administrative_area_level_1");
+  const rawCounty = getComponent(components, "administrative_area_level_2");
 
   return NextResponse.json({
     address,
     city: getComponent(components, "locality") || getComponent(components, "sublocality"),
-    state: getComponent(components, "administrative_area_level_1"),
-    county: getComponent(components, "administrative_area_level_2"),
+    state,
+    county: resolveCountyFromAutocomplete(rawCounty, state),
     zip: getComponent(components, "postal_code"),
     lat: result.geometry?.location?.lat,
     lng: result.geometry?.location?.lng,

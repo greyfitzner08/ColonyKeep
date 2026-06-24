@@ -17,7 +17,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { AddressAutocomplete } from "@/components/forms/address-autocomplete";
+import { CountySelect } from "@/components/forms/county-select";
 import { NEWSLETTER_SIGNUP_DESCRIPTION, NEWSLETTER_SIGNUP_LABEL } from "@/lib/constants";
+import { resolveCountyFromAutocomplete } from "@/lib/counties";
 import type { CommunityIntakeSubmission } from "@/lib/cases/public-intake";
 
 const STEPS = [
@@ -355,13 +357,18 @@ export function ColonyIntakeForm() {
                     />
                   </div>
                 </div>
-                <div className="space-y-2">
-                  <Label>Your home street address</Label>
-                  <Input
-                    value={form.contact_street}
-                    onChange={(e) => update("contact_street", e.target.value)}
-                  />
-                </div>
+                <AddressAutocomplete
+                  label="Your home street address"
+                  defaultValue={form.contact_street}
+                  onAddressChange={(address) => update("contact_street", address)}
+                  onSelect={(parts) => {
+                    update("contact_street", parts.address);
+                    update("contact_city", parts.city);
+                    update("contact_state", parts.state);
+                    update("contact_zip", parts.zip);
+                    update("contact_county", resolveCountyFromAutocomplete(parts.county, parts.state));
+                  }}
+                />
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Your city</Label>
@@ -386,13 +393,12 @@ export function ColonyIntakeForm() {
                       onChange={(e) => update("contact_zip", e.target.value)}
                     />
                   </div>
-                  <div className="space-y-2">
-                    <Label>Your county</Label>
-                    <Input
-                      value={form.contact_county}
-                      onChange={(e) => update("contact_county", e.target.value)}
-                    />
-                  </div>
+                  <CountySelect
+                    label="Your county"
+                    value={form.contact_county}
+                    onChange={(county) => update("contact_county", county)}
+                    required
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label>Your email</Label>
@@ -483,14 +489,12 @@ export function ColonyIntakeForm() {
                               required
                             />
                           </div>
-                          <div className="space-y-2">
-                            <Label>Your county</Label>
-                            <Input
-                              value={form.contact_county}
-                              onChange={(e) => update("contact_county", e.target.value)}
-                              required
-                            />
-                          </div>
+                          <CountySelect
+                            label="Your county"
+                            value={form.contact_county}
+                            onChange={(county) => update("contact_county", county)}
+                            required
+                          />
                         </div>
                       </div>
                     )}
@@ -507,7 +511,7 @@ export function ColonyIntakeForm() {
                         update("colony_address", parts.address);
                         update("colony_city", parts.city);
                         update("colony_state", parts.state);
-                        update("colony_county", parts.county);
+                        update("colony_county", resolveCountyFromAutocomplete(parts.county, parts.state));
                         update("colony_zip", parts.zip);
                         if (parts.lat) update("colony_lat", parts.lat);
                         if (parts.lng) update("colony_lng", parts.lng);
@@ -539,14 +543,12 @@ export function ColonyIntakeForm() {
                           required
                         />
                       </div>
-                      <div className="space-y-2">
-                        <Label>Colony County</Label>
-                        <Input
-                          value={form.colony_county}
-                          onChange={(e) => update("colony_county", e.target.value)}
-                          required
-                        />
-                      </div>
+                      <CountySelect
+                        label="Colony county"
+                        value={form.colony_county}
+                        onChange={(county) => update("colony_county", county)}
+                        required
+                      />
                     </div>
                   </>
                 )}

@@ -3,6 +3,8 @@
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AddressAutocomplete } from "@/components/forms/address-autocomplete";
+import { CountySelect } from "@/components/forms/county-select";
+import { resolveCountyFromAutocomplete } from "@/lib/counties";
 
 export interface VolunteerContactFormValues {
   full_name: string;
@@ -108,7 +110,7 @@ export function VolunteerContactFieldsForm({
               home_street: parts.address,
               home_city: parts.city,
               home_state: parts.state,
-              home_county: parts.county,
+              home_county: resolveCountyFromAutocomplete(parts.county, parts.state),
               home_zip: parts.zip,
             })
           }
@@ -142,14 +144,11 @@ export function VolunteerContactFieldsForm({
               onChange={(event) => update("home_zip", event.target.value)}
             />
           </div>
-          <div className="space-y-2">
-            <Label htmlFor={`${idPrefix}-home-county`}>County</Label>
-            <Input
-              id={`${idPrefix}-home-county`}
-              value={values.home_county}
-              onChange={(event) => update("home_county", event.target.value)}
-            />
-          </div>
+          <CountySelect
+            id={`${idPrefix}-home-county`}
+            value={values.home_county}
+            onChange={(county) => update("home_county", county)}
+          />
         </div>
       </div>
     </div>
