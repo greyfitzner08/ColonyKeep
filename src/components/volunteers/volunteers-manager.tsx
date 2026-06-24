@@ -74,7 +74,7 @@ const STATUS_COLORS: Record<string, string> = {
 
 const ADMIN_CHECKBOX_FIELDS = [
   { key: "liability_waiver_signed", label: "Liability Waiver" },
-  { key: "policy_signed", label: "Policy Signed" },
+  { key: "policy_signed", label: "Policy Acknowledgement" },
   { key: "shadow_completed", label: "Shadow Completed" },
   { key: "intake_training", label: "Intake Training" },
   { key: "tnvr_certificate_uploaded", label: "TNVR Certificate" },

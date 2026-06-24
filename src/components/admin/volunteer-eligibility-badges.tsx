@@ -22,7 +22,7 @@ export function VolunteerEligibilityBadges({ application }: VolunteerEligibility
   if (!application.tnvr_certificate_uploaded) missing.push("TNVR cert");
   if (!application.shadow_completed) missing.push("field training");
   if (!application.liability_waiver_signed) missing.push("waiver");
-  if (!application.policy_signed) missing.push("policy");
+  if (!application.policy_signed) missing.push("Policy Acknowledgement");
 
   return (
     <Badge variant="outline" className="text-orange-700 border-orange-200">

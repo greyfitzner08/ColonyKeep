@@ -11,7 +11,7 @@ export type RequirementField =
 
 export const REQUIREMENT_FIELD_OPTIONS: { key: RequirementField; label: string }[] = [
   { key: "liability_waiver_signed", label: "Liability waiver" },
-  { key: "policy_signed", label: "Policy signed" },
+  { key: "policy_signed", label: "Policy Acknowledgement" },
   { key: "intake_training", label: "Intake training" },
   { key: "shadow_completed", label: "Shadow completed" },
   { key: "tnvr_certificate_uploaded", label: "TNVR certificate" },
@@ -90,7 +90,7 @@ export function requirementLabel(field: RequirementField): string {
     intake_training: "Intake training",
     shadow_completed: "Shadow completed",
     liability_waiver_signed: "Liability waiver",
-    policy_signed: "Policy signed",
+    policy_signed: "Policy Acknowledgement",
     event_crash_course: "Event crash course",
   };
   return labels[field];

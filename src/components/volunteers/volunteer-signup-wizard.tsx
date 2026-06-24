@@ -523,7 +523,7 @@ export function VolunteerSignupWizard({ variant, profile, onSubmitted }: Volunte
               <div className="rounded-lg border p-4 space-y-1">
                 <p className="font-semibold">Requirements</p>
                 <p className="text-muted-foreground">
-                  Liability waiver and policy accepted
+                  Liability waiver and Policy Acknowledgement complete
                   {needsTnvrCert
                     ? form.tnvr_certificate_uploaded
                       ? " · TNVR certificate uploaded"
