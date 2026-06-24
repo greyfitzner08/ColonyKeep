@@ -17,15 +17,21 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { VOLUNTEER_ROLES } from "@/lib/constants";
 import { getApiErrorMessage } from "@/lib/api/errors";
 import { getEmailValidationError, parsePrimaryEmail } from "@/lib/email-utils";
 import {
   requirementsForRole,
   requirementLabel,
+  missingRequirementsForRole,
   type RequirementField,
 } from "@/lib/volunteers/role-requirements";
-import { resolveVolunteerRoleCatalog } from "@/lib/volunteers/role-catalog";
+import {
+  filterSignupRoleDescriptions,
+  resolveVolunteerRoleCatalog,
+  signupVolunteerRoleOptions,
+  volunteerRoleLabel,
+} from "@/lib/volunteers/role-catalog";
+import { volunteerRequirementSource } from "@/lib/volunteers/requirement-source";
 import {
   applicationMatchesFilter,
   attentionPriority,
@@ -40,7 +46,6 @@ import { cn, formatDate } from "@/lib/utils";
 import type {
   VolunteerApplication,
   TrapTeam,
-  UserRole,
   VolunteerRole,
   VolunteerRoleRequest,
   Profile,
@@ -86,10 +91,6 @@ const ADMIN_CHECKBOX_FIELDS = [
   { key: "event_crash_course", label: "Event Crash Course" },
 ] as const;
 
-function roleLabel(role: VolunteerRole) {
-  return VOLUNTEER_ROLES.find((entry) => entry.value === role)?.label ?? role;
-}
-
 function requirementFieldsForRoles(
   roles: VolunteerRole[],
   catalog: RoleDescription[]
@@ -116,7 +117,7 @@ export function VolunteersManager({
   const [viewMode, setViewMode] = useState<ApplicationViewMode>("cards");
   const [nameSort, setNameSort] = useState<NameSortDirection | null>(null);
   const [interestFilter, setInterestFilter] = useState("all");
-  const [approveRole, setApproveRole] = useState<UserRole>("volunteer");
+  const [approvalRoleEdits, setApprovalRoleEdits] = useState<Record<string, VolunteerRole[]>>({});
   const [approveTeam, setApproveTeam] = useState<string>("none");
   const [actionError, setActionError] = useState<string | null>(null);
   const [actingId, setActingId] = useState<string | null>(null);
@@ -131,6 +132,43 @@ export function VolunteersManager({
     () => resolveVolunteerRoleCatalog(roleDescriptions),
     [roleDescriptions]
   );
+
+  const applicationRoleOptions = useMemo(
+    () => signupVolunteerRoleOptions(roleCatalog),
+    [roleCatalog]
+  );
+
+  function roleLabel(role: VolunteerRole) {
+    return volunteerRoleLabel(role, roleCatalog);
+  }
+
+  function approvalRolesForApp(app: VolunteerApplication): VolunteerRole[] {
+    return approvalRoleEdits[app.id] ?? app.roles_requested ?? [];
+  }
+
+  function toggleApprovalRole(appId: string, role: VolunteerRole) {
+    setApprovalRoleEdits((current) => {
+      const existing = current[appId];
+      const base = existing ?? applications.find((entry) => entry.id === appId)?.roles_requested ?? [];
+      const next = base.includes(role)
+        ? base.filter((entry) => entry !== role)
+        : [...base, role];
+      return { ...current, [appId]: next };
+    });
+  }
+
+  function approvalRolesReady(
+    app: VolunteerApplication,
+    context: ApplicationReviewContext,
+    roles: VolunteerRole[]
+  ): boolean {
+    if (roles.length === 0) return false;
+    const source = volunteerRequirementSource(
+      app,
+      context.linkedProfile ?? { tnvr_certificate_uploaded: false, tnvr_certificate_url: null }
+    );
+    return roles.every((role) => missingRequirementsForRole(role, source, roleCatalog).length === 0);
+  }
 
   const reviewingContext = useMemo(
     () =>
@@ -208,7 +246,8 @@ export function VolunteersManager({
     id: string,
     action: "approve" | "reject" | "followup",
     adminNotes?: string,
-    email?: string
+    email?: string,
+    volunteerRoles?: VolunteerRole[]
   ) {
     clearActionError();
     setActingId(id);
@@ -226,9 +265,9 @@ export function VolunteersManager({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           applicationId: id,
-          role: approveRole,
           teamId: approveTeam === "none" ? null : approveTeam,
           email: emailToUse,
+          volunteer_roles: volunteerRoles,
         }),
       });
       const result = await response.json().catch(() => null);
@@ -298,7 +337,7 @@ export function VolunteersManager({
       return;
     }
 
-    await handleAction(app.id, "approve", undefined, email);
+    await handleAction(app.id, "approve", undefined, email, approvalRolesForApp(app));
     setReviewingApplication(null);
   }
 
@@ -475,9 +514,14 @@ export function VolunteersManager({
     const nameValue = nameForApp(app);
     const emailInvalid = Boolean(getEmailValidationError(emailValue));
     const suggestedEmail = parsePrimaryEmail(emailValue);
-    const { linkedProfile, rolesToReview, canReview, isRoleExpansion, approvedRoles } = context;
+    const { linkedProfile, canReview, isRoleExpansion, approvedRoles } = context;
+    const selectedApprovalRoles = isRoleExpansion ? context.rolesToReview : approvalRolesForApp(app);
+    const rolesReady = isRoleExpansion
+      ? context.rolesReady
+      : approvalRolesReady(app, context, selectedApprovalRoles);
     const requirementSource = requirementSourceForApplication(app, context);
-    const relevantRequirementFields = requirementFieldsForRoles(rolesToReview, roleCatalog);
+    const relevantRequirementFields = requirementFieldsForRoles(selectedApprovalRoles, roleCatalog);
+    const selectableApprovalRoles = filterSignupRoleDescriptions(applicationRoleOptions, app.birthday);
 
     return (
       <div className="space-y-4">
@@ -493,7 +537,7 @@ export function VolunteersManager({
                   They are requesting new roles that require separate training verification.
                 </p>
                 <div className="grid gap-2 sm:grid-cols-2">
-                  {rolesToReview.map((role) => {
+                  {context.rolesToReview.map((role) => {
                     const missing = context.missingByRole[role] ?? [];
                     return (
                       <div
@@ -530,7 +574,7 @@ export function VolunteersManager({
           <div>
             <p><strong>Phone:</strong> {app.phone}</p>
             <p><strong>Birthday:</strong> {app.birthday ? formatDate(app.birthday) : "—"}</p>
-            <p><strong>Roles:</strong> {rolesToReview.map(roleLabel).join(", ") || "—"}</p>
+            <p><strong>Roles:</strong> {selectedApprovalRoles.map(roleLabel).join(", ") || "—"}</p>
           </div>
           <div>
             <p><strong>Experience:</strong> {app.prior_experience ?? "—"}</p>
@@ -662,17 +706,24 @@ export function VolunteersManager({
             <div className="flex flex-wrap items-end gap-3">
               {!isRoleExpansion && (
                 <>
-                  <div className="space-y-1">
-                    <Label className="text-xs">Role on Approval</Label>
-                    <Select value={approveRole} onValueChange={(v) => setApproveRole(v as UserRole)}>
-                      <SelectTrigger className="w-[180px]"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="volunteer">Volunteer</SelectItem>
-                        <SelectItem value="trap_team_lead">Trap Team Lead</SelectItem>
-                        <SelectItem value="inquiry_team">Inquiry Team</SelectItem>
-                        <SelectItem value="clinic_coordination">Clinic Coordination</SelectItem>
-                      </SelectContent>
-                    </Select>
+                  <div className="space-y-2 min-w-[220px] flex-1">
+                    <Label className="text-xs">Volunteer roles on approval</Label>
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      {selectableApprovalRoles.map((entry) => (
+                        <label
+                          key={entry.role_id}
+                          htmlFor={`approve-role-${app.id}-${entry.role_id}`}
+                          className="flex items-center gap-2 rounded-md border bg-background px-2 py-1.5 text-sm cursor-pointer"
+                        >
+                          <Checkbox
+                            id={`approve-role-${app.id}-${entry.role_id}`}
+                            checked={selectedApprovalRoles.includes(entry.role_id)}
+                            onCheckedChange={() => toggleApprovalRole(app.id, entry.role_id)}
+                          />
+                          <span>{entry.label}</span>
+                        </label>
+                      ))}
+                    </div>
                   </div>
                   <div className="space-y-1">
                     <Label className="text-xs">Team</Label>
@@ -688,17 +739,19 @@ export function VolunteersManager({
               )}
               <Button
                 size="sm"
-                disabled={actingId === app.id || emailInvalid || !context.rolesReady}
+                disabled={actingId === app.id || emailInvalid || !rolesReady}
                 onClick={() => handleApproveApplication(app, context, emailValue)}
               >
                 <Check className="h-4 w-4 mr-1" />
                 {actingId === app.id
                   ? "Working..."
-                  : context.rolesReady
+                  : rolesReady
                     ? isRoleExpansion
                       ? "Approve role expansion"
                       : "Approve"
-                    : "Complete requirements first"}
+                    : selectedApprovalRoles.length === 0
+                      ? "Select at least one role"
+                      : "Complete requirements first"}
               </Button>
               <Button
                 size="sm"
@@ -870,8 +923,8 @@ export function VolunteersManager({
             <SelectTrigger className="w-[240px]"><SelectValue placeholder="Volunteer interest" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All interests</SelectItem>
-              {VOLUNTEER_ROLES.map((role) => (
-                <SelectItem key={role.value} value={role.value}>{role.label}</SelectItem>
+              {applicationRoleOptions.map((entry) => (
+                <SelectItem key={entry.role_id} value={entry.role_id}>{entry.label}</SelectItem>
               ))}
             </SelectContent>
           </Select>

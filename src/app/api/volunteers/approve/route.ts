@@ -5,7 +5,7 @@ import { getRequestAppUrl } from "@/lib/app-url";
 import { getEmailValidationError, parsePrimaryEmail } from "@/lib/email-utils";
 import { sendVolunteerApprovalEmail } from "@/lib/email";
 import { ensureVolunteerAuthUser } from "@/lib/volunteers/approve-auth";
-import { isUnder18 } from "@/lib/volunteers/age-eligibility";
+import { isUnder18, isRoleAllowedOnSignup } from "@/lib/volunteers/age-eligibility";
 import { getDefaultVolunteerPassword } from "@/lib/volunteers/default-password";
 import type { VolunteerRole } from "@/lib/types";
 
@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
     if (response) return response;
 
     const body = await request.json();
-    const { applicationId, role, teamId, email: emailOverride } = body;
+    const { applicationId, teamId, email: emailOverride, volunteer_roles: volunteerRolesOverride } = body;
 
     if (!applicationId) {
       return errorResponse("Missing application ID");
@@ -82,9 +82,23 @@ export async function POST(request: NextRequest) {
       .eq("email", volunteerEmail)
       .maybeSingle();
 
-    const applicationRoles = ((application.roles_requested ?? []) as VolunteerRole[]).filter(
-      (role) => role !== "youth_volunteer"
+    const applicationRoles = (
+      Array.isArray(volunteerRolesOverride)
+        ? (volunteerRolesOverride as VolunteerRole[])
+        : ((application.roles_requested ?? []) as VolunteerRole[])
+    ).filter((entry) => entry !== "youth_volunteer");
+
+    const invalidRole = applicationRoles.find(
+      (entry) => !isRoleAllowedOnSignup(entry, application.birthday)
     );
+    if (invalidRole) {
+      return errorResponse(`Role "${invalidRole}" is not allowed for this volunteer.`);
+    }
+
+    if (applicationRoles.length === 0) {
+      return errorResponse("Select at least one volunteer role to approve.");
+    }
+
     const youthPermission: VolunteerRole[] =
       application.birthday && isUnder18(application.birthday) ? ["youth_volunteer"] : [];
 
@@ -100,7 +114,7 @@ export async function POST(request: NextRequest) {
       const { error: profileUpdateError } = await service
         .from("profiles")
         .update({
-          role: existingProfile.role || role || "volunteer",
+          role: existingProfile.role || "volunteer",
           ...(teamId ? { team_id: teamId } : {}),
           full_name: application.full_name,
           birthday: application.birthday ?? null,
@@ -136,7 +150,7 @@ export async function POST(request: NextRequest) {
         home_state: application.home_state ?? null,
         home_zip: application.home_zip ?? null,
         home_county: application.home_county ?? null,
-        role: role ?? "volunteer",
+        role: "volunteer",
         team_id: teamId ?? null,
         volunteer_roles: mergedVolunteerRoles,
         tnvr_certificate_uploaded: application.tnvr_certificate_uploaded ?? false,
@@ -178,6 +192,7 @@ export async function POST(request: NextRequest) {
       .from("volunteer_applications")
       .update({
         status: "approved",
+        roles_requested: applicationRoles,
         reviewed_by: reviewer,
         reviewed_at: new Date().toISOString(),
       })

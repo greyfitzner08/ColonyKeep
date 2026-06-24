@@ -22,7 +22,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { createClient } from "@/lib/supabase/client";
-import { resolveVolunteerRoleCatalog } from "@/lib/volunteers/role-catalog";
+import { resolveVolunteerRoleCatalog, signupVolunteerRoleOptions } from "@/lib/volunteers/role-catalog";
 import {
   REQUIREMENT_FIELD_OPTIONS,
   displayRequirementLabel,
@@ -41,6 +41,8 @@ export function RoleDescriptionsManager({ roleDescriptions }: RoleDescriptionsMa
     () => resolveVolunteerRoleCatalog(roleDescriptions),
     [roleDescriptions]
   );
+
+  const selectableRoles = useMemo(() => signupVolunteerRoleOptions(catalog), [catalog]);
 
   const [editingRole, setEditingRole] = useState<RoleDescription | null>(null);
   const [description, setDescription] = useState("");
@@ -140,7 +142,7 @@ export function RoleDescriptionsManager({ roleDescriptions }: RoleDescriptionsMa
         </div>
 
         <div className="divide-y">
-          {catalog.map((role) => {
+          {selectableRoles.map((role) => {
             const roleRequirements = role.requirements ?? [];
 
             return (

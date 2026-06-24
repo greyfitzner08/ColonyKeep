@@ -51,6 +51,9 @@ export function signupVolunteerRoleOptions(catalog: RoleDescription[]): RoleDesc
   return catalog.filter((entry) => !ADMIN_ONLY_VOLUNTEER_ROLES.includes(entry.role_id));
 }
 
+/** Canonical volunteer role list for signup, application approval, and admin role descriptions. */
+export const applicationVolunteerRoleOptions = signupVolunteerRoleOptions;
+
 export function filterSignupRoleDescriptions(
   catalog: RoleDescription[],
   birthday: string | null | undefined
@@ -58,9 +61,9 @@ export function filterSignupRoleDescriptions(
   return catalog.filter((entry) => isRoleAllowedOnSignup(entry.role_id, birthday));
 }
 
-/** Roles admins may assign — same as signup except Other is signup-only. */
+/** @deprecated Use signupVolunteerRoleOptions — same list. */
 export function adminAssignableVolunteerRoles(catalog: RoleDescription[]): RoleDescription[] {
-  return catalog.filter((entry) => entry.role_id !== OTHER_VOLUNTEER_ROLE);
+  return signupVolunteerRoleOptions(catalog);
 }
 
 export function volunteerRoleLabel(
