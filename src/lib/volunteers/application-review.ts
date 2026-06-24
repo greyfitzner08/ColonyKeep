@@ -1,4 +1,4 @@
-import type { Profile, VolunteerApplication, VolunteerRole, VolunteerRoleRequest } from "@/lib/types";
+import type { Profile, RoleDescription, VolunteerApplication, VolunteerRole, VolunteerRoleRequest } from "@/lib/types";
 import { pendingNewRoles, requirementSourceForRoleRequest } from "@/lib/volunteers/role-expansion";
 import { volunteerRequirementSource } from "@/lib/volunteers/requirement-source";
 import {
@@ -67,7 +67,8 @@ function requirementSourceForRole(
 export function getApplicationReviewContext(
   application: VolunteerApplication,
   profilesByEmail: Record<string, Profile>,
-  roleRequests: VolunteerRoleRequest[] = []
+  roleRequests: VolunteerRoleRequest[] = [],
+  roleCatalog: RoleDescription[] = []
 ): ApplicationReviewContext {
   const linkedProfile = profilesByEmail[application.email.toLowerCase()];
   const approvedRoles = (linkedProfile?.volunteer_roles ?? []) as VolunteerRole[];
@@ -81,7 +82,7 @@ export function getApplicationReviewContext(
 
   for (const role of rolesToReview) {
     const source = requirementSourceForRole(application, linkedProfile, role, pendingRoleRequests);
-    const missing = missingRequirementsForRole(role, source);
+    const missing = missingRequirementsForRole(role, source, roleCatalog);
     if (missing.length > 0) {
       missingByRole[role] = missing;
       for (const field of missing) {
@@ -91,7 +92,9 @@ export function getApplicationReviewContext(
   }
 
   const rolesReady = rolesToReview.every((role) => (missingByRole[role]?.length ?? 0) === 0);
-  const canReview = REVIEWABLE_STATUSES.has(application.status);
+  const canReview =
+    REVIEWABLE_STATUSES.has(application.status) ||
+    (isRoleExpansion && pendingRoleRequests.length > 0);
 
   let attentionLabel: string | null = null;
   let attentionDetail: string | null = null;
@@ -144,11 +147,17 @@ export function applicationMatchesFilter(
   application: VolunteerApplication,
   filter: ApplicationStatusFilter,
   profilesByEmail: Record<string, Profile>,
-  roleRequests: VolunteerRoleRequest[] = []
+  roleRequests: VolunteerRoleRequest[] = [],
+  roleCatalog: RoleDescription[] = []
 ): boolean {
   if (filter === "all") return true;
   if (filter === "needs_attention") {
-    return getApplicationReviewContext(application, profilesByEmail, roleRequests).needsAttention;
+    return getApplicationReviewContext(
+      application,
+      profilesByEmail,
+      roleRequests,
+      roleCatalog
+    ).needsAttention;
   }
   return application.status === filter;
 }
@@ -156,9 +165,15 @@ export function applicationMatchesFilter(
 export function attentionPriority(
   application: VolunteerApplication,
   profilesByEmail: Record<string, Profile>,
-  roleRequests: VolunteerRoleRequest[]
+  roleRequests: VolunteerRoleRequest[],
+  roleCatalog: RoleDescription[] = []
 ): number {
-  const context = getApplicationReviewContext(application, profilesByEmail, roleRequests);
+  const context = getApplicationReviewContext(
+    application,
+    profilesByEmail,
+    roleRequests,
+    roleCatalog
+  );
 
   if (context.isRoleExpansion && !context.rolesReady) return 0;
   if (application.status === "pending" && !context.isRoleExpansion) return 1;
@@ -172,10 +187,17 @@ export function attentionPriority(
 export function countApplicationsNeedingAttention(
   applications: VolunteerApplication[],
   profilesByEmail: Record<string, Profile>,
-  roleRequests: VolunteerRoleRequest[] = []
+  roleRequests: VolunteerRoleRequest[] = [],
+  roleCatalog: RoleDescription[] = []
 ): number {
   return applications.filter((application) =>
-    applicationMatchesFilter(application, "needs_attention", profilesByEmail, roleRequests)
+    applicationMatchesFilter(
+      application,
+      "needs_attention",
+      profilesByEmail,
+      roleRequests,
+      roleCatalog
+    )
   ).length;
 }
 

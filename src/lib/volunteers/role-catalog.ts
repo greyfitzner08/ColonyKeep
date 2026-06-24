@@ -1,5 +1,6 @@
 import { VOLUNTEER_ROLES } from "@/lib/constants";
 import type { RoleDescription, VolunteerRole } from "@/lib/types";
+import { VOLUNTEER_ROLE_REQUIREMENTS } from "@/lib/volunteers/role-requirements";
 import { ADMIN_ONLY_VOLUNTEER_ROLES, isRoleAllowedOnSignup } from "@/lib/volunteers/age-eligibility";
 
 export const OTHER_VOLUNTEER_ROLE: VolunteerRole = "other";
@@ -9,6 +10,9 @@ const DEFAULT_ROLE_DESCRIPTIONS: RoleDescription[] = VOLUNTEER_ROLES.map((role) 
   role_id: role.value,
   label: role.label,
   description: `Support the TNVR mission as a ${role.label.toLowerCase()}.`,
+  requirements:
+    VOLUNTEER_ROLE_REQUIREMENTS.find((entry) => entry.role === role.value)?.requires.map(String) ??
+    [],
   created_at: "",
   updated_at: "",
 }));
@@ -25,7 +29,16 @@ export function resolveVolunteerRoleCatalog(
 
   for (const entry of roleDescriptions) {
     const existing = merged.get(entry.role_id);
-    merged.set(entry.role_id, existing ? { ...existing, ...entry } : entry);
+    merged.set(entry.role_id, existing
+      ? {
+          ...existing,
+          ...entry,
+          requirements: entry.requirements ?? existing.requirements ?? [],
+        }
+      : {
+          ...entry,
+          requirements: entry.requirements ?? [],
+        });
   }
 
   return VOLUNTEER_ROLES.map((role) => merged.get(role.value)).filter(

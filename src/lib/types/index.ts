@@ -504,6 +504,8 @@ export interface RoleDescription {
   role_id: VolunteerRole;
   label: string;
   description: string;
+  /** Training/requirement fields required before this volunteer role can be approved. */
+  requirements: string[];
   created_at: string;
   updated_at: string;
 }

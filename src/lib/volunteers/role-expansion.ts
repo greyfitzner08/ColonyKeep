@@ -1,4 +1,4 @@
-import type { Profile, VolunteerApplication, VolunteerRole, VolunteerRoleRequest } from "@/lib/types";
+import type { Profile, RoleDescription, VolunteerApplication, VolunteerRole, VolunteerRoleRequest } from "@/lib/types";
 import type { RequirementField } from "@/lib/volunteers/role-requirements";
 import { missingRequirementsForRole } from "@/lib/volunteers/role-requirements";
 import { volunteerRequirementSource } from "@/lib/volunteers/requirement-source";
@@ -39,13 +39,14 @@ export function requirementSourceForRoleRequest(
 
 export function partitionRolesByRequirements(
   roles: VolunteerRole[],
-  source: Pick<VolunteerApplication, RequirementField>
+  source: Pick<VolunteerApplication, RequirementField>,
+  catalog: RoleDescription[] = []
 ): { ready: VolunteerRole[]; pending: VolunteerRole[] } {
   const ready: VolunteerRole[] = [];
   const pending: VolunteerRole[] = [];
 
   for (const role of roles) {
-    if (missingRequirementsForRole(role, source).length === 0) {
+    if (missingRequirementsForRole(role, source, catalog).length === 0) {
       ready.push(role);
     } else {
       pending.push(role);

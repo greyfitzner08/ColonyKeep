@@ -10,12 +10,14 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { createClient } from "@/lib/supabase/client";
 import { VolunteerTeamPicker } from "@/components/admin/volunteer-team-picker";
 import { AdminUsersManager } from "@/components/admin/admin-users-manager";
 import { VolunteerImporter } from "@/components/volunteers/volunteer-importer";
 import { getTeamEligibleVolunteers } from "@/lib/volunteers/eligibility";
+import { REQUIREMENT_FIELD_OPTIONS } from "@/lib/volunteers/role-requirements";
 import type { Profile, TrapTeam, RoleDescription, VolunteerApplication } from "@/lib/types";
 import { Plus, Pencil, X } from "lucide-react";
 
@@ -133,6 +135,12 @@ export function AdminPanel({
     router.refresh();
   }
 
+  async function updateRoleRequirements(id: string, requirements: string[]) {
+    const supabase = createClient();
+    await supabase.from("role_descriptions").update({ requirements }).eq("id", id);
+    router.refresh();
+  }
+
   return (
     <Tabs defaultValue="users">
       <TabsList>
@@ -235,19 +243,53 @@ export function AdminPanel({
       </TabsContent>
 
       <TabsContent value="roles" className="mt-4 space-y-3">
+        <p className="text-sm text-muted-foreground">
+          Edit volunteer role descriptions and define which training or paperwork is required before
+          each role can be approved.
+        </p>
         {roleDescriptions.map((rd) => (
           <Card key={rd.id}>
-            <CardContent className="pt-4 space-y-2">
+            <CardContent className="pt-4 space-y-4">
               <p className="font-medium">{rd.label}</p>
-              <Textarea
-                defaultValue={rd.description}
-                onBlur={(e) => {
-                  if (e.target.value !== rd.description) {
-                    updateRoleDescription(rd.id, e.target.value);
-                  }
-                }}
-                rows={2}
-              />
+              <div className="space-y-2">
+                <Label>Description</Label>
+                <Textarea
+                  defaultValue={rd.description}
+                  onBlur={(e) => {
+                    if (e.target.value !== rd.description) {
+                      updateRoleDescription(rd.id, e.target.value);
+                    }
+                  }}
+                  rows={2}
+                />
+              </div>
+              <div className="space-y-2 border-t pt-4">
+                <Label>Approval requirements</Label>
+                <p className="text-xs text-muted-foreground">
+                  Volunteers must complete checked items before this role can be approved. Leave all
+                  unchecked for roles with no prerequisites (for example, photographer).
+                </p>
+                <div className="flex flex-wrap gap-x-4 gap-y-2">
+                  {REQUIREMENT_FIELD_OPTIONS.map(({ key, label }) => {
+                    const active = (rd.requirements ?? []).includes(key);
+                    return (
+                      <label key={key} className="flex items-center gap-2 text-sm cursor-pointer">
+                        <Checkbox
+                          checked={active}
+                          onCheckedChange={(checked) => {
+                            const current = rd.requirements ?? [];
+                            const next = checked
+                              ? [...new Set([...current, key])]
+                              : current.filter((item) => item !== key);
+                            updateRoleRequirements(rd.id, next);
+                          }}
+                        />
+                        <span>{label}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
             </CardContent>
           </Card>
         ))}

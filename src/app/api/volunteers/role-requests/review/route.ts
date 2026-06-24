@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireApiRole } from "@/lib/api/auth";
 import { createServiceClient } from "@/lib/supabase/server";
-import type { VolunteerApplication, VolunteerRole } from "@/lib/types";
+import type { RoleDescription, VolunteerApplication, VolunteerRole } from "@/lib/types";
+import { resolveVolunteerRoleCatalog } from "@/lib/volunteers/role-catalog";
 import {
   markApplicationApprovedAfterRoleGrant,
   mergeVolunteerRoles,
@@ -24,6 +25,9 @@ export async function POST(request: NextRequest) {
   }
 
   const service = await createServiceClient();
+  const { data: roleDescriptions } = await service.from("role_descriptions").select("*");
+  const roleCatalog = resolveVolunteerRoleCatalog((roleDescriptions ?? []) as RoleDescription[]);
+
   const { data: roleRequest, error: fetchError } = await service
     .from("volunteer_role_requests")
     .select("*")
@@ -130,12 +134,12 @@ export async function POST(request: NextRequest) {
     roleRequest
   );
   const requestedRoles = (roleRequest.requested_roles ?? []) as VolunteerRole[];
-  const { ready, pending } = partitionRolesByRequirements(requestedRoles, source);
+  const { ready, pending } = partitionRolesByRequirements(requestedRoles, source, roleCatalog);
 
   if (ready.length === 0) {
     const details = requestedRoles
       .map((role) => {
-        const missing = missingRequirementsForRole(role, source);
+        const missing = missingRequirementsForRole(role, source, roleCatalog);
         return `${role}: ${missing.map(requirementLabel).join(", ")}`;
       })
       .join("; ");

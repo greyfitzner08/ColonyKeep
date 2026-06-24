@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Card, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -10,14 +10,22 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { VOLUNTEER_ROLES } from "@/lib/constants";
 import { getApiErrorMessage } from "@/lib/api/errors";
 import { getEmailValidationError, parsePrimaryEmail } from "@/lib/email-utils";
 import {
-  getRoleRequirement,
+  requirementsForRole,
   requirementLabel,
   type RequirementField,
 } from "@/lib/volunteers/role-requirements";
+import { resolveVolunteerRoleCatalog } from "@/lib/volunteers/role-catalog";
 import {
   applicationMatchesFilter,
   attentionPriority,
@@ -36,10 +44,9 @@ import type {
   VolunteerRole,
   VolunteerRoleRequest,
   Profile,
+  RoleDescription,
 } from "@/lib/types";
 import {
-  ChevronDown,
-  ChevronUp,
   Check,
   X,
   MessageCircle,
@@ -55,6 +62,7 @@ interface VolunteersManagerProps {
   teams: TrapTeam[];
   profilesByEmail: Record<string, Profile>;
   roleRequests?: VolunteerRoleRequest[];
+  roleDescriptions?: RoleDescription[];
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -77,10 +85,13 @@ function roleLabel(role: VolunteerRole) {
   return VOLUNTEER_ROLES.find((entry) => entry.value === role)?.label ?? role;
 }
 
-function requirementFieldsForRoles(roles: VolunteerRole[]): RequirementField[] {
+function requirementFieldsForRoles(
+  roles: VolunteerRole[],
+  catalog: RoleDescription[]
+): RequirementField[] {
   const fields = new Set<RequirementField>();
   for (const role of roles) {
-    for (const field of getRoleRequirement(role)?.requires ?? []) {
+    for (const field of requirementsForRole(role, catalog)) {
       fields.add(field);
     }
   }
@@ -92,9 +103,10 @@ export function VolunteersManager({
   teams,
   profilesByEmail,
   roleRequests = [],
+  roleDescriptions = [],
 }: VolunteersManagerProps) {
   const router = useRouter();
-  const [expanded, setExpanded] = useState<string | null>(null);
+  const [reviewingApplication, setReviewingApplication] = useState<VolunteerApplication | null>(null);
   const [filter, setFilter] = useState<ApplicationStatusFilter>("needs_attention");
   const [viewMode, setViewMode] = useState<ApplicationViewMode>("cards");
   const [interestFilter, setInterestFilter] = useState("all");
@@ -109,31 +121,55 @@ export function VolunteersManager({
   const [savingEmailId, setSavingEmailId] = useState<string | null>(null);
   const [resettingPasswordId, setResettingPasswordId] = useState<string | null>(null);
 
+  const roleCatalog = useMemo(
+    () => resolveVolunteerRoleCatalog(roleDescriptions),
+    [roleDescriptions]
+  );
+
+  const reviewingContext = useMemo(
+    () =>
+      reviewingApplication
+        ? getApplicationReviewContext(
+            reviewingApplication,
+            profilesByEmail,
+            roleRequests,
+            roleCatalog
+          )
+        : null,
+    [reviewingApplication, profilesByEmail, roleRequests, roleCatalog]
+  );
+
   const attentionCount = useMemo(
-    () => countApplicationsNeedingAttention(applications, profilesByEmail, roleRequests),
-    [applications, profilesByEmail, roleRequests]
+    () =>
+      countApplicationsNeedingAttention(applications, profilesByEmail, roleRequests, roleCatalog),
+    [applications, profilesByEmail, roleRequests, roleCatalog]
   );
 
   const filtered = useMemo(() => {
     let results = applications.filter((application) =>
-      applicationMatchesFilter(application, filter, profilesByEmail, roleRequests)
+      applicationMatchesFilter(application, filter, profilesByEmail, roleRequests, roleCatalog)
     );
 
     if (interestFilter !== "all") {
       results = results.filter((application) => {
-        const context = getApplicationReviewContext(application, profilesByEmail, roleRequests);
+        const context = getApplicationReviewContext(
+          application,
+          profilesByEmail,
+          roleRequests,
+          roleCatalog
+        );
         return context.rolesToReview.includes(interestFilter as VolunteerRole);
       });
     }
 
     return [...results].sort((a, b) => {
       const priorityDiff =
-        attentionPriority(a, profilesByEmail, roleRequests) -
-        attentionPriority(b, profilesByEmail, roleRequests);
+        attentionPriority(a, profilesByEmail, roleRequests, roleCatalog) -
+        attentionPriority(b, profilesByEmail, roleRequests, roleCatalog);
       if (priorityDiff !== 0) return priorityDiff;
       return a.full_name.localeCompare(b.full_name);
     });
-  }, [applications, filter, interestFilter, profilesByEmail, roleRequests]);
+  }, [applications, filter, interestFilter, profilesByEmail, roleRequests, roleCatalog]);
 
   function notesForApp(app: VolunteerApplication) {
     return actionNotes[app.id] ?? app.admin_notes ?? "";
@@ -213,6 +249,77 @@ export function VolunteersManager({
     }
     clearActionError();
     router.refresh();
+  }
+
+  async function handleApproveApplication(
+    app: VolunteerApplication,
+    context: ApplicationReviewContext,
+    email?: string
+  ) {
+    const roleRequest = context.pendingRoleRequests[0];
+    if (context.isRoleExpansion && roleRequest) {
+      clearActionError();
+      setActingId(app.id);
+      const response = await fetch("/api/volunteers/role-requests/review", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          request_id: roleRequest.id,
+          action: "approve",
+          admin_notes: notesForApp(app) || null,
+        }),
+      });
+      const result = await response.json().catch(() => null);
+      setActingId(null);
+      if (!response.ok) {
+        showActionError(getApiErrorMessage(result, "Unable to approve role expansion"));
+        return;
+      }
+      if (result?.warning) {
+        showActionError(result.warning);
+      } else {
+        clearActionError();
+      }
+      setReviewingApplication(null);
+      router.refresh();
+      return;
+    }
+
+    await handleAction(app.id, "approve", undefined, email);
+    setReviewingApplication(null);
+  }
+
+  async function handleRejectApplication(
+    app: VolunteerApplication,
+    context: ApplicationReviewContext
+  ) {
+    const roleRequest = context.pendingRoleRequests[0];
+    if (context.isRoleExpansion && roleRequest) {
+      clearActionError();
+      setActingId(app.id);
+      const response = await fetch("/api/volunteers/role-requests/review", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          request_id: roleRequest.id,
+          action: "reject",
+          admin_notes: notesForApp(app) || null,
+        }),
+      });
+      const result = await response.json().catch(() => null);
+      setActingId(null);
+      if (!response.ok) {
+        showActionError(getApiErrorMessage(result, "Unable to reject role expansion"));
+        return;
+      }
+      clearActionError();
+      setReviewingApplication(null);
+      router.refresh();
+      return;
+    }
+
+    await handleAction(app.id, "reject", notesForApp(app));
+    setReviewingApplication(null);
   }
 
   async function saveName(applicationId: string, fullName: string) {
@@ -346,7 +453,7 @@ export function VolunteersManager({
       showActionError(getApiErrorMessage(result, "Unable to delete application"));
       return;
     }
-    if (expanded === id) setExpanded(null);
+    if (reviewingApplication?.id === id) setReviewingApplication(null);
     router.refresh();
   }
 
@@ -357,7 +464,7 @@ export function VolunteersManager({
     const suggestedEmail = parsePrimaryEmail(emailValue);
     const { linkedProfile, rolesToReview, canReview, isRoleExpansion, approvedRoles } = context;
     const requirementSource = requirementSourceForApplication(app, context);
-    const relevantRequirementFields = requirementFieldsForRoles(rolesToReview);
+    const relevantRequirementFields = requirementFieldsForRoles(rolesToReview, roleCatalog);
 
     return (
       <div className="space-y-4">
@@ -540,39 +647,43 @@ export function VolunteersManager({
             </div>
 
             <div className="flex flex-wrap items-end gap-3">
-              <div className="space-y-1">
-                <Label className="text-xs">Role on Approval</Label>
-                <Select value={approveRole} onValueChange={(v) => setApproveRole(v as UserRole)}>
-                  <SelectTrigger className="w-[180px]"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="volunteer">Volunteer</SelectItem>
-                    <SelectItem value="trap_team_lead">Trap Team Lead</SelectItem>
-                    <SelectItem value="inquiry_team">Inquiry Team</SelectItem>
-                    <SelectItem value="clinic_coordination">Clinic Coordination</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs">Team</Label>
-                <Select value={approveTeam} onValueChange={setApproveTeam}>
-                  <SelectTrigger className="w-[180px]"><SelectValue placeholder="Optional" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">None</SelectItem>
-                    {teams.map((t) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
+              {!isRoleExpansion && (
+                <>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Role on Approval</Label>
+                    <Select value={approveRole} onValueChange={(v) => setApproveRole(v as UserRole)}>
+                      <SelectTrigger className="w-[180px]"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="volunteer">Volunteer</SelectItem>
+                        <SelectItem value="trap_team_lead">Trap Team Lead</SelectItem>
+                        <SelectItem value="inquiry_team">Inquiry Team</SelectItem>
+                        <SelectItem value="clinic_coordination">Clinic Coordination</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Team</Label>
+                    <Select value={approveTeam} onValueChange={setApproveTeam}>
+                      <SelectTrigger className="w-[180px]"><SelectValue placeholder="Optional" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">None</SelectItem>
+                        {teams.map((t) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </>
+              )}
               <Button
                 size="sm"
                 disabled={actingId === app.id || emailInvalid || !context.rolesReady}
-                onClick={() => handleAction(app.id, "approve", undefined, emailValue)}
+                onClick={() => handleApproveApplication(app, context, emailValue)}
               >
                 <Check className="h-4 w-4 mr-1" />
                 {actingId === app.id
                   ? "Working..."
                   : context.rolesReady
                     ? isRoleExpansion
-                      ? "Approve new roles"
+                      ? "Approve role expansion"
                       : "Approve"
                     : "Complete requirements first"}
               </Button>
@@ -588,13 +699,14 @@ export function VolunteersManager({
               <Button
                 size="sm"
                 variant="destructive"
-                onClick={() => handleAction(app.id, "reject", notesForApp(app))}
+                onClick={() => handleRejectApplication(app, context)}
                 disabled={actingId === app.id}
               >
-                <X className="h-4 w-4 mr-1" />Reject
+                <X className="h-4 w-4 mr-1" />
+                {isRoleExpansion ? "Reject expansion" : "Reject"}
               </Button>
             </div>
-            {actionError && expanded === app.id && (
+            {actionError && reviewingApplication?.id === app.id && (
               <p
                 className={`text-sm ${
                   actionError.startsWith("Volunteer approved") ||
@@ -789,7 +901,12 @@ export function VolunteersManager({
       )}
 
       {viewMode === "cards" && filtered.map((app) => {
-        const context = getApplicationReviewContext(app, profilesByEmail, roleRequests);
+        const context = getApplicationReviewContext(
+          app,
+          profilesByEmail,
+          roleRequests,
+          roleCatalog
+        );
 
         return (
           <Card
@@ -799,15 +916,12 @@ export function VolunteersManager({
               context.needsAttention && !context.isRoleExpansion && "border-primary/20"
             )}
           >
-            <CardHeader
-              className="cursor-pointer"
-              onClick={() => setExpanded(expanded === app.id ? null : app.id)}
-            >
+            <CardHeader>
               <div className="flex items-start justify-between gap-4">
                 <div className="space-y-2 min-w-0 flex-1">
                   {renderApplicationSummary(app, context)}
                 </div>
-                <div className="flex items-center gap-2 shrink-0">
+                <div className="flex flex-col items-end gap-2 shrink-0">
                   {context.attentionLabel && (
                     <Badge
                       variant="outline"
@@ -821,15 +935,17 @@ export function VolunteersManager({
                     </Badge>
                   )}
                   <Badge className={STATUS_COLORS[app.status]}>{app.status.replace(/_/g, " ")}</Badge>
-                  {expanded === app.id ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setReviewingApplication(app)}
+                  >
+                    Review
+                  </Button>
                 </div>
               </div>
             </CardHeader>
-            {expanded === app.id && (
-              <CardContent className="space-y-4 border-t pt-4">
-                {renderApplicationDetails(app, context)}
-              </CardContent>
-            )}
           </Card>
         );
       })}
@@ -845,91 +961,111 @@ export function VolunteersManager({
           </div>
           <div className="divide-y">
             {filtered.map((app) => {
-              const context = getApplicationReviewContext(app, profilesByEmail, roleRequests);
-              const isExpanded = expanded === app.id;
+              const context = getApplicationReviewContext(
+                app,
+                profilesByEmail,
+                roleRequests,
+                roleCatalog
+              );
 
               return (
-                <div key={app.id}>
-                  <div
-                    className={cn(
-                      "grid gap-3 px-4 py-4 md:grid-cols-[minmax(0,1.1fr)_minmax(0,0.8fr)_minmax(0,1fr)_minmax(0,1fr)_auto] md:items-center",
-                      context.isRoleExpansion && !context.rolesReady && "bg-amber-50/60"
+                <div
+                  key={app.id}
+                  className={cn(
+                    "grid gap-3 px-4 py-4 md:grid-cols-[minmax(0,1.1fr)_minmax(0,0.8fr)_minmax(0,1fr)_minmax(0,1fr)_auto] md:items-center",
+                    context.isRoleExpansion && !context.rolesReady && "bg-amber-50/60"
+                  )}
+                >
+                  <div className="min-w-0">
+                    <p className="font-medium truncate">{app.full_name}</p>
+                    <p className="text-sm text-muted-foreground truncate">{app.email}</p>
+                    <p className="text-xs text-muted-foreground md:hidden">
+                      Applied {formatDate(app.created_at)}
+                    </p>
+                  </div>
+                  <div>
+                    <Badge className={STATUS_COLORS[app.status]}>{app.status.replace(/_/g, " ")}</Badge>
+                  </div>
+                  <div className="space-y-1">
+                    {context.attentionLabel ? (
+                      <Badge
+                        variant="outline"
+                        className={cn(
+                          "text-xs",
+                          context.isRoleExpansion && !context.rolesReady
+                            ? "border-amber-400 bg-amber-50 text-amber-900"
+                            : "border-primary/30 text-primary"
+                        )}
+                      >
+                        {context.attentionLabel}
+                      </Badge>
+                    ) : (
+                      <span className="text-sm text-muted-foreground">—</span>
                     )}
-                  >
-                    <div className="min-w-0">
-                      <p className="font-medium truncate">{app.full_name}</p>
-                      <p className="text-sm text-muted-foreground truncate">{app.email}</p>
-                      <p className="text-xs text-muted-foreground md:hidden">
-                        Applied {formatDate(app.created_at)}
-                      </p>
-                    </div>
-                    <div>
-                      <Badge className={STATUS_COLORS[app.status]}>{app.status.replace(/_/g, " ")}</Badge>
-                    </div>
-                    <div className="space-y-1">
-                      {context.attentionLabel ? (
+                    {context.attentionDetail && (
+                      <p className="text-xs text-muted-foreground line-clamp-2">{context.attentionDetail}</p>
+                    )}
+                  </div>
+                  <div className="flex flex-wrap gap-1">
+                    {context.rolesToReview.map((role) => {
+                      const missing = context.missingByRole[role] ?? [];
+                      return (
                         <Badge
-                          variant="outline"
+                          key={role}
+                          variant={missing.length === 0 ? "secondary" : "outline"}
                           className={cn(
-                            "text-xs",
-                            context.isRoleExpansion && !context.rolesReady
-                              ? "border-amber-400 bg-amber-50 text-amber-900"
-                              : "border-primary/30 text-primary"
+                            "text-[11px]",
+                            missing.length > 0 && "border-amber-400 text-amber-900 bg-amber-50"
                           )}
                         >
-                          {context.attentionLabel}
+                          {roleLabel(role)}
                         </Badge>
-                      ) : (
-                        <span className="text-sm text-muted-foreground">—</span>
-                      )}
-                      {context.attentionDetail && (
-                        <p className="text-xs text-muted-foreground line-clamp-2">{context.attentionDetail}</p>
-                      )}
-                    </div>
-                    <div className="flex flex-wrap gap-1">
-                      {context.rolesToReview.map((role) => {
-                        const missing = context.missingByRole[role] ?? [];
-                        return (
-                          <Badge
-                            key={role}
-                            variant={missing.length === 0 ? "secondary" : "outline"}
-                            className={cn(
-                              "text-[11px]",
-                              missing.length > 0 && "border-amber-400 text-amber-900 bg-amber-50"
-                            )}
-                          >
-                            {roleLabel(role)}
-                          </Badge>
-                        );
-                      })}
-                      {!context.rolesReady && context.allMissingRequirements.length > 0 && (
-                        <span className="text-xs text-amber-900 w-full">
-                          Needs: {context.allMissingRequirements.map(requirementLabel).join(", ")}
-                        </span>
-                      )}
-                    </div>
-                    <div className="md:text-right">
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        onClick={() => setExpanded(isExpanded ? null : app.id)}
-                      >
-                        {isExpanded ? "Hide" : "Review"}
-                      </Button>
-                    </div>
+                      );
+                    })}
+                    {!context.rolesReady && context.allMissingRequirements.length > 0 && (
+                      <span className="text-xs text-amber-900 w-full">
+                        Needs: {context.allMissingRequirements.map(requirementLabel).join(", ")}
+                      </span>
+                    )}
                   </div>
-                  {isExpanded && (
-                    <div className="border-t bg-muted/10 px-4 py-4">
-                      {renderApplicationDetails(app, context)}
-                    </div>
-                  )}
+                  <div className="md:text-right">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setReviewingApplication(app)}
+                    >
+                      Review
+                    </Button>
+                  </div>
                 </div>
               );
             })}
           </div>
         </div>
       )}
+
+      <Dialog
+        open={reviewingApplication != null}
+        onOpenChange={(open) => !open && setReviewingApplication(null)}
+      >
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          {reviewingApplication && reviewingContext && (
+            <>
+              <DialogHeader>
+                <DialogTitle>{reviewingApplication.full_name}</DialogTitle>
+                <DialogDescription>
+                  {reviewingApplication.email} · Applied {formatDate(reviewingApplication.created_at)}
+                  {reviewingContext.linkedProfile?.role && (
+                    <> · Platform role: {reviewingContext.linkedProfile.role.replace(/_/g, " ")}</>
+                  )}
+                </DialogDescription>
+              </DialogHeader>
+              {renderApplicationDetails(reviewingApplication, reviewingContext)}
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
