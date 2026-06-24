@@ -55,7 +55,12 @@ import {
   KeyRound,
   LayoutGrid,
   Table2,
+  ArrowUp,
+  ArrowDown,
+  ArrowUpDown,
 } from "lucide-react";
+
+type NameSortDirection = "asc" | "desc";
 
 interface VolunteersManagerProps {
   applications: VolunteerApplication[];
@@ -109,6 +114,7 @@ export function VolunteersManager({
   const [reviewingApplication, setReviewingApplication] = useState<VolunteerApplication | null>(null);
   const [filter, setFilter] = useState<ApplicationStatusFilter>("needs_attention");
   const [viewMode, setViewMode] = useState<ApplicationViewMode>("cards");
+  const [nameSort, setNameSort] = useState<NameSortDirection | null>(null);
   const [interestFilter, setInterestFilter] = useState("all");
   const [approveRole, setApproveRole] = useState<UserRole>("volunteer");
   const [approveTeam, setApproveTeam] = useState<string>("none");
@@ -162,14 +168,21 @@ export function VolunteersManager({
       });
     }
 
+    if (viewMode === "table" && nameSort) {
+      return [...results].sort((a, b) => {
+        const cmp = a.full_name.localeCompare(b.full_name, undefined, { sensitivity: "base" });
+        return nameSort === "asc" ? cmp : -cmp;
+      });
+    }
+
     return [...results].sort((a, b) => {
       const priorityDiff =
         attentionPriority(a, profilesByEmail, roleRequests, roleCatalog) -
         attentionPriority(b, profilesByEmail, roleRequests, roleCatalog);
       if (priorityDiff !== 0) return priorityDiff;
-      return a.full_name.localeCompare(b.full_name);
+      return a.full_name.localeCompare(b.full_name, undefined, { sensitivity: "base" });
     });
-  }, [applications, filter, interestFilter, profilesByEmail, roleRequests, roleCatalog]);
+  }, [applications, filter, interestFilter, profilesByEmail, roleRequests, roleCatalog, viewMode, nameSort]);
 
   function notesForApp(app: VolunteerApplication) {
     return actionNotes[app.id] ?? app.admin_notes ?? "";
@@ -953,7 +966,22 @@ export function VolunteersManager({
       {viewMode === "table" && filtered.length > 0 && (
         <div className="rounded-lg border overflow-hidden">
           <div className="hidden md:grid md:grid-cols-[minmax(0,1.1fr)_minmax(0,0.8fr)_minmax(0,1fr)_minmax(0,1fr)_auto] gap-3 px-4 py-3 bg-muted/40 text-xs font-medium text-muted-foreground border-b">
-            <span>Applicant</span>
+            <button
+              type="button"
+              className="inline-flex items-center gap-1 text-left hover:text-foreground transition-colors"
+              onClick={() =>
+                setNameSort((current) => (current === "asc" ? "desc" : "asc"))
+              }
+            >
+              Applicant
+              {nameSort === "asc" ? (
+                <ArrowUp className="h-3.5 w-3.5" />
+              ) : nameSort === "desc" ? (
+                <ArrowDown className="h-3.5 w-3.5" />
+              ) : (
+                <ArrowUpDown className="h-3.5 w-3.5 opacity-50" />
+              )}
+            </button>
             <span>Status</span>
             <span>Attention</span>
             <span>Roles / requirements</span>
