@@ -12,11 +12,13 @@ export const MINOR_SIGNUP_VOLUNTEER_ROLES: VolunteerRole[] = [
 /** Admin-facing label for minors — not selectable on public signup. */
 export const ADMIN_ONLY_VOLUNTEER_ROLES: VolunteerRole[] = ["youth_volunteer"];
 
-/** @deprecated Use isRoleAllowedOnSignup — kept for profile role expansion checks. */
+/** @deprecated Use isRoleAllowedOnSignup — adult-only interests for profile expansion. */
 export const ADULT_ONLY_VOLUNTEER_ROLES: VolunteerRole[] = [
   "intake_representative",
   "trapper",
   "trap_loaner",
+  "transporter",
+  "recovery",
   "grant_writing",
 ];
 
@@ -75,6 +77,10 @@ export function filterRolesForAge(
   birthday: string | null | undefined
 ): VolunteerRole[] {
   return filterSignupRolesForAge(roles, birthday);
+}
+
+export function isMinorVolunteer(birthday: string | null | undefined): boolean {
+  return Boolean(birthday && isUnder18(birthday));
 }
 
 export function hasRestrictedRoleForMinorProfileExpansion(

@@ -8,9 +8,10 @@ export async function POST(request: NextRequest) {
   if (response) return response;
 
   const body = await request.json();
-  const { applicationId, email, adminNotes } = body as {
+  const { applicationId, email, fullName, adminNotes } = body as {
     applicationId?: string;
     email?: string;
+    fullName?: string;
     adminNotes?: string;
   };
 
@@ -32,6 +33,14 @@ export async function POST(request: NextRequest) {
     updates.email = normalizedEmail;
   }
 
+  if (fullName !== undefined) {
+    const trimmed = fullName.trim();
+    if (!trimmed) {
+      return NextResponse.json({ error: "Name is required" }, { status: 400 });
+    }
+    updates.full_name = trimmed;
+  }
+
   if (adminNotes !== undefined) {
     updates.admin_notes = adminNotes.trim() || null;
   }
@@ -41,6 +50,17 @@ export async function POST(request: NextRequest) {
   }
 
   const service = await createServiceClient();
+
+  const { data: existingApplication, error: loadError } = await service
+    .from("volunteer_applications")
+    .select("email")
+    .eq("id", applicationId)
+    .single();
+
+  if (loadError || !existingApplication) {
+    return NextResponse.json({ error: "Volunteer application not found" }, { status: 404 });
+  }
+
   const { error } = await service
     .from("volunteer_applications")
     .update(updates)
@@ -48,6 +68,14 @@ export async function POST(request: NextRequest) {
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 400 });
+  }
+
+  if (updates.full_name) {
+    const profileEmail = updates.email ?? existingApplication.email;
+    await service
+      .from("profiles")
+      .update({ full_name: updates.full_name })
+      .eq("email", profileEmail);
   }
 
   return NextResponse.json({ success: true });

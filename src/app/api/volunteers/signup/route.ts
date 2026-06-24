@@ -1,7 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
+import { isKnownUserRole } from "@/lib/constants";
 import { getEmailValidationError, parsePrimaryEmail } from "@/lib/email-utils";
-import { invalidRolesForMinorSignup, isUnder18 } from "@/lib/volunteers/age-eligibility";
+import {
+  ADMIN_ONLY_VOLUNTEER_ROLES,
+  invalidRolesForMinorSignup,
+  isUnder18,
+} from "@/lib/volunteers/age-eligibility";
+import { isExemptFromVolunteerApplication } from "@/lib/volunteers/application-requirements";
 import type { VolunteerRole } from "@/lib/types";
 
 export async function POST(request: NextRequest) {
@@ -37,13 +43,23 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Select at least one role" }, { status: 400 });
   }
 
+  const adminOnlySelected = rolesRequested.filter((role) =>
+    ADMIN_ONLY_VOLUNTEER_ROLES.includes(role)
+  );
+  if (adminOnlySelected.length > 0) {
+    return NextResponse.json(
+      { error: "One or more selected roles cannot be requested on the public application." },
+      { status: 400 }
+    );
+  }
+
   if (isUnder18(birthday)) {
     const restricted = invalidRolesForMinorSignup(rolesRequested);
     if (restricted.length > 0) {
       return NextResponse.json(
         {
           error:
-            "Volunteers under 18 can only apply for photographer, videographer, social media, crafter, and community outreach roles.",
+            "Volunteers under 18 can only apply for photographer, videographer, social media, crafter, and community outreach roles. Trapping, transport, and recovery space roles require you to be 18 or older.",
         },
         { status: 400 }
       );
@@ -75,8 +91,37 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  let applicationStatus: "pending" | "approved" = "pending";
+  let reviewedBy: string | null = null;
+  let reviewedAt: string | null = null;
+
+  if (user) {
+    const { data: actorProfile } = await service
+      .from("profiles")
+      .select("role")
+      .eq("id", user.id)
+      .single();
+
+    if (
+      actorProfile &&
+      isKnownUserRole(actorProfile.role) &&
+      !isExemptFromVolunteerApplication(actorProfile)
+    ) {
+      applicationStatus = "approved";
+      reviewedBy = "volunteer-backfill";
+      reviewedAt = new Date().toISOString();
+    }
+  }
+
   const { error } = await service.from("volunteer_applications").insert({
-    status: "pending",
+    status: applicationStatus,
+    reviewed_by: reviewedBy,
+    reviewed_at: reviewedAt,
     full_name: body.full_name?.trim(),
     email: volunteerEmail,
     phone: body.phone,
@@ -95,19 +140,22 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 400 });
   }
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
   if (user) {
     await service
       .from("profiles")
       .update({
         full_name: body.full_name?.trim() || null,
         birthday,
+        phone: body.phone?.trim() || null,
+        ...(body.tnvr_certificate_uploaded && body.tnvr_certificate_url
+          ? {
+              tnvr_certificate_uploaded: true,
+              tnvr_certificate_url: body.tnvr_certificate_url,
+            }
+          : {}),
       })
       .eq("id", user.id);
   }
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ ok: true, autoApproved: applicationStatus === "approved" });
 }

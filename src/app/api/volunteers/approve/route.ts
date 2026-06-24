@@ -5,7 +5,9 @@ import { getRequestAppUrl } from "@/lib/app-url";
 import { getEmailValidationError, parsePrimaryEmail } from "@/lib/email-utils";
 import { sendVolunteerApprovalEmail } from "@/lib/email";
 import { ensureVolunteerAuthUser } from "@/lib/volunteers/approve-auth";
+import { isUnder18 } from "@/lib/volunteers/age-eligibility";
 import { getDefaultVolunteerPassword } from "@/lib/volunteers/default-password";
+import type { VolunteerRole } from "@/lib/types";
 
 function errorResponse(message: string, status = 400) {
   return NextResponse.json({ error: message }, { status });
@@ -80,10 +82,17 @@ export async function POST(request: NextRequest) {
       .eq("email", volunteerEmail)
       .maybeSingle();
 
+    const applicationRoles = ((application.roles_requested ?? []) as VolunteerRole[]).filter(
+      (role) => role !== "youth_volunteer"
+    );
+    const youthPermission: VolunteerRole[] =
+      application.birthday && isUnder18(application.birthday) ? ["youth_volunteer"] : [];
+
     const mergedVolunteerRoles = Array.from(
       new Set([
-        ...((existingProfile?.volunteer_roles ?? []) as string[]),
-        ...((application.roles_requested ?? []) as string[]),
+        ...((existingProfile?.volunteer_roles ?? []) as VolunteerRole[]),
+        ...applicationRoles,
+        ...youthPermission,
       ])
     );
 
@@ -117,7 +126,7 @@ export async function POST(request: NextRequest) {
         birthday: application.birthday ?? null,
         role: role ?? "volunteer",
         team_id: teamId ?? null,
-        volunteer_roles: application.roles_requested ?? [],
+        volunteer_roles: mergedVolunteerRoles,
         tnvr_certificate_uploaded: application.tnvr_certificate_uploaded ?? false,
         tnvr_certificate_url: application.tnvr_certificate_url ?? null,
         must_change_password: isNewUser,

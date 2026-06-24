@@ -62,6 +62,7 @@ export function VolunteersManager({ applications, teams, profilesByEmail }: Volu
   const [updatingField, setUpdatingField] = useState<string | null>(null);
   const [actionNotes, setActionNotes] = useState<Record<string, string>>({});
   const [emailEdits, setEmailEdits] = useState<Record<string, string>>({});
+  const [nameEdits, setNameEdits] = useState<Record<string, string>>({});
   const [savingEmailId, setSavingEmailId] = useState<string | null>(null);
   const [resettingPasswordId, setResettingPasswordId] = useState<string | null>(null);
 
@@ -90,6 +91,10 @@ export function VolunteersManager({ applications, teams, profilesByEmail }: Volu
 
   function emailForApp(app: VolunteerApplication) {
     return emailEdits[app.id] ?? app.email;
+  }
+
+  function nameForApp(app: VolunteerApplication) {
+    return nameEdits[app.id] ?? app.full_name;
   }
 
   function showActionError(message: string) {
@@ -157,6 +162,23 @@ export function VolunteersManager({ applications, teams, profilesByEmail }: Volu
       }
     }
     clearActionError();
+    router.refresh();
+  }
+
+  async function saveName(applicationId: string, fullName: string) {
+    clearActionError();
+    setSavingEmailId(applicationId);
+    const response = await fetch("/api/volunteers/update-details", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ applicationId, fullName }),
+    });
+    const result = await response.json().catch(() => null);
+    setSavingEmailId(null);
+    if (!response.ok) {
+      showActionError(getApiErrorMessage(result, "Unable to update name"));
+      return;
+    }
     router.refresh();
   }
 
@@ -314,6 +336,7 @@ export function VolunteersManager({ applications, teams, profilesByEmail }: Volu
 
       {filtered.map((app) => {
         const emailValue = emailForApp(app);
+        const nameValue = nameForApp(app);
         const emailInvalid = Boolean(getEmailValidationError(emailValue));
         const suggestedEmail = parsePrimaryEmail(emailValue);
         const canReview = REVIEWABLE_STATUSES.has(app.status);
@@ -394,42 +417,66 @@ export function VolunteersManager({ applications, teams, profilesByEmail }: Volu
                   </div>
                 </div>
 
-                {canReview && (
-                  <div className="space-y-2 rounded-md border p-3">
-                    <Label htmlFor={`email-${app.id}`}>Email</Label>
+                <div className="space-y-3 rounded-md border p-3">
+                  <div className="space-y-2">
+                    <Label htmlFor={`name-${app.id}`}>Full name</Label>
                     <div className="flex flex-wrap items-end gap-2">
                       <Input
-                        id={`email-${app.id}`}
-                        type="email"
-                        value={emailValue}
+                        id={`name-${app.id}`}
+                        value={nameValue}
                         onChange={(event) =>
-                          setEmailEdits((prev) => ({ ...prev, [app.id]: event.target.value }))
+                          setNameEdits((prev) => ({ ...prev, [app.id]: event.target.value }))
                         }
                         className="max-w-md"
                       />
                       <Button
                         size="sm"
                         variant="outline"
-                        disabled={savingEmailId === app.id || emailValue === app.email}
-                        onClick={() => saveEmail(app.id, emailValue)}
+                        disabled={savingEmailId === app.id || nameValue === app.full_name}
+                        onClick={() => saveName(app.id, nameValue)}
                       >
-                        {savingEmailId === app.id ? "Saving..." : "Save Email"}
+                        {savingEmailId === app.id ? "Saving..." : "Save Name"}
                       </Button>
                     </div>
-                    {emailInvalid && (
-                      <p className="flex flex-wrap items-center gap-1 text-sm text-destructive">
-                        <AlertTriangle className="h-4 w-4 shrink-0" />
-                        <span>
-                          Fix the email address before approving. Use one valid address only.
-                          {suggestedEmail &&
-                            emailValue.trim().toLowerCase() !== suggestedEmail && (
-                              <> Suggested: {suggestedEmail}</>
-                            )}
-                        </span>
-                      </p>
-                    )}
                   </div>
-                )}
+
+                  {canReview && (
+                    <div className="space-y-2">
+                      <Label htmlFor={`email-${app.id}`}>Email</Label>
+                      <div className="flex flex-wrap items-end gap-2">
+                        <Input
+                          id={`email-${app.id}`}
+                          type="email"
+                          value={emailValue}
+                          onChange={(event) =>
+                            setEmailEdits((prev) => ({ ...prev, [app.id]: event.target.value }))
+                          }
+                          className="max-w-md"
+                        />
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={savingEmailId === app.id || emailValue === app.email}
+                          onClick={() => saveEmail(app.id, emailValue)}
+                        >
+                          {savingEmailId === app.id ? "Saving..." : "Save Email"}
+                        </Button>
+                      </div>
+                      {emailInvalid && (
+                        <p className="flex flex-wrap items-center gap-1 text-sm text-destructive">
+                          <AlertTriangle className="h-4 w-4 shrink-0" />
+                          <span>
+                            Fix the email address before approving. Use one valid address only.
+                            {suggestedEmail &&
+                              emailValue.trim().toLowerCase() !== suggestedEmail && (
+                                <> Suggested: {suggestedEmail}</>
+                              )}
+                          </span>
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
 
                 {app.admin_notes && !canReview && (
                   <div className="rounded-md border bg-muted/40 p-3 text-sm">

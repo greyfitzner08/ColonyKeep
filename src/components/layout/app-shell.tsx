@@ -2,12 +2,17 @@ import { getCurrentProfile } from "@/lib/auth";
 import { Sidebar } from "@/components/layout/sidebar";
 import { VolunteerGate } from "@/components/layout/volunteer-gate";
 import { VolunteerApplicationGate } from "@/components/layout/volunteer-application-gate";
+import { VolunteerRequirementsGate } from "@/components/layout/volunteer-requirements-gate";
 import { SupabaseConfigGate } from "@/components/layout/supabase-config-gate";
 import { BirthdayGate } from "@/components/layout/birthday-gate";
 import { isKnownUserRole } from "@/lib/constants";
 import { hasSupabaseServerConfig } from "@/lib/supabase/env";
 import { createClient } from "@/lib/supabase/server";
-import { requiresVolunteerApplication } from "@/lib/volunteers/application-requirements";
+import {
+  isApplicationPendingReview,
+  requiresVolunteerApplication,
+  requiresVolunteerRequirementCompletion,
+} from "@/lib/volunteers/application-requirements";
 import type { VolunteerApplication } from "@/lib/types";
 
 export async function AppShell({ children }: { children: React.ReactNode }) {
@@ -32,6 +37,14 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
 
   if (profile && requiresVolunteerApplication(profile, application)) {
     return <VolunteerApplicationGate profile={profile} />;
+  }
+
+  if (profile && isApplicationPendingReview(profile, application)) {
+    return <VolunteerGate />;
+  }
+
+  if (profile && application && requiresVolunteerRequirementCompletion(profile, application)) {
+    return <VolunteerRequirementsGate profile={profile} application={application} />;
   }
 
   if (!isKnownUserRole(profile?.role)) {

@@ -1,6 +1,6 @@
 import { VOLUNTEER_ROLES } from "@/lib/constants";
 import type { RoleDescription, VolunteerRole } from "@/lib/types";
-import { isRoleAllowedOnSignup } from "@/lib/volunteers/age-eligibility";
+import { ADMIN_ONLY_VOLUNTEER_ROLES, isRoleAllowedOnSignup } from "@/lib/volunteers/age-eligibility";
 
 export const OTHER_VOLUNTEER_ROLE: VolunteerRole = "other";
 
@@ -33,9 +33,9 @@ export function resolveVolunteerRoleCatalog(
   );
 }
 
-/** Roles shown on the volunteer signup form (includes Other). */
+/** Roles shown on the volunteer signup form (includes Other; excludes admin-only labels). */
 export function signupVolunteerRoleOptions(catalog: RoleDescription[]): RoleDescription[] {
-  return catalog;
+  return catalog.filter((entry) => !ADMIN_ONLY_VOLUNTEER_ROLES.includes(entry.role_id));
 }
 
 export function filterSignupRoleDescriptions(

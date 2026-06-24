@@ -10,6 +10,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -64,6 +65,7 @@ export function AdminUserEditDialog({
   );
 
   const [platformRole, setPlatformRole] = useState<UserRole | "none">("none");
+  const [fullName, setFullName] = useState("");
   const [teamId, setTeamId] = useState<string>("none");
   const [volunteerRoles, setVolunteerRoles] = useState<VolunteerRole[]>([]);
   const [saving, setSaving] = useState(false);
@@ -71,6 +73,7 @@ export function AdminUserEditDialog({
   useEffect(() => {
     if (!user) return;
     setPlatformRole(isKnownUserRole(user.role) ? user.role : "none");
+    setFullName(user.full_name ?? "");
     setTeamId(user.team_id ?? "none");
     setVolunteerRoles(user.volunteer_roles ?? []);
   }, [user]);
@@ -94,10 +97,22 @@ export function AdminUserEditDialog({
       role?: UserRole;
       teamId?: string | null;
       volunteer_roles?: VolunteerRole[];
+      fullName?: string;
     } = { userId: user.id };
 
     const nextPlatformRole = platformRole === "none" ? null : platformRole;
     const nextTeamId = teamId === "none" ? null : teamId;
+    const nextFullName = fullName.trim();
+
+    if (!nextFullName) {
+      onError("Name is required");
+      setSaving(false);
+      return;
+    }
+
+    if (nextFullName !== (user.full_name ?? "")) {
+      payload.fullName = nextFullName;
+    }
 
     if (nextPlatformRole !== user.role) {
       if (!nextPlatformRole) {
@@ -126,7 +141,7 @@ export function AdminUserEditDialog({
       payload.volunteer_roles = nextVolunteerRoles;
     }
 
-    if (!payload.role && payload.teamId === undefined && !payload.volunteer_roles) {
+    if (!payload.role && payload.teamId === undefined && !payload.volunteer_roles && !payload.fullName) {
       onOpenChange(false);
       setSaving(false);
       return;
@@ -161,6 +176,15 @@ export function AdminUserEditDialog({
 
         <div className="space-y-5">
           <VolunteerEligibilityBadges application={application ?? undefined} />
+
+          <div className="space-y-2">
+            <Label htmlFor="admin-user-full-name">Full name</Label>
+            <Input
+              id="admin-user-full-name"
+              value={fullName}
+              onChange={(event) => setFullName(event.target.value)}
+            />
+          </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
