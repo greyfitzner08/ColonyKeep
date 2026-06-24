@@ -1,4 +1,4 @@
-import { Cat, Clock } from "lucide-react";
+import { Cat, Clock, LogIn } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -18,9 +18,16 @@ export function VolunteerGate() {
         </CardHeader>
         <CardContent className="space-y-4 text-center">
           <p className="text-sm text-muted-foreground">
-            You&apos;ll receive an email once your application is approved and you&apos;ll gain access to the volunteer portal.
+            You&apos;ll receive an email once your application is approved and you&apos;ll gain
+            access to the volunteer portal.
           </p>
           <div className="flex flex-col gap-2">
+            <Button asChild>
+              <Link href="/login">
+                <LogIn className="mr-2 h-4 w-4" />
+                Sign in
+              </Link>
+            </Button>
             <Button asChild variant="outline">
               <Link href="/volunteer-signup">View Application Form</Link>
             </Button>

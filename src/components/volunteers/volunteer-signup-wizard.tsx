@@ -275,11 +275,21 @@ export function VolunteerSignupWizard({ variant, profile, onSubmitted }: Volunte
     return (
       <div className="min-h-screen flex items-center justify-center bg-muted/30 p-4">
         <Card className="max-w-md w-full text-center">
-          <CardContent className="pt-8 pb-6 space-y-3">
+          <CardContent className="pt-8 pb-6 space-y-4">
             <CheckCircle className="mx-auto h-16 w-16 text-primary" />
-            <h2 className="text-xl font-semibold">Application Submitted</h2>
-            <p className="text-muted-foreground">
-              Thank you for applying! Our team will review your application and contact you soon.
+            <div className="space-y-2">
+              <h2 className="text-xl font-semibold">Application Submitted</h2>
+              <p className="text-muted-foreground">
+                Thank you for applying! Our team will review your application. You&apos;ll receive
+                an email once you&apos;re approved and can access the volunteer portal.
+              </p>
+            </div>
+            <Button asChild className="w-full">
+              <Link href="/login">Sign in</Link>
+            </Button>
+            <p className="text-xs text-muted-foreground">
+              Sign in with the email you used on this application to check your status after
+              approval.
             </p>
           </CardContent>
         </Card>
