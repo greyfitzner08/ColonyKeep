@@ -235,8 +235,7 @@ export function VolunteerSignupWizard({ variant, profile, onSubmitted }: Volunte
         liabilityOpened &&
         policyOpened &&
         form.liability_waiver_signed &&
-        form.policy_signed &&
-        (!needsTnvrCert || form.tnvr_certificate_uploaded)
+        form.policy_signed
       );
     }
     return true;
@@ -469,7 +468,11 @@ export function VolunteerSignupWizard({ variant, profile, onSubmitted }: Volunte
               </div>
               {needsTnvrCert && (
                 <div className="space-y-2 border-t pt-4">
-                  <Label>TNVR certificate (required for trapping/transport roles)</Label>
+                  <Label>TNVR certificate (optional now)</Label>
+                  <p className="text-xs text-muted-foreground">
+                    You can upload your TNVR certificate now or later. Before you can be assigned to a
+                    trap team, staff will verify your certificate and shadow training.
+                  </p>
                   <Input
                     type="file"
                     accept=".pdf,.jpg,.jpeg,.png"
@@ -537,7 +540,7 @@ export function VolunteerSignupWizard({ variant, profile, onSubmitted }: Volunte
                   {needsTnvrCert
                     ? form.tnvr_certificate_uploaded
                       ? " · TNVR certificate uploaded"
-                      : " · TNVR certificate missing"
+                      : " · TNVR certificate can be provided before team assignment"
                     : ""}
                 </p>
               </div>

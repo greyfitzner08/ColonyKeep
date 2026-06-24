@@ -30,6 +30,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { LogoutButton } from "@/components/layout/logout-button";
 import { AdminRolePreviewControl } from "@/components/admin/admin-role-preview";
+import { PlatformTutorialTrigger } from "@/components/platform-tutorial/platform-tutorial-trigger";
 
 const NAV_ITEMS = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
@@ -131,6 +132,11 @@ export function Sidebar({
               />
             )}
           </div>
+          <PlatformTutorialTrigger
+            profile={profile}
+            userName={userName}
+            variant="sidebar"
+          />
           <LogoutButton />
         </div>
       )}

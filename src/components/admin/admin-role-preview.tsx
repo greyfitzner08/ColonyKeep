@@ -1,16 +1,22 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Eye, X } from "lucide-react";
+import { Compass, Eye, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { ROLE_PERMISSIONS } from "@/lib/constants";
 import {
-  PREVIEWABLE_PLATFORM_ROLES,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  PLATFORM_ROLE_PREVIEW_OPTIONS,
   encodeVolunteerRolePreview,
   rolePreviewLabel,
+  volunteerRolesForPreview,
 } from "@/lib/admin/role-preview.shared";
-import { adminAssignableVolunteerRoles } from "@/lib/volunteers/role-catalog";
 import { cn } from "@/lib/utils";
 import type { RoleDescription } from "@/lib/types";
 
@@ -60,21 +66,7 @@ export function AdminRolePreviewControl({
 }: AdminRolePreviewControlProps) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
-  const rootRef = useRef<HTMLDivElement>(null);
-  const volunteerRoles = adminAssignableVolunteerRoles(roleDescriptions);
-
-  useEffect(() => {
-    if (!open) return;
-
-    function handlePointerDown(event: MouseEvent) {
-      if (!rootRef.current?.contains(event.target as Node)) {
-        setOpen(false);
-      }
-    }
-
-    document.addEventListener("mousedown", handlePointerDown);
-    return () => document.removeEventListener("mousedown", handlePointerDown);
-  }, [open]);
+  const volunteerRoles = volunteerRolesForPreview(roleDescriptions);
 
   async function setPreview(nextKey: string | null) {
     await fetch("/api/admin/role-preview", {
@@ -89,7 +81,7 @@ export function AdminRolePreviewControl({
   const activeLabel = rolePreviewLabel(previewKey, roleDescriptions);
 
   return (
-    <div ref={rootRef} className="relative shrink-0">
+    <>
       <Button
         type="button"
         size="icon"
@@ -100,62 +92,75 @@ export function AdminRolePreviewControl({
         )}
         aria-label={activeLabel ? `Viewing as ${activeLabel}. Change preview role.` : "View app as another role"}
         title={activeLabel ? `Viewing as ${activeLabel}` : "View as role"}
-        onClick={() => setOpen((current) => !current)}
+        onClick={() => setOpen(true)}
       >
         <Eye className="h-4 w-4" />
       </Button>
 
-      {open && (
-        <div className="absolute bottom-full right-0 z-50 mb-2 w-64 max-h-80 overflow-y-auto rounded-md border bg-popover p-1 text-popover-foreground shadow-md">
-          <button
-            type="button"
-            className={cn(
-              "w-full rounded-sm px-2 py-1.5 text-left text-sm hover:bg-muted",
-              !previewKey && "bg-muted font-medium"
-            )}
-            onClick={() => setPreview(null)}
-          >
-            Administrator (normal)
-          </button>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="flex max-h-[min(32rem,85vh)] max-w-md flex-col gap-0 overflow-hidden p-0">
+          <DialogHeader className="border-b px-6 py-4 text-left">
+            <DialogTitle>View as role</DialogTitle>
+            <DialogDescription>
+              Preview navigation and page access as another platform role or volunteer interest.
+            </DialogDescription>
+          </DialogHeader>
 
-          <p className="px-2 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-            Platform access
-          </p>
-          {PREVIEWABLE_PLATFORM_ROLES.map((role) => (
+          <div className="min-h-0 flex-1 overflow-y-auto p-2">
             <button
-              key={role}
               type="button"
               className={cn(
-                "w-full rounded-sm px-2 py-1.5 text-left text-sm hover:bg-muted",
-                previewKey === role && "bg-muted font-medium"
+                "w-full rounded-sm px-3 py-2 text-left text-sm hover:bg-muted",
+                !previewKey && "bg-muted font-medium"
               )}
-              onClick={() => setPreview(role)}
+              onClick={() => setPreview(null)}
             >
-              {ROLE_PERMISSIONS[role].label}
+              Administrator (normal)
             </button>
-          ))}
 
-          <p className="px-2 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-            Volunteer roles
-          </p>
-          {volunteerRoles.map((entry) => {
-            const key = encodeVolunteerRolePreview(entry.role_id);
-            return (
+            <p className="px-3 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+              Platform access
+            </p>
+            {PLATFORM_ROLE_PREVIEW_OPTIONS.map((entry) => (
               <button
-                key={entry.role_id}
+                key={entry.key}
                 type="button"
                 className={cn(
-                  "w-full rounded-sm px-2 py-1.5 text-left text-sm hover:bg-muted",
-                  previewKey === key && "bg-muted font-medium"
+                  "w-full rounded-sm px-3 py-2 text-left text-sm hover:bg-muted",
+                  previewKey === entry.key && "bg-muted font-medium"
                 )}
-                onClick={() => setPreview(key)}
+                onClick={() => setPreview(entry.key)}
               >
                 {entry.label}
               </button>
-            );
-          })}
-        </div>
-      )}
-    </div>
+            ))}
+
+            {volunteerRoles.length > 0 && (
+              <>
+                <p className="px-3 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  Volunteer interests
+                </p>
+                {volunteerRoles.map((entry) => {
+                  const key = encodeVolunteerRolePreview(entry.role_id);
+                  return (
+                    <button
+                      key={entry.role_id}
+                      type="button"
+                      className={cn(
+                        "w-full rounded-sm px-3 py-2 text-left text-sm hover:bg-muted",
+                        previewKey === key && "bg-muted font-medium"
+                      )}
+                      onClick={() => setPreview(key)}
+                    >
+                      {entry.label}
+                    </button>
+                  );
+                })}
+              </>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

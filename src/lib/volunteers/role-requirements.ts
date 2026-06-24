@@ -80,6 +80,49 @@ export function rolesNeedingTnvrCert(roles: VolunteerRole[]): boolean {
   return roles.some((role) => TNVR_ROLES.includes(role));
 }
 
+/** Verified before trap team assignment — not required to submit or approve an application. */
+export const TEAM_ASSIGNMENT_REQUIREMENT_FIELDS: RequirementField[] = [
+  "tnvr_certificate_uploaded",
+  "shadow_completed",
+];
+
+export function requirementsForApplicationApproval(
+  role: VolunteerRole,
+  catalog: RoleDescription[] = [],
+  options?: { includeTeamAssignmentRequirements?: boolean }
+): RequirementField[] {
+  const requirements = requirementsForRole(role, catalog);
+  if (options?.includeTeamAssignmentRequirements) return requirements;
+  return requirements.filter((field) => !TEAM_ASSIGNMENT_REQUIREMENT_FIELDS.includes(field));
+}
+
+export function missingRequirementsForApplicationApproval(
+  role: VolunteerRole,
+  source: Pick<VolunteerApplication, RequirementField>,
+  catalog?: RoleDescription[],
+  options?: { includeTeamAssignmentRequirements?: boolean }
+): RequirementField[] {
+  return requirementsForApplicationApproval(role, catalog, options).filter((field) => !source[field]);
+}
+
+export function missingTeamAssignmentRequirements(
+  application: Pick<VolunteerApplication, RequirementField | "status">,
+  roles: VolunteerRole[],
+  catalog: RoleDescription[] = []
+): RequirementField[] {
+  if (application.status !== "approved") return [];
+
+  const missing = new Set<RequirementField>();
+  for (const role of roles) {
+    for (const field of requirementsForRole(role, catalog)) {
+      if (TEAM_ASSIGNMENT_REQUIREMENT_FIELDS.includes(field) && !application[field]) {
+        missing.add(field);
+      }
+    }
+  }
+  return Array.from(missing);
+}
+
 export function includesTrapVolunteerRole(roles: VolunteerRole[]): boolean {
   return rolesNeedingTnvrCert(roles);
 }

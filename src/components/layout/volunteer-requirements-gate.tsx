@@ -4,11 +4,9 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ClipboardCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { createClient } from "@/lib/supabase/client";
 import { LIABILITY_WAIVER_URL, POLICY_URL } from "@/lib/constants";
 import {
   getMissingUserCompletableRequirements,
@@ -32,8 +30,6 @@ export function VolunteerRequirementsGate({
   const [policyOpened, setPolicyOpened] = useState(application.policy_signed);
   const [liabilitySigned, setLiabilitySigned] = useState(application.liability_waiver_signed);
   const [policySigned, setPolicySigned] = useState(application.policy_signed);
-  const [certUploaded, setCertUploaded] = useState(application.tnvr_certificate_uploaded);
-  const [certUrl, setCertUrl] = useState(application.tnvr_certificate_url);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
@@ -42,29 +38,13 @@ export function VolunteerRequirementsGate({
     ...application,
     liability_waiver_signed: liabilitySigned,
     policy_signed: policySigned,
-    tnvr_certificate_uploaded: certUploaded,
-    tnvr_certificate_url: certUrl,
   };
   const stillMissing = getMissingUserCompletableRequirements(profile, pendingApplication);
-  const needsCert = initialMissing.includes("tnvr_certificate_uploaded");
 
   const submitDisabled = submitting || stillMissing.length > 0;
 
   const roleCatalog = resolveVolunteerRoleCatalog([]);
   const roles = volunteerRolesForRequirementCheck(profile, application);
-
-  async function handleCertUpload(event: React.ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    const supabase = createClient();
-    const path = `applications/${profile.id}/${Date.now()}-${file.name.replace(/\s+/g, "-")}`;
-    const { error } = await supabase.storage.from("certificates").upload(path, file);
-    if (!error) {
-      setCertUploaded(true);
-      setCertUrl(path);
-    }
-  }
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
@@ -79,8 +59,6 @@ export function VolunteerRequirementsGate({
         liability_waiver_signed: liabilitySigned,
         policy_opened: policyOpened,
         policy_signed: policySigned,
-        tnvr_certificate_uploaded: certUploaded,
-        tnvr_certificate_url: certUrl,
       }),
     });
     const result = await response.json().catch(() => null);
@@ -102,8 +80,7 @@ export function VolunteerRequirementsGate({
             <ClipboardCheck className="mx-auto h-10 w-10 text-primary mb-2" />
             <CardTitle>Complete your volunteer requirements</CardTitle>
             <CardDescription>
-              Before using the volunteer portal, finish the documents and uploads required for your
-              roles.
+              Before using the volunteer portal, finish the documents required for your roles.
             </CardDescription>
           </CardHeader>
         </Card>
@@ -168,20 +145,6 @@ export function VolunteerRequirementsGate({
                       </a>
                     </Label>
                   </div>
-                </div>
-              )}
-
-              {needsCert && (
-                <div className="space-y-2 border-t pt-4">
-                  <Label>TNVR certificate (required for trapping/transport roles)</Label>
-                  <Input
-                    type="file"
-                    accept=".pdf,.jpg,.jpeg,.png"
-                    onChange={handleCertUpload}
-                  />
-                  {certUploaded && (
-                    <p className="text-sm text-primary">Certificate uploaded successfully</p>
-                  )}
                 </div>
               )}
 

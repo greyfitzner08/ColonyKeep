@@ -3,6 +3,18 @@ import type { Profile, VolunteerApplication } from "@/lib/types";
 export function isTeamEligibleVolunteer(application: VolunteerApplication): boolean {
   return (
     application.status === "approved" &&
+    canAssignVolunteerToTeam(application)
+  );
+}
+
+/** Field checks for trap team assignment (ignores application status). */
+export function canAssignVolunteerToTeam(
+  application: Pick<
+    VolunteerApplication,
+    "tnvr_certificate_uploaded" | "shadow_completed" | "liability_waiver_signed" | "policy_signed"
+  >
+): boolean {
+  return (
     application.tnvr_certificate_uploaded &&
     application.shadow_completed &&
     application.liability_waiver_signed &&

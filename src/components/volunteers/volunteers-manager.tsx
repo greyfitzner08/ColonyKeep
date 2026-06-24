@@ -23,6 +23,9 @@ import {
   requirementsForRole,
   requirementLabel,
   missingRequirementsForRole,
+  missingRequirementsForApplicationApproval,
+  rolesNeedingTnvrCert,
+  TEAM_ASSIGNMENT_REQUIREMENT_FIELDS,
   type RequirementField,
 } from "@/lib/volunteers/role-requirements";
 import {
@@ -32,6 +35,7 @@ import {
   volunteerRoleLabel,
 } from "@/lib/volunteers/role-catalog";
 import { volunteerRequirementSource } from "@/lib/volunteers/requirement-source";
+import { canAssignVolunteerToTeam } from "@/lib/volunteers/eligibility";
 import {
   applicationMatchesFilter,
   attentionPriority,
@@ -167,7 +171,10 @@ export function VolunteersManager({
       app,
       context.linkedProfile ?? { tnvr_certificate_uploaded: false, tnvr_certificate_url: null }
     );
-    return roles.every((role) => missingRequirementsForRole(role, source, roleCatalog).length === 0);
+    return roles.every(
+      (role) =>
+        missingRequirementsForApplicationApproval(role, source, roleCatalog).length === 0
+    );
   }
 
   const reviewingContext = useMemo(
@@ -522,6 +529,8 @@ export function VolunteersManager({
     const requirementSource = requirementSourceForApplication(app, context);
     const relevantRequirementFields = requirementFieldsForRoles(selectedApprovalRoles, roleCatalog);
     const selectableApprovalRoles = filterSignupRoleDescriptions(applicationRoleOptions, app.birthday);
+    const teamAssignReady =
+      approveTeam === "none" || canAssignVolunteerToTeam(requirementSource);
 
     return (
       <div className="space-y-4">
@@ -718,11 +727,16 @@ export function VolunteersManager({
                 <div className="grid gap-2 sm:grid-cols-2">
                   {selectableApprovalRoles.map((entry) => {
                     const selected = selectedApprovalRoles.includes(entry.role_id);
-                    const missing = missingRequirementsForRole(
+                    const approvalMissing = missingRequirementsForApplicationApproval(
                       entry.role_id,
                       requirementSource,
                       roleCatalog
                     );
+                    const teamMissing = missingRequirementsForRole(
+                      entry.role_id,
+                      requirementSource,
+                      roleCatalog
+                    ).filter((field) => TEAM_ASSIGNMENT_REQUIREMENT_FIELDS.includes(field));
 
                     return (
                       <label
@@ -748,19 +762,31 @@ export function VolunteersManager({
                               {entry.description}
                             </p>
                           )}
-                          {selected && missing.length > 0 && (
+                          {selected && approvalMissing.length > 0 && (
                             <p className="text-xs text-amber-800">
-                              Needs: {missing.map(requirementLabel).join(", ")}
+                              Needs before approval: {approvalMissing.map(requirementLabel).join(", ")}
                             </p>
                           )}
-                          {selected && missing.length === 0 && (
-                            <p className="text-xs text-green-700">Requirements complete</p>
+                          {selected && approvalMissing.length === 0 && (
+                            <p className="text-xs text-green-700">Ready to approve</p>
+                          )}
+                          {selected && teamMissing.length > 0 && (
+                            <p className="text-xs text-muted-foreground">
+                              Before trap team assignment: {teamMissing.map(requirementLabel).join(", ")}
+                            </p>
                           )}
                         </div>
                       </label>
                     );
                   })}
                 </div>
+
+                {rolesNeedingTnvrCert(selectedApprovalRoles) && (
+                  <p className="text-xs text-muted-foreground">
+                    TNVR field roles do not require a certificate upload at signup. Staff will verify
+                    certificate and shadow training before assigning a trap team.
+                  </p>
+                )}
 
                 <div className="flex flex-col gap-2 border-t pt-4 sm:flex-row sm:items-end sm:justify-between">
                   <div className="space-y-1.5 sm:min-w-[220px]">
@@ -780,6 +806,12 @@ export function VolunteersManager({
                         ))}
                       </SelectContent>
                     </Select>
+                    {!teamAssignReady && (
+                      <p className="text-xs text-amber-800">
+                        Check off TNVR certificate and shadow training below before assigning a trap
+                        team.
+                      </p>
+                    )}
                   </div>
                   <p className="text-xs text-muted-foreground">
                     {selectedApprovalRoles.length === 0
@@ -793,7 +825,7 @@ export function VolunteersManager({
             <div className="flex flex-wrap gap-2 border-t pt-4">
               <Button
                 size="sm"
-                disabled={actingId === app.id || emailInvalid || !rolesReady}
+                disabled={actingId === app.id || emailInvalid || !rolesReady || !teamAssignReady}
                 onClick={() => handleApproveApplication(app, context, emailValue)}
               >
                 <Check className="h-4 w-4 mr-1" />

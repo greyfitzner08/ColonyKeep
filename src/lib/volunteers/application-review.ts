@@ -2,7 +2,7 @@ import type { Profile, RoleDescription, VolunteerApplication, VolunteerRole, Vol
 import { pendingNewRoles, requirementSourceForRoleRequest } from "@/lib/volunteers/role-expansion";
 import { volunteerRequirementSource } from "@/lib/volunteers/requirement-source";
 import {
-  missingRequirementsForRole,
+  missingRequirementsForApplicationApproval,
   requirementLabel,
   type RequirementField,
 } from "@/lib/volunteers/role-requirements";
@@ -82,7 +82,7 @@ export function getApplicationReviewContext(
 
   for (const role of rolesToReview) {
     const source = requirementSourceForRole(application, linkedProfile, role, pendingRoleRequests);
-    const missing = missingRequirementsForRole(role, source, roleCatalog);
+    const missing = missingRequirementsForApplicationApproval(role, source, roleCatalog);
     if (missing.length > 0) {
       missingByRole[role] = missing;
       for (const field of missing) {

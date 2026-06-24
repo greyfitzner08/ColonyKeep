@@ -14,11 +14,10 @@ export const STAFF_ROLES_EXEMPT_FROM_APPLICATION: UserRole[] = [
   "clinic_coordination",
 ];
 
-/** Requirement fields volunteers can complete themselves at login. */
+/** Requirement fields volunteers can complete themselves at login (before using the portal). */
 export const USER_COMPLETABLE_REQUIREMENTS: RequirementField[] = [
   "liability_waiver_signed",
   "policy_signed",
-  "tnvr_certificate_uploaded",
 ];
 
 export function isExemptFromVolunteerApplication(

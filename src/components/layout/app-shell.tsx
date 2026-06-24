@@ -7,6 +7,7 @@ import { VolunteerApplicationGate } from "@/components/layout/volunteer-applicat
 import { VolunteerRequirementsGate } from "@/components/layout/volunteer-requirements-gate";
 import { SupabaseConfigGate } from "@/components/layout/supabase-config-gate";
 import { BirthdayGate } from "@/components/layout/birthday-gate";
+import { PlatformTutorialGate } from "@/components/platform-tutorial/platform-tutorial-gate";
 import { isKnownUserRole } from "@/lib/constants";
 import { hasSupabaseServerConfig } from "@/lib/supabase/env";
 import { createClient } from "@/lib/supabase/server";
@@ -74,6 +75,12 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
     Object.prototype.hasOwnProperty.call(effectiveProfile, "birthday") &&
     !effectiveProfile.birthday;
 
+  const showPlatformTutorial =
+    profile != null &&
+    !profile.platform_tutorial_completed_at &&
+    !needsBirthday &&
+    !previewKey;
+
   return (
     <div className="min-h-screen bg-background">
       {previewKey && previewLabel && (
@@ -81,6 +88,12 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
       )}
       {needsBirthday && (
         <BirthdayGate userName={effectiveProfile.full_name ?? effectiveProfile.email} />
+      )}
+      {showPlatformTutorial && effectiveProfile && (
+        <PlatformTutorialGate
+          profile={effectiveProfile}
+          userName={effectiveProfile.full_name ?? effectiveProfile.email}
+        />
       )}
       <Sidebar
         profile={effectiveProfile}

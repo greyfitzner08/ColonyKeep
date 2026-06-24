@@ -92,9 +92,9 @@ export const NEWSLETTER_SIGNUP_DESCRIPTION =
   "I agree to receive occasional communications from Friends of Feral Felines, including volunteer opportunities, TNVR updates, and organizational news.";
 
 export const LIABILITY_WAIVER_URL =
-  "https://www.notion.so/placeholder-liability-waiver";
+  "https://zealous-sherbet-f24.notion.site/Liability-Agreement-389a52ca229f80cfb2b3d8435a4a0990";
 export const POLICY_URL =
-  "https://zealous-sherbet-f24.notion.site/Core-Policies-309a52ca229f817381b3cb6b68e5fadb";
+  "https://zealous-sherbet-f24.notion.site/Core-Policies-389a52ca229f8038ba0af1a38d2113df";
 
 export const ROLE_PERMISSIONS: Record<
   UserRole,
@@ -133,7 +133,7 @@ export const ROLE_PERMISSIONS: Record<
     ],
   },
   trap_team_lead: {
-    label: "Trap Team Lead",
+    label: "TNVR Team",
     routes: [
       "/",
       "/intake",

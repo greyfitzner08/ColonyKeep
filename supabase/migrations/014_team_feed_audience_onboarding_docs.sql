@@ -10,7 +10,7 @@ INSERT INTO library_documents (title, description, file_url, section, view_roles
 SELECT
   'Liability Waiver',
   'Required for all volunteers. Read before submitting your application.',
-  'https://www.notion.so/placeholder-liability-waiver',
+  'https://zealous-sherbet-f24.notion.site/Liability-Agreement-389a52ca229f80cfb2b3d8435a4a0990',
   'Volunteer Onboarding',
   ARRAY['admin', 'inquiry_team', 'trap_team_lead', 'clinic_coordination', 'volunteer']::TEXT[],
   true
@@ -22,7 +22,7 @@ INSERT INTO library_documents (title, description, file_url, section, view_roles
 SELECT
   'Policy & Procedures',
   'Core organization policies. Required reading for all volunteers.',
-  'https://zealous-sherbet-f24.notion.site/Core-Policies-309a52ca229f817381b3cb6b68e5fadb',
+  'https://zealous-sherbet-f24.notion.site/Core-Policies-389a52ca229f8038ba0af1a38d2113df',
   'Volunteer Onboarding',
   ARRAY['admin', 'inquiry_team', 'trap_team_lead', 'clinic_coordination', 'volunteer']::TEXT[],
   true

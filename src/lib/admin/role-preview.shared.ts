@@ -1,11 +1,29 @@
-import { isKnownUserRole, ROLE_PERMISSIONS, VOLUNTEER_ROLES } from "@/lib/constants";
+import { isKnownUserRole, ROLE_PERMISSIONS, TNVR_ROLES, VOLUNTEER_ROLES } from "@/lib/constants";
 import type { Profile, RoleDescription, UserRole, VolunteerRole } from "@/lib/types";
 
 export const ROLE_PREVIEW_COOKIE = "tnvr_admin_role_preview";
 
-export const PREVIEWABLE_PLATFORM_ROLES: UserRole[] = (
-  Object.keys(ROLE_PERMISSIONS) as UserRole[]
-).filter((role) => role !== "admin");
+/** Volunteer interests covered by Inquiry team or TNVR team platform previews. */
+export const VOLUNTEER_ROLES_EXCLUDED_FROM_PREVIEW: VolunteerRole[] = [
+  "intake_representative",
+  ...TNVR_ROLES,
+];
+
+export const PLATFORM_ROLE_PREVIEW_OPTIONS: { key: UserRole; label: string }[] = [
+  { key: "inquiry_team", label: "Inquiry team" },
+  { key: "trap_team_lead", label: "TNVR team" },
+  { key: "clinic_coordination", label: "Clinic coordination" },
+  { key: "volunteer", label: "Volunteer (general)" },
+];
+
+/** @deprecated Use PLATFORM_ROLE_PREVIEW_OPTIONS */
+export const PREVIEWABLE_PLATFORM_ROLES: UserRole[] = PLATFORM_ROLE_PREVIEW_OPTIONS.map(
+  (entry) => entry.key
+);
+
+export function volunteerRolesForPreview(catalog: RoleDescription[]): RoleDescription[] {
+  return catalog.filter((entry) => !VOLUNTEER_ROLES_EXCLUDED_FROM_PREVIEW.includes(entry.role_id));
+}
 
 export function isVolunteerRole(value: string): value is VolunteerRole {
   return VOLUNTEER_ROLES.some((entry) => entry.value === value);
@@ -46,8 +64,13 @@ export function rolePreviewLabel(
 
   if (previewKey?.startsWith("v:")) {
     const roleId = parsed.volunteerRoles[0];
+    if (TNVR_ROLES.includes(roleId) || roleId === "intake_representative") {
+      return roleId === "intake_representative" ? "Inquiry team" : "TNVR team";
+    }
     return catalog.find((entry) => entry.role_id === roleId)?.label ?? roleId.replace(/_/g, " ");
   }
+
+  if (parsed.userRole === "trap_team_lead") return "TNVR team";
 
   return ROLE_PERMISSIONS[parsed.userRole]?.label ?? null;
 }

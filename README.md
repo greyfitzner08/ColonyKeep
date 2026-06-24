@@ -35,6 +35,20 @@ cp .env.example .env.local
 
 Fill in your Supabase URL/keys, and optionally Resend + Google Maps keys.
 
+#### Email (Resend) — required for volunteer welcome emails, password resets, and booking notifications
+
+1. Create a free account at [resend.com](https://resend.com)
+2. Add and verify your sending domain under **Domains**
+3. Create an API key under **API Keys**
+4. Add to `.env.local` (and Vercel for production):
+
+```bash
+RESEND_API_KEY=re_xxxxxxxx
+EMAIL_FROM=TNVR Rescue <noreply@yourdomain.com>
+```
+
+Without `RESEND_API_KEY`, approvals and password resets still work — volunteers just won't receive the automatic email (you'll see a warning in the admin UI).
+
 ### 3. Run database migration
 
 Apply the schema in `supabase/migrations/001_initial_schema.sql` via the Supabase SQL editor or CLI:

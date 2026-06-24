@@ -5,6 +5,7 @@ import { getRequestAppUrl } from "@/lib/app-url";
 import { getEmailValidationError, parsePrimaryEmail } from "@/lib/email-utils";
 import { sendVolunteerApprovalEmail } from "@/lib/email";
 import { ensureVolunteerAuthUser } from "@/lib/volunteers/approve-auth";
+import { canAssignVolunteerToTeam } from "@/lib/volunteers/eligibility";
 import { isUnder18, isRoleAllowedOnSignup } from "@/lib/volunteers/age-eligibility";
 import { getDefaultVolunteerPassword } from "@/lib/volunteers/default-password";
 import type { VolunteerRole } from "@/lib/types";
@@ -97,6 +98,12 @@ export async function POST(request: NextRequest) {
 
     if (applicationRoles.length === 0) {
       return errorResponse("Select at least one volunteer role to approve.");
+    }
+
+    if (teamId && !canAssignVolunteerToTeam(application)) {
+      return errorResponse(
+        "Check off TNVR certificate and shadow training before assigning a trap team."
+      );
     }
 
     const youthPermission: VolunteerRole[] =

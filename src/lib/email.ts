@@ -1,11 +1,31 @@
 import { Resend } from "resend";
 
-const resend = process.env.RESEND_API_KEY
-  ? new Resend(process.env.RESEND_API_KEY)
-  : null;
+const EMAIL_SETUP_HINT =
+  "Set RESEND_API_KEY in .env.local (dev) or Vercel → Project → Settings → Environment Variables (production). " +
+  "Create an API key at https://resend.com/api-keys and use a verified EMAIL_FROM domain.";
+
+function readResendApiKey(): string | null {
+  const key = process.env.RESEND_API_KEY?.trim();
+  if (!key) return null;
+  if (key.includes("your_api_key") || key === "re_your_api_key") return null;
+  if (!key.startsWith("re_")) return null;
+  return key;
+}
+
+const resendApiKey = readResendApiKey();
+const resend = resendApiKey ? new Resend(resendApiKey) : null;
 
 const FROM = process.env.EMAIL_FROM ?? "TNVR Rescue <noreply@example.com>";
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+
+export function isEmailConfigured(): boolean {
+  return resend != null;
+}
+
+export function emailConfigurationError(): string | null {
+  if (resend) return null;
+  return `Email service not configured. ${EMAIL_SETUP_HINT}`;
+}
 
 async function sendResendEmail(payload: {
   to: string;
@@ -15,7 +35,7 @@ async function sendResendEmail(payload: {
 }): Promise<{ sent: boolean; error?: string }> {
   if (!resend) {
     console.log(`[email] ${payload.logLabel} to ${payload.to} (Resend not configured)`);
-    return { sent: false, error: "Email service not configured (RESEND_API_KEY missing)" };
+    return { sent: false, error: emailConfigurationError() ?? "Email service not configured" };
   }
 
   const { data, error } = await resend.emails.send({

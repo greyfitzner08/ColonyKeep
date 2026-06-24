@@ -167,7 +167,7 @@ export function getProfilePermissions(profile: Profile | null): ProfilePermissio
   const labels: Record<UserRole, string> = {
     admin: "Administrator",
     inquiry_team: "Inquiry Team",
-    trap_team_lead: "Trap Team Lead",
+    trap_team_lead: "TNVR Team",
     clinic_coordination: "Clinic Coordination",
     volunteer: "Volunteer",
   };

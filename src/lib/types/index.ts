@@ -123,6 +123,7 @@ export interface Profile {
   volunteer_roles: VolunteerRole[];
   team_id: string | null;
   must_change_password: boolean;
+  platform_tutorial_completed_at: string | null;
   birthday: string | null;
   home_street: string | null;
   home_city: string | null;
