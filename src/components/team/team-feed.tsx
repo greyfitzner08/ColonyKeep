@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -19,9 +19,15 @@ import {
 import { createClient } from "@/lib/supabase/client";
 import { formatDateTime } from "@/lib/utils";
 import { VOLUNTEER_ROLES } from "@/lib/constants";
+import {
+  birthdaysWithinDays,
+  upcomingBirthdayLabel,
+  type BirthdayPerson,
+} from "@/lib/team-feed/birthdays";
+import { BirthdayCalendarDialog } from "@/components/team/birthday-calendar-dialog";
 import type { TeamAnnouncement, Profile, UserRole } from "@/lib/types";
 import type { FeedAudience } from "@/lib/team-feed/visibility";
-import { Pin, Cake, MessageCircle, Pencil, X, Check, Users, Globe, Send } from "lucide-react";
+import { Pin, Cake, MessageCircle, Pencil, X, Check, Users, Globe, Send, CalendarDays } from "lucide-react";
 
 const PLATFORM_ROLES: { value: UserRole; label: string }[] = [
   { value: "admin", label: "Administrators" },
@@ -39,7 +45,7 @@ interface TrapTeamOption {
 interface TeamFeedProps {
   announcements: TeamAnnouncement[];
   profile: Profile | null;
-  upcomingBirthdays: { full_name: string; birthday: string }[];
+  birthdayPeople: BirthdayPerson[];
   trapTeams: TrapTeamOption[];
 }
 
@@ -57,10 +63,11 @@ function audienceLabel(post: TeamAnnouncement): string {
 export function TeamFeed({
   announcements: initial,
   profile,
-  upcomingBirthdays,
+  birthdayPeople,
   trapTeams,
 }: TeamFeedProps) {
   const router = useRouter();
+  const [calendarOpen, setCalendarOpen] = useState(false);
   const [message, setMessage] = useState("");
   const [audience, setAudience] = useState<FeedAudience>("all");
   const [teamId, setTeamId] = useState<string>(profile?.team_id ?? "");
@@ -68,6 +75,8 @@ export function TeamFeed({
   const [commentTexts, setCommentTexts] = useState<Record<string, string>>({});
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editText, setEditText] = useState("");
+
+  const birthdaysSoon = useMemo(() => birthdaysWithinDays(birthdayPeople, 7), [birthdayPeople]);
 
   function toggleRole(role: string) {
     setSelectedRoles((prev) =>
@@ -138,28 +147,51 @@ export function TeamFeed({
 
   return (
     <div className="mx-auto w-full max-w-3xl space-y-6">
-      {upcomingBirthdays.length > 0 && (
-        <Card className="border-pink-200 bg-gradient-to-br from-pink-50 to-white">
-          <CardHeader className="pb-3">
-            <div className="flex items-center gap-2 text-pink-800">
-              <Cake className="h-5 w-5" />
-              <CardTitle className="text-base">Upcoming birthdays</CardTitle>
+      {birthdayPeople.length > 0 && (
+        <>
+          {birthdaysSoon.length > 0 && (
+            <div className="flex items-center gap-2 rounded-md border border-pink-200 bg-pink-50/50 px-3 py-1.5 text-sm text-pink-900">
+              <Cake className="h-4 w-4 shrink-0 text-pink-500" />
+              <p className="min-w-0 flex-1 leading-snug">
+                <span className="font-medium">Birthdays this week:</span>{" "}
+                {birthdaysSoon
+                  .map((person) => `${person.full_name} (${upcomingBirthdayLabel(person.birthday)})`)
+                  .join(" · ")}
+              </p>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-7 shrink-0 gap-1 px-2 text-pink-800 hover:bg-pink-100/80 hover:text-pink-900"
+                onClick={() => setCalendarOpen(true)}
+              >
+                <CalendarDays className="h-3.5 w-3.5" />
+                Calendar
+              </Button>
             </div>
-          </CardHeader>
-          <CardContent className="grid gap-2 sm:grid-cols-2">
-            {upcomingBirthdays.map((person) => (
-              <div key={person.full_name} className="rounded-md border border-pink-100 bg-white/80 px-3 py-2 text-sm">
-                <p className="font-medium">{person.full_name}</p>
-                <p className="text-muted-foreground">
-                  {new Date(`${person.birthday}T12:00:00`).toLocaleDateString(undefined, {
-                    month: "long",
-                    day: "numeric",
-                  })}
-                </p>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
+          )}
+
+          {birthdaysSoon.length === 0 && (
+            <div className="flex items-center justify-end">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-7 gap-1 px-2 text-muted-foreground hover:text-foreground"
+                onClick={() => setCalendarOpen(true)}
+              >
+                <CalendarDays className="h-3.5 w-3.5" />
+                Birthday calendar
+              </Button>
+            </div>
+          )}
+
+          <BirthdayCalendarDialog
+            open={calendarOpen}
+            onOpenChange={setCalendarOpen}
+            people={birthdayPeople}
+          />
+        </>
       )}
 
       <Card>

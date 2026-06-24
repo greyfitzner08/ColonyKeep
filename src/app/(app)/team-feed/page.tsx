@@ -4,33 +4,6 @@ import { TeamFeed } from "@/components/team/team-feed";
 import { announcementVisibleToProfile } from "@/lib/team-feed/visibility";
 import type { TeamAnnouncement } from "@/lib/types";
 
-function upcomingBirthdays(people: { full_name: string; birthday: string }[]) {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const horizon = new Date(today);
-  horizon.setDate(horizon.getDate() + 14);
-
-  return people
-    .filter((person) => person.birthday)
-    .filter((person) => {
-      const bday = new Date(`${person.birthday}T12:00:00`);
-      const thisYear = new Date(today.getFullYear(), bday.getMonth(), bday.getDate());
-      if (thisYear < today) {
-        thisYear.setFullYear(thisYear.getFullYear() + 1);
-      }
-      return thisYear >= today && thisYear <= horizon;
-    })
-    .sort((a, b) => {
-      const dateA = new Date(`${a.birthday}T12:00:00`);
-      const dateB = new Date(`${b.birthday}T12:00:00`);
-      const wrapA = new Date(today.getFullYear(), dateA.getMonth(), dateA.getDate());
-      const wrapB = new Date(today.getFullYear(), dateB.getMonth(), dateB.getDate());
-      if (wrapA < today) wrapA.setFullYear(wrapA.getFullYear() + 1);
-      if (wrapB < today) wrapB.setFullYear(wrapB.getFullYear() + 1);
-      return wrapA.getTime() - wrapB.getTime();
-    });
-}
-
 export default async function TeamFeedPage() {
   const supabase = await createClient();
   const service = await createServiceClient();
@@ -71,7 +44,7 @@ export default async function TeamFeedPage() {
         announcements={announcements}
         profile={profile}
         trapTeams={trapTeams ?? []}
-        upcomingBirthdays={upcomingBirthdays(birthdayPeople)}
+        birthdayPeople={birthdayPeople}
       />
     </div>
   );
