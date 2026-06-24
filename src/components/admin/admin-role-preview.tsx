@@ -40,13 +40,22 @@ export function AdminRolePreviewBanner({ previewKey, previewLabel }: AdminRolePr
   }
 
   return (
-    <div className="border-b border-amber-300 bg-amber-50 px-4 py-2 text-sm text-amber-950">
-      <div className="container mx-auto flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <p>
+    <div
+      role="status"
+      className="fixed top-0 left-0 right-0 z-[45] border-b border-amber-300 bg-amber-50 py-2.5 pl-14 pr-4 text-sm text-amber-950 shadow-sm sm:pl-4 lg:left-64"
+    >
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+        <p className="min-w-0 leading-snug">
           <span className="font-medium">Admin preview:</span> viewing the app as {previewLabel}.
           Navigation and page access match this role.
         </p>
-        <Button type="button" size="sm" variant="outline" onClick={exitPreview}>
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          className="shrink-0 border-amber-400 bg-white hover:bg-amber-100"
+          onClick={exitPreview}
+        >
           <X className="h-4 w-4 mr-1.5" />
           Exit preview
         </Button>

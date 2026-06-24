@@ -1,20 +1,16 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { getProfilePermissions } from "@/lib/permissions";
 import {
+  stepDescription,
   tutorialStepsForPermissions,
   type PlatformTutorialStep,
 } from "@/lib/platform-tutorial/steps";
+import { useTutorialNavigation } from "@/components/platform-tutorial/tutorial-navigation-context";
 import { cn } from "@/lib/utils";
 import type { Profile } from "@/lib/types";
 
@@ -36,18 +32,57 @@ export function PlatformTutorialModal({
   markCompleteOnClose = false,
   onCompleted,
 }: PlatformTutorialModalProps) {
+  const router = useRouter();
+  const { setHighlightedNav, setTourActive } = useTutorialNavigation();
   const permissions = useMemo(() => getProfilePermissions(profile), [profile]);
   const steps = useMemo(() => tutorialStepsForPermissions(permissions), [permissions]);
   const [stepIndex, setStepIndex] = useState(0);
   const [completing, setCompleting] = useState(false);
 
+  const step = steps[stepIndex];
+  const isFirst = stepIndex === 0;
+  const isLast = stepIndex === steps.length - 1;
+  const description = step ? stepDescription(step, permissions) : "";
+
   useEffect(() => {
     if (open) setStepIndex(0);
   }, [open]);
 
-  const step = steps[stepIndex];
-  const isFirst = stepIndex === 0;
-  const isLast = stepIndex === steps.length - 1;
+  useEffect(() => {
+    setTourActive(open);
+    if (!open) {
+      setHighlightedNav(null);
+      return;
+    }
+
+    if (!step) {
+      setHighlightedNav(null);
+      return;
+    }
+
+    if (step.highlightSidebar) {
+      setHighlightedNav("sidebar");
+      return;
+    }
+
+    if (step.navHref) {
+      setHighlightedNav(step.navHref);
+      const shouldNavigate = step.navigateOnStep !== false;
+      if (shouldNavigate) {
+        router.push(step.navHref);
+      }
+      return;
+    }
+
+    setHighlightedNav(null);
+  }, [open, step, router, setHighlightedNav, setTourActive]);
+
+  useEffect(() => {
+    return () => {
+      setTourActive(false);
+      setHighlightedNav(null);
+    };
+  }, [setHighlightedNav, setTourActive]);
 
   async function persistCompletion() {
     if (!markCompleteOnClose) return;
@@ -67,49 +102,73 @@ export function PlatformTutorialModal({
     onOpenChange(false);
   }
 
-  async function handleOpenChange(nextOpen: boolean) {
-    if (!nextOpen && markCompleteOnClose && open) {
-      await persistCompletion();
-    }
-    onOpenChange(nextOpen);
-  }
-
-  if (!step) return null;
+  if (!open || !step) return null;
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-w-lg gap-0 overflow-hidden p-0">
-        <div className="border-b bg-muted/30 px-6 py-5">
-          <DialogHeader className="space-y-3 text-left">
-            <div className="flex items-center gap-3">
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+    <>
+      <div className="fixed inset-0 z-40 bg-black/20 pointer-events-none" aria-hidden />
+
+      <div
+        role="dialog"
+        aria-modal="false"
+        aria-labelledby="platform-tutorial-title"
+        className={cn(
+          "fixed z-50 flex max-h-[min(28rem,80vh)] w-[min(24rem,calc(100vw-2rem))] flex-col overflow-hidden rounded-lg border bg-background shadow-xl",
+          "bottom-4 left-4 lg:left-[17rem]"
+        )}
+      >
+        <div className="border-b bg-muted/30 px-5 py-4">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex min-w-0 items-start gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
                 <step.icon className="h-5 w-5" aria-hidden />
               </div>
               <div className="min-w-0 space-y-1">
                 <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                  Platform walkthrough · Step {stepIndex + 1} of {steps.length}
+                  {permissions?.label ?? "Platform"} walkthrough · Step {stepIndex + 1} of{" "}
+                  {steps.length}
                 </p>
-                <DialogTitle className="text-xl leading-tight">{step.title}</DialogTitle>
+                <h2 id="platform-tutorial-title" className="text-lg font-semibold leading-tight">
+                  {step.title}
+                </h2>
               </div>
             </div>
-            <DialogDescription className="text-sm leading-relaxed text-foreground/80">
-              {step.id === "welcome" && userName ? (
-                <>
-                  Hi {userName}! {step.description}
-                </>
-              ) : (
-                step.description
-              )}
-            </DialogDescription>
-          </DialogHeader>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="shrink-0"
+              onClick={() => void handleFinish()}
+              aria-label="Close walkthrough"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+          <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
+            {step.id === "welcome" && userName ? (
+              <>
+                Hi {userName}! {description}
+              </>
+            ) : (
+              description
+            )}
+          </p>
+          {(step.navHref || step.highlightSidebar) && (
+            <p className="mt-2 text-xs font-medium text-primary">
+              {step.highlightSidebar
+                ? "Watch the sidebar — your menu items are highlighted."
+                : `Opened ${step.title} — look for the highlighted item in the sidebar.`}
+            </p>
+          )}
         </div>
 
         <StepIndicators steps={steps} activeIndex={stepIndex} />
 
-        <div className="flex items-center justify-between gap-3 border-t px-6 py-4">
+        <div className="flex items-center justify-between gap-3 border-t px-5 py-3">
           <Button
             type="button"
             variant="ghost"
+            size="sm"
             disabled={completing}
             onClick={() => void handleFinish()}
           >
@@ -128,12 +187,13 @@ export function PlatformTutorialModal({
               <ChevronLeft className="h-4 w-4" />
             </Button>
             {isLast ? (
-              <Button type="button" disabled={completing} onClick={() => void handleFinish()}>
+              <Button type="button" size="sm" disabled={completing} onClick={() => void handleFinish()}>
                 {completing ? "Saving…" : "Get started"}
               </Button>
             ) : (
               <Button
                 type="button"
+                size="sm"
                 disabled={completing}
                 onClick={() => setStepIndex((index) => Math.min(steps.length - 1, index + 1))}
               >
@@ -143,8 +203,8 @@ export function PlatformTutorialModal({
             )}
           </div>
         </div>
-      </DialogContent>
-    </Dialog>
+      </div>
+    </>
   );
 }
 
@@ -156,7 +216,7 @@ function StepIndicators({
   activeIndex: number;
 }) {
   return (
-    <div className="flex flex-wrap justify-center gap-1.5 px-6 py-4" aria-hidden>
+    <div className="flex flex-wrap justify-center gap-1.5 px-5 py-3" aria-hidden>
       {steps.map((entry, index) => (
         <span
           key={entry.id}

@@ -1,13 +1,10 @@
 import { getSessionProfiles } from "@/lib/auth";
 import { rolePreviewLabel } from "@/lib/admin/role-preview";
-import { Sidebar } from "@/components/layout/sidebar";
-import { AdminRolePreviewBanner } from "@/components/admin/admin-role-preview";
 import { VolunteerGate } from "@/components/layout/volunteer-gate";
 import { VolunteerApplicationGate } from "@/components/layout/volunteer-application-gate";
 import { VolunteerRequirementsGate } from "@/components/layout/volunteer-requirements-gate";
 import { SupabaseConfigGate } from "@/components/layout/supabase-config-gate";
-import { BirthdayGate } from "@/components/layout/birthday-gate";
-import { PlatformTutorialGate } from "@/components/platform-tutorial/platform-tutorial-gate";
+import { AppShellFrame } from "@/components/layout/app-shell-frame";
 import { isKnownUserRole } from "@/lib/constants";
 import { hasSupabaseServerConfig } from "@/lib/supabase/env";
 import { createClient } from "@/lib/supabase/server";
@@ -82,29 +79,16 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
     !previewKey;
 
   return (
-    <div className="min-h-screen bg-background">
-      {previewKey && previewLabel && (
-        <AdminRolePreviewBanner previewKey={previewKey} previewLabel={previewLabel} />
-      )}
-      {needsBirthday && (
-        <BirthdayGate userName={effectiveProfile.full_name ?? effectiveProfile.email} />
-      )}
-      {showPlatformTutorial && effectiveProfile && (
-        <PlatformTutorialGate
-          profile={effectiveProfile}
-          userName={effectiveProfile.full_name ?? effectiveProfile.email}
-        />
-      )}
-      <Sidebar
-        profile={effectiveProfile}
-        isAdmin={isActualAdmin}
-        previewKey={previewKey}
-        roleDescriptions={roleDescriptions}
-        userName={effectiveProfile.full_name ?? effectiveProfile.email}
-      />
-      <main className="lg:pl-64">
-        <div className="container mx-auto p-4 lg:p-8 pt-16 lg:pt-8">{children}</div>
-      </main>
-    </div>
+    <AppShellFrame
+      effectiveProfile={effectiveProfile}
+      previewKey={previewKey}
+      previewLabel={previewLabel}
+      isActualAdmin={isActualAdmin}
+      roleDescriptions={roleDescriptions}
+      needsBirthday={needsBirthday}
+      showPlatformTutorial={showPlatformTutorial}
+    >
+      {children}
+    </AppShellFrame>
   );
 }

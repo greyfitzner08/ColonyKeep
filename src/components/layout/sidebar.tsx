@@ -25,8 +25,9 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getProfilePermissions } from "@/lib/permissions";
+import { useTutorialNavigation } from "@/components/platform-tutorial/tutorial-navigation-context";
 import type { Profile, RoleDescription } from "@/lib/types";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { LogoutButton } from "@/components/layout/logout-button";
 import { AdminRolePreviewControl } from "@/components/admin/admin-role-preview";
@@ -68,6 +69,7 @@ export function Sidebar({
 }: SidebarProps) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { highlightedNav, tourActive } = useTutorialNavigation();
 
   const permissions = getProfilePermissions(profile);
   const allowedRoutes = permissions?.routes ?? [];
@@ -76,6 +78,12 @@ export function Sidebar({
       (route) => item.href === route || (route !== "/" && item.href.startsWith(route))
     )
   );
+
+  useEffect(() => {
+    if (!tourActive || !highlightedNav || highlightedNav === "sidebar") return;
+    const element = document.querySelector(`[data-tutorial-nav="${highlightedNav}"]`);
+    element?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }, [highlightedNav, tourActive]);
 
   const nav = (
     <nav className="flex h-full min-h-0 flex-col p-4">
@@ -87,22 +95,31 @@ export function Sidebar({
         </div>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto -mx-2 px-2">
+      <div
+        className={cn(
+          "min-h-0 flex-1 overflow-y-auto -mx-2 px-2",
+          tourActive && highlightedNav === "sidebar" && "rounded-md ring-2 ring-primary ring-offset-2 ring-offset-sidebar"
+        )}
+      >
         <div className="flex flex-col gap-1">
           {visibleItems.map((item) => {
             const Icon = item.icon;
             const active =
               pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));
+            const tourHighlight = tourActive && highlightedNav === item.href;
             return (
               <Link
                 key={item.href}
                 href={item.href}
+                data-tutorial-nav={item.href}
                 onClick={() => setMobileOpen(false)}
                 className={cn(
                   "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
                   active
                     ? "bg-primary text-primary-foreground"
-                    : "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground"
+                    : "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground",
+                  tourHighlight &&
+                    "ring-2 ring-amber-400 ring-offset-2 ring-offset-sidebar shadow-md animate-pulse"
                 )}
               >
                 <Icon className="h-4 w-4" />

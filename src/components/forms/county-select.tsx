@@ -1,6 +1,6 @@
 "use client";
 
-import { useId } from "react";
+import { useEffect, useId, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
@@ -19,11 +19,9 @@ interface CountySelectProps {
   required?: boolean;
 }
 
-function selectValueForCounty(value: string): string {
-  const canonical = canonicalServiceCounty(value);
-  if (canonical) return canonical;
-  if (normalizeCountyName(value)) return COUNTY_SELECT_OTHER;
-  return "";
+function isCustomCounty(value: string): boolean {
+  const normalized = normalizeCountyName(value);
+  return Boolean(normalized) && !canonicalServiceCounty(value);
 }
 
 export function CountySelect({
@@ -35,22 +33,39 @@ export function CountySelect({
 }: CountySelectProps) {
   const generatedId = useId();
   const fieldId = id ?? generatedId;
-  const selectValue = selectValueForCounty(value);
-  const showCustomInput = selectValue === COUNTY_SELECT_OTHER;
+  const [otherMode, setOtherMode] = useState(() => isCustomCounty(value));
+
+  useEffect(() => {
+    if (isCustomCounty(value)) {
+      setOtherMode(true);
+      return;
+    }
+    if (canonicalServiceCounty(value)) {
+      setOtherMode(false);
+    }
+  }, [value]);
+
+  const selectValue = otherMode
+    ? COUNTY_SELECT_OTHER
+    : canonicalServiceCounty(value) ?? "";
 
   return (
     <div className="space-y-2">
       <Label htmlFor={fieldId}>{label}</Label>
       <select
         id={fieldId}
-        required={required && !showCustomInput}
+        required={required && !otherMode}
         value={selectValue}
         onChange={(event) => {
           const next = event.target.value;
           if (next === COUNTY_SELECT_OTHER) {
-            onChange(canonicalServiceCounty(value) ? "" : value);
+            setOtherMode(true);
+            if (!isCustomCounty(value)) {
+              onChange("");
+            }
             return;
           }
+          setOtherMode(false);
           onChange(next);
         }}
         className={cn(
@@ -67,9 +82,9 @@ export function CountySelect({
         <option value={COUNTY_SELECT_OTHER}>Other county...</option>
       </select>
 
-      {showCustomInput && (
+      {otherMode && (
         <Input
-          value={canonicalServiceCounty(value) ? "" : value}
+          value={isCustomCounty(value) ? value : ""}
           onChange={(event) => onChange(normalizeCountyName(event.target.value))}
           placeholder="Enter county name"
           required={required}
