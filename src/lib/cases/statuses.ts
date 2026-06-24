@@ -1,5 +1,5 @@
 import { CASE_STATUSES } from "@/lib/constants";
-import type { HelpRequestStatus, UserRole } from "@/lib/types";
+import type { HelpRequest, HelpRequestStatus, UserRole } from "@/lib/types";
 
 /** Statuses shown on the intake queue by default (pre-trap workflow). */
 export const INTAKE_QUEUE_STATUSES: HelpRequestStatus[] = [
@@ -36,6 +36,34 @@ export const TRAP_QUEUE_STATUSES: HelpRequestStatus[] = [
 const TRAP_STATUS_LABEL_OVERRIDES: Partial<Record<HelpRequestStatus, string>> = {
   appointment_reserved: "Appointment Scheduled",
 };
+
+export function isTrapCasePersonallyClaimed(
+  hr: Pick<HelpRequest, "claimed_by_email" | "claimed_by_name" | "assigned_to" | "status">
+): boolean {
+  if (hr.status === "claimed") return true;
+  return Boolean(
+    hr.claimed_by_email?.trim() || hr.claimed_by_name?.trim() || hr.assigned_to?.trim()
+  );
+}
+
+/** Trap queue nav buckets — claimed-by-person overrides "routed" when status hasn't caught up. */
+export function matchesTrapQueueNavStatus(
+  hr: HelpRequest,
+  navStatus: (typeof TRAP_KANBAN_STATUSES)[number]
+): boolean {
+  if (navStatus === "claimed") {
+    return (
+      hr.status === "claimed" ||
+      (hr.status === "routed_to_trap_team" && isTrapCasePersonallyClaimed(hr))
+    );
+  }
+
+  if (navStatus === "routed_to_trap_team") {
+    return hr.status === "routed_to_trap_team" && !isTrapCasePersonallyClaimed(hr);
+  }
+
+  return hr.status === navStatus;
+}
 
 export function getStatusLabel(status: HelpRequestStatus, context: "trap" | "default" = "default") {
   if (context === "trap" && TRAP_STATUS_LABEL_OVERRIDES[status]) {

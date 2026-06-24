@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { getStatusLabel } from "@/lib/cases/statuses";
+import { getStatusLabel, matchesTrapQueueNavStatus } from "@/lib/cases/statuses";
 import { TRAP_KANBAN_STATUSES } from "@/lib/cases/trap-queue-query";
 import { filterCasesBySearch } from "@/lib/cases/search-cases";
 import { CaseQueueSearch } from "@/components/cases/case-queue-search";
@@ -28,7 +28,7 @@ export function TrapQueueKanban({ cases, canClaim, userEmail }: TrapQueueKanbanP
     () =>
       TRAP_KANBAN_STATUSES.reduce(
         (acc, status) => {
-          acc[status] = filtered.filter((hr) => hr.status === status);
+          acc[status] = filtered.filter((hr) => matchesTrapQueueNavStatus(hr, status));
           return acc;
         },
         {} as Record<(typeof TRAP_KANBAN_STATUSES)[number], HelpRequest[]>

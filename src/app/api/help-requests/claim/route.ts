@@ -28,6 +28,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "This case is already assigned to someone else" }, { status: 409 });
   }
 
+  const trapClaimStatuses = new Set(["routed_to_trap_team", "claimed"]);
+
   const updates: Record<string, string> = {
     claimed_by_email: profile!.email,
     claimed_by_name: profile!.full_name ?? profile!.email,
@@ -35,7 +37,7 @@ export async function POST(request: NextRequest) {
 
   if (existing.status === "new_intake") {
     updates.status = "under_review";
-  } else if (existing.status === "routed_to_trap_team") {
+  } else if (trapClaimStatuses.has(existing.status)) {
     updates.status = "claimed";
   }
 
