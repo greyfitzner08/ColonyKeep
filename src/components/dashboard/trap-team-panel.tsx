@@ -15,6 +15,7 @@ import {
 import { formatDate } from "@/lib/utils";
 import type { TrapTeamDashboardData } from "@/lib/dashboard/trap-team-data";
 import { trapTeamStorageKey } from "@/lib/dashboard/sections";
+import { UnclaimedTeamAssignments } from "@/components/dashboard/unclaimed-team-assignments";
 import { Kanban, Users } from "lucide-react";
 
 interface TrapTeamPanelProps {
@@ -159,6 +160,8 @@ export function TrapTeamPanel({
               </div>
             </div>
 
+            <UnclaimedTeamAssignments cases={data.unclaimedCases} />
+
             <div className="space-y-4">
               <p className="text-sm font-medium">Who is working on what</p>
               {memberEntries.length === 0 && (
@@ -185,19 +188,6 @@ export function TrapTeamPanel({
                 </div>
               ))}
 
-              {data.unclaimedCases.length > 0 && (
-                <div className="border-t pt-4 space-y-2">
-                  <p className="text-sm font-medium">Unclaimed team assignments</p>
-                  {data.unclaimedCases.map((c) => (
-                    <div key={c.id} className="flex items-center justify-between gap-2 text-sm">
-                      <Link href={`/case/${c.id}`} className="text-primary hover:underline">
-                        {c.case_number}
-                      </Link>
-                      <Badge variant="outline">{c.status.replace(/_/g, " ")}</Badge>
-                    </div>
-                  ))}
-                </div>
-              )}
             </div>
 
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
