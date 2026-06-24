@@ -9,22 +9,17 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { createClient } from "@/lib/supabase/client";
-import { TNVR_ROLES, VOLUNTEER_ROLES, LIABILITY_WAIVER_URL, POLICY_URL } from "@/lib/constants";
+import { TNVR_ROLES, LIABILITY_WAIVER_URL, POLICY_URL } from "@/lib/constants";
 import { ADULT_ONLY_VOLUNTEER_ROLES, isUnder18 } from "@/lib/volunteers/age-eligibility";
+import {
+  resolveVolunteerRoleCatalog,
+  signupVolunteerRoleOptions,
+} from "@/lib/volunteers/role-catalog";
 import type { VolunteerRole, RoleDescription } from "@/lib/types";
 import Link from "next/link";
 
-const DEFAULT_ROLE_DESCRIPTIONS: RoleDescription[] = VOLUNTEER_ROLES.map((role) => ({
-  id: `default-${role.value}`,
-  role_id: role.value,
-  label: role.label,
-  description: `Support the TNVR mission as a ${role.label.toLowerCase()}.`,
-  created_at: "",
-  updated_at: "",
-}));
-
 export default function VolunteerSignupPage() {
-  const [roleDescriptions, setRoleDescriptions] = useState<RoleDescription[]>(DEFAULT_ROLE_DESCRIPTIONS);
+  const [roleDescriptions, setRoleDescriptions] = useState<RoleDescription[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -48,7 +43,10 @@ export default function VolunteerSignupPage() {
   const needsTnvrCert = form.roles_requested.some((r) => TNVR_ROLES.includes(r));
   const isMinor = form.birthday ? isUnder18(form.birthday) : false;
 
-  const visibleRoleDescriptions = roleDescriptions.filter((rd) => {
+  const roleCatalog = resolveVolunteerRoleCatalog(roleDescriptions);
+  const signupRoles = signupVolunteerRoleOptions(roleCatalog);
+
+  const visibleRoleDescriptions = signupRoles.filter((rd) => {
     if (!isMinor) return true;
     return !ADULT_ONLY_VOLUNTEER_ROLES.includes(rd.role_id);
   });
@@ -71,7 +69,7 @@ export default function VolunteerSignupPage() {
   useEffect(() => {
     const supabase = createClient();
     supabase.from("role_descriptions").select("*").then(({ data, error }) => {
-      if (!error && data && data.length > 0) {
+      if (!error && data) {
         setRoleDescriptions(data as RoleDescription[]);
       }
     });

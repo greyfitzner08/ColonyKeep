@@ -8,8 +8,12 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { VOLUNTEER_ROLES } from "@/lib/constants";
 import { createClient } from "@/lib/supabase/client";
+import {
+  resolveVolunteerRoleCatalog,
+  signupVolunteerRoleOptions,
+  volunteerRoleLabel,
+} from "@/lib/volunteers/role-catalog";
 import {
   missingRequirementsForRole,
   requirementLabel,
@@ -21,7 +25,7 @@ import {
   hasRestrictedRoleForMinor,
   isUnder18,
 } from "@/lib/volunteers/age-eligibility";
-import type { Profile, VolunteerApplication, VolunteerRole, VolunteerRoleRequest } from "@/lib/types";
+import type { Profile, VolunteerApplication, VolunteerRole, VolunteerRoleRequest, RoleDescription } from "@/lib/types";
 
 interface VolunteerProfileRolesProps {
   profile: Profile;
@@ -29,8 +33,8 @@ interface VolunteerProfileRolesProps {
   roleRequests: VolunteerRoleRequest[];
 }
 
-function roleLabel(role: VolunteerRole) {
-  return VOLUNTEER_ROLES.find((entry) => entry.value === role)?.label ?? role;
+function roleLabel(role: VolunteerRole, catalog: RoleDescription[]) {
+  return volunteerRoleLabel(role, catalog);
 }
 
 export function VolunteerProfileRoles({
@@ -39,6 +43,25 @@ export function VolunteerProfileRoles({
   roleRequests,
 }: VolunteerProfileRolesProps) {
   const router = useRouter();
+  const [roleDescriptions, setRoleDescriptions] = useState<RoleDescription[]>([]);
+  const roleCatalog = useMemo(
+    () => resolveVolunteerRoleCatalog(roleDescriptions),
+    [roleDescriptions]
+  );
+  const signupRoles = useMemo(
+    () => signupVolunteerRoleOptions(roleCatalog),
+    [roleCatalog]
+  );
+
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.from("role_descriptions").select("*").then(({ data, error }) => {
+      if (!error && data) {
+        setRoleDescriptions(data as RoleDescription[]);
+      }
+    });
+  }, []);
+
   const approvedRoles = useMemo(
     () => profile.volunteer_roles ?? [],
     [profile.volunteer_roles]
@@ -84,7 +107,7 @@ export function VolunteerProfileRoles({
     tnvr_certificate_url: profile.tnvr_certificate_url,
   });
 
-  const visibleRoles = VOLUNTEER_ROLES.filter(({ value }) => {
+  const visibleRoles = signupRoles.filter(({ role_id: value }) => {
     if (isMinor && ADULT_ONLY_VOLUNTEER_ROLES.includes(value) && !approvedRoles.includes(value)) {
       return false;
     }
@@ -224,7 +247,7 @@ export function VolunteerProfileRoles({
         <div className="space-y-3">
           <p className="text-sm font-medium">Your volunteer interests</p>
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-            {visibleRoles.map(({ value, label }) => {
+            {visibleRoles.map(({ role_id: value, label, description }) => {
               const status = roleStatus(value);
               const checked = selectedRoles.includes(value) || status === "pending-add";
               const disabled = status === "pending-add" || status === "pending-remove";
@@ -250,6 +273,7 @@ export function VolunteerProfileRoles({
                       <Label htmlFor={`role-${value}`} className="font-medium leading-snug">
                         {label}
                       </Label>
+                      <p className="text-xs text-muted-foreground mt-0.5">{description}</p>
                       {status === "approved" && (
                         <p className="text-xs text-muted-foreground mt-0.5">Active — uncheck to request removal</p>
                       )}
@@ -286,7 +310,7 @@ export function VolunteerProfileRoles({
                   {(request.request_type ?? "add") === "remove" ? "Remove:" : "Add:"}
                 </span>
                 {request.requested_roles.map((role) => (
-                  <Badge key={role} variant="secondary">{roleLabel(role)}</Badge>
+                  <Badge key={role} variant="secondary">{roleLabel(role, roleCatalog)}</Badge>
                 ))}
               </div>
             ))}

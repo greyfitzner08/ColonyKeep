@@ -12,15 +12,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { createClient } from "@/lib/supabase/client";
-import { VolunteerEligibilityBadges } from "@/components/admin/volunteer-eligibility-badges";
 import { VolunteerTeamPicker } from "@/components/admin/volunteer-team-picker";
-import { AdminUserVolunteerRoles } from "@/components/admin/admin-user-volunteer-roles";
-import { ROLE_PERMISSIONS, isKnownUserRole } from "@/lib/constants";
-import {
-  getApplicationByEmail,
-  getTeamEligibleVolunteers,
-} from "@/lib/volunteers/eligibility";
-import type { Profile, TrapTeam, RoleDescription, UserRole, VolunteerApplication } from "@/lib/types";
+import { AdminUsersManager } from "@/components/admin/admin-users-manager";
+import { getTeamEligibleVolunteers } from "@/lib/volunteers/eligibility";
+import type { Profile, TrapTeam, RoleDescription, VolunteerApplication } from "@/lib/types";
 import { Plus, Pencil, X } from "lucide-react";
 
 interface AdminPanelProps {
@@ -40,7 +35,6 @@ export function AdminPanel({
   const [teamDialog, setTeamDialog] = useState(false);
   const [editingTeam, setEditingTeam] = useState<TrapTeam | null>(null);
   const [teamError, setTeamError] = useState<string | null>(null);
-  const [userError, setUserError] = useState<string | null>(null);
   const [savingTeam, setSavingTeam] = useState(false);
   const [teamForm, setTeamForm] = useState({
     name: "",
@@ -73,30 +67,12 @@ export function AdminPanel({
     router.refresh();
   }
 
-  async function updateUserRole(userId: string, role: UserRole) {
-    const user = users.find((entry) => entry.id === userId);
-    if (!user) return;
-
-    setUserError(null);
-    const response = await fetch("/api/admin/profiles/update", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userId, role, teamId: user.team_id }),
-    });
-    const result = await response.json().catch(() => null);
-    if (!response.ok) {
-      setUserError(result?.error ?? "Unable to update user role");
-      return;
-    }
-    router.refresh();
-  }
-
-  async function updateUserTeam(userId: string, teamId: string | null) {
-    setUserError(null);
+  async function removeVolunteerFromTeam(userId: string) {
+    setTeamError(null);
     try {
-      await assignVolunteerToTeam(userId, teamId);
+      await assignVolunteerToTeam(userId, null);
     } catch (error) {
-      setUserError(error instanceof Error ? error.message : "Unable to update team assignment");
+      setTeamError(error instanceof Error ? error.message : "Unable to update team assignment");
     }
   }
 
@@ -164,63 +140,13 @@ export function AdminPanel({
         <TabsTrigger value="roles">Role Descriptions</TabsTrigger>
       </TabsList>
 
-      <TabsContent value="users" className="mt-4 space-y-3">
-        {userError && <p className="text-sm text-destructive">{userError}</p>}
-        {users.map((user) => {
-          const application = getApplicationByEmail(applications, user.email);
-          const isEligible = eligibleVolunteers.some((entry) => entry.profile.id === user.id);
-
-          return (
-            <Card key={user.id}>
-              <CardContent className="pt-4 space-y-3">
-                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-                  <div className="space-y-2">
-                    <div>
-                      <p className="font-medium">{user.full_name ?? user.email}</p>
-                      <p className="text-sm text-muted-foreground">{user.email}</p>
-                    </div>
-                    <VolunteerEligibilityBadges application={application} />
-                  </div>
-                  <div className="flex flex-col sm:flex-row gap-2">
-                    <Select
-                      value={isKnownUserRole(user.role) ? user.role : "none"}
-                      onValueChange={(v) => {
-                        if (v !== "none") updateUserRole(user.id, v as UserRole);
-                      }}
-                    >
-                      <SelectTrigger className="w-[180px]"><SelectValue placeholder="Platform role" /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">No Role</SelectItem>
-                        {Object.entries(ROLE_PERMISSIONS).map(([role, { label }]) => (
-                          <SelectItem key={role} value={role}>{label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <Select
-                      value={user.team_id ?? "none"}
-                      onValueChange={(v) => updateUserTeam(user.id, v === "none" ? null : v)}
-                      disabled={!user.role || !isEligible}
-                    >
-                      <SelectTrigger className="w-[180px]"><SelectValue placeholder="Team" /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">No Team</SelectItem>
-                        {initialTeams.map((team) => (
-                          <SelectItem key={team.id} value={team.id}>{team.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                {!isEligible && user.role && (
-                  <p className="text-xs text-muted-foreground">
-                    Team assignment unlocks after TNVR certificate upload, field training, signed waiver/policy, and application approval.
-                  </p>
-                )}
-                <AdminUserVolunteerRoles user={user} onError={setUserError} />
-              </CardContent>
-            </Card>
-          );
-        })}
+      <TabsContent value="users" className="mt-4">
+        <AdminUsersManager
+          users={users}
+          teams={initialTeams}
+          roleDescriptions={roleDescriptions}
+          applications={applications}
+        />
       </TabsContent>
 
       <TabsContent value="teams" className="mt-4 space-y-4">
@@ -268,7 +194,7 @@ export function AdminPanel({
                           <Button
                             variant="ghost"
                             size="icon"
-                            onClick={() => updateUserTeam(member.id, null)}
+                            onClick={() => removeVolunteerFromTeam(member.id)}
                             aria-label={`Remove ${member.full_name ?? member.email} from team`}
                           >
                             <X className="h-4 w-4" />
