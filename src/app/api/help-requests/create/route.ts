@@ -1,20 +1,41 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
+import { hasSupabaseAdminConfig } from "@/lib/supabase/env";
 import { applyTrapTeamAssignment } from "@/lib/cases/assign-team-by-zip";
 import { mapCommunityIntakeToHelpRequest } from "@/lib/cases/public-intake";
+import { sanitizeHelpRequestRecord } from "@/lib/cases/help-request-insert";
 import { geocodeAddress } from "@/lib/geocode";
 
 export async function POST(request: NextRequest) {
-  const body = await request.json();
+  if (!hasSupabaseAdminConfig()) {
+    return NextResponse.json(
+      {
+        error:
+          "Intake submissions are temporarily unavailable. The server is missing database configuration.",
+      },
+      { status: 503 }
+    );
+  }
+
+  let body: Record<string, unknown>;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+  }
+
   const contactName = [body.contact_first_name, body.contact_last_name]
     .filter(Boolean)
     .join(" ")
     .trim();
 
-  const mapped = mapCommunityIntakeToHelpRequest(
-    body,
-    contactName || body.contact_email || "Community member"
-  );
+  const actorName =
+    contactName ||
+    (typeof body.contact_name === "string" ? body.contact_name.trim() : "") ||
+    (typeof body.contact_email === "string" ? body.contact_email : "") ||
+    "Community member";
+
+  const mapped = mapCommunityIntakeToHelpRequest(body, actorName);
 
   if (mapped.error || !mapped.record) {
     return NextResponse.json({ error: mapped.error ?? "Invalid submission" }, { status: 400 });
@@ -26,11 +47,13 @@ export async function POST(request: NextRequest) {
     .select("id, name, zip_codes, is_active")
     .eq("is_active", true);
 
-  const record = applyTrapTeamAssignment(
+  const assigned = applyTrapTeamAssignment(
     mapped.record,
     String(mapped.record.colony_zip ?? ""),
     teams ?? []
   );
+
+  const record = sanitizeHelpRequestRecord(assigned);
 
   if (!record.colony_lat || !record.colony_lng) {
     const coords = await geocodeAddress({
@@ -53,6 +76,7 @@ export async function POST(request: NextRequest) {
     .single();
 
   if (error) {
+    console.error("help-requests/create insert failed:", error.message);
     return NextResponse.json({ error: error.message }, { status: 400 });
   }
 

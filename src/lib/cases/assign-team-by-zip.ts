@@ -43,6 +43,5 @@ export function applyTrapTeamAssignment<T extends Record<string, unknown>>(
     ...record,
     assigned_team_id: match.id,
     assigned_team_name: match.name,
-    assigned_team: match.name,
   };
 }

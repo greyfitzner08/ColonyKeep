@@ -3,6 +3,7 @@ import { requireApiRole } from "@/lib/api/auth";
 import { applyTrapTeamAssignment } from "@/lib/cases/assign-team-by-zip";
 import { mapImportRowToHelpRequest } from "@/lib/cases/import-mapper";
 import { parseCaseImportCsv } from "@/lib/cases/parse-case-import-csv";
+import { sanitizeHelpRequestRecord } from "@/lib/cases/help-request-insert";
 import { createServiceClient } from "@/lib/supabase/server";
 
 export async function POST(request: NextRequest) {
@@ -41,7 +42,9 @@ export async function POST(request: NextRequest) {
     }
 
     const colonyZip = String(mapped.record.colony_zip ?? "");
-    const record = applyTrapTeamAssignment(mapped.record, colonyZip, teams ?? []);
+    const record = sanitizeHelpRequestRecord(
+      applyTrapTeamAssignment(mapped.record, colonyZip, teams ?? [])
+    );
 
     const { data, error } = await service
       .from("help_requests")

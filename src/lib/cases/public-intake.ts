@@ -1,5 +1,5 @@
 import { detectMedicalKeywords } from "@/lib/medical-flags";
-import { normalizeImportRow, mapImportRowToHelpRequest } from "@/lib/cases/import-mapper";
+import { mapImportRowToHelpRequest } from "@/lib/cases/import-mapper";
 
 /** Maps public intake API / form fields to the same normalized keys used by CSV import. */
 const SUBMISSION_FIELD_MAP: Record<string, string> = {
@@ -99,13 +99,14 @@ export function mapCommunityIntakeToHelpRequest(
   actorName: string
 ): { error?: string; record?: Record<string, unknown> } {
   const raw = submissionToImportRow(body);
-  const row = normalizeImportRow(raw);
 
-  if (!row.email && !row.phone_number) {
+  const email = String(raw.email ?? body.contact_email ?? "").trim();
+  const phone = String(raw.phone_number ?? body.contact_phone ?? "").trim();
+  if (!email && !phone) {
     return { error: "Email and phone are required." };
   }
 
-  const mapped = mapImportRowToHelpRequest(row, actorName);
+  const mapped = mapImportRowToHelpRequest(raw, actorName);
   if (mapped.error || !mapped.record) {
     return mapped;
   }

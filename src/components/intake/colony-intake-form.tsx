@@ -493,7 +493,7 @@ export function ColonyIntakeForm() {
                   Next <ChevronRight className="h-4 w-4" />
                 </Button>
               ) : (
-                <Button onClick={handleSubmit} disabled={submitting}>
+                <Button type="button" onClick={handleSubmit} disabled={submitting}>
                   {submitting ? "Submitting..." : "Submit Request"}
                 </Button>
               )}
