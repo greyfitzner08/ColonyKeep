@@ -97,6 +97,9 @@ export interface TrapEquipmentItem {
   equipment_label: string | null;
   qr_code_data: string | null;
   assigned_to_profile_id: string | null;
+  borrower_name: string | null;
+  borrower_email: string | null;
+  borrower_phone: string | null;
   logged_by_email: string;
   logged_by_name: string | null;
   created_at: string;

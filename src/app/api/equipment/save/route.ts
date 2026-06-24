@@ -20,6 +20,10 @@ const VALID_STATUSES: TrapEquipmentStatus[] = [
   "retired",
 ];
 
+function trimOrNull(value: unknown): string | null {
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
 export async function POST(request: NextRequest) {
   const { profile, response } = await requireTrapEquipmentAccess();
   if (response) return response;
@@ -63,14 +67,9 @@ export async function POST(request: NextRequest) {
     teamName = team?.name ?? null;
   }
 
-  let assignedToProfileId =
-    typeof body.assigned_to_profile_id === "string" && body.assigned_to_profile_id.trim()
-      ? body.assigned_to_profile_id.trim()
-      : null;
+  let assignedToProfileId = trimOrNull(body.assigned_to_profile_id);
 
-  if (status !== "loaned") {
-    assignedToProfileId = null;
-  } else if (assignedToProfileId) {
+  if (assignedToProfileId) {
     const { data: assignee } = await service
       .from("profiles")
       .select("id, team_id, role, volunteer_roles")
@@ -87,6 +86,16 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+  }
+
+  let borrowerName = trimOrNull(body.borrower_name);
+  let borrowerEmail = trimOrNull(body.borrower_email);
+  let borrowerPhone = trimOrNull(body.borrower_phone);
+
+  if (status !== "loaned") {
+    borrowerName = null;
+    borrowerEmail = null;
+    borrowerPhone = null;
   }
 
   const payload = {
@@ -106,6 +115,9 @@ export async function POST(request: NextRequest) {
     qr_code_data:
       typeof body.qr_code_data === "string" ? body.qr_code_data.trim() || null : null,
     assigned_to_profile_id: assignedToProfileId,
+    borrower_name: borrowerName,
+    borrower_email: borrowerEmail,
+    borrower_phone: borrowerPhone,
     logged_by_email: profile!.email,
     logged_by_name: profile!.full_name,
   };

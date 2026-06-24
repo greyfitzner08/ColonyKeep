@@ -64,8 +64,8 @@ export default async function EquipmentPage() {
       <div>
         <h1 className="text-3xl font-bold">Trap Equipment</h1>
         <p className="text-muted-foreground">
-          Track traps, scanners, and field gear. Assign loaned equipment to TNVR volunteers and
-          see borrower contact info at a glance.
+          Track traps, scanners, and field gear. Assign a TNVR volunteer who keeps each item, and
+          record public borrower contact info when gear is loaned out.
           {userTeam ? ` Viewing inventory for ${userTeam.name}.` : " Viewing all teams."}
         </p>
       </div>

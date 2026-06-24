@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { Plus, Pencil, Trash2, QrCode, Loader2 } from "lucide-react";
@@ -67,6 +67,9 @@ const emptyForm = {
   equipment_label: "",
   qr_code_data: "" as string | null,
   assigned_to_profile_id: "" as string | null,
+  borrower_name: "",
+  borrower_email: "",
+  borrower_phone: "",
 };
 
 const UNASSIGNED = "__unassigned__";
@@ -90,10 +93,15 @@ export function TrapEquipmentManager({
   const [rowError, setRowError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [scanNotice, setScanNotice] = useState<string | null>(null);
+  const rowsRef = useRef(rows);
 
   useEffect(() => {
     setRows(initialItems);
   }, [initialItems]);
+
+  useEffect(() => {
+    rowsRef.current = rows;
+  }, [rows]);
 
   const teamNameById = useMemo(
     () => new Map(teams.map((team) => [team.id, team.name])),
@@ -129,6 +137,9 @@ export function TrapEquipmentManager({
         equipment_label: item.equipment_label,
         qr_code_data: item.qr_code_data,
         assigned_to_profile_id: item.assigned_to_profile_id,
+        borrower_name: item.borrower_name,
+        borrower_email: item.borrower_email,
+        borrower_phone: item.borrower_phone,
       }),
     });
     const result = await response.json().catch(() => null);
@@ -150,12 +161,13 @@ export function TrapEquipmentManager({
 
     let next: TrapEquipmentItem = { ...current, ...patch };
 
-    if (patch.assigned_to_profile_id && next.status === "available") {
-      next = { ...next, status: "loaned" };
-    }
-
     if (patch.status && patch.status !== "loaned") {
-      next = { ...next, assigned_to_profile_id: null };
+      next = {
+        ...next,
+        borrower_name: null,
+        borrower_email: null,
+        borrower_phone: null,
+      };
     }
 
     setRowError(null);
@@ -195,6 +207,9 @@ export function TrapEquipmentManager({
       equipment_label: item.equipment_label ?? "",
       qr_code_data: item.qr_code_data,
       assigned_to_profile_id: item.assigned_to_profile_id ?? "",
+      borrower_name: item.borrower_name ?? "",
+      borrower_email: item.borrower_email ?? "",
+      borrower_phone: item.borrower_phone ?? "",
     });
     setSaveError(null);
     setScanNotice(null);
@@ -240,11 +255,6 @@ export function TrapEquipmentManager({
       return;
     }
 
-    if (form.status === "loaned" && !form.assigned_to_profile_id) {
-      setSaveError("Select the TNVR volunteer borrowing this equipment");
-      return;
-    }
-
     setSaveError(null);
     setSaving(true);
 
@@ -267,8 +277,10 @@ export function TrapEquipmentManager({
         is_labeled: form.is_labeled,
         equipment_label: form.is_labeled ? form.equipment_label.trim() : null,
         qr_code_data: form.qr_code_data,
-        assigned_to_profile_id:
-          form.status === "loaned" ? form.assigned_to_profile_id || null : null,
+        assigned_to_profile_id: form.assigned_to_profile_id || null,
+        borrower_name: form.status === "loaned" ? form.borrower_name.trim() || null : null,
+        borrower_email: form.status === "loaned" ? form.borrower_email.trim() || null : null,
+        borrower_phone: form.status === "loaned" ? form.borrower_phone.trim() || null : null,
       }),
     });
     const result = await response.json().catch(() => null);
@@ -310,33 +322,86 @@ export function TrapEquipmentManager({
     return equipmentTypeLabel(item.equipment_type);
   }
 
-  function renderBorrowerContact(item: TrapEquipmentItem) {
+  function saveBorrowerFields(itemId: string) {
+    const row = rowsRef.current.find((entry) => entry.id === itemId);
+    if (!row) return;
+    void updateRow(itemId, {
+      borrower_name: row.borrower_name,
+      borrower_email: row.borrower_email,
+      borrower_phone: row.borrower_phone,
+    });
+  }
+
+  function renderBorrowerContact(item: TrapEquipmentItem, isSaving: boolean) {
     if (item.status !== "loaned") {
       return <span className="text-muted-foreground">—</span>;
     }
 
+    return (
+      <div className="space-y-1.5 min-w-[180px]">
+        <Input
+          className="h-8 text-xs"
+          placeholder="Borrower name"
+          disabled={isSaving}
+          value={item.borrower_name ?? ""}
+          onChange={(e) =>
+            setRows((prev) =>
+              prev.map((row) =>
+                row.id === item.id ? { ...row, borrower_name: e.target.value } : row
+              )
+            )
+          }
+          onBlur={() => saveBorrowerFields(item.id)}
+        />
+        <Input
+          className="h-8 text-xs"
+          placeholder="Phone"
+          type="tel"
+          disabled={isSaving}
+          value={item.borrower_phone ?? ""}
+          onChange={(e) =>
+            setRows((prev) =>
+              prev.map((row) =>
+                row.id === item.id ? { ...row, borrower_phone: e.target.value } : row
+              )
+            )
+          }
+          onBlur={() => saveBorrowerFields(item.id)}
+        />
+        <Input
+          className="h-8 text-xs"
+          placeholder="Email"
+          type="email"
+          disabled={isSaving}
+          value={item.borrower_email ?? ""}
+          onChange={(e) =>
+            setRows((prev) =>
+              prev.map((row) =>
+                row.id === item.id ? { ...row, borrower_email: e.target.value } : row
+              )
+            )
+          }
+          onBlur={() => saveBorrowerFields(item.id)}
+        />
+      </div>
+    );
+  }
+
+  function renderCustodian(item: TrapEquipmentItem) {
     const volunteer = item.assigned_to_profile_id
       ? volunteerById.get(item.assigned_to_profile_id)
       : null;
-
-    if (!volunteer) {
-      return <span className="text-amber-700 text-xs">Select a volunteer</span>;
-    }
-
+    if (!volunteer) return null;
     return (
-      <div className="space-y-0.5 text-xs">
-        <p className="font-medium">{volunteerDisplayName(volunteer)}</p>
-        <a href={`mailto:${volunteer.email}`} className="text-primary hover:underline block">
-          {volunteer.email}
-        </a>
+      <p className="text-xs text-muted-foreground mt-1">
         {volunteer.phone ? (
-          <a href={`tel:${volunteer.phone}`} className="text-primary hover:underline block">
+          <a href={`tel:${volunteer.phone}`} className="text-primary hover:underline">
             {volunteer.phone}
           </a>
         ) : (
-          <p className="text-muted-foreground">No phone on file</p>
+          volunteer.email
         )}
-      </div>
+      </p>
     );
   }
 
@@ -371,8 +436,8 @@ export function TrapEquipmentManager({
                 <th className="px-3 py-3 font-medium">Type</th>
                 <th className="px-3 py-3 font-medium">Qty</th>
                 <th className="px-3 py-3 font-medium">Status</th>
-                <th className="px-3 py-3 font-medium min-w-[180px]">Assigned volunteer</th>
-                <th className="px-3 py-3 font-medium min-w-[160px]">Borrower contact</th>
+                <th className="px-3 py-3 font-medium min-w-[180px]">Keeps equipment</th>
+                <th className="px-3 py-3 font-medium min-w-[200px]">Public borrower</th>
                 <th className="px-3 py-3 font-medium">Location</th>
                 <th className="px-3 py-3 font-medium">Notes</th>
                 <th className="px-3 py-3 font-medium">Actions</th>
@@ -419,16 +484,15 @@ export function TrapEquipmentManager({
                     <td className="px-3 py-3">
                       <Select
                         value={item.assigned_to_profile_id ?? UNASSIGNED}
-                        disabled={isSaving || item.status !== "loaned"}
+                        disabled={isSaving}
                         onValueChange={(value) =>
                           updateRow(item.id, {
                             assigned_to_profile_id: value === UNASSIGNED ? null : value,
-                            status: "loaned",
                           })
                         }
                       >
                         <SelectTrigger className="h-8 min-w-[160px]">
-                          <SelectValue placeholder="Select volunteer" />
+                          <SelectValue placeholder="TNVR volunteer" />
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value={UNASSIGNED}>Unassigned</SelectItem>
@@ -439,11 +503,12 @@ export function TrapEquipmentManager({
                           ))}
                         </SelectContent>
                       </Select>
-                      {item.status === "loaned" && volunteers.length === 0 && (
+                      {renderCustodian(item)}
+                      {volunteers.length === 0 && (
                         <p className="text-xs text-muted-foreground mt-1">No TNVR volunteers found</p>
                       )}
                     </td>
-                    <td className="px-3 py-3">{renderBorrowerContact(item)}</td>
+                    <td className="px-3 py-3">{renderBorrowerContact(item, isSaving)}</td>
                     <td className="px-3 py-3 text-muted-foreground">{item.location ?? "—"}</td>
                     <td className="px-3 py-3 text-muted-foreground max-w-[180px]">
                       <p className="line-clamp-2">{item.notes ?? "—"}</p>
@@ -592,8 +657,9 @@ export function TrapEquipmentManager({
                     setForm({
                       ...form,
                       status,
-                      assigned_to_profile_id:
-                        status === "loaned" ? form.assigned_to_profile_id : "",
+                      borrower_name: status === "loaned" ? form.borrower_name : "",
+                      borrower_email: status === "loaned" ? form.borrower_email : "",
+                      borrower_phone: status === "loaned" ? form.borrower_phone : "",
                     });
                   }}
                 >
@@ -611,32 +677,74 @@ export function TrapEquipmentManager({
               </div>
             </div>
 
+            <div className="space-y-2">
+              <Label>TNVR volunteer who keeps this</Label>
+              <Select
+                value={form.assigned_to_profile_id || UNASSIGNED}
+                onValueChange={(value) =>
+                  setForm({
+                    ...form,
+                    assigned_to_profile_id: value === UNASSIGNED ? "" : value,
+                  })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Who stores / maintains this gear?" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={UNASSIGNED}>Unassigned</SelectItem>
+                  {volunteers.map((volunteer) => (
+                    <SelectItem key={volunteer.id} value={volunteer.id}>
+                      {volunteerDisplayName(volunteer)}
+                      {volunteer.phone ? ` · ${volunteer.phone}` : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                The team volunteer responsible for this equipment in inventory.
+              </p>
+            </div>
+
             {form.status === "loaned" && (
-              <div className="space-y-2">
-                <Label>Assigned TNVR volunteer</Label>
-                <Select
-                  value={form.assigned_to_profile_id || UNASSIGNED}
-                  onValueChange={(value) =>
-                    setForm({
-                      ...form,
-                      assigned_to_profile_id: value === UNASSIGNED ? "" : value,
-                      status: "loaned",
-                    })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Who has this equipment?" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={UNASSIGNED}>Select volunteer</SelectItem>
-                    {volunteers.map((volunteer) => (
-                      <SelectItem key={volunteer.id} value={volunteer.id}>
-                        {volunteerDisplayName(volunteer)}
-                        {volunteer.phone ? ` · ${volunteer.phone}` : ""}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              <div className="rounded-lg border p-3 space-y-3">
+                <div>
+                  <Label className="font-medium">Public borrower contact</Label>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Person borrowing the gear (community member, not necessarily a volunteer).
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="borrower-name">Name</Label>
+                  <Input
+                    id="borrower-name"
+                    placeholder="Borrower full name"
+                    value={form.borrower_name}
+                    onChange={(e) => setForm({ ...form, borrower_name: e.target.value })}
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="borrower-phone">Phone</Label>
+                    <Input
+                      id="borrower-phone"
+                      type="tel"
+                      placeholder="(555) 555-5555"
+                      value={form.borrower_phone}
+                      onChange={(e) => setForm({ ...form, borrower_phone: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="borrower-email">Email</Label>
+                    <Input
+                      id="borrower-email"
+                      type="email"
+                      placeholder="name@example.com"
+                      value={form.borrower_email}
+                      onChange={(e) => setForm({ ...form, borrower_email: e.target.value })}
+                    />
+                  </div>
+                </div>
               </div>
             )}
 
