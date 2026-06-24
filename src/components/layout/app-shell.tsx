@@ -1,4 +1,5 @@
 import { getSessionProfiles } from "@/lib/auth";
+import { rolePreviewLabel } from "@/lib/admin/role-preview";
 import { Sidebar } from "@/components/layout/sidebar";
 import { AdminRolePreviewBanner } from "@/components/admin/admin-role-preview";
 import { VolunteerGate } from "@/components/layout/volunteer-gate";
@@ -9,20 +10,30 @@ import { BirthdayGate } from "@/components/layout/birthday-gate";
 import { isKnownUserRole } from "@/lib/constants";
 import { hasSupabaseServerConfig } from "@/lib/supabase/env";
 import { createClient } from "@/lib/supabase/server";
+import { resolveVolunteerRoleCatalog } from "@/lib/volunteers/role-catalog";
 import {
   isApplicationPendingReview,
   requiresVolunteerApplication,
   requiresVolunteerRequirementCompletion,
 } from "@/lib/volunteers/application-requirements";
-import type { VolunteerApplication } from "@/lib/types";
+import type { RoleDescription, VolunteerApplication } from "@/lib/types";
 
 export async function AppShell({ children }: { children: React.ReactNode }) {
   if (!hasSupabaseServerConfig()) {
     return <SupabaseConfigGate />;
   }
 
-  const { actualProfile: profile, effectiveProfile, previewRole } = await getSessionProfiles();
+  const { actualProfile: profile, effectiveProfile, previewKey } = await getSessionProfiles();
   const isActualAdmin = profile?.role === "admin";
+
+  let roleDescriptions: RoleDescription[] = [];
+  if (isActualAdmin) {
+    const supabase = await createClient();
+    const { data } = await supabase.from("role_descriptions").select("*").order("label");
+    roleDescriptions = resolveVolunteerRoleCatalog((data as RoleDescription[] | null) ?? []);
+  }
+
+  const previewLabel = previewKey ? rolePreviewLabel(previewKey, roleDescriptions) : null;
 
   let application: VolunteerApplication | null = null;
   if (!isActualAdmin && profile?.email) {
@@ -65,14 +76,17 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen bg-background">
-      {previewRole && <AdminRolePreviewBanner previewRole={previewRole} />}
+      {previewKey && previewLabel && (
+        <AdminRolePreviewBanner previewKey={previewKey} previewLabel={previewLabel} />
+      )}
       {needsBirthday && (
         <BirthdayGate userName={effectiveProfile.full_name ?? effectiveProfile.email} />
       )}
       <Sidebar
         profile={effectiveProfile}
         isAdmin={isActualAdmin}
-        previewRole={previewRole}
+        previewKey={previewKey}
+        roleDescriptions={roleDescriptions}
         userName={effectiveProfile.full_name ?? effectiveProfile.email}
       />
       <main className="lg:pl-64">

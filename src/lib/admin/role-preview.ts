@@ -1,24 +1,29 @@
 import { cookies } from "next/headers";
-import type { Profile, UserRole } from "@/lib/types";
+import type { Profile } from "@/lib/types";
 import {
   ROLE_PREVIEW_COOKIE,
   applyRolePreview,
-  parsePreviewRole,
+  parseRolePreviewCookie,
 } from "@/lib/admin/role-preview.shared";
 
 export {
   PREVIEWABLE_PLATFORM_ROLES,
   ROLE_PREVIEW_COOKIE,
   applyRolePreview,
-  parsePreviewRole,
+  encodeVolunteerRolePreview,
+  isValidRolePreviewKey,
+  isVolunteerRole,
+  parseRolePreviewCookie,
+  rolePreviewLabel,
 } from "@/lib/admin/role-preview.shared";
 
-export async function getRolePreviewRole(): Promise<UserRole | null> {
+export async function getRolePreviewKey(): Promise<string | null> {
   const cookieStore = await cookies();
-  return parsePreviewRole(cookieStore.get(ROLE_PREVIEW_COOKIE)?.value);
+  const value = cookieStore.get(ROLE_PREVIEW_COOKIE)?.value;
+  return parseRolePreviewCookie(value) ? value ?? null : null;
 }
 
 export async function getEffectiveProfile(profile: Profile | null): Promise<Profile | null> {
   if (!profile) return null;
-  return applyRolePreview(profile, await getRolePreviewRole());
+  return applyRolePreview(profile, await getRolePreviewKey());
 }

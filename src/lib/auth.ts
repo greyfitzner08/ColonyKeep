@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { isKnownUserRole } from "@/lib/constants";
-import { getEffectiveProfile, getRolePreviewRole } from "@/lib/admin/role-preview";
+import { getEffectiveProfile, getRolePreviewKey } from "@/lib/admin/role-preview";
 import { canAccessRoute as profileCanAccessRoute } from "@/lib/permissions";
 import type { Profile, UserRole } from "@/lib/types";
 
@@ -36,13 +36,13 @@ export async function getAppProfile(): Promise<Profile | null> {
 export async function getSessionProfiles(): Promise<{
   actualProfile: Profile | null;
   effectiveProfile: Profile | null;
-  previewRole: UserRole | null;
+  previewKey: string | null;
 }> {
   const actualProfile = await getCurrentProfile();
-  const previewRole =
-    actualProfile?.role === "admin" ? await getRolePreviewRole() : null;
+  const previewKey =
+    actualProfile?.role === "admin" ? await getRolePreviewKey() : null;
   const effectiveProfile = await getEffectiveProfile(actualProfile);
-  return { actualProfile, effectiveProfile, previewRole };
+  return { actualProfile, effectiveProfile, previewKey };
 }
 
 export async function requireRole(allowedRoles: UserRole[]) {

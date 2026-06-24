@@ -25,7 +25,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getProfilePermissions } from "@/lib/permissions";
-import type { Profile, UserRole } from "@/lib/types";
+import type { Profile, RoleDescription } from "@/lib/types";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { LogoutButton } from "@/components/layout/logout-button";
@@ -54,10 +54,17 @@ interface SidebarProps {
   profile: Profile | null;
   userName?: string | null;
   isAdmin?: boolean;
-  previewRole?: UserRole | null;
+  previewKey?: string | null;
+  roleDescriptions?: RoleDescription[];
 }
 
-export function Sidebar({ profile, userName, isAdmin = false, previewRole = null }: SidebarProps) {
+export function Sidebar({
+  profile,
+  userName,
+  isAdmin = false,
+  previewKey = null,
+  roleDescriptions = [],
+}: SidebarProps) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -70,44 +77,58 @@ export function Sidebar({ profile, userName, isAdmin = false, previewRole = null
   );
 
   const nav = (
-    <nav className="flex flex-1 flex-col gap-1 p-4">
-      <div className="mb-6 flex items-center gap-2 px-2">
+    <nav className="flex h-full min-h-0 flex-col p-4">
+      <div className="mb-6 flex shrink-0 items-center gap-2 px-2">
         <Cat className="h-8 w-8 text-primary" />
         <div>
           <p className="font-semibold text-sidebar-foreground">TNVR Rescue</p>
           <p className="text-xs text-sidebar-foreground/60">Colony Management</p>
         </div>
       </div>
-      {visibleItems.map((item) => {
-        const Icon = item.icon;
-        const active = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));
-        return (
-          <Link
-            key={item.href}
-            href={item.href}
-            onClick={() => setMobileOpen(false)}
-            className={cn(
-              "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
-              active
-                ? "bg-primary text-primary-foreground"
-                : "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground"
-            )}
-          >
-            <Icon className="h-4 w-4" />
-            {item.label}
-          </Link>
-        );
-      })}
+
+      <div className="min-h-0 flex-1 overflow-y-auto -mx-2 px-2">
+        <div className="flex flex-col gap-1">
+          {visibleItems.map((item) => {
+            const Icon = item.icon;
+            const active =
+              pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={() => setMobileOpen(false)}
+                className={cn(
+                  "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                  active
+                    ? "bg-primary text-primary-foreground"
+                    : "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground"
+                )}
+              >
+                <Icon className="h-4 w-4" />
+                {item.label}
+              </Link>
+            );
+          })}
+        </div>
+      </div>
+
       {userName && (
-        <div className="mt-auto border-t border-sidebar-border pt-4 px-2 space-y-2">
-          {isAdmin && <AdminRolePreviewControl previewRole={previewRole} />}
-          <div>
-            <p className="text-xs text-sidebar-foreground/60">Signed in as</p>
-            <p className="text-sm font-medium text-sidebar-foreground truncate">{userName}</p>
-            {permissions && (
-              <p className="text-xs text-sidebar-foreground/60">
-                {previewRole ? `${permissions.label} (preview)` : permissions.label}
-              </p>
+        <div className="mt-3 shrink-0 space-y-2 border-t border-sidebar-border pt-3">
+          <div className="flex items-start justify-between gap-2 px-2">
+            <div className="min-w-0 flex-1">
+              <p className="text-xs text-sidebar-foreground/60">Signed in as</p>
+              <p className="truncate text-sm font-medium text-sidebar-foreground">{userName}</p>
+              {permissions && (
+                <p className="truncate text-xs text-sidebar-foreground/60">
+                  {previewKey ? `${permissions.label} (preview)` : permissions.label}
+                </p>
+              )}
+            </div>
+            {isAdmin && (
+              <AdminRolePreviewControl
+                previewKey={previewKey}
+                roleDescriptions={roleDescriptions}
+              />
             )}
           </div>
           <LogoutButton />
@@ -127,14 +148,14 @@ export function Sidebar({ profile, userName, isAdmin = false, previewRole = null
         {mobileOpen ? <X /> : <Menu />}
       </Button>
 
-      <aside className="hidden lg:flex lg:w-64 lg:flex-col lg:fixed lg:inset-y-0 bg-sidebar border-r border-sidebar-border">
+      <aside className="hidden lg:fixed lg:inset-y-0 lg:flex lg:w-64 lg:flex-col bg-sidebar border-r border-sidebar-border">
         {nav}
       </aside>
 
       {mobileOpen && (
         <aside className="fixed inset-0 z-40 flex lg:hidden">
           <div className="fixed inset-0 bg-black/50" onClick={() => setMobileOpen(false)} />
-          <div className="relative flex w-64 flex-col bg-sidebar">{nav}</div>
+          <div className="relative flex h-full w-64 flex-col bg-sidebar">{nav}</div>
         </aside>
       )}
     </>
