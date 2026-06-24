@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -43,13 +42,10 @@ export function AdminUsersManager({
   roleDescriptions,
   applications,
 }: AdminUsersManagerProps) {
-  const router = useRouter();
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState<string>("all");
   const [editingUser, setEditingUser] = useState<Profile | null>(null);
   const [userError, setUserError] = useState<string | null>(null);
-  const [nameEdits, setNameEdits] = useState<Record<string, string>>({});
-  const [savingNameId, setSavingNameId] = useState<string | null>(null);
 
   const roleCatalog = useMemo(
     () => resolveVolunteerRoleCatalog(roleDescriptions),
@@ -88,36 +84,6 @@ export function AdminUsersManager({
         .some((value) => String(value).toLowerCase().includes(query));
     });
   }, [users, search, roleFilter, teamById, roleCatalog]);
-
-  function nameForUser(user: Profile) {
-    return nameEdits[user.id] ?? user.full_name ?? "";
-  }
-
-  async function saveUserName(user: Profile) {
-    const fullName = nameForUser(user).trim();
-    if (!fullName) {
-      setUserError("Name is required");
-      return;
-    }
-    if (fullName === (user.full_name ?? "")) return;
-
-    setUserError(null);
-    setSavingNameId(user.id);
-    const response = await fetch("/api/admin/profiles/update", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userId: user.id, fullName }),
-    });
-    const result = await response.json().catch(() => null);
-    setSavingNameId(null);
-
-    if (!response.ok) {
-      setUserError(result?.error ?? "Unable to update name");
-      return;
-    }
-
-    router.refresh();
-  }
 
   return (
     <div className="space-y-4">
@@ -182,27 +148,9 @@ export function AdminUsersManager({
                   className="grid gap-3 px-4 py-4 md:grid-cols-[minmax(0,1.2fr)_minmax(0,1.4fr)_minmax(0,0.9fr)_minmax(0,0.8fr)_minmax(0,1.2fr)_auto] md:items-center"
                 >
                   <div className="space-y-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Input
-                        aria-label={`Full name for ${user.email}`}
-                        value={nameForUser(user)}
-                        onChange={(event) =>
-                          setNameEdits((prev) => ({ ...prev, [user.id]: event.target.value }))
-                        }
-                        className="h-8 max-w-[220px] text-sm"
-                      />
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="secondary"
-                        disabled={
-                          savingNameId === user.id || nameForUser(user).trim() === (user.full_name ?? "")
-                        }
-                        onClick={() => saveUserName(user)}
-                      >
-                        {savingNameId === user.id ? "Saving…" : "Save"}
-                      </Button>
-                    </div>
+                    <p className="text-sm font-medium truncate">
+                      {user.full_name?.trim() || "—"}
+                    </p>
                     <p className="text-xs text-muted-foreground md:hidden">{user.email}</p>
                   </div>
                   <p className="text-sm text-muted-foreground truncate hidden md:block">
