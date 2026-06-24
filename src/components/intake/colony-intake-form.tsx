@@ -140,7 +140,7 @@ export function ColonyIntakeForm() {
           </Link>
           <h1 className="text-2xl font-bold">Report a Cat Colony</h1>
           <p className="text-muted-foreground mt-1">
-            Community intake form — your report goes directly into our intake queue
+            Community inquiry form — your report goes directly into our inquiry queue
           </p>
         </div>
 

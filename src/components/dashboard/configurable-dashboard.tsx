@@ -57,7 +57,7 @@ interface ConfigurableDashboardProps {
 }
 
 const QUICK_LINKS = [
-  { key: "intake" as const, href: "/intake", label: "Intake Queue", icon: Inbox },
+  { key: "intake" as const, href: "/intake", label: "Inquiry Queue", icon: Inbox },
   { key: "trap" as const, href: "/trap-queue", label: "Trap Queue", icon: Kanban },
   { key: "appointments" as const, href: "/appointments", label: "Appointments", icon: Calendar },
 ];
@@ -207,7 +207,7 @@ export function ConfigurableDashboard({
         return (
           <MyCasesSection
             title="My Cases"
-            description="Intake work you personally claimed from the queue. These are your assigned follow-ups — not trap-team field work. Medical cases are pinned to the top."
+            description="Inquiry work you personally claimed from the queue. These are your assigned follow-ups — not trap-team field work. Medical cases are pinned to the top."
             cases={myCases}
             emptyMessage="You have not claimed any open cases yet."
             showClaimHint
@@ -261,8 +261,8 @@ export function ConfigurableDashboard({
         return (
           <Card>
             <CardContent className="py-6 text-sm text-muted-foreground">
-              Claim cases from the intake queue to track them here, or use import on the intake page
-              to bulk-add cases.
+              Claim cases from the inquiry queue to track them here, or use the admin tools on the
+              inquiry page to bulk-import cases.
             </CardContent>
           </Card>
         );

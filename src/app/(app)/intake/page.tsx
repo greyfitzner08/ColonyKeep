@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
 import { IntakeFilters } from "@/components/cases/intake-filters";
 import { IntakeQueueView, type IntakeViewMode } from "@/components/cases/intake-queue-view";
-import { CaseImporter } from "@/components/cases/case-importer";
+import { InquiryAdminMenu } from "@/components/cases/inquiry-admin-menu";
 import { INTAKE_QUEUE_STATUSES } from "@/lib/cases/statuses";
 import { isCaseWorker } from "@/lib/permissions";
 import type { IntakeSortKey } from "@/lib/cases/sort-intake-cases";
@@ -56,18 +56,19 @@ export default async function IntakePage({ searchParams }: IntakePageProps) {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Intake Queue</h1>
-        <p className="text-muted-foreground">{filtered.length} cases</p>
-        <p className="text-sm text-muted-foreground mt-1">
-          Share the public intake form:{" "}
-          <a href="/request" className="text-primary underline" target="_blank" rel="noreferrer">
-            /request
-          </a>
-        </p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold">Inquiry Queue</h1>
+          <p className="text-muted-foreground">{filtered.length} cases</p>
+          <p className="text-sm text-muted-foreground mt-1">
+            Share the public inquiry form:{" "}
+            <a href="/request" className="text-primary underline" target="_blank" rel="noreferrer">
+              /request
+            </a>
+          </p>
+        </div>
+        {canImport && <InquiryAdminMenu />}
       </div>
-
-      {canImport && <CaseImporter />}
 
       <Suspense fallback={<div className="h-24 animate-pulse rounded-lg bg-muted" />}>
         <IntakeFilters teams={teams ?? []} />

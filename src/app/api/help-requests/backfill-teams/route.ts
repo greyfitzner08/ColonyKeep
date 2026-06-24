@@ -32,7 +32,6 @@ export async function POST(_request: NextRequest) {
       .update({
         assigned_team_id: assignment.assigned_team_id,
         assigned_team_name: assignment.assigned_team_name,
-        assigned_team: assignment.assigned_team_name,
       })
       .eq("id", row.id);
 

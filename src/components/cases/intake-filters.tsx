@@ -46,7 +46,7 @@ export function IntakeFilters({ teams }: IntakeFiltersProps) {
         <Select value={searchParams.get("status") ?? "all"} onValueChange={(v) => updateFilter("status", v)}>
           <SelectTrigger className="w-[180px]"><SelectValue placeholder="Status" /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Intake Statuses</SelectItem>
+            <SelectItem value="all">All Inquiry Statuses</SelectItem>
             {intakeStatuses.map((s) => (
               <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
             ))}

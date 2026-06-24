@@ -31,7 +31,7 @@ import { LogoutButton } from "@/components/layout/logout-button";
 
 const NAV_ITEMS = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/intake", label: "Intake Queue", icon: Inbox },
+  { href: "/intake", label: "Inquiry Queue", icon: Inbox },
   { href: "/trap-queue", label: "Trap Queue", icon: Kanban },
   { href: "/appointments", label: "Appointments", icon: Calendar },
   { href: "/clinics", label: "Clinics", icon: Building2 },

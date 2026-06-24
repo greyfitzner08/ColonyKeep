@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
   const status = existing.status as HelpRequestStatus;
   if (!INTAKE_QUEUE_STATUSES.includes(status)) {
     return NextResponse.json(
-      { error: "Only cases still in the intake queue can be routed to a trap team." },
+      { error: "Only cases still in the inquiry queue can be routed to a trap team." },
       { status: 400 }
     );
   }

@@ -7,7 +7,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { buildCaseImportTemplateCsv, CASE_IMPORT_HEADERS } from "@/lib/cases/import-mapper";
 import { Upload } from "lucide-react";
 
-export function CaseImporter() {
+interface CaseImporterProps {
+  variant?: "card" | "panel";
+}
+
+export function CaseImporter({ variant = "card" }: CaseImporterProps) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const [importing, setImporting] = useState(false);
@@ -89,24 +93,16 @@ export function CaseImporter() {
     URL.revokeObjectURL(url);
   }
 
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base">Import Cases</CardTitle>
-        <CardDescription>
-          Admin only. Upload a CSV using the Friends of Feral Felines case export columns.
-          Each row needs at least a Case Number, Email, or Phone Number. Download the template
-          for the full {CASE_IMPORT_HEADERS.length}-column header row.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="flex flex-wrap items-center gap-3">
-        <input
-          ref={inputRef}
-          type="file"
-          accept=".csv,text/csv"
-          className="hidden"
-          onChange={handleFileChange}
-        />
+  const content = (
+    <>
+      <input
+        ref={inputRef}
+        type="file"
+        accept=".csv,text/csv"
+        className="hidden"
+        onChange={handleFileChange}
+      />
+      <div className="flex flex-wrap items-center gap-3">
         <Button
           variant="outline"
           size="sm"
@@ -122,9 +118,31 @@ export function CaseImporter() {
         <Button variant="ghost" size="sm" disabled={backfilling} onClick={backfillTeams}>
           {backfilling ? "Assigning teams..." : "Assign teams by ZIP"}
         </Button>
-        {message && <p className="text-sm text-green-700 w-full">{message}</p>}
-        {error && <p className="text-sm text-destructive w-full">{error}</p>}
-      </CardContent>
+      </div>
+      <p className="text-sm text-muted-foreground">
+        Assign teams by ZIP finds cases with no trap team yet and matches them to a team based on
+        colony ZIP and each team&apos;s configured ZIP list.
+      </p>
+      {message && <p className="text-sm text-green-700">{message}</p>}
+      {error && <p className="text-sm text-destructive">{error}</p>}
+    </>
+  );
+
+  if (variant === "panel") {
+    return <div className="space-y-4">{content}</div>;
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">Import Cases</CardTitle>
+        <CardDescription>
+          Admin only. Upload a CSV using the Friends of Feral Felines case export columns.
+          Each row needs at least a Case Number, Email, or Phone Number. Download the template
+          for the full {CASE_IMPORT_HEADERS.length}-column header row.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">{content}</CardContent>
     </Card>
   );
 }

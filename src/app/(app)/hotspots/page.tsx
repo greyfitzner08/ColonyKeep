@@ -25,7 +25,7 @@ export default async function HotspotsPage() {
       <div>
         <h1 className="text-3xl font-bold">Colony Hotspots</h1>
         <p className="text-muted-foreground">
-          Map of reported cat colonies from the intake queue
+          Map of reported cat colonies from the inquiry queue
           {withCoords.length > 0 && ` · ${withCoords.length} mapped`}
         </p>
       </div>

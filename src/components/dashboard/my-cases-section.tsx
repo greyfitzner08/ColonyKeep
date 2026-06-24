@@ -26,7 +26,7 @@ export function MyCasesSection({
   emptyMessage,
   showClaimHint = false,
   hintHref = "/intake",
-  hintLabel = "Go to intake queue",
+  hintLabel = "Go to inquiry queue",
   canClaim = false,
   userEmail = "",
 }: MyCasesSectionProps) {

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
-import { Plus, Pencil, Trash2, QrCode, Loader2 } from "lucide-react";
+import { Plus, Pencil, Trash2, QrCode, Loader2, ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,6 +29,7 @@ import {
   TRAP_EQUIPMENT_STATUSES,
   TRAP_EQUIPMENT_TYPES,
   equipmentTypeLabel,
+  equipmentStatusLabel,
 } from "@/lib/equipment/constants";
 import type {
   EquipmentVolunteerOption,
@@ -74,6 +75,49 @@ const emptyForm = {
 
 const UNASSIGNED = "__unassigned__";
 
+type EquipmentSortKey =
+  | "item"
+  | "type"
+  | "quantity"
+  | "status"
+  | "team"
+  | "custodian"
+  | "location";
+
+type SortDirection = "asc" | "desc";
+
+function SortableHeader({
+  label,
+  sortKey,
+  activeKey,
+  direction,
+  onSort,
+  className,
+}: {
+  label: string;
+  sortKey: EquipmentSortKey;
+  activeKey: EquipmentSortKey;
+  direction: SortDirection;
+  onSort: (key: EquipmentSortKey) => void;
+  className?: string;
+}) {
+  const isActive = activeKey === sortKey;
+  const Icon = !isActive ? ArrowUpDown : direction === "asc" ? ArrowUp : ArrowDown;
+
+  return (
+    <th className={cn("px-3 py-3 font-medium", className)}>
+      <button
+        type="button"
+        className="inline-flex items-center gap-1.5 text-left hover:text-foreground text-muted-foreground"
+        onClick={() => onSort(sortKey)}
+      >
+        {label}
+        <Icon className="h-4 w-4 shrink-0" aria-hidden />
+      </button>
+    </th>
+  );
+}
+
 export function TrapEquipmentManager({
   items: initialItems,
   teams,
@@ -93,6 +137,12 @@ export function TrapEquipmentManager({
   const [rowError, setRowError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [scanNotice, setScanNotice] = useState<string | null>(null);
+  const [sortKey, setSortKey] = useState<EquipmentSortKey>("team");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
+  const [filterTeamId, setFilterTeamId] = useState("all");
+  const [filterType, setFilterType] = useState("all");
+  const [filterStatus, setFilterStatus] = useState("all");
+  const [searchQuery, setSearchQuery] = useState("");
   const rowsRef = useRef(rows);
 
   useEffect(() => {
@@ -322,6 +372,128 @@ export function TrapEquipmentManager({
     return equipmentTypeLabel(item.equipment_type);
   }
 
+  const teamLabel = useCallback(
+    (item: TrapEquipmentItem) => {
+      if (!item.team_id) return item.team_name ?? "—";
+      return teamNameById.get(item.team_id) ?? item.team_name ?? "—";
+    },
+    [teamNameById]
+  );
+
+  const custodianLabel = useCallback(
+    (item: TrapEquipmentItem) => {
+      if (!item.assigned_to_profile_id) return "Unassigned";
+      const volunteer = volunteerById.get(item.assigned_to_profile_id);
+      return volunteer ? volunteerDisplayName(volunteer) : "Unassigned";
+    },
+    [volunteerById]
+  );
+
+  function handleSort(key: EquipmentSortKey) {
+    if (sortKey === key) {
+      setSortDirection((prev) => (prev === "asc" ? "desc" : "asc"));
+      return;
+    }
+    setSortKey(key);
+    setSortDirection("asc");
+  }
+
+  const filteredRows = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+
+    return rows.filter((item) => {
+      if (filterTeamId !== "all" && item.team_id !== filterTeamId) return false;
+      if (filterType !== "all" && item.equipment_type !== filterType) return false;
+      if (filterStatus !== "all" && item.status !== filterStatus) return false;
+
+      if (!query) return true;
+
+      const haystack = [
+        itemTitle(item),
+        item.description,
+        item.location,
+        item.equipment_label,
+        equipmentTypeLabel(item.equipment_type),
+        teamLabel(item),
+        custodianLabel(item),
+        item.borrower_name,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+
+      return haystack.includes(query);
+    });
+  }, [rows, filterTeamId, filterType, filterStatus, searchQuery, teamLabel, custodianLabel]);
+
+  const displayRows = useMemo(() => {
+    const sorted = [...filteredRows];
+    const direction = sortDirection === "asc" ? 1 : -1;
+
+    sorted.sort((a, b) => {
+      let comparison = 0;
+
+      switch (sortKey) {
+        case "item":
+          comparison = itemTitle(a).localeCompare(itemTitle(b), undefined, { sensitivity: "base" });
+          break;
+        case "type":
+          comparison = equipmentTypeLabel(a.equipment_type).localeCompare(
+            equipmentTypeLabel(b.equipment_type),
+            undefined,
+            { sensitivity: "base" }
+          );
+          break;
+        case "quantity":
+          comparison = a.quantity - b.quantity;
+          break;
+        case "status":
+          comparison = equipmentStatusLabel(a.status).localeCompare(
+            equipmentStatusLabel(b.status),
+            undefined,
+            { sensitivity: "base" }
+          );
+          break;
+        case "team":
+          comparison = teamLabel(a).localeCompare(teamLabel(b), undefined, { sensitivity: "base" });
+          break;
+        case "custodian":
+          comparison = custodianLabel(a).localeCompare(custodianLabel(b), undefined, {
+            sensitivity: "base",
+          });
+          break;
+        case "location":
+          comparison = (a.location ?? "").localeCompare(b.location ?? "", undefined, {
+            sensitivity: "base",
+          });
+          break;
+        default:
+          comparison = 0;
+      }
+
+      if (comparison === 0) {
+        comparison = itemTitle(a).localeCompare(itemTitle(b), undefined, { sensitivity: "base" });
+      }
+
+      return comparison * direction;
+    });
+
+    return sorted;
+  }, [filteredRows, sortKey, sortDirection, teamLabel, custodianLabel]);
+
+  const filtersActive =
+    filterTeamId !== "all" ||
+    filterType !== "all" ||
+    filterStatus !== "all" ||
+    searchQuery.trim().length > 0;
+
+  function clearFilters() {
+    setFilterTeamId("all");
+    setFilterType("all");
+    setFilterStatus("all");
+    setSearchQuery("");
+  }
+
   function saveBorrowerFields(itemId: string) {
     const row = rowsRef.current.find((entry) => entry.id === itemId);
     if (!row) return;
@@ -340,7 +512,7 @@ export function TrapEquipmentManager({
     return (
       <div className="space-y-1.5 min-w-[180px]">
         <Input
-          className="h-8 text-xs"
+          className="h-9"
           placeholder="Borrower name"
           disabled={isSaving}
           value={item.borrower_name ?? ""}
@@ -354,7 +526,7 @@ export function TrapEquipmentManager({
           onBlur={() => saveBorrowerFields(item.id)}
         />
         <Input
-          className="h-8 text-xs"
+          className="h-9"
           placeholder="Phone"
           type="tel"
           disabled={isSaving}
@@ -369,7 +541,7 @@ export function TrapEquipmentManager({
           onBlur={() => saveBorrowerFields(item.id)}
         />
         <Input
-          className="h-8 text-xs"
+          className="h-9"
           placeholder="Email"
           type="email"
           disabled={isSaving}
@@ -393,7 +565,7 @@ export function TrapEquipmentManager({
       : null;
     if (!volunteer) return null;
     return (
-      <p className="text-xs text-muted-foreground mt-1">
+      <p className="text-sm text-muted-foreground mt-1">
         {volunteer.phone ? (
           <a href={`tel:${volunteer.phone}`} className="text-primary hover:underline">
             {volunteer.phone}
@@ -428,23 +600,149 @@ export function TrapEquipmentManager({
           </CardContent>
         </Card>
       ) : (
-        <div className="overflow-x-auto rounded-lg border">
-          <table className="w-full min-w-[1100px] text-sm">
-            <thead className="bg-muted/50 text-left">
-              <tr>
-                <th className="px-3 py-3 font-medium">Item</th>
-                <th className="px-3 py-3 font-medium">Type</th>
-                <th className="px-3 py-3 font-medium">Qty</th>
-                <th className="px-3 py-3 font-medium">Status</th>
-                <th className="px-3 py-3 font-medium min-w-[180px]">Keeps equipment</th>
-                <th className="px-3 py-3 font-medium min-w-[200px]">Public borrower</th>
-                <th className="px-3 py-3 font-medium">Location</th>
-                <th className="px-3 py-3 font-medium">Notes</th>
-                <th className="px-3 py-3 font-medium">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((item) => {
+        <div className="space-y-3">
+          <div className="flex flex-wrap items-end gap-3 rounded-lg border bg-muted/20 p-3">
+            <div className="space-y-1.5 min-w-[200px] flex-1">
+              <Label htmlFor="equipment-search">Search</Label>
+              <Input
+                id="equipment-search"
+                placeholder="Label, location, volunteer, borrower..."
+                value={searchQuery}
+                onChange={(event) => setSearchQuery(event.target.value)}
+              />
+            </div>
+            {isAdmin && teams.length > 0 && (
+              <div className="space-y-1.5 min-w-[180px]">
+                <Label>Trap team</Label>
+                <Select value={filterTeamId} onValueChange={setFilterTeamId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="All teams" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All teams</SelectItem>
+                    {teams.map((team) => (
+                      <SelectItem key={team.id} value={team.id}>
+                        {team.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            <div className="space-y-1.5 min-w-[180px]">
+              <Label>Equipment type</Label>
+              <Select value={filterType} onValueChange={setFilterType}>
+                <SelectTrigger>
+                  <SelectValue placeholder="All types" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All types</SelectItem>
+                  {TRAP_EQUIPMENT_TYPES.map((entry) => (
+                    <SelectItem key={entry.value} value={entry.value}>
+                      {entry.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5 min-w-[180px]">
+              <Label>Status</Label>
+              <Select value={filterStatus} onValueChange={setFilterStatus}>
+                <SelectTrigger>
+                  <SelectValue placeholder="All statuses" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All statuses</SelectItem>
+                  {TRAP_EQUIPMENT_STATUSES.map((entry) => (
+                    <SelectItem key={entry.value} value={entry.value}>
+                      {entry.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {filtersActive && (
+              <Button variant="ghost" onClick={clearFilters}>
+                Clear filters
+              </Button>
+            )}
+          </div>
+
+          <p className="text-sm text-muted-foreground">
+            Showing {displayRows.length} of {rows.length} items
+            {filtersActive ? " (filtered)" : ""}
+          </p>
+
+          {displayRows.length === 0 ? (
+            <Card>
+              <CardContent className="py-8 text-center text-muted-foreground">
+                No equipment matches your filters.{" "}
+                <button type="button" className="text-primary underline" onClick={clearFilters}>
+                  Clear filters
+                </button>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="overflow-x-auto rounded-lg border">
+              <table className="w-full min-w-[1050px] text-sm">
+                <thead className="bg-muted/50 text-left">
+                  <tr>
+                    <SortableHeader
+                      label="Item"
+                      sortKey="item"
+                      activeKey={sortKey}
+                      direction={sortDirection}
+                      onSort={handleSort}
+                    />
+                    <SortableHeader
+                      label="Type"
+                      sortKey="type"
+                      activeKey={sortKey}
+                      direction={sortDirection}
+                      onSort={handleSort}
+                    />
+                    <SortableHeader
+                      label="Qty"
+                      sortKey="quantity"
+                      activeKey={sortKey}
+                      direction={sortDirection}
+                      onSort={handleSort}
+                    />
+                    <SortableHeader
+                      label="Status"
+                      sortKey="status"
+                      activeKey={sortKey}
+                      direction={sortDirection}
+                      onSort={handleSort}
+                    />
+                    <SortableHeader
+                      label="Trap team"
+                      sortKey="team"
+                      activeKey={sortKey}
+                      direction={sortDirection}
+                      onSort={handleSort}
+                    />
+                    <SortableHeader
+                      label="Keeps equipment"
+                      sortKey="custodian"
+                      activeKey={sortKey}
+                      direction={sortDirection}
+                      onSort={handleSort}
+                      className="min-w-[180px]"
+                    />
+                    <th className="px-3 py-3 font-medium min-w-[200px]">Public borrower</th>
+                    <SortableHeader
+                      label="Location"
+                      sortKey="location"
+                      activeKey={sortKey}
+                      direction={sortDirection}
+                      onSort={handleSort}
+                    />
+                    <th className="px-3 py-3 font-medium">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {displayRows.map((item) => {
                 const isSaving = savingRowId === item.id;
                 return (
                   <tr
@@ -454,7 +752,7 @@ export function TrapEquipmentManager({
                     <td className="px-3 py-3">
                       <div className="font-medium">{itemTitle(item)}</div>
                       {item.description && (
-                        <p className="text-xs text-muted-foreground mt-0.5">{item.description}</p>
+                        <p className="text-sm text-muted-foreground mt-0.5">{item.description}</p>
                       )}
                     </td>
                     <td className="px-3 py-3 text-muted-foreground">
@@ -469,7 +767,7 @@ export function TrapEquipmentManager({
                           updateRow(item.id, { status: value as TrapEquipmentStatus })
                         }
                       >
-                        <SelectTrigger className="h-8 w-[130px]">
+                        <SelectTrigger className="h-9 w-[140px]">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -481,6 +779,7 @@ export function TrapEquipmentManager({
                         </SelectContent>
                       </Select>
                     </td>
+                    <td className="px-3 py-3">{teamLabel(item)}</td>
                     <td className="px-3 py-3">
                       <Select
                         value={item.assigned_to_profile_id ?? UNASSIGNED}
@@ -491,7 +790,7 @@ export function TrapEquipmentManager({
                           })
                         }
                       >
-                        <SelectTrigger className="h-8 min-w-[160px]">
+                        <SelectTrigger className="h-9 min-w-[160px]">
                           <SelectValue placeholder="TNVR volunteer" />
                         </SelectTrigger>
                         <SelectContent>
@@ -505,14 +804,11 @@ export function TrapEquipmentManager({
                       </Select>
                       {renderCustodian(item)}
                       {volunteers.length === 0 && (
-                        <p className="text-xs text-muted-foreground mt-1">No TNVR volunteers found</p>
+                        <p className="text-sm text-muted-foreground mt-1">No TNVR volunteers found</p>
                       )}
                     </td>
                     <td className="px-3 py-3">{renderBorrowerContact(item, isSaving)}</td>
                     <td className="px-3 py-3 text-muted-foreground">{item.location ?? "—"}</td>
-                    <td className="px-3 py-3 text-muted-foreground max-w-[180px]">
-                      <p className="line-clamp-2">{item.notes ?? "—"}</p>
-                    </td>
                     <td className="px-3 py-3">
                       <div className="flex items-center gap-1">
                         {isSaving && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
@@ -532,9 +828,11 @@ export function TrapEquipmentManager({
                     </td>
                   </tr>
                 );
-              })}
-            </tbody>
-          </table>
+                })}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
 
@@ -585,7 +883,7 @@ export function TrapEquipmentManager({
                   <Label htmlFor="equipment-labeled" className="font-medium">
                     Equipment has a physical label
                   </Label>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-sm text-muted-foreground">
                     Check this for individually tagged traps like &quot;Trap #3&quot;.
                   </p>
                 </div>
@@ -701,7 +999,7 @@ export function TrapEquipmentManager({
                   ))}
                 </SelectContent>
               </Select>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-sm text-muted-foreground">
                 The team volunteer responsible for this equipment in inventory.
               </p>
             </div>
@@ -710,7 +1008,7 @@ export function TrapEquipmentManager({
               <div className="rounded-lg border p-3 space-y-3">
                 <div>
                   <Label className="font-medium">Public borrower contact</Label>
-                  <p className="text-xs text-muted-foreground mt-1">
+                  <p className="text-sm text-muted-foreground mt-1">
                     Person borrowing the gear (community member, not necessarily a volunteer).
                   </p>
                 </div>
@@ -788,7 +1086,7 @@ export function TrapEquipmentManager({
             </div>
 
             {!isAdmin && defaultTeamId && (
-              <p className="text-xs text-muted-foreground">
+              <p className="text-sm text-muted-foreground">
                 This entry will be assigned to your trap team.
               </p>
             )}

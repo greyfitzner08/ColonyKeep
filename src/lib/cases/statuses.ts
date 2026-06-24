@@ -1,7 +1,7 @@
 import { CASE_STATUSES } from "@/lib/constants";
 import type { HelpRequest, HelpRequestStatus, UserRole } from "@/lib/types";
 
-/** Statuses shown on the intake queue by default (pre-trap workflow). */
+/** Statuses shown on the inquiry queue by default (pre-trap workflow). */
 export const INTAKE_QUEUE_STATUSES: HelpRequestStatus[] = [
   "new_intake",
   "under_review",

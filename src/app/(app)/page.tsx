@@ -145,7 +145,7 @@ export default async function DashboardPage() {
   }
 
   const trapTeamDescription = profile.team_id
-    ? "Field cases for trapping and transport: assigned to your trap team or personally claimed by you. For intake follow-ups you claimed yourself, see My Cases."
+    ? "Field cases for trapping and transport: assigned to your trap team or personally claimed by you. For inquiry follow-ups you claimed yourself, see My Cases."
     : "Trap and transport cases you personally claimed. Join a trap team to also see team-assigned cases.";
 
   const quickLinks = {

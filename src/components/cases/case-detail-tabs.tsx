@@ -199,7 +199,7 @@ export function CaseDetailTabs({
       <TabsList className="flex-wrap h-auto">
         <TabsTrigger value="reporter">Reporter</TabsTrigger>
         <TabsTrigger value="colony">Colony</TabsTrigger>
-        <TabsTrigger value="intake">Intake Team</TabsTrigger>
+        <TabsTrigger value="intake">Inquiry Team</TabsTrigger>
         <TabsTrigger value="cats">Tracked Cats ({cats.length})</TabsTrigger>
         <TabsTrigger value="appointments">Appointments ({appointments.length})</TabsTrigger>
         <TabsTrigger value="history">History</TabsTrigger>
