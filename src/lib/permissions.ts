@@ -34,7 +34,6 @@ export interface ProfilePermissions {
   canManageClinicEvents: boolean;
   canViewReports: boolean;
   canManageAdmin: boolean;
-  canViewTeamDashboard: boolean;
 }
 
 function volunteerRoles(profile: Profile): VolunteerRole[] {
@@ -67,7 +66,7 @@ export function canManageAppointments(profile: Profile | null): boolean {
   return false;
 }
 
-export function canViewTeamDashboard(profile: Profile | null): boolean {
+export function canViewTrapTeamSection(profile: Profile | null): boolean {
   if (!profile?.role) return false;
   if (profile.role === "admin") return true;
   if (!profile.team_id) return false;
@@ -90,7 +89,6 @@ export function getProfilePermissions(profile: Profile | null): ProfilePermissio
   const caseWorker = isCaseWorker(profile);
   const appointments = canManageAppointments(profile);
   const shifts = canClaimShifts(profile);
-  const teamDashboard = canViewTeamDashboard(profile);
 
   if (role === "admin") {
     return {
@@ -106,7 +104,6 @@ export function getProfilePermissions(profile: Profile | null): ProfilePermissio
         "/volunteers",
         "/shift-board",
         "/team-feed",
-        "/team-dashboard",
         "/my-impact",
         "/reports",
         "/admin",
@@ -123,7 +120,6 @@ export function getProfilePermissions(profile: Profile | null): ProfilePermissio
       canManageClinicEvents: true,
       canViewReports: true,
       canManageAdmin: true,
-      canViewTeamDashboard: true,
     };
   }
 
@@ -146,10 +142,6 @@ export function getProfilePermissions(profile: Profile | null): ProfilePermissio
 
   if (shifts) {
     routes.add("/shift-board");
-  }
-
-  if (teamDashboard) {
-    routes.add("/team-dashboard");
   }
 
   if (!caseWorker) {
@@ -178,7 +170,6 @@ export function getProfilePermissions(profile: Profile | null): ProfilePermissio
     canManageClinicEvents: role === "clinic_coordination",
     canViewReports: false,
     canManageAdmin: false,
-    canViewTeamDashboard: teamDashboard,
   };
 }
 

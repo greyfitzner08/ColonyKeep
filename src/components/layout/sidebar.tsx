@@ -39,7 +39,6 @@ const NAV_ITEMS = [
   { href: "/volunteers", label: "Volunteers", icon: Users },
   { href: "/shift-board", label: "Shift Board", icon: CalendarDays },
   { href: "/team-feed", label: "Team Feed", icon: MessageSquare },
-  { href: "/team-dashboard", label: "Team Dashboard", icon: Users },
   { href: "/my-impact", label: "My Impact", icon: Heart },
   { href: "/resources", label: "Resources", icon: BookOpen },
   { href: "/reports", label: "Reports", icon: BarChart3 },

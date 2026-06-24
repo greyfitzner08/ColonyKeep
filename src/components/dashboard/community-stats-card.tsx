@@ -1,12 +1,9 @@
 import { createServiceClient } from "@/lib/supabase/server";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { formatDate } from "@/lib/utils";
-import { BarChart3, Calendar, Cat } from "lucide-react";
+import { CommunityStatsDisplay, type CommunityStats } from "@/components/dashboard/community-stats-display";
 
 const CLOSED_STATUSES = '("completed","closed")';
 
-export async function CommunityStatsCard() {
+export async function fetchCommunityStats(): Promise<CommunityStats> {
   const service = await createServiceClient();
   const today = new Date().toISOString().split("T")[0];
 
@@ -29,44 +26,14 @@ export async function CommunityStatsCard() {
       .maybeSingle(),
   ]);
 
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-lg">
-          <BarChart3 className="h-5 w-5" />
-          Organization snapshot
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="grid gap-4 sm:grid-cols-3">
-        <div className="rounded-lg border p-4">
-          <p className="text-sm text-muted-foreground">Open cases</p>
-          <p className="text-2xl font-bold">{openCases ?? 0}</p>
-        </div>
-        <div className="rounded-lg border p-4">
-          <p className="text-sm text-muted-foreground flex items-center gap-1">
-            <Cat className="h-4 w-4" />
-            Cats fixed
-          </p>
-          <p className="text-2xl font-bold">{catsFixed ?? 0}</p>
-        </div>
-        <div className="rounded-lg border p-4 space-y-2">
-          <p className="text-sm text-muted-foreground flex items-center gap-1">
-            <Calendar className="h-4 w-4" />
-            Next public clinic
-          </p>
-          {nextClinic ? (
-            <>
-              <p className="font-semibold leading-tight">{nextClinic.title}</p>
-              <p className="text-sm text-muted-foreground">
-                {formatDate(nextClinic.date)} · {nextClinic.clinic_name}
-              </p>
-              <Badge variant="secondary">{nextClinic.location}</Badge>
-            </>
-          ) : (
-            <p className="text-sm text-muted-foreground">No upcoming clinics scheduled</p>
-          )}
-        </div>
-      </CardContent>
-    </Card>
-  );
+  return {
+    openCases: openCases ?? 0,
+    catsFixed: catsFixed ?? 0,
+    nextClinic: nextClinic ?? null,
+  };
+}
+
+export async function CommunityStatsCard() {
+  const stats = await fetchCommunityStats();
+  return <CommunityStatsDisplay stats={stats} />;
 }

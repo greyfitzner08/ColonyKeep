@@ -1,22 +1,18 @@
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
 import { SupabaseConfigGate } from "@/components/layout/supabase-config-gate";
 import { hasSupabaseServerConfig } from "@/lib/supabase/env";
-import { MyShiftsCard } from "@/components/dashboard/my-shifts-card";
-import { MyCasesSection } from "@/components/dashboard/my-cases-section";
-import { CommunityStatsCard } from "@/components/dashboard/community-stats-card";
+import { ConfigurableDashboard } from "@/components/dashboard/configurable-dashboard";
+import { fetchCommunityStats } from "@/components/dashboard/community-stats-card";
+import { fetchTrapTeamDashboardData } from "@/lib/dashboard/trap-team-data";
 import { sortCasesMedicalFirst } from "@/lib/cases/sort-cases";
 import {
   canClaimShifts,
   canManageAppointments,
+  canViewTrapTeamSection,
   isCaseWorker,
 } from "@/lib/permissions";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import Link from "next/link";
-import { AlertTriangle, Calendar, Inbox, Kanban } from "lucide-react";
-import { formatDate } from "@/lib/utils";
+import { Inbox, Kanban, Calendar } from "lucide-react";
 import type { HelpRequest, Shift } from "@/lib/types";
 
 const CLOSED_STATUSES = '("completed","closed")';
@@ -31,25 +27,32 @@ export default async function DashboardPage() {
   }
 
   const supabase = await createClient();
+  const service = await createServiceClient();
   const profile = await getCurrentProfile();
-  const email = profile?.email ?? "";
+
+  if (!profile?.id) {
+    return null;
+  }
+
+  const email = profile.email ?? "";
   const today = todayIsoDate();
   const caseWorker = isCaseWorker(profile);
   const trapWorker =
     caseWorker &&
-    (profile?.role === "admin" ||
-      profile?.role === "trap_team_lead" ||
-      profile?.role === "volunteer" ||
-      (profile?.volunteer_roles ?? []).some((role) =>
+    (profile.role === "admin" ||
+      profile.role === "trap_team_lead" ||
+      profile.role === "volunteer" ||
+      (profile.volunteer_roles ?? []).some((role) =>
         ["trapper", "trap_loaner", "transporter", "recovery"].includes(role)
       ));
   const intakeWorker =
     caseWorker &&
-    (profile?.role === "admin" ||
-      profile?.role === "inquiry_team" ||
-      (profile?.volunteer_roles ?? []).includes("intake_representative"));
+    (profile.role === "admin" ||
+      profile.role === "inquiry_team" ||
+      (profile.volunteer_roles ?? []).includes("intake_representative"));
   const showShifts = canClaimShifts(profile);
   const showAppointments = canManageAppointments(profile);
+  const showTrapTeam = canViewTrapTeamSection(profile);
 
   const { data: myShiftsRaw } = showShifts
     ? await supabase
@@ -96,7 +99,7 @@ export default async function DashboardPage() {
       .order("updated_at", { ascending: false })
       .limit(12);
 
-    if (profile?.team_id) {
+    if (profile.team_id) {
       teamCasesQuery = teamCasesQuery.or(
         `assigned_team_id.eq.${profile.team_id},claimed_by_email.eq.${email}`
       );
@@ -116,6 +119,24 @@ export default async function DashboardPage() {
     pendingAppointments = count ?? 0;
   }
 
+  const { data: trapTeamsRaw } = showTrapTeam
+    ? await supabase.from("trap_teams").select("id, name").eq("is_active", true).order("name")
+    : { data: [] };
+
+  const trapTeams = trapTeamsRaw ?? [];
+  const initialTrapTeamId = profile.team_id ?? trapTeams[0]?.id ?? null;
+
+  const trapTeamData =
+    showTrapTeam && initialTrapTeamId
+      ? await fetchTrapTeamDashboardData(service, supabase, initialTrapTeamId)
+      : null;
+
+  const communityStats = !caseWorker ? await fetchCommunityStats() : null;
+
+  const trapTeamDescription = profile.team_id
+    ? "Field cases for trapping and transport: assigned to your trap team or personally claimed by you. For intake follow-ups you claimed yourself, see My Cases."
+    : "Trap and transport cases you personally claimed. Join a trap team to also see team-assigned cases.";
+
   const quickLinks = [
     intakeWorker && { href: "/intake", label: "Intake Queue", icon: Inbox },
     trapWorker && { href: "/trap-queue", label: "Trap Queue", icon: Kanban },
@@ -127,120 +148,34 @@ export default async function DashboardPage() {
   ].filter(Boolean) as { href: string; label: string; icon: typeof Inbox }[];
 
   return (
-    <div className="space-y-8">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold">Dashboard</h1>
-          <p className="text-muted-foreground">
-            Welcome back, {profile?.full_name ?? profile?.email}
-          </p>
-        </div>
-        {quickLinks.length > 0 && (
-          <div className="flex flex-wrap gap-2">
-            {quickLinks.map((link) => {
-              const Icon = link.icon;
-              return (
-                <Button key={link.href} asChild variant="outline">
-                  <Link href={link.href}>
-                    <Icon className="h-4 w-4 mr-2" />
-                    {link.label}
-                  </Link>
-                </Button>
-              );
-            })}
-          </div>
-        )}
-      </div>
-
-      {!caseWorker && <CommunityStatsCard />}
-
-      {showShifts && <MyShiftsCard shifts={myShifts} />}
-
-      {intakeWorker && (
-        <>
-          {overdueFollowUps.length > 0 && (
-            <Card className="border-orange-200 bg-orange-50">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-orange-800">
-                  <AlertTriangle className="h-5 w-5" />
-                  Your Overdue Follow-ups ({overdueFollowUps.length})
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  {overdueFollowUps.slice(0, 5).map((hr) => (
-                    <Link
-                      key={hr.id}
-                      href={`/case/${hr.id}`}
-                      className="flex items-center justify-between text-sm hover:underline"
-                    >
-                      <span>{hr.case_number}</span>
-                      <Badge variant="outline" className="text-orange-600">
-                        Due {formatDate(hr.follow_up_due_date)}
-                      </Badge>
-                    </Link>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          <MyCasesSection
-            title="My Cases"
-            description="Intake work you personally claimed from the queue. These are your assigned follow-ups — not trap-team field work. Medical cases are pinned to the top."
-            cases={myCases}
-            emptyMessage="You have not claimed any open cases yet."
-            showClaimHint
-            canClaim
-            userEmail={email}
-          />
-        </>
-      )}
-
-      {trapWorker && (
-        <MyCasesSection
-          title="My Trap Work"
-          description={
-            profile?.team_id
-              ? "Field cases for trapping and transport: assigned to your trap team or personally claimed by you. For intake follow-ups you claimed yourself, see My Cases above."
-              : "Trap and transport cases you personally claimed. Join a trap team to also see team-assigned cases."
-          }
-          cases={teamCases}
-          emptyMessage="No team or personal trap cases right now."
-          showClaimHint
-          hintHref="/trap-queue"
-          hintLabel="Open trap queue"
-          canClaim={trapWorker}
-          userEmail={email}
-        />
-      )}
-
-      {showAppointments && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Calendar className="h-5 w-5" />
-              Clinic Coordination
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <p className="text-2xl font-bold">{pendingAppointments}</p>
-            <p className="text-sm text-muted-foreground">Reserved appointments awaiting action</p>
-            <Button asChild variant="outline" size="sm">
-              <Link href="/appointments">Open appointments</Link>
-            </Button>
-          </CardContent>
-        </Card>
-      )}
-
-      {caseWorker && profile?.role === "admin" && myCases.length === 0 && (
-        <Card>
-          <CardContent className="py-6 text-sm text-muted-foreground">
-            Claim cases from the intake queue to track them here, or use import on the intake page
-            to bulk-add cases.
-          </CardContent>
-        </Card>
-      )}
-    </div>
+    <ConfigurableDashboard
+      profileId={profile.id}
+      userName={profile.full_name ?? profile.email}
+      quickLinks={quickLinks}
+      isAdmin={profile.role === "admin"}
+      sections={{
+        communityStats: !caseWorker,
+        overdueFollowUps: intakeWorker && overdueFollowUps.length > 0,
+        shifts: showShifts,
+        myCases: intakeWorker,
+        myTrapWork: trapWorker,
+        trapTeam: showTrapTeam && trapTeams.length > 0,
+        appointments: showAppointments,
+        adminHint: caseWorker && profile.role === "admin" && myCases.length === 0,
+      }}
+      overdueFollowUps={overdueFollowUps}
+      myShifts={myShifts}
+      myCases={myCases}
+      teamCases={teamCases}
+      userEmail={email}
+      intakeWorker={intakeWorker}
+      trapWorker={trapWorker}
+      trapTeamDescription={trapTeamDescription}
+      trapTeams={trapTeams}
+      trapTeamData={trapTeamData}
+      initialTrapTeamId={initialTrapTeamId}
+      pendingAppointments={pendingAppointments}
+      communityStats={communityStats}
+    />
   );
 }

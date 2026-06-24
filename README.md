@@ -82,7 +82,6 @@ Open [http://localhost:3000](http://localhost:3000)
 | `/volunteers` | admin |
 | `/shift-board` | All volunteers |
 | `/team-feed` | All volunteers |
-| `/team-dashboard` | trap_team_lead |
 | `/my-impact` | All volunteers |
 | `/reports` | admin |
 | `/admin` | admin |
