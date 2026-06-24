@@ -108,6 +108,7 @@ export interface HelpRequest {
   can_transport: boolean;
   has_recovery_space: boolean;
   consent_communications: boolean;
+  newsletter_list_added_at: string | null;
   assigned_team_id: string | null;
   assigned_team_name: string | null;
   claimed_by_email: string | null;

@@ -1,22 +1,34 @@
+import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { getCurrentProfile } from "@/lib/auth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { NewsletterSignupPanel } from "@/components/reports/newsletter-signup-panel";
 import { CASE_STATUSES } from "@/lib/constants";
 import { Download } from "lucide-react";
 
 export default async function ReportsPage() {
+  const profile = await getCurrentProfile();
+  if (profile?.role !== "admin") redirect("/");
+
   const supabase = await createClient();
 
   const [
     { data: helpRequests },
     { data: cats },
     { data: hours },
-    { data: teams },
+    { data: newsletterSignups },
   ] = await Promise.all([
     supabase.from("help_requests").select("status, colony_county, assigned_team_name, created_at"),
     supabase.from("cats").select("created_at"),
     supabase.from("volunteer_hours").select("volunteer_email, volunteer_name, hours, hour_type, team_name"),
-    supabase.from("trap_teams").select("name, region"),
+    supabase
+      .from("help_requests")
+      .select("id, case_number, contact_name, contact_email, created_at, newsletter_list_added_at")
+      .eq("consent_communications", true)
+      .not("contact_email", "is", null)
+      .neq("contact_email", "")
+      .order("created_at", { ascending: false }),
   ]);
 
   const byStatus = CASE_STATUSES.map((s) => ({
@@ -68,6 +80,8 @@ export default async function ReportsPage() {
           <Download className="h-4 w-4 mr-2" />Export CSV
         </Button>
       </div>
+
+      <NewsletterSignupPanel signups={newsletterSignups ?? []} />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>

@@ -10,6 +10,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { AddressAutocomplete } from "@/components/forms/address-autocomplete";
 import Link from "next/link";
+import { NEWSLETTER_SIGNUP_DESCRIPTION, NEWSLETTER_SIGNUP_LABEL } from "@/lib/constants";
 
 const STEPS = ["Contact", "Location", "Colony Info", "Your Help", "Review"];
 
@@ -183,7 +184,6 @@ export default function RequestPage() {
                   { key: "has_traps", label: "I have traps available" },
                   { key: "can_transport", label: "I can transport cats to/from clinic" },
                   { key: "has_recovery_space", label: "I have recovery space available" },
-                  { key: "consent_communications", label: "I consent to receive communications about this case" },
                 ].map(({ key, label }) => (
                   <div key={key} className="flex items-center gap-2">
                     <Checkbox
@@ -194,6 +194,18 @@ export default function RequestPage() {
                     <Label htmlFor={key}>{label}</Label>
                   </div>
                 ))}
+                <div className="flex items-start gap-2 rounded-lg border p-3">
+                  <Checkbox
+                    id="consent_communications"
+                    checked={form.consent_communications}
+                    onCheckedChange={(v) => update("consent_communications", !!v)}
+                    className="mt-0.5"
+                  />
+                  <div className="space-y-1">
+                    <Label htmlFor="consent_communications">{NEWSLETTER_SIGNUP_LABEL}</Label>
+                    <p className="text-sm text-muted-foreground">{NEWSLETTER_SIGNUP_DESCRIPTION}</p>
+                  </div>
+                </div>
               </div>
             )}
 
@@ -215,7 +227,7 @@ export default function RequestPage() {
                   Next <ChevronRight className="h-4 w-4" />
                 </Button>
               ) : (
-                <Button onClick={handleSubmit} disabled={submitting || !form.consent_communications}>
+                <Button onClick={handleSubmit} disabled={submitting}>
                   {submitting ? "Submitting..." : "Submit Request"}
                 </Button>
               )}

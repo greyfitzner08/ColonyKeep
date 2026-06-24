@@ -85,6 +85,12 @@ export const MEDICAL_KEYWORDS = [
   "paralyzed",
 ];
 
+/** Display label for help_requests.consent_communications (FFF intake / case export field). */
+export const NEWSLETTER_SIGNUP_LABEL = "Newsletter Signup";
+
+export const NEWSLETTER_SIGNUP_DESCRIPTION =
+  "I agree to receive occasional communications from Friends of Feral Felines, including volunteer opportunities, TNVR updates, and organizational news.";
+
 export const LIABILITY_WAIVER_URL =
   "https://www.notion.so/placeholder-liability-waiver";
 export const POLICY_URL =
