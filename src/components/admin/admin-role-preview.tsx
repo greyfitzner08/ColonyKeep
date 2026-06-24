@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Compass, Eye, X } from "lucide-react";
+import { Eye, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Z_INDEX } from "@/lib/z-index";
 import {
   Dialog,
   DialogContent,
@@ -42,7 +43,8 @@ export function AdminRolePreviewBanner({ previewKey, previewLabel }: AdminRolePr
   return (
     <div
       role="status"
-      className="fixed top-0 left-0 right-0 z-[45] border-b border-amber-300 bg-amber-50 py-2.5 pl-14 pr-4 text-sm text-amber-950 shadow-sm sm:pl-4 lg:left-64"
+      className="fixed top-0 left-0 right-0 border-b border-amber-300 bg-amber-50 py-2.5 pl-14 pr-4 text-sm text-amber-950 shadow-sm sm:pl-4 lg:left-64"
+      style={{ zIndex: Z_INDEX.previewBanner }}
     >
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
         <p className="min-w-0 leading-snug">

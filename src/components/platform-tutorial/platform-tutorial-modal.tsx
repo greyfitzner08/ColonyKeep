@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -11,6 +12,7 @@ import {
   type PlatformTutorialStep,
 } from "@/lib/platform-tutorial/steps";
 import { useTutorialNavigation } from "@/components/platform-tutorial/tutorial-navigation-context";
+import { Z_INDEX } from "@/lib/z-index";
 import { cn } from "@/lib/utils";
 import type { Profile } from "@/lib/types";
 
@@ -33,6 +35,7 @@ export function PlatformTutorialModal({
   onCompleted,
 }: PlatformTutorialModalProps) {
   const router = useRouter();
+  const [mounted, setMounted] = useState(false);
   const { setHighlightedNav, setTourActive } = useTutorialNavigation();
   const permissions = useMemo(() => getProfilePermissions(profile), [profile]);
   const steps = useMemo(() => tutorialStepsForPermissions(permissions), [permissions]);
@@ -43,6 +46,10 @@ export function PlatformTutorialModal({
   const isFirst = stepIndex === 0;
   const isLast = stepIndex === steps.length - 1;
   const description = step ? stepDescription(step, permissions) : "";
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     if (open) setStepIndex(0);
@@ -102,20 +109,25 @@ export function PlatformTutorialModal({
     onOpenChange(false);
   }
 
-  if (!open || !step) return null;
+  if (!mounted || !open || !step) return null;
 
-  return (
+  return createPortal(
     <>
-      <div className="fixed inset-0 z-40 bg-black/20 pointer-events-none" aria-hidden />
+      <div
+        className="fixed inset-0 bg-black/15 pointer-events-none"
+        style={{ zIndex: Z_INDEX.tutorialScrim }}
+        aria-hidden
+      />
 
       <div
         role="dialog"
         aria-modal="false"
         aria-labelledby="platform-tutorial-title"
         className={cn(
-          "fixed z-50 flex max-h-[min(28rem,80vh)] w-[min(24rem,calc(100vw-2rem))] flex-col overflow-hidden rounded-lg border bg-background shadow-xl",
-          "bottom-4 left-4 lg:left-[17rem]"
+          "fixed flex max-h-[min(28rem,80vh)] w-[min(24rem,calc(100vw-2rem))] flex-col overflow-hidden rounded-lg border bg-background shadow-2xl",
+          "bottom-4 left-4 max-lg:right-4 lg:left-[17rem] lg:right-auto"
         )}
+        style={{ zIndex: Z_INDEX.tutorialPanel }}
       >
         <div className="border-b bg-muted/30 px-5 py-4">
           <div className="flex items-start justify-between gap-3">
@@ -204,7 +216,8 @@ export function PlatformTutorialModal({
           </div>
         </div>
       </div>
-    </>
+    </>,
+    document.body
   );
 }
 

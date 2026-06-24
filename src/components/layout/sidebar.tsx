@@ -26,6 +26,7 @@ import {
 import { cn } from "@/lib/utils";
 import { getProfilePermissions } from "@/lib/permissions";
 import { useTutorialNavigation } from "@/components/platform-tutorial/tutorial-navigation-context";
+import { Z_INDEX } from "@/lib/z-index";
 import type { Profile, RoleDescription } from "@/lib/types";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
@@ -165,18 +166,28 @@ export function Sidebar({
       <Button
         variant="ghost"
         size="icon"
-        className="fixed left-4 top-4 z-50 lg:hidden"
+        className="fixed left-4 top-4 lg:hidden"
+        style={{ zIndex: Z_INDEX.mobileMenuButton }}
         onClick={() => setMobileOpen(!mobileOpen)}
       >
         {mobileOpen ? <X /> : <Menu />}
       </Button>
 
-      <aside className="hidden lg:fixed lg:inset-y-0 lg:flex lg:w-64 lg:flex-col bg-sidebar border-r border-sidebar-border">
+      <aside
+        className={cn(
+          "hidden lg:fixed lg:inset-y-0 lg:flex lg:w-64 lg:flex-col bg-sidebar border-r border-sidebar-border",
+          tourActive && "shadow-lg"
+        )}
+        style={{ zIndex: tourActive ? Z_INDEX.tutorialSidebar : Z_INDEX.sidebar }}
+      >
         {nav}
       </aside>
 
       {mobileOpen && (
-        <aside className="fixed inset-0 z-40 flex lg:hidden">
+        <aside
+          className="fixed inset-0 flex lg:hidden"
+          style={{ zIndex: Z_INDEX.mobileNavBackdrop }}
+        >
           <div className="fixed inset-0 bg-black/50" onClick={() => setMobileOpen(false)} />
           <div className="relative flex h-full w-64 flex-col bg-sidebar">{nav}</div>
         </aside>
