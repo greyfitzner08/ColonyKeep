@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Cat, ChevronLeft, ChevronRight, CheckCircle, MapPin, User } from "lucide-react";
+import { Cat, ChevronLeft, ChevronRight, CheckCircle, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -202,16 +202,6 @@ export function ColonyIntakeForm() {
           <p className="text-muted-foreground mt-1">
             Community inquiry form — your report goes directly into our inquiry queue
           </p>
-          <div className="mt-4 flex flex-wrap justify-center gap-3 text-sm">
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-blue-900">
-              <User className="h-3.5 w-3.5" aria-hidden />
-              About you (the reporter)
-            </span>
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-amber-900">
-              <Cat className="h-3.5 w-3.5" aria-hidden />
-              About the cats &amp; colony
-            </span>
-          </div>
         </div>
 
         <div className="flex flex-wrap justify-center gap-2 mb-6">
@@ -255,9 +245,6 @@ export function ColonyIntakeForm() {
 
             {step === 0 && (
               <>
-                <p className="text-sm text-muted-foreground">
-                  Tell us about yourself — the person submitting this report.
-                </p>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Your first name</Label>
@@ -346,11 +333,6 @@ export function ColonyIntakeForm() {
 
             {step === 1 && (
               <>
-                <p className="text-sm text-muted-foreground flex items-start gap-2">
-                  <MapPin className="h-4 w-4 mt-0.5 shrink-0 text-amber-700" aria-hidden />
-                  Where are the cats located? Use the colony address even if it is different from
-                  your home address above.
-                </p>
                 <AddressAutocomplete
                   label="Colony address"
                   defaultValue={form.colony_address}
@@ -412,9 +394,6 @@ export function ColonyIntakeForm() {
 
             {step === 2 && (
               <>
-                <p className="text-sm text-muted-foreground">
-                  Answer about the cats at this colony — not about you personally.
-                </p>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Cats over 8 weeks</Label>
@@ -481,10 +460,6 @@ export function ColonyIntakeForm() {
 
             {step === 3 && (
               <>
-                <p className="text-sm text-muted-foreground">
-                  These questions are about you and whether you can help with trapping — not about
-                  the cats themselves.
-                </p>
                 <div className="space-y-2">
                   <Label>Do you have trapping experience?</Label>
                   <YesNoSelect
