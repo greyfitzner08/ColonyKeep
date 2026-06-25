@@ -130,7 +130,7 @@ export function HotspotsMap({ helpRequests, volunteers, feeders }: HotspotsMapPr
   }
 
   if (!mounted) {
-    return <div className="min-h-[50vh] sm:min-h-[400px] lg:h-[600px] bg-muted rounded-lg animate-pulse" />;
+    return <div className="h-[400px] sm:h-[500px] lg:h-[600px] bg-muted rounded-lg animate-pulse" />;
   }
 
   return (
@@ -190,8 +190,8 @@ export function HotspotsMap({ helpRequests, volunteers, feeders }: HotspotsMapPr
         </div>
       )}
 
-      <div className="min-h-[50vh] sm:min-h-[400px] lg:h-[600px] rounded-lg overflow-hidden border">
-        <MapContainer center={center} zoom={10} style={{ height: "100%", width: "100%" }}>
+      <div className="h-[400px] sm:h-[500px] lg:h-[600px] rounded-lg overflow-hidden border [&_.leaflet-container]:h-full [&_.leaflet-container]:w-full">
+        <MapContainer center={center} zoom={10} className="h-full w-full">
           <TileLayer
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
