@@ -29,6 +29,7 @@ export interface MapVolunteer {
   id: string;
   full_name: string | null;
   email: string;
+  role: string | null;
   home_lat: number;
   home_lng: number;
 }
@@ -157,7 +158,7 @@ export function HotspotsMap({ helpRequests, volunteers, feeders }: HotspotsMapPr
               className="inline-block h-3 w-3 rounded-full"
               style={{ backgroundColor: LAYER_COLORS.volunteers }}
             />
-            Volunteers ({volunteers.length})
+            Volunteers & team ({volunteers.length})
           </label>
           <label className="flex items-center gap-2 text-sm cursor-pointer">
             <Checkbox
@@ -190,7 +191,7 @@ export function HotspotsMap({ helpRequests, volunteers, feeders }: HotspotsMapPr
         </div>
       )}
 
-      <div className="h-[400px] sm:h-[500px] lg:h-[600px] rounded-lg overflow-hidden border [&_.leaflet-container]:h-full [&_.leaflet-container]:w-full">
+      <div className="relative isolate z-0 h-[400px] sm:h-[500px] lg:h-[600px] rounded-lg overflow-hidden border [&_.leaflet-container]:z-0">
         <MapContainer center={center} zoom={10} className="h-full w-full">
           <TileLayer
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
@@ -243,7 +244,12 @@ export function HotspotsMap({ helpRequests, volunteers, feeders }: HotspotsMapPr
               >
                 <Popup>
                   <div className="space-y-1 text-sm min-w-[180px]">
-                    <p className="font-semibold">{volunteer.full_name ?? "Volunteer"}</p>
+                    <p className="font-semibold">{volunteer.full_name ?? "Team member"}</p>
+                    {volunteer.role && (
+                      <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                        {volunteer.role.replace(/_/g, " ")}
+                      </p>
+                    )}
                     <p className="text-muted-foreground">{volunteer.email}</p>
                   </div>
                 </Popup>

@@ -166,9 +166,11 @@ export function Sidebar({
       <Button
         variant="ghost"
         size="icon"
-        className="fixed left-4 top-4 lg:hidden"
+        className="fixed left-4 top-4 bg-background/90 shadow-sm backdrop-blur lg:hidden"
         style={{ zIndex: Z_INDEX.mobileMenuButton }}
         onClick={() => setMobileOpen(!mobileOpen)}
+        aria-expanded={mobileOpen}
+        aria-label={mobileOpen ? "Close menu" : "Open menu"}
       >
         {mobileOpen ? <X /> : <Menu />}
       </Button>
@@ -184,13 +186,20 @@ export function Sidebar({
       </aside>
 
       {mobileOpen && (
-        <aside
-          className="fixed inset-0 flex lg:hidden"
-          style={{ zIndex: Z_INDEX.mobileNavBackdrop }}
-        >
-          <div className="fixed inset-0 bg-black/50" onClick={() => setMobileOpen(false)} />
-          <div className="relative flex h-full w-64 flex-col bg-sidebar">{nav}</div>
-        </aside>
+        <>
+          <div
+            className="fixed inset-0 bg-black/50 lg:hidden"
+            style={{ zIndex: Z_INDEX.mobileNavBackdrop }}
+            onClick={() => setMobileOpen(false)}
+            aria-hidden
+          />
+          <aside
+            className="fixed inset-y-0 left-0 flex w-64 max-w-[85vw] flex-col border-r border-sidebar-border bg-sidebar shadow-xl lg:hidden"
+            style={{ zIndex: Z_INDEX.mobileNavPanel }}
+          >
+            {nav}
+          </aside>
+        </>
       )}
     </>
   );

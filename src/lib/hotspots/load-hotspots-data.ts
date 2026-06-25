@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { MapFeeder, MapVolunteer } from "@/components/maps/hotspots-map";
+import type { MapFeeder } from "@/components/maps/hotspots-map";
+import { loadHotspotVolunteers } from "@/lib/hotspots/geocode-profile-locations";
 import type { HelpRequest } from "@/lib/types";
 
 const COLONY_HOTSPOT_FIELDS =
@@ -40,23 +41,7 @@ export async function loadHotspotHelpRequests(
   return { helpRequests: (colonyResult.data ?? []) as HelpRequest[], error: null };
 }
 
-export async function loadHotspotVolunteers(
-  service: SupabaseClient
-): Promise<MapVolunteer[]> {
-  const result = await service
-    .from("profiles")
-    .select("id, full_name, email, home_lat, home_lng")
-    .not("home_lat", "is", null)
-    .not("home_lng", "is", null)
-    .in("role", ["volunteer", "trap_team_lead"]);
-
-  if (result.error) {
-    if (isMissingColumnError(result.error.message)) return [];
-    return [];
-  }
-
-  return (result.data ?? []) as MapVolunteer[];
-}
+export { loadHotspotVolunteers };
 
 export function mapFeedersFromHelpRequests(helpRequests: HelpRequest[]): MapFeeder[] {
   return helpRequests
