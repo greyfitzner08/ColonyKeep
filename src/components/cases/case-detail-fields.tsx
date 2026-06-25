@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { CaseCollapsibleSection } from "@/components/cases/case-collapsible-section";
 
 interface InfoRowProps {
   label: string;
@@ -24,7 +25,25 @@ export function InfoRow({ label, value, alwaysShow }: InfoRowProps) {
   );
 }
 
-export function InfoCard({ title, children }: { title: string; children: ReactNode }) {
+export function InfoCard({
+  title,
+  children,
+  defaultOpen = true,
+  collapsible = true,
+}: {
+  title: string;
+  children: ReactNode;
+  defaultOpen?: boolean;
+  collapsible?: boolean;
+}) {
+  if (collapsible) {
+    return (
+      <CaseCollapsibleSection title={title} defaultOpen={defaultOpen}>
+        <dl>{children}</dl>
+      </CaseCollapsibleSection>
+    );
+  }
+
   return (
     <Card>
       <CardHeader className="pb-0">

@@ -2,8 +2,13 @@ import type { Profile, TeamAnnouncement, UserRole, VolunteerRole } from "@/lib/t
 
 export type FeedAudience = "all" | "team" | "roles";
 
+function postTeamIds(post: Pick<TeamAnnouncement, "team_id" | "team_ids">): string[] {
+  if (post.team_ids?.length) return post.team_ids;
+  return post.team_id ? [post.team_id] : [];
+}
+
 export function announcementVisibleToProfile(
-  post: Pick<TeamAnnouncement, "audience" | "team_id" | "view_roles">,
+  post: Pick<TeamAnnouncement, "audience" | "team_id" | "team_ids" | "view_roles">,
   profile: Profile | null
 ): boolean {
   if (!profile?.role) return false;
@@ -14,8 +19,9 @@ export function announcementVisibleToProfile(
   if (audience === "all" || !audience) return true;
 
   if (audience === "team") {
-    if (!post.team_id) return true;
-    return profile.team_id === post.team_id;
+    const ids = postTeamIds(post);
+    if (ids.length === 0) return true;
+    return Boolean(profile.team_id && ids.includes(profile.team_id));
   }
 
   if (audience === "roles") {

@@ -130,6 +130,8 @@ export interface Profile {
   home_state: string | null;
   home_zip: string | null;
   home_county: string | null;
+  home_lat: number | null;
+  home_lng: number | null;
   tnvr_certificate_uploaded: boolean;
   tnvr_certificate_url: string | null;
   created_at: string;
@@ -181,6 +183,16 @@ export interface HelpRequest {
   pregnant_count: number;
   feeding_cats: boolean | null;
   feeder_if_not: string | null;
+  feeder_name: string | null;
+  feeder_phone: string | null;
+  feeder_email: string | null;
+  feeder_street: string | null;
+  feeder_city: string | null;
+  feeder_state: string | null;
+  feeder_zip: string | null;
+  feeder_county: string | null;
+  feeder_lat: number | null;
+  feeder_lng: number | null;
   trapping_experience: string | null;
   need_traps: boolean | null;
   willing_to_trap_transport: string | null;
@@ -405,6 +417,7 @@ export interface TeamAnnouncement {
   message: string;
   team_id: string | null;
   team_name: string | null;
+  team_ids: string[];
   audience: "all" | "team" | "roles";
   view_roles: string[];
   author_email: string;

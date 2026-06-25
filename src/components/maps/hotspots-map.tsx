@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
-import { STATUS_COLORS } from "@/lib/constants";
+import { Checkbox } from "@/components/ui/checkbox";
 import { formatSingleLineAddress } from "@/lib/cases/colony-notes";
+import { STATUS_MARKER_COLORS, statusMarkerColor } from "@/lib/cases/status-marker-colors";
 import { getStatusLabel } from "@/lib/cases/statuses";
 import type { HelpRequest, HelpRequestStatus } from "@/lib/types";
 
@@ -24,26 +25,35 @@ const Popup = dynamic(
   { ssr: false }
 );
 
-const STATUS_MARKER_COLORS: Record<HelpRequestStatus, string> = {
-  new_intake: "#3b82f6",
-  under_review: "#eab308",
-  needs_more_info: "#f97316",
-  routed_to_trap_team: "#a855f7",
-  claimed: "#6366f1",
-  appointment_needed: "#ec4899",
-  appointment_reserved: "#06b6d4",
-  cat_trapped: "#14b8a6",
-  transported: "#0ea5e9",
-  checked_in: "#84cc16",
-  completed: "#22c55e",
-  closed: "#6b7280",
-};
-
-const DEFAULT_MARKER_COLOR = "#6b7280";
-
-function markerColor(status: HelpRequestStatus) {
-  return STATUS_MARKER_COLORS[status] ?? DEFAULT_MARKER_COLOR;
+export interface MapVolunteer {
+  id: string;
+  full_name: string | null;
+  email: string;
+  home_lat: number;
+  home_lng: number;
 }
+
+export interface MapFeeder {
+  id: string;
+  case_number: string;
+  feeder_name: string | null;
+  feeder_phone: string | null;
+  feeder_email: string | null;
+  feeder_street: string | null;
+  feeder_city: string | null;
+  feeder_state: string | null;
+  feeder_zip: string | null;
+  feeder_county: string | null;
+  feeder_lat: number;
+  feeder_lng: number;
+}
+
+type MapLayer = "colonies" | "volunteers" | "feeders";
+
+const LAYER_COLORS: Record<Exclude<MapLayer, "colonies">, string> = {
+  volunteers: "#059669",
+  feeders: "#d97706",
+};
 
 function colonyAddress(hr: HelpRequest): string {
   return (
@@ -57,81 +67,232 @@ function colonyAddress(hr: HelpRequest): string {
   );
 }
 
-interface HotspotsMapProps {
-  helpRequests: HelpRequest[];
+function feederAddress(feeder: MapFeeder): string {
+  return (
+    formatSingleLineAddress([
+      feeder.feeder_street,
+      feeder.feeder_city,
+      feeder.feeder_state,
+      feeder.feeder_zip,
+      feeder.feeder_county,
+    ]) ?? "Address not available"
+  );
 }
 
-export function HotspotsMap({ helpRequests }: HotspotsMapProps) {
+interface HotspotsMapProps {
+  helpRequests: HelpRequest[];
+  volunteers: MapVolunteer[];
+  feeders: MapFeeder[];
+}
+
+export function HotspotsMap({ helpRequests, volunteers, feeders }: HotspotsMapProps) {
   const [mounted, setMounted] = useState(false);
+  const [layers, setLayers] = useState<Record<MapLayer, boolean>>({
+    colonies: true,
+    volunteers: false,
+    feeders: false,
+  });
 
   useEffect(() => {
     setMounted(true);
     import("leaflet/dist/leaflet.css");
   }, []);
 
-  const withCoords = helpRequests.filter((hr) => hr.colony_lat && hr.colony_lng);
-  const center = withCoords.length > 0
-    ? [withCoords[0].colony_lat!, withCoords[0].colony_lng!] as [number, number]
-    : [39.8283, -98.5795] as [number, number];
+  const coloniesWithCoords = useMemo(
+    () => helpRequests.filter((hr) => hr.colony_lat && hr.colony_lng),
+    [helpRequests]
+  );
+
+  const allPoints = useMemo(() => {
+    const points: [number, number][] = [];
+    if (layers.colonies) {
+      coloniesWithCoords.forEach((hr) => points.push([hr.colony_lat!, hr.colony_lng!]));
+    }
+    if (layers.volunteers) {
+      volunteers.forEach((v) => points.push([v.home_lat, v.home_lng]));
+    }
+    if (layers.feeders) {
+      feeders.forEach((f) => points.push([f.feeder_lat, f.feeder_lng]));
+    }
+    return points;
+  }, [coloniesWithCoords, volunteers, feeders, layers]);
+
+  const center: [number, number] =
+    allPoints.length > 0 ? allPoints[0] : [35.7796, -78.6382];
+
+  const visibleCount =
+    (layers.colonies ? coloniesWithCoords.length : 0) +
+    (layers.volunteers ? volunteers.length : 0) +
+    (layers.feeders ? feeders.length : 0);
+
+  function toggleLayer(layer: MapLayer) {
+    setLayers((current) => ({ ...current, [layer]: !current[layer] }));
+  }
 
   if (!mounted) {
-    return <div className="h-[600px] bg-muted rounded-lg animate-pulse" />;
+    return <div className="min-h-[50vh] sm:min-h-[400px] lg:h-[600px] bg-muted rounded-lg animate-pulse" />;
   }
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap gap-2">
-        {Object.entries(STATUS_COLORS).slice(0, 6).map(([status]) => (
-          <div key={status} className="flex items-center gap-1 text-xs">
-            <span
-              className="w-3 h-3 rounded-full"
-              style={{ backgroundColor: STATUS_MARKER_COLORS[status as HelpRequestStatus] }}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex flex-wrap gap-4">
+          <label className="flex items-center gap-2 text-sm cursor-pointer">
+            <Checkbox
+              checked={layers.colonies}
+              onCheckedChange={() => toggleLayer("colonies")}
             />
-            {status.replace(/_/g, " ")}
-          </div>
-        ))}
+            <span
+              className="inline-block h-3 w-3 rounded-full"
+              style={{ backgroundColor: STATUS_MARKER_COLORS.new_intake }}
+            />
+            Colonies ({coloniesWithCoords.length})
+          </label>
+          <label className="flex items-center gap-2 text-sm cursor-pointer">
+            <Checkbox
+              checked={layers.volunteers}
+              onCheckedChange={() => toggleLayer("volunteers")}
+            />
+            <span
+              className="inline-block h-3 w-3 rounded-full"
+              style={{ backgroundColor: LAYER_COLORS.volunteers }}
+            />
+            Volunteers ({volunteers.length})
+          </label>
+          <label className="flex items-center gap-2 text-sm cursor-pointer">
+            <Checkbox
+              checked={layers.feeders}
+              onCheckedChange={() => toggleLayer("feeders")}
+            />
+            <span
+              className="inline-block h-3 w-3 rounded-full"
+              style={{ backgroundColor: LAYER_COLORS.feeders }}
+            />
+            Colony feeders ({feeders.length})
+          </label>
+        </div>
+        <p className="text-xs text-muted-foreground sm:text-right">
+          {visibleCount} location{visibleCount === 1 ? "" : "s"} on map
+        </p>
       </div>
-      <div className="h-[600px] rounded-lg overflow-hidden border">
+
+      {layers.colonies && (
+        <div className="flex flex-wrap gap-x-3 gap-y-1.5">
+          {(Object.keys(STATUS_MARKER_COLORS) as HelpRequestStatus[]).map((status) => (
+            <div key={status} className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <span
+                className="h-3 w-3 shrink-0 rounded-full border border-black/10"
+                style={{ backgroundColor: STATUS_MARKER_COLORS[status] }}
+              />
+              {getStatusLabel(status)}
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="min-h-[50vh] sm:min-h-[400px] lg:h-[600px] rounded-lg overflow-hidden border">
         <MapContainer center={center} zoom={10} style={{ height: "100%", width: "100%" }}>
           <TileLayer
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
-          {withCoords.map((hr) => (
-            <CircleMarker
-              key={hr.id}
-              center={[hr.colony_lat!, hr.colony_lng!]}
-              radius={8}
-              pathOptions={{
-                color: markerColor(hr.status),
-                fillColor: markerColor(hr.status),
-                fillOpacity: 0.7,
-              }}
-            >
-              <Popup>
-                <div className="space-y-1.5 text-sm min-w-[200px]">
-                  <p className="font-semibold">{hr.case_number}</p>
-                  <p className="text-muted-foreground">{colonyAddress(hr)}</p>
-                  <p>
-                    <span className="text-muted-foreground">Trap team:</span>{" "}
-                    {hr.assigned_team_name?.trim() || "Unassigned"}
-                  </p>
-                  <p>
-                    <span className="text-muted-foreground">Status:</span>{" "}
-                    {getStatusLabel(hr.status)}
-                  </p>
-                  <a href={`/case/${hr.id}`} className="inline-block text-primary underline font-medium">
-                    View full case
-                  </a>
-                </div>
-              </Popup>
-            </CircleMarker>
-          ))}
+          {layers.colonies &&
+            coloniesWithCoords.map((hr) => (
+              <CircleMarker
+                key={`colony-${hr.id}`}
+                center={[hr.colony_lat!, hr.colony_lng!]}
+                radius={9}
+                pathOptions={{
+                  color: statusMarkerColor(hr.status),
+                  fillColor: statusMarkerColor(hr.status),
+                  fillOpacity: 0.85,
+                  weight: 2,
+                }}
+              >
+                <Popup>
+                  <div className="space-y-1.5 text-sm min-w-[200px]">
+                    <p className="font-semibold">{hr.case_number}</p>
+                    <p className="text-muted-foreground">{colonyAddress(hr)}</p>
+                    <p>
+                      <span className="text-muted-foreground">Trap team:</span>{" "}
+                      {hr.assigned_team_name?.trim() || "Unassigned"}
+                    </p>
+                    <p>
+                      <span className="text-muted-foreground">Status:</span>{" "}
+                      {getStatusLabel(hr.status)}
+                    </p>
+                    <a href={`/case/${hr.id}`} className="inline-block text-primary underline font-medium">
+                      View full case
+                    </a>
+                  </div>
+                </Popup>
+              </CircleMarker>
+            ))}
+          {layers.volunteers &&
+            volunteers.map((volunteer) => (
+              <CircleMarker
+                key={`volunteer-${volunteer.id}`}
+                center={[volunteer.home_lat, volunteer.home_lng]}
+                radius={7}
+                pathOptions={{
+                  color: LAYER_COLORS.volunteers,
+                  fillColor: LAYER_COLORS.volunteers,
+                  fillOpacity: 0.9,
+                  weight: 2,
+                }}
+              >
+                <Popup>
+                  <div className="space-y-1 text-sm min-w-[180px]">
+                    <p className="font-semibold">{volunteer.full_name ?? "Volunteer"}</p>
+                    <p className="text-muted-foreground">{volunteer.email}</p>
+                  </div>
+                </Popup>
+              </CircleMarker>
+            ))}
+          {layers.feeders &&
+            feeders.map((feeder) => (
+              <CircleMarker
+                key={`feeder-${feeder.id}`}
+                center={[feeder.feeder_lat, feeder.feeder_lng]}
+                radius={8}
+                pathOptions={{
+                  color: LAYER_COLORS.feeders,
+                  fillColor: LAYER_COLORS.feeders,
+                  fillOpacity: 0.9,
+                  weight: 2,
+                }}
+              >
+                <Popup>
+                  <div className="space-y-1.5 text-sm min-w-[200px]">
+                    <p className="font-semibold">{feeder.feeder_name ?? "Colony feeder"}</p>
+                    <p className="text-muted-foreground">{feederAddress(feeder)}</p>
+                    {feeder.feeder_phone && (
+                      <p>
+                        <span className="text-muted-foreground">Phone:</span> {feeder.feeder_phone}
+                      </p>
+                    )}
+                    {feeder.feeder_email && (
+                      <p>
+                        <span className="text-muted-foreground">Email:</span> {feeder.feeder_email}
+                      </p>
+                    )}
+                    <p>
+                      <span className="text-muted-foreground">Case:</span> {feeder.case_number}
+                    </p>
+                    <a href={`/case/${feeder.id}`} className="inline-block text-primary underline font-medium">
+                      View case
+                    </a>
+                  </div>
+                </Popup>
+              </CircleMarker>
+            ))}
         </MapContainer>
       </div>
-      {withCoords.length === 0 && (
+
+      {visibleCount === 0 && (
         <p className="text-sm text-muted-foreground text-center">
-          No colony locations could be mapped yet. Cases need a colony address, city, or ZIP in the inquiry queue.
+          No locations to show. Turn on a map layer above, or add addresses with coordinates for colonies,
+          volunteer home addresses, or colony feeder contacts on cases.
         </p>
       )}
     </div>

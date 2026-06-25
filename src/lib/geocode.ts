@@ -21,6 +21,22 @@ function buildAddressQuery(parts: {
     .join(", ");
 }
 
+export async function geocodeStreetAddress(parts: {
+  street?: string | null;
+  city?: string | null;
+  state?: string | null;
+  zip?: string | null;
+  county?: string | null;
+}): Promise<GeocodeResult | null> {
+  return geocodeAddress({
+    colony_address: parts.street,
+    colony_city: parts.city,
+    colony_state: parts.state,
+    colony_zip: parts.zip,
+    colony_county: parts.county,
+  });
+}
+
 export async function geocodeAddress(parts: {
   colony_address?: string | null;
   colony_city?: string | null;

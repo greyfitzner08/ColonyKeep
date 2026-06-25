@@ -1,11 +1,11 @@
 "use client";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { CaseCollapsibleSection } from "@/components/cases/case-collapsible-section";
 import { InfoCard, InfoRow } from "@/components/cases/case-detail-fields";
 import { MedicalReviewActions } from "@/components/cases/medical-review-actions";
 import { getStatusOptionsForRole, isIntakeQueueStatus } from "@/lib/cases/statuses";
@@ -58,39 +58,34 @@ export function CaseIntakeSection({
     hr.cats_remaining > 0;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {canReviewMedical && (
-        <Card>
-          <CardContent className="pt-6">
-            <MedicalReviewActions helpRequest={hr} />
-          </CardContent>
-        </Card>
+        <CaseCollapsibleSection title="Medical review">
+          <MedicalReviewActions helpRequest={hr} />
+        </CaseCollapsibleSection>
       )}
 
       {showRouteButton && (
-        <Card className="border-primary/30 bg-primary/5">
-          <CardContent className="pt-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-              <p className="font-semibold">Ready for trapping?</p>
-              <p className="text-sm text-muted-foreground mt-1">
-                Sends this case to the trap queue and assigns a team from colony ZIP{" "}
-                {hr.colony_zip || "—"}.
-              </p>
-            </div>
-            <Button onClick={onRouteToTrap} disabled={routing || saving}>
+        <CaseCollapsibleSection title="Route to trap team" defaultOpen>
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm text-muted-foreground">
+              Sends this case to the trap queue and assigns a team from colony ZIP{" "}
+              {hr.colony_zip || "—"}.
+            </p>
+            <Button onClick={onRouteToTrap} disabled={routing || saving} className="shrink-0">
               <ArrowRight className="h-4 w-4 mr-2" />
               {routing ? "Routing…" : "Route to Trap Team"}
             </Button>
-          </CardContent>
-        </Card>
+          </div>
+        </CaseCollapsibleSection>
       )}
 
       {hr.status === "routed_to_trap_team" && (
-        <Card className="bg-muted/40">
-          <CardContent className="pt-6 text-base">
+        <CaseCollapsibleSection title="Trap queue status" defaultOpen={false}>
+          <p className="text-base">
             In trap queue{hr.assigned_team_name ? ` · ${hr.assigned_team_name}` : ""}
-          </CardContent>
-        </Card>
+          </p>
+        </CaseCollapsibleSection>
       )}
 
       <InfoCard title="Case management">
@@ -149,11 +144,95 @@ export function CaseIntakeSection({
         <InfoRow label="Trapper / trap loaner" value={hr.trapper_trap_loaner} />
       </InfoCard>
 
-      <Card>
-        <CardHeader className="pb-0">
-          <CardTitle className="text-lg">Follow-up</CardTitle>
-        </CardHeader>
-        <CardContent className="pt-4 space-y-4">
+      <CaseCollapsibleSection title="Colony feeder">
+        <div className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            Contact details for the person feeding the colony when they are not the reporter.
+          </p>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2 sm:col-span-2">
+              <Label htmlFor="feeder-name">Name</Label>
+              <Input
+                id="feeder-name"
+                value={hr.feeder_name ?? ""}
+                onChange={(e) => onChange({ ...hr, feeder_name: e.target.value || null })}
+                placeholder="Feeder full name"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="feeder-phone">Phone</Label>
+              <Input
+                id="feeder-phone"
+                type="tel"
+                value={hr.feeder_phone ?? ""}
+                onChange={(e) => onChange({ ...hr, feeder_phone: e.target.value || null })}
+                placeholder="(555) 555-5555"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="feeder-email">Email</Label>
+              <Input
+                id="feeder-email"
+                type="email"
+                value={hr.feeder_email ?? ""}
+                onChange={(e) => onChange({ ...hr, feeder_email: e.target.value || null })}
+                placeholder="feeder@example.com"
+              />
+            </div>
+            <div className="space-y-2 sm:col-span-2">
+              <Label htmlFor="feeder-street">Street address</Label>
+              <Input
+                id="feeder-street"
+                value={hr.feeder_street ?? ""}
+                onChange={(e) => onChange({ ...hr, feeder_street: e.target.value || null })}
+                placeholder="123 Main St"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="feeder-city">City</Label>
+              <Input
+                id="feeder-city"
+                value={hr.feeder_city ?? ""}
+                onChange={(e) => onChange({ ...hr, feeder_city: e.target.value || null })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="feeder-state">State</Label>
+              <Input
+                id="feeder-state"
+                value={hr.feeder_state ?? ""}
+                onChange={(e) => onChange({ ...hr, feeder_state: e.target.value || null })}
+                placeholder="NC"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="feeder-zip">ZIP</Label>
+              <Input
+                id="feeder-zip"
+                value={hr.feeder_zip ?? ""}
+                onChange={(e) => onChange({ ...hr, feeder_zip: e.target.value || null })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="feeder-county">County</Label>
+              <Input
+                id="feeder-county"
+                value={hr.feeder_county ?? ""}
+                onChange={(e) => onChange({ ...hr, feeder_county: e.target.value || null })}
+              />
+            </div>
+          </div>
+          {hr.feeder_if_not && !hr.feeder_name && (
+            <div className="space-y-2">
+              <Label>Legacy feeder note</Label>
+              <p className="text-sm text-muted-foreground whitespace-pre-wrap">{hr.feeder_if_not}</p>
+            </div>
+          )}
+        </div>
+      </CaseCollapsibleSection>
+
+      <CaseCollapsibleSection title="Follow-up">
+        <div className="space-y-4">
           <div className="space-y-2 max-w-xs">
             <Label>Due date</Label>
             <Input
@@ -186,14 +265,11 @@ export function CaseIntakeSection({
               ))}
             </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </CaseCollapsibleSection>
 
-      <Card>
-        <CardHeader className="pb-0">
-          <CardTitle className="text-lg">Intake notes</CardTitle>
-        </CardHeader>
-        <CardContent className="pt-4 space-y-4">
+      <CaseCollapsibleSection title="Intake notes">
+        <div className="space-y-4">
           <div className="space-y-2">
             <Label>Staff notes</Label>
             <Textarea
@@ -212,11 +288,11 @@ export function CaseIntakeSection({
               placeholder="Recorded when closing the case…"
             />
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </CaseCollapsibleSection>
 
       {hasOutcomes && (
-        <InfoCard title="Outcomes">
+        <InfoCard title="Outcomes" defaultOpen={false}>
           <InfoRow label="Outcome" value={hr.outcome} />
           <InfoRow label="Resolution" value={hr.resolution} />
           <InfoRow label="TNVR'd" value={hr.outcome_tnvr_count} />
@@ -227,8 +303,8 @@ export function CaseIntakeSection({
         </InfoCard>
       )}
 
-      <Card>
-        <CardContent className="pt-6 space-y-4">
+      <CaseCollapsibleSection title="Close case">
+        <div className="space-y-4">
           <div className="space-y-2 max-w-sm">
             <Label>Close case — outcome</Label>
             <Select value={hr.outcome ?? ""} onValueChange={(v) => onChange({ ...hr, outcome: v })}>
@@ -254,8 +330,8 @@ export function CaseIntakeSection({
               Close case
             </Button>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </CaseCollapsibleSection>
     </div>
   );
 }

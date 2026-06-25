@@ -52,6 +52,13 @@ export async function POST(request: NextRequest) {
     previousEmail: profile!.email,
     fields,
     updateAuthEmail: true,
+    existingHomeAddress: {
+      home_street: profile!.home_street,
+      home_city: profile!.home_city,
+      home_state: profile!.home_state,
+      home_zip: profile!.home_zip,
+      home_county: profile!.home_county,
+    },
   });
 
   if (result.error) {

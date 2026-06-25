@@ -52,7 +52,7 @@ export default async function CasePage({ params }: CasePageProps) {
     <div className="space-y-6">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-wrap items-center gap-3">
-          <h1 className="text-3xl font-bold">{hr.case_number}</h1>
+          <h1 className="text-2xl font-bold sm:text-3xl">{hr.case_number}</h1>
           <Badge className={cn("text-sm", STATUS_COLORS[hr.status])}>
             {getStatusLabel(hr.status)}
           </Badge>

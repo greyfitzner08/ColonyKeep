@@ -79,6 +79,13 @@ export async function POST(request: NextRequest) {
       previousEmail: existingProfile.email,
       fields: contactFields,
       updateAuthEmail: true,
+      existingHomeAddress: {
+        home_street: existingProfile.home_street,
+        home_city: existingProfile.home_city,
+        home_state: existingProfile.home_state,
+        home_zip: existingProfile.home_zip,
+        home_county: existingProfile.home_county,
+      },
     });
 
     if (contactResult.error) {

@@ -62,7 +62,7 @@ export async function fetchTrapTeamDashboardData(
     supabase
       .from("team_announcements")
       .select("id, message, created_at")
-      .eq("team_id", teamId)
+      .or(`team_id.eq.${teamId},team_ids.cs.{${teamId}}`)
       .order("created_at", { ascending: false })
       .limit(5),
   ]);

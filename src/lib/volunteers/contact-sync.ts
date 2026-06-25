@@ -1,8 +1,10 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getEmailValidationError, parsePrimaryEmail } from "@/lib/email-utils";
+import { geocodeStreetAddress } from "@/lib/geocode";
 import {
   contactFieldsToApplicationUpdate,
   contactFieldsToProfileUpdate,
+  isHomeAddressComplete,
   type VolunteerContactUpdate,
 } from "@/lib/volunteers/contact-fields";
 
@@ -13,13 +15,67 @@ export async function syncVolunteerContactRecords(
     previousEmail: string;
     fields: VolunteerContactUpdate;
     updateAuthEmail?: boolean;
+    existingHomeAddress?: {
+      home_street: string | null;
+      home_city: string | null;
+      home_state: string | null;
+      home_zip: string | null;
+      home_county: string | null;
+    };
   }
 ): Promise<{ error?: string; email?: string }> {
-  const profileUpdate = contactFieldsToProfileUpdate(params.fields);
+  const profileUpdate = contactFieldsToProfileUpdate(params.fields) as Record<
+    string,
+    string | number | null
+  >;
   const applicationUpdate = contactFieldsToApplicationUpdate(params.fields);
 
   if (Object.keys(profileUpdate).length === 0) {
     return { error: "No contact fields to update" };
+  }
+
+  const mergedAddress = {
+    home_street:
+      (profileUpdate.home_street as string | null | undefined) ??
+      params.existingHomeAddress?.home_street ??
+      null,
+    home_city:
+      (profileUpdate.home_city as string | null | undefined) ??
+      params.existingHomeAddress?.home_city ??
+      null,
+    home_state:
+      (profileUpdate.home_state as string | null | undefined) ??
+      params.existingHomeAddress?.home_state ??
+      null,
+    home_zip:
+      (profileUpdate.home_zip as string | null | undefined) ??
+      params.existingHomeAddress?.home_zip ??
+      null,
+    home_county:
+      (profileUpdate.home_county as string | null | undefined) ??
+      params.existingHomeAddress?.home_county ??
+      null,
+  };
+
+  const addressTouched =
+    params.fields.home_street !== undefined ||
+    params.fields.home_city !== undefined ||
+    params.fields.home_state !== undefined ||
+    params.fields.home_zip !== undefined ||
+    params.fields.home_county !== undefined;
+
+  if (addressTouched && isHomeAddressComplete(mergedAddress)) {
+    const coords = await geocodeStreetAddress({
+      street: mergedAddress.home_street,
+      city: mergedAddress.home_city,
+      state: mergedAddress.home_state,
+      zip: mergedAddress.home_zip,
+      county: mergedAddress.home_county,
+    });
+    if (coords) {
+      profileUpdate.home_lat = coords.lat;
+      profileUpdate.home_lng = coords.lng;
+    }
   }
 
   let nextEmail = params.previousEmail.trim().toLowerCase();

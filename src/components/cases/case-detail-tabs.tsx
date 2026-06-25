@@ -78,7 +78,35 @@ export function CaseDetailTabs({
 
   async function persistCase(next: HelpRequest, medicalFlags = next.medical_flags ?? []) {
     const supabase = createClient();
-    const payload = withTeamAssignment({ ...next, medical_flags: medicalFlags });
+    let payload = withTeamAssignment({ ...next, medical_flags: medicalFlags });
+
+    const hasFeederAddress =
+      payload.feeder_street?.trim() ||
+      payload.feeder_city?.trim() ||
+      payload.feeder_zip?.trim();
+
+    if (hasFeederAddress) {
+      const geocodeResponse = await fetch("/api/geocode", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          street: payload.feeder_street,
+          city: payload.feeder_city,
+          state: payload.feeder_state,
+          zip: payload.feeder_zip,
+          county: payload.feeder_county,
+        }),
+      });
+      const geocodeResult = await geocodeResponse.json().catch(() => null);
+      if (geocodeResult?.coords) {
+        payload = {
+          ...payload,
+          feeder_lat: geocodeResult.coords.lat,
+          feeder_lng: geocodeResult.coords.lng,
+        };
+      }
+    }
+
     await supabase
       .from("help_requests")
       .update({
@@ -92,6 +120,16 @@ export function CaseDetailTabs({
         outcome: payload.outcome,
         resolution: payload.resolution,
         medical_flags: payload.medical_flags,
+        feeder_name: payload.feeder_name,
+        feeder_phone: payload.feeder_phone,
+        feeder_email: payload.feeder_email,
+        feeder_street: payload.feeder_street,
+        feeder_city: payload.feeder_city,
+        feeder_state: payload.feeder_state,
+        feeder_zip: payload.feeder_zip,
+        feeder_county: payload.feeder_county,
+        feeder_lat: payload.feeder_lat,
+        feeder_lng: payload.feeder_lng,
       })
       .eq("id", hr.id);
     setHr(payload);
@@ -196,7 +234,7 @@ export function CaseDetailTabs({
 
   return (
     <Tabs defaultValue="reporter">
-      <TabsList className="flex-wrap h-auto">
+      <TabsList className="flex h-auto w-full flex-wrap justify-start gap-1">
         <TabsTrigger value="reporter">Reporter</TabsTrigger>
         <TabsTrigger value="colony">Colony</TabsTrigger>
         <TabsTrigger value="intake">Inquiry Team</TabsTrigger>

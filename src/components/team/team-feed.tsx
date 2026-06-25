@@ -52,12 +52,22 @@ interface TeamFeedProps {
 function audienceLabel(post: TeamAnnouncement): string {
   const audience = (post.audience ?? "all") as FeedAudience;
   if (audience === "all") return "Everyone";
-  if (audience === "team") return post.team_name ?? "Specific team";
+  if (audience === "team") {
+    const ids = post.team_ids?.length ? post.team_ids : post.team_id ? [post.team_id] : [];
+    if (ids.length > 1) return `${ids.length} trap teams`;
+    return post.team_name ?? "Specific team";
+  }
   if (audience === "roles") {
     const count = post.view_roles?.length ?? 0;
     return count === 0 ? "Selected roles" : `${count} role${count === 1 ? "" : "s"}`;
   }
   return "Everyone";
+}
+
+function postTeamNames(post: TeamAnnouncement, trapTeams: TrapTeamOption[]): string[] {
+  const ids = post.team_ids?.length ? post.team_ids : post.team_id ? [post.team_id] : [];
+  if (ids.length === 0) return post.team_name ? [post.team_name] : [];
+  return ids.map((id) => trapTeams.find((team) => team.id === id)?.name ?? id);
 }
 
 export function TeamFeed({
@@ -70,7 +80,9 @@ export function TeamFeed({
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [message, setMessage] = useState("");
   const [audience, setAudience] = useState<FeedAudience>("all");
-  const [teamId, setTeamId] = useState<string>(profile?.team_id ?? "");
+  const [selectedTeamIds, setSelectedTeamIds] = useState<string[]>(
+    profile?.team_id ? [profile.team_id] : []
+  );
   const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
   const [commentTexts, setCommentTexts] = useState<Record<string, string>>({});
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -84,25 +96,36 @@ export function TeamFeed({
     );
   }
 
+  function toggleTeam(teamId: string) {
+    setSelectedTeamIds((prev) =>
+      prev.includes(teamId) ? prev.filter((id) => id !== teamId) : [...prev, teamId]
+    );
+  }
+
   async function postAnnouncement() {
     if (!message.trim() || !profile) return;
-    if (audience === "team" && !teamId) return;
+    if (audience === "team" && selectedTeamIds.length === 0) return;
     if (audience === "roles" && selectedRoles.length === 0) return;
 
-    const team = trapTeams.find((t) => t.id === teamId);
+    const teamNames = selectedTeamIds
+      .map((id) => trapTeams.find((team) => team.id === id)?.name)
+      .filter(Boolean) as string[];
+
     const supabase = createClient();
     await supabase.from("team_announcements").insert({
       message,
       audience,
       view_roles: audience === "roles" ? selectedRoles : [],
-      team_id: audience === "team" ? teamId : null,
-      team_name: audience === "team" ? (team?.name ?? null) : null,
+      team_id: audience === "team" ? (selectedTeamIds[0] ?? null) : null,
+      team_ids: audience === "team" ? selectedTeamIds : [],
+      team_name: audience === "team" ? (teamNames.join(", ") || null) : null,
       author_email: profile.email,
       author_name: profile.full_name ?? profile.email,
     });
     setMessage("");
     setAudience("all");
     setSelectedRoles([]);
+    setSelectedTeamIds(profile?.team_id ? [profile.team_id] : []);
     router.refresh();
   }
 
@@ -142,7 +165,7 @@ export function TeamFeed({
 
   const canPost =
     message.trim().length > 0 &&
-    (audience !== "team" || Boolean(teamId)) &&
+    (audience !== "team" || selectedTeamIds.length > 0) &&
     (audience !== "roles" || selectedRoles.length > 0);
 
   return (
@@ -221,30 +244,34 @@ export function TeamFeed({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Everyone on the platform</SelectItem>
-                  <SelectItem value="team">A specific trap team</SelectItem>
+                  <SelectItem value="team">One or more trap teams</SelectItem>
                   <SelectItem value="roles">Specific roles</SelectItem>
                 </SelectContent>
               </Select>
             </div>
-
-            {audience === "team" && (
-              <div className="space-y-2">
-                <Label>Trap team</Label>
-                <Select value={teamId} onValueChange={setTeamId}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select a team" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {trapTeams.map((team) => (
-                      <SelectItem key={team.id} value={team.id}>
-                        {team.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
           </div>
+
+          {audience === "team" && (
+            <div className="space-y-3 rounded-lg border bg-muted/30 p-4">
+              <p className="text-sm font-medium">Trap teams</p>
+              <div className="grid gap-2 sm:grid-cols-2 max-h-52 overflow-y-auto pr-1">
+                {trapTeams.map((team) => (
+                  <label
+                    key={team.id}
+                    htmlFor={`team-${team.id}`}
+                    className="flex items-center gap-2 rounded-md border bg-background px-3 py-2 cursor-pointer"
+                  >
+                    <Checkbox
+                      id={`team-${team.id}`}
+                      checked={selectedTeamIds.includes(team.id)}
+                      onCheckedChange={() => toggleTeam(team.id)}
+                    />
+                    <span className="text-sm">{team.name}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
 
           {audience === "roles" && (
             <div className="space-y-4 rounded-lg border bg-muted/30 p-4">
@@ -335,9 +362,15 @@ export function TeamFeed({
                         )}
                         {audienceLabel(post)}
                       </Badge>
-                      {post.team_name && postAudience === "team" && (
+                      {post.team_name && postAudience === "team" && postTeamNames(post, trapTeams).length <= 1 && (
                         <Badge variant="secondary" className="text-xs">{post.team_name}</Badge>
                       )}
+                      {postAudience === "team" && postTeamNames(post, trapTeams).length > 1 &&
+                        postTeamNames(post, trapTeams).map((name) => (
+                          <Badge key={name} variant="secondary" className="text-xs">
+                            {name}
+                          </Badge>
+                        ))}
                     </div>
                   </div>
                   {isAuthor && !post.is_birthday && !isEditing && (
@@ -404,7 +437,7 @@ export function TeamFeed({
                   </div>
                 )}
 
-                <div className="flex items-center gap-2 pt-1">
+                <div className="flex flex-col gap-2 pt-1 sm:flex-row sm:items-center">
                   <Input
                     value={commentTexts[post.id] ?? ""}
                     onChange={(e) => setCommentTexts({ ...commentTexts, [post.id]: e.target.value })}
@@ -417,7 +450,7 @@ export function TeamFeed({
                       }
                     }}
                   />
-                  <Button size="icon" variant="outline" className="shrink-0" onClick={() => addComment(post.id)}>
+                  <Button size="icon" variant="outline" className="shrink-0 self-end sm:self-auto" onClick={() => addComment(post.id)}>
                     <MessageCircle className="h-4 w-4" />
                   </Button>
                 </div>

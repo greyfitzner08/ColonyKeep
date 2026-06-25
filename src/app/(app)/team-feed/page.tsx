@@ -35,8 +35,8 @@ export default async function TeamFeedPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">Team Feed</h1>
-        <p className="text-muted-foreground">
+        <h1 className="text-2xl font-bold sm:text-3xl">Team Feed</h1>
+        <p className="text-sm text-muted-foreground sm:text-base">
           Share updates with everyone, your trap team, or specific roles
         </p>
       </div>

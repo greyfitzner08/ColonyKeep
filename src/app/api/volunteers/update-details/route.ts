@@ -62,7 +62,7 @@ export async function POST(request: NextRequest) {
   if (Object.keys(contactFields).length > 0) {
     const { data: linkedProfile } = await service
       .from("profiles")
-      .select("id, email")
+      .select("id, email, home_street, home_city, home_state, home_zip, home_county")
       .eq("email", existingApplication.email)
       .maybeSingle();
 
@@ -72,6 +72,13 @@ export async function POST(request: NextRequest) {
         previousEmail: existingApplication.email,
         fields: contactFields,
         updateAuthEmail: true,
+        existingHomeAddress: {
+          home_street: linkedProfile.home_street,
+          home_city: linkedProfile.home_city,
+          home_state: linkedProfile.home_state,
+          home_zip: linkedProfile.home_zip,
+          home_county: linkedProfile.home_county,
+        },
       });
 
       if (syncResult.error) {
