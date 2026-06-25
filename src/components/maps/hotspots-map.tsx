@@ -4,8 +4,12 @@ import { useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import { Checkbox } from "@/components/ui/checkbox";
 import { formatSingleLineAddress } from "@/lib/cases/colony-notes";
-import { STATUS_MARKER_COLORS, statusMarkerColor } from "@/lib/cases/status-marker-colors";
-import { getStatusLabel, HOTSPOT_COLONY_STATUSES, isHotspotColonyStatus } from "@/lib/cases/statuses";
+import {
+  HOTSPOT_COLONY_LEGEND,
+  HOTSPOT_OPEN_CASE_COLOR,
+  hotspotColonyMarkerColor,
+} from "@/lib/cases/status-marker-colors";
+import { getStatusLabel, isHotspotColonyStatus } from "@/lib/cases/statuses";
 import type { HelpRequest } from "@/lib/types";
 
 const MapContainer = dynamic(
@@ -148,7 +152,7 @@ export function HotspotsMap({ helpRequests, volunteers, feeders }: HotspotsMapPr
             />
             <span
               className="inline-block h-3 w-3 rounded-full"
-              style={{ backgroundColor: STATUS_MARKER_COLORS.new_intake }}
+              style={{ backgroundColor: HOTSPOT_OPEN_CASE_COLOR }}
             />
             Colonies ({coloniesWithCoords.length})
           </label>
@@ -182,13 +186,13 @@ export function HotspotsMap({ helpRequests, volunteers, feeders }: HotspotsMapPr
 
       {layers.colonies && (
         <div className="flex flex-wrap gap-x-3 gap-y-1.5">
-          {HOTSPOT_COLONY_STATUSES.map((status) => (
-            <div key={status} className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          {HOTSPOT_COLONY_LEGEND.map((entry) => (
+            <div key={entry.label} className="flex items-center gap-1.5 text-xs text-muted-foreground">
               <span
                 className="h-3 w-3 shrink-0 rounded-full border border-black/10"
-                style={{ backgroundColor: STATUS_MARKER_COLORS[status] }}
+                style={{ backgroundColor: entry.color }}
               />
-              {getStatusLabel(status)}
+              {entry.label}
             </div>
           ))}
         </div>
@@ -207,8 +211,8 @@ export function HotspotsMap({ helpRequests, volunteers, feeders }: HotspotsMapPr
                 center={[hr.colony_lat!, hr.colony_lng!]}
                 radius={9}
                 pathOptions={{
-                  color: statusMarkerColor(hr.status),
-                  fillColor: statusMarkerColor(hr.status),
+                  color: hotspotColonyMarkerColor(hr.status),
+                  fillColor: hotspotColonyMarkerColor(hr.status),
                   fillOpacity: 0.85,
                   weight: 2,
                 }}
