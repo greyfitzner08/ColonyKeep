@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { CaseCollapsibleSection } from "@/components/cases/case-collapsible-section";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -54,11 +54,8 @@ export function ColonyCatSummaryEditor({ helpRequest, onUpdated }: ColonyCatSumm
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-lg">Colony cat counts</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
+    <CaseCollapsibleSection title="Colony cat counts" defaultOpen>
+      <div className="space-y-4">
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div className="space-y-2">
             <Label>Adults (8+ weeks)</Label>
@@ -95,7 +92,7 @@ export function ColonyCatSummaryEditor({ helpRequest, onUpdated }: ColonyCatSumm
         <Button onClick={saveCounts} disabled={saving || !dirty}>
           {saving ? "Saving…" : "Save colony counts"}
         </Button>
-      </CardContent>
-    </Card>
+      </div>
+    </CaseCollapsibleSection>
   );
 }

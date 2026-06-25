@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -20,8 +19,11 @@ import { findTrapTeamForZip } from "@/lib/cases/assign-team-by-zip";
 import { detectMedicalKeywords, mergeMedicalFlags } from "@/lib/medical-flags";
 import { formatDateTime } from "@/lib/utils";
 import type { HelpRequest, Cat, Appointment, FollowUpEntry, UserRole } from "@/lib/types";
-import { CaseReporterSection, CaseColonySection } from "@/components/cases/case-colony-info-section";
+import { CaseReporterSection } from "@/components/cases/case-colony-info-section";
+import { CaseColonyTab } from "@/components/cases/case-colony-tab";
 import { CaseIntakeSection } from "@/components/cases/case-intake-section";
+import { CaseCollapsibleSection } from "@/components/cases/case-collapsible-section";
+import { feederPayload, geocodeFeederIfNeeded } from "@/lib/cases/feeder-fields";
 import { CaseAppointmentsSection } from "@/components/appointments/case-appointments-section";
 import { TrackedCatCard } from "@/components/cases/tracked-cat-card";
 import { ColonyCatSummaryEditor } from "@/components/cases/colony-cat-summary-editor";
@@ -63,6 +65,8 @@ export function CaseDetailTabs({
   const [routing, setRouting] = useState(false);
   const [newCat, setNewCat] = useState(EMPTY_CAT);
   const [followUpNote, setFollowUpNote] = useState("");
+  const [savingFeeder, setSavingFeeder] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const canRouteToTrap = userRole === "admin" || userRole === "inquiry_team";
 
@@ -78,36 +82,9 @@ export function CaseDetailTabs({
 
   async function persistCase(next: HelpRequest, medicalFlags = next.medical_flags ?? []) {
     const supabase = createClient();
-    let payload = withTeamAssignment({ ...next, medical_flags: medicalFlags });
+    const payload = withTeamAssignment({ ...next, medical_flags: medicalFlags });
 
-    const hasFeederAddress =
-      payload.feeder_street?.trim() ||
-      payload.feeder_city?.trim() ||
-      payload.feeder_zip?.trim();
-
-    if (hasFeederAddress) {
-      const geocodeResponse = await fetch("/api/geocode", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          street: payload.feeder_street,
-          city: payload.feeder_city,
-          state: payload.feeder_state,
-          zip: payload.feeder_zip,
-          county: payload.feeder_county,
-        }),
-      });
-      const geocodeResult = await geocodeResponse.json().catch(() => null);
-      if (geocodeResult?.coords) {
-        payload = {
-          ...payload,
-          feeder_lat: geocodeResult.coords.lat,
-          feeder_lng: geocodeResult.coords.lng,
-        };
-      }
-    }
-
-    await supabase
+    const { error } = await supabase
       .from("help_requests")
       .update({
         status: payload.status,
@@ -120,30 +97,56 @@ export function CaseDetailTabs({
         outcome: payload.outcome,
         resolution: payload.resolution,
         medical_flags: payload.medical_flags,
-        feeder_name: payload.feeder_name,
-        feeder_phone: payload.feeder_phone,
-        feeder_email: payload.feeder_email,
-        feeder_street: payload.feeder_street,
-        feeder_city: payload.feeder_city,
-        feeder_state: payload.feeder_state,
-        feeder_zip: payload.feeder_zip,
-        feeder_county: payload.feeder_county,
-        feeder_lat: payload.feeder_lat,
-        feeder_lng: payload.feeder_lng,
       })
       .eq("id", hr.id);
+
+    if (error) {
+      setSaveError(error.message);
+      return false;
+    }
+
+    setHr(payload);
+    setSaveError(null);
+    router.refresh();
+    return true;
+  }
+
+  async function saveFeederInfo() {
+    setSavingFeeder(true);
+    setSaveError(null);
+    const supabase = createClient();
+    let payload = await geocodeFeederIfNeeded(hr);
+
+    const { error } = await supabase
+      .from("help_requests")
+      .update(feederPayload(payload))
+      .eq("id", hr.id);
+
+    setSavingFeeder(false);
+
+    if (error) {
+      setSaveError(
+        error.message.includes("feeder_")
+          ? "Could not save feeder info. Ask an admin to run database migration 028_feeder_fields_map_layers.sql."
+          : error.message
+      );
+      return;
+    }
+
     setHr(payload);
     router.refresh();
   }
 
   async function saveIntake() {
     setSaving(true);
+    setSaveError(null);
     const medicalFlags = mergeMedicalFlags(
       hr.medical_flags ?? [],
       detectMedicalKeywords(`${hr.intake_notes ?? ""}\n${hr.additional_notes ?? ""}`)
     );
-    await persistCase(hr, medicalFlags);
+    const ok = await persistCase(hr, medicalFlags);
     setSaving(false);
+    if (!ok) return;
   }
 
   async function routeToTrap() {
@@ -234,6 +237,11 @@ export function CaseDetailTabs({
 
   return (
     <Tabs defaultValue="reporter">
+      {saveError && (
+        <p className="mb-4 rounded-md border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          {saveError}
+        </p>
+      )}
       <TabsList className="flex h-auto w-full flex-wrap justify-start gap-1">
         <TabsTrigger value="reporter">Reporter</TabsTrigger>
         <TabsTrigger value="colony">Colony</TabsTrigger>
@@ -248,7 +256,12 @@ export function CaseDetailTabs({
       </TabsContent>
 
       <TabsContent value="colony" className="mt-4">
-        <CaseColonySection helpRequest={hr} />
+        <CaseColonyTab
+          helpRequest={hr}
+          savingFeeder={savingFeeder}
+          onChange={setHr}
+          onSaveFeeder={saveFeederInfo}
+        />
       </TabsContent>
 
       <TabsContent value="intake" className="mt-4">
@@ -288,11 +301,8 @@ export function CaseDetailTabs({
           />
         ))}
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Add Tracked Cat</CardTitle>
-          </CardHeader>
-          <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <CaseCollapsibleSection title="Add tracked cat" defaultOpen={cats.length === 0}>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label className="text-sm font-medium">Name / Description</Label>
               <Input
@@ -343,8 +353,8 @@ export function CaseDetailTabs({
               <Plus className="h-4 w-4 mr-2" />
               Add Cat
             </Button>
-          </CardContent>
-        </Card>
+          </div>
+        </CaseCollapsibleSection>
       </TabsContent>
 
       <TabsContent value="appointments" className="mt-4">
@@ -360,18 +370,22 @@ export function CaseDetailTabs({
         />
       </TabsContent>
 
-      <TabsContent value="history" className="space-y-3 mt-4">
-        {(hr.history_log ?? []).length === 0 ? (
-          <p className="text-base text-muted-foreground">No history entries yet.</p>
-        ) : (
-          (hr.history_log ?? []).slice().reverse().map((entry, i) => (
-            <div key={i} className="text-base border-b pb-3">
-              <span className="text-muted-foreground">{formatDateTime(entry.timestamp)}</span>
-              <span className="mx-2">·</span>
-              <span>{entry.details ?? entry.action}</span>
+      <TabsContent value="history" className="mt-4">
+        <CaseCollapsibleSection title="Case history" defaultOpen>
+          {(hr.history_log ?? []).length === 0 ? (
+            <p className="text-base text-muted-foreground">No history entries yet.</p>
+          ) : (
+            <div className="space-y-3">
+              {(hr.history_log ?? []).slice().reverse().map((entry, i) => (
+                <div key={i} className="border-b pb-3 text-base last:border-0">
+                  <span className="text-muted-foreground">{formatDateTime(entry.timestamp)}</span>
+                  <span className="mx-2">·</span>
+                  <span>{entry.details ?? entry.action}</span>
+                </div>
+              ))}
             </div>
-          ))
-        )}
+          )}
+        </CaseCollapsibleSection>
       </TabsContent>
     </Tabs>
   );

@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CaseCollapsibleSection } from "@/components/cases/case-collapsible-section";
-import { InfoCard, InfoRow } from "@/components/cases/case-detail-fields";
+import { InfoRow } from "@/components/cases/case-detail-fields";
 import { MedicalReviewActions } from "@/components/cases/medical-review-actions";
 import { getStatusOptionsForRole, isIntakeQueueStatus } from "@/lib/cases/statuses";
 import { formatDateTime } from "@/lib/utils";
@@ -58,9 +58,18 @@ export function CaseIntakeSection({
     hr.cats_remaining > 0;
 
   return (
-    <div className="space-y-4 sm:space-y-6">
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-muted/30 px-4 py-3">
+        <p className="text-sm text-muted-foreground">
+          Save changes to case management, follow-up, and intake notes.
+        </p>
+        <Button onClick={onSave} disabled={saving || routing}>
+          {saving ? "Saving…" : "Save changes"}
+        </Button>
+      </div>
+
       {canReviewMedical && (
-        <CaseCollapsibleSection title="Medical review">
+        <CaseCollapsibleSection title="Medical review" defaultOpen={false}>
           <MedicalReviewActions helpRequest={hr} />
         </CaseCollapsibleSection>
       )}
@@ -88,150 +97,67 @@ export function CaseIntakeSection({
         </CaseCollapsibleSection>
       )}
 
-      <InfoCard title="Case management">
-        <div className="grid gap-4 sm:grid-cols-2 pb-4 border-b border-border/50">
-          <div className="space-y-2">
-            <Label>Status</Label>
-            <Select
-              value={hr.status}
-              onValueChange={(v) => onChange({ ...hr, status: v as HelpRequestStatus })}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {statusOptions.map((s) => (
-                  <SelectItem key={s.value} value={s.value}>
-                    {s.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-2">
-            <Label>Trap team</Label>
-            <Select
-              value={hr.assigned_team_id ?? "none"}
-              onValueChange={(v) => {
-                const team = teams.find((t) => t.id === v);
-                onChange({
-                  ...hr,
-                  assigned_team_id: v === "none" ? null : v,
-                  assigned_team_name: team?.name ?? null,
-                });
-              }}
-              disabled={userRole === "inquiry_team"}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">Unassigned</SelectItem>
-                {teams.map((t) => (
-                  <SelectItem key={t.id} value={t.id}>
-                    {t.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-        <InfoRow label="Case #" value={hr.case_number} alwaysShow />
-        <InfoRow label="Claimed by" value={hr.claimed_by_name ?? hr.claimed_by_email} />
-        <InfoRow label="Opened" value={formatDateTime(hr.created_at)} alwaysShow />
-        <InfoRow label="Closed" value={hr.closed_at ? formatDateTime(hr.closed_at) : null} />
-        <InfoRow label="Assigned to (legacy)" value={hr.assigned_to} />
-        <InfoRow label="Trapper / trap loaner" value={hr.trapper_trap_loaner} />
-      </InfoCard>
-
-      <CaseCollapsibleSection title="Colony feeder">
+      <CaseCollapsibleSection title="Case management" defaultOpen>
         <div className="space-y-4">
-          <p className="text-sm text-muted-foreground">
-            Contact details for the person feeding the colony when they are not the reporter.
-          </p>
           <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2 sm:col-span-2">
-              <Label htmlFor="feeder-name">Name</Label>
-              <Input
-                id="feeder-name"
-                value={hr.feeder_name ?? ""}
-                onChange={(e) => onChange({ ...hr, feeder_name: e.target.value || null })}
-                placeholder="Feeder full name"
-              />
+            <div className="space-y-2">
+              <Label>Status</Label>
+              <Select
+                value={hr.status}
+                onValueChange={(v) => onChange({ ...hr, status: v as HelpRequestStatus })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {statusOptions.map((s) => (
+                    <SelectItem key={s.value} value={s.value}>
+                      {s.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="feeder-phone">Phone</Label>
-              <Input
-                id="feeder-phone"
-                type="tel"
-                value={hr.feeder_phone ?? ""}
-                onChange={(e) => onChange({ ...hr, feeder_phone: e.target.value || null })}
-                placeholder="(555) 555-5555"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="feeder-email">Email</Label>
-              <Input
-                id="feeder-email"
-                type="email"
-                value={hr.feeder_email ?? ""}
-                onChange={(e) => onChange({ ...hr, feeder_email: e.target.value || null })}
-                placeholder="feeder@example.com"
-              />
-            </div>
-            <div className="space-y-2 sm:col-span-2">
-              <Label htmlFor="feeder-street">Street address</Label>
-              <Input
-                id="feeder-street"
-                value={hr.feeder_street ?? ""}
-                onChange={(e) => onChange({ ...hr, feeder_street: e.target.value || null })}
-                placeholder="123 Main St"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="feeder-city">City</Label>
-              <Input
-                id="feeder-city"
-                value={hr.feeder_city ?? ""}
-                onChange={(e) => onChange({ ...hr, feeder_city: e.target.value || null })}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="feeder-state">State</Label>
-              <Input
-                id="feeder-state"
-                value={hr.feeder_state ?? ""}
-                onChange={(e) => onChange({ ...hr, feeder_state: e.target.value || null })}
-                placeholder="NC"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="feeder-zip">ZIP</Label>
-              <Input
-                id="feeder-zip"
-                value={hr.feeder_zip ?? ""}
-                onChange={(e) => onChange({ ...hr, feeder_zip: e.target.value || null })}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="feeder-county">County</Label>
-              <Input
-                id="feeder-county"
-                value={hr.feeder_county ?? ""}
-                onChange={(e) => onChange({ ...hr, feeder_county: e.target.value || null })}
-              />
+              <Label>Trap team</Label>
+              <Select
+                value={hr.assigned_team_id ?? "none"}
+                onValueChange={(v) => {
+                  const team = teams.find((t) => t.id === v);
+                  onChange({
+                    ...hr,
+                    assigned_team_id: v === "none" ? null : v,
+                    assigned_team_name: team?.name ?? null,
+                  });
+                }}
+                disabled={userRole === "inquiry_team"}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Unassigned</SelectItem>
+                  {teams.map((t) => (
+                    <SelectItem key={t.id} value={t.id}>
+                      {t.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
-          {hr.feeder_if_not && !hr.feeder_name && (
-            <div className="space-y-2">
-              <Label>Legacy feeder note</Label>
-              <p className="text-sm text-muted-foreground whitespace-pre-wrap">{hr.feeder_if_not}</p>
-            </div>
-          )}
+          <dl>
+            <InfoRow label="Case #" value={hr.case_number} alwaysShow />
+            <InfoRow label="Claimed by" value={hr.claimed_by_name ?? hr.claimed_by_email} />
+            <InfoRow label="Opened" value={formatDateTime(hr.created_at)} alwaysShow />
+            <InfoRow label="Closed" value={hr.closed_at ? formatDateTime(hr.closed_at) : null} />
+            <InfoRow label="Assigned to (legacy)" value={hr.assigned_to} />
+            <InfoRow label="Trapper / trap loaner" value={hr.trapper_trap_loaner} />
+          </dl>
         </div>
       </CaseCollapsibleSection>
 
-      <CaseCollapsibleSection title="Follow-up">
+      <CaseCollapsibleSection title="Follow-up" defaultOpen={false}>
         <div className="space-y-4">
           <div className="space-y-2 max-w-xs">
             <Label>Due date</Label>
@@ -268,7 +194,7 @@ export function CaseIntakeSection({
         </div>
       </CaseCollapsibleSection>
 
-      <CaseCollapsibleSection title="Intake notes">
+      <CaseCollapsibleSection title="Intake notes" defaultOpen={false}>
         <div className="space-y-4">
           <div className="space-y-2">
             <Label>Staff notes</Label>
@@ -292,18 +218,20 @@ export function CaseIntakeSection({
       </CaseCollapsibleSection>
 
       {hasOutcomes && (
-        <InfoCard title="Outcomes" defaultOpen={false}>
-          <InfoRow label="Outcome" value={hr.outcome} />
-          <InfoRow label="Resolution" value={hr.resolution} />
-          <InfoRow label="TNVR'd" value={hr.outcome_tnvr_count} />
-          <InfoRow label="To ACC" value={hr.outcome_acc_count} />
-          <InfoRow label="To foster" value={hr.outcome_foster_count} />
-          <InfoRow label="Other" value={hr.outcome_other_count} />
-          <InfoRow label="Remaining" value={hr.cats_remaining} />
-        </InfoCard>
+        <CaseCollapsibleSection title="Outcomes" defaultOpen={false}>
+          <dl>
+            <InfoRow label="Outcome" value={hr.outcome} />
+            <InfoRow label="Resolution" value={hr.resolution} />
+            <InfoRow label="TNVR'd" value={hr.outcome_tnvr_count} />
+            <InfoRow label="To ACC" value={hr.outcome_acc_count} />
+            <InfoRow label="To foster" value={hr.outcome_foster_count} />
+            <InfoRow label="Other" value={hr.outcome_other_count} />
+            <InfoRow label="Remaining" value={hr.cats_remaining} />
+          </dl>
+        </CaseCollapsibleSection>
       )}
 
-      <CaseCollapsibleSection title="Close case">
+      <CaseCollapsibleSection title="Close case" defaultOpen={false}>
         <div className="space-y-4">
           <div className="space-y-2 max-w-sm">
             <Label>Close case — outcome</Label>
@@ -321,15 +249,10 @@ export function CaseIntakeSection({
               </SelectContent>
             </Select>
           </div>
-          <div className="flex flex-wrap gap-3">
-            <Button onClick={onSave} disabled={saving || routing}>
-              {saving ? "Saving…" : "Save"}
-            </Button>
-            <Button onClick={onCloseCase} variant="destructive" disabled={routing}>
-              <Trash2 className="h-4 w-4 mr-2" />
-              Close case
-            </Button>
-          </div>
+          <Button onClick={onCloseCase} variant="destructive" disabled={routing || saving}>
+            <Trash2 className="h-4 w-4 mr-2" />
+            Close case
+          </Button>
         </div>
       </CaseCollapsibleSection>
     </div>
