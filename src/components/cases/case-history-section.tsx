@@ -3,26 +3,18 @@
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { CaseCollapsibleSection } from "@/components/cases/case-collapsible-section";
 import {
   HISTORY_NOTE_COLORS,
+  HISTORY_NOTE_SWATCH,
   historyEntryBody,
   historyEntryClasses,
   historyEntryLabel,
 } from "@/lib/cases/history-note-styles";
-import { formatDateTime } from "@/lib/utils";
+import { cn, formatDateTime } from "@/lib/utils";
 import type { HistoryEntry, HistoryNoteColor } from "@/lib/types";
-import { Flag, Highlighter } from "lucide-react";
+import { Flag, Highlighter, Plus } from "lucide-react";
 
 interface CaseHistorySectionProps {
   entries: HistoryEntry[];
@@ -72,68 +64,90 @@ export function CaseHistorySection({
   return (
     <div className="space-y-4">
       {canAddNote && (
-        <CaseCollapsibleSection title="Add history note" defaultOpen>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="history-note-text">Note</Label>
-              <Textarea
-                id="history-note-text"
-                value={noteText}
-                onChange={(e) => setNoteText(e.target.value)}
-                rows={4}
-                placeholder="Document a call, visit, coordination update, or trap progress…"
-              />
-            </div>
+        <div className="rounded-lg border bg-muted/20 p-3 space-y-2">
+          <Textarea
+            id="history-note-text"
+            value={noteText}
+            onChange={(e) => setNoteText(e.target.value)}
+            rows={2}
+            className="min-h-[4.5rem] resize-y bg-background text-sm"
+            placeholder="Add a note — call, visit, trap update…"
+            onKeyDown={(e) => {
+              if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+                e.preventDefault();
+                handleSubmit();
+              }
+            }}
+          />
 
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label>Text color</Label>
-                <Select
-                  value={textColor}
-                  onValueChange={(value) => setTextColor(value as HistoryNoteColor)}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {HISTORY_NOTE_COLORS.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="flex flex-wrap gap-4">
-              <label className="flex items-center gap-2 text-sm cursor-pointer">
-                <Checkbox
-                  checked={highlighted}
-                  onCheckedChange={(checked) => setHighlighted(checked === true)}
+          <div className="flex flex-wrap items-center gap-2">
+            <div
+              className="flex items-center gap-1 rounded-md border bg-background px-1.5 py-1"
+              role="group"
+              aria-label="Note color"
+            >
+              {HISTORY_NOTE_COLORS.map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  title={option.label}
+                  aria-label={option.label}
+                  aria-pressed={textColor === option.value}
+                  onClick={() => setTextColor(option.value)}
+                  className={cn(
+                    "h-5 w-5 rounded-full transition-transform",
+                    HISTORY_NOTE_SWATCH[option.value],
+                    textColor === option.value && "ring-2 ring-primary ring-offset-1 scale-110"
+                  )}
                 />
-                <Highlighter className="h-4 w-4 text-muted-foreground" />
-                Highlight note
-              </label>
-              <label className="flex items-center gap-2 text-sm cursor-pointer">
-                <Checkbox
-                  checked={followUp}
-                  onCheckedChange={(checked) => setFollowUp(checked === true)}
-                />
-                <Flag className="h-4 w-4 text-muted-foreground" />
-                Mark follow-up
-              </label>
+              ))}
             </div>
 
-            <p className="text-xs text-muted-foreground">
-              Notes are saved as {authorName} ({authorEmail}).
-            </p>
-
-            <Button type="button" onClick={handleSubmit} disabled={saving || !noteText.trim()}>
-              {saving ? "Saving…" : "Add note"}
+            <Button
+              type="button"
+              variant={highlighted ? "secondary" : "ghost"}
+              size="sm"
+              className="h-8 px-2.5 text-xs"
+              aria-pressed={highlighted}
+              onClick={() => setHighlighted((value) => !value)}
+            >
+              <Highlighter className="h-3.5 w-3.5 mr-1.5" />
+              Highlight
             </Button>
+
+            <Button
+              type="button"
+              variant={followUp ? "secondary" : "ghost"}
+              size="sm"
+              className="h-8 px-2.5 text-xs"
+              aria-pressed={followUp}
+              onClick={() => setFollowUp((value) => !value)}
+            >
+              <Flag className="h-3.5 w-3.5 mr-1.5" />
+              Follow-up
+            </Button>
+
+            <div className="ml-auto flex items-center gap-2">
+              <span className="hidden text-xs text-muted-foreground sm:inline">
+                {authorName}
+              </span>
+              <Button
+                type="button"
+                size="sm"
+                className="h-8"
+                onClick={handleSubmit}
+                disabled={saving || !noteText.trim()}
+              >
+                <Plus className="h-3.5 w-3.5 mr-1" />
+                {saving ? "Saving…" : "Add note"}
+              </Button>
+            </div>
           </div>
-        </CaseCollapsibleSection>
+
+          <p className="text-[11px] text-muted-foreground">
+            Saved as {authorName} · {authorEmail}. Ctrl+Enter to submit.
+          </p>
+        </div>
       )}
 
       <CaseCollapsibleSection
@@ -144,36 +158,38 @@ export function CaseHistorySection({
         {sortedEntries.length === 0 ? (
           <p className="text-sm text-muted-foreground">No history entries yet.</p>
         ) : (
-          <div className="space-y-3">
+          <div className="space-y-2">
             {sortedEntries.map((entry, index) => (
               <div
                 key={entry.id ?? `${entry.timestamp}-${entry.action}-${index}`}
                 className={historyEntryClasses(entry)}
               >
-                <div className="mb-2 flex flex-wrap items-center gap-2">
-                  <span className="text-xs font-medium text-muted-foreground">
+                <div className="mb-1.5 flex flex-wrap items-center gap-1.5">
+                  <span className="text-xs text-muted-foreground">
                     {formatDateTime(entry.timestamp)}
                   </span>
-                  <Badge variant="outline" className="text-xs font-normal">
+                  <Badge variant="outline" className="text-[10px] font-normal px-1.5 py-0">
                     {historyEntryLabel(entry)}
                   </Badge>
                   {(entry.actor_name || entry.actor_email) && (
                     <span className="text-xs text-muted-foreground">
-                      · {entry.actor_name ?? entry.actor_email}
+                      {entry.actor_name ?? entry.actor_email}
                     </span>
                   )}
                   {entry.follow_up && (
-                    <Badge className="bg-orange-100 text-orange-900 hover:bg-orange-100 text-xs">
+                    <Badge className="bg-orange-100 text-orange-900 hover:bg-orange-100 text-[10px] px-1.5 py-0">
                       Follow-up
                     </Badge>
                   )}
                   {entry.highlighted && (
-                    <Badge className="bg-amber-100 text-amber-900 hover:bg-amber-100 text-xs">
+                    <Badge className="bg-amber-100 text-amber-900 hover:bg-amber-100 text-[10px] px-1.5 py-0">
                       Highlighted
                     </Badge>
                   )}
                 </div>
-                <p className="whitespace-pre-wrap">{historyEntryBody(entry)}</p>
+                <p className="whitespace-pre-wrap text-sm leading-relaxed">
+                  {historyEntryBody(entry)}
+                </p>
               </div>
             ))}
           </div>

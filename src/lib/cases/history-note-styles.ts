@@ -9,6 +9,14 @@ export const HISTORY_NOTE_COLORS: { value: HistoryNoteColor; label: string }[] =
   { value: "red", label: "Red" },
 ];
 
+export const HISTORY_NOTE_SWATCH: Record<HistoryNoteColor, string> = {
+  default: "bg-background border-2 border-muted-foreground/30",
+  amber: "bg-amber-400 border-2 border-amber-500",
+  blue: "bg-blue-500 border-2 border-blue-600",
+  green: "bg-green-500 border-2 border-green-600",
+  red: "bg-red-500 border-2 border-red-600",
+};
+
 export function historyEntryLabel(entry: HistoryEntry): string {
   if (entry.action === "note") return "Note";
   if (entry.action === "status_change") return "Status change";
@@ -24,7 +32,7 @@ export function historyEntryClasses(entry: HistoryEntry): string {
   const color = entry.text_color ?? "default";
 
   return cn(
-    "rounded-md border px-3 py-3 text-sm leading-relaxed",
+    "rounded-md border px-3 py-2 text-sm leading-relaxed",
     entry.highlighted && "ring-2 ring-amber-400/70 shadow-sm",
     entry.follow_up && "border-orange-300",
     color === "default" && "bg-card",
