@@ -88,14 +88,20 @@ interface HotspotsMapProps {
   helpRequests: HelpRequest[];
   volunteers: HotspotMapVolunteer[];
   feeders: MapFeeder[];
+  defaultLayers?: Partial<Record<MapLayer, boolean>>;
 }
 
-export function HotspotsMap({ helpRequests, volunteers, feeders }: HotspotsMapProps) {
+export function HotspotsMap({
+  helpRequests,
+  volunteers,
+  feeders,
+  defaultLayers,
+}: HotspotsMapProps) {
   const [mounted, setMounted] = useState(false);
   const [layers, setLayers] = useState<Record<MapLayer, boolean>>({
-    colonies: true,
-    volunteers: false,
-    feeders: false,
+    colonies: defaultLayers?.colonies ?? true,
+    volunteers: defaultLayers?.volunteers ?? false,
+    feeders: defaultLayers?.feeders ?? feeders.length > 0,
   });
   const [selectedVolunteerRoles, setSelectedVolunteerRoles] = useState<VolunteerRole[]>([]);
 

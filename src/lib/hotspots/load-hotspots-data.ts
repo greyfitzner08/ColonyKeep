@@ -17,31 +17,44 @@ function isMissingColumnError(message: string | undefined) {
 export async function loadHotspotHelpRequests(
   supabase: SupabaseClient
 ): Promise<{ helpRequests: HelpRequest[]; error: string | null }> {
-  const extendedFields = `${COLONY_HOTSPOT_FIELDS}, ${FEEDER_HOTSPOT_FIELDS}`;
-  const extendedResult = await supabase
-    .from("help_requests")
-    .select(extendedFields)
-    .in("status", HOTSPOT_COLONY_STATUSES)
-    .order("created_at", { ascending: false });
-
-  if (!isMissingColumnError(extendedResult.error?.message)) {
-    if (extendedResult.error) {
-      return { helpRequests: [], error: extendedResult.error.message };
-    }
-    return { helpRequests: (extendedResult.data ?? []) as HelpRequest[], error: null };
-  }
-
-  const colonyResult = await supabase
+  const result = await supabase
     .from("help_requests")
     .select(COLONY_HOTSPOT_FIELDS)
     .in("status", HOTSPOT_COLONY_STATUSES)
     .order("created_at", { ascending: false });
 
-  if (colonyResult.error) {
-    return { helpRequests: [], error: colonyResult.error.message };
+  if (result.error) {
+    return { helpRequests: [], error: result.error.message };
   }
 
-  return { helpRequests: (colonyResult.data ?? []) as HelpRequest[], error: null };
+  return { helpRequests: (result.data ?? []) as HelpRequest[], error: null };
+}
+
+const FEEDER_MAP_FIELDS = `id, case_number, ${FEEDER_HOTSPOT_FIELDS}`;
+
+/** Feeders stay visible across trap workflow — not limited to colony hotspot statuses. */
+export async function loadHotspotFeeders(
+  supabase: SupabaseClient
+): Promise<{ feeders: MapFeeder[]; error: string | null }> {
+  const result = await supabase
+    .from("help_requests")
+    .select(FEEDER_MAP_FIELDS)
+    .not("feeder_lat", "is", null)
+    .not("feeder_lng", "is", null)
+    .order("updated_at", { ascending: false });
+
+  if (isMissingColumnError(result.error?.message)) {
+    return { feeders: [], error: null };
+  }
+
+  if (result.error) {
+    return { feeders: [], error: result.error.message };
+  }
+
+  return {
+    feeders: mapFeedersFromHelpRequests((result.data ?? []) as HelpRequest[]),
+    error: null,
+  };
 }
 
 export { loadHotspotVolunteers };
