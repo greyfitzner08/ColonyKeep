@@ -27,6 +27,7 @@ import {
   volunteerRoleLabel,
 } from "@/lib/volunteers/role-catalog";
 import { cn } from "@/lib/utils";
+import { sortTrapTeams } from "@/lib/trap-teams/sort-teams";
 import {
   VolunteerContactFieldsForm,
   emptyVolunteerContactFormValues,
@@ -256,7 +257,7 @@ export function AdminUserEditDialog({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">No team</SelectItem>
-                  {teams.map((team) => (
+                  {sortTrapTeams(teams).map((team) => (
                     <SelectItem key={team.id} value={team.id}>
                       {team.name}
                     </SelectItem>

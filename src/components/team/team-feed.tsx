@@ -27,6 +27,7 @@ import {
 import { BirthdayCalendarDialog } from "@/components/team/birthday-calendar-dialog";
 import type { TeamAnnouncement, Profile, UserRole } from "@/lib/types";
 import type { FeedAudience } from "@/lib/team-feed/visibility";
+import { sortTrapTeams } from "@/lib/trap-teams/sort-teams";
 import { Pin, Cake, MessageCircle, Pencil, X, Check, Users, Globe, Send, CalendarDays } from "lucide-react";
 
 const PLATFORM_ROLES: { value: UserRole; label: string }[] = [
@@ -89,6 +90,7 @@ export function TeamFeed({
   const [editText, setEditText] = useState("");
 
   const birthdaysSoon = useMemo(() => birthdaysWithinDays(birthdayPeople, 7), [birthdayPeople]);
+  const sortedTrapTeams = useMemo(() => sortTrapTeams(trapTeams), [trapTeams]);
 
   function toggleRole(role: string) {
     setSelectedRoles((prev) =>
@@ -108,7 +110,7 @@ export function TeamFeed({
     if (audience === "roles" && selectedRoles.length === 0) return;
 
     const teamNames = selectedTeamIds
-      .map((id) => trapTeams.find((team) => team.id === id)?.name)
+      .map((id) => sortedTrapTeams.find((team) => team.id === id)?.name)
       .filter(Boolean) as string[];
 
     const supabase = createClient();
@@ -255,7 +257,7 @@ export function TeamFeed({
             <div className="space-y-3 rounded-lg border bg-muted/30 p-4">
               <p className="text-sm font-medium">Trap teams</p>
               <div className="grid gap-2 sm:grid-cols-2 max-h-52 overflow-y-auto pr-1">
-                {trapTeams.map((team) => (
+                {sortedTrapTeams.map((team) => (
                   <label
                     key={team.id}
                     htmlFor={`team-${team.id}`}

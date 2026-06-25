@@ -9,6 +9,7 @@ import { CaseCollapsibleSection } from "@/components/cases/case-collapsible-sect
 import { InfoRow } from "@/components/cases/case-detail-fields";
 import { MedicalReviewActions } from "@/components/cases/medical-review-actions";
 import { getStatusOptionsForRole, isIntakeQueueStatus } from "@/lib/cases/statuses";
+import { sortTrapTeams } from "@/lib/trap-teams/sort-teams";
 import { formatDateTime } from "@/lib/utils";
 import type { HelpRequest, HelpRequestStatus, UserRole, FollowUpEntry } from "@/lib/types";
 import { ArrowRight, Trash2 } from "lucide-react";
@@ -139,7 +140,7 @@ export function CaseIntakeSection({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">Unassigned</SelectItem>
-                  {teams.map((t) => (
+                  {sortTrapTeams(teams).map((t) => (
                     <SelectItem key={t.id} value={t.id}>
                       {t.name}
                     </SelectItem>

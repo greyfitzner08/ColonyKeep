@@ -6,6 +6,7 @@ import { ConfigurableDashboard } from "@/components/dashboard/configurable-dashb
 import { fetchCommunityStats } from "@/components/dashboard/community-stats-card";
 import { fetchTrapTeamDashboardData } from "@/lib/dashboard/trap-team-data";
 import { sortCasesMedicalFirst } from "@/lib/cases/sort-cases";
+import { sortTrapTeams } from "@/lib/trap-teams/sort-teams";
 import {
   canClaimShifts,
   canManageAppointments,
@@ -123,7 +124,7 @@ export default async function DashboardPage() {
     ? await supabase.from("trap_teams").select("id, name").eq("is_active", true).order("name")
     : { data: [] };
 
-  const trapTeams = trapTeamsRaw ?? [];
+  const trapTeams = sortTrapTeams(trapTeamsRaw ?? []);
   const initialTrapTeamId = profile.team_id ?? trapTeams[0]?.id ?? null;
 
   let trapTeamData = null;

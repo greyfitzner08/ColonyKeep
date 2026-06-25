@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { sortTrapTeams } from "@/lib/trap-teams/sort-teams";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -170,7 +171,7 @@ export function TrapTeamsManager({ teams, users, applications }: TrapTeamsManage
           </p>
         ) : (
           <div className="divide-y">
-            {teams.map((team) => (
+            {sortTrapTeams(teams).map((team) => (
               <div
                 key={team.id}
                 className="grid gap-2 px-4 py-3 md:grid-cols-[minmax(0,0.9fr)_minmax(0,1.3fr)_minmax(0,1.2fr)_auto] md:items-center"

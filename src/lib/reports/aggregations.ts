@@ -1,5 +1,6 @@
 import { findTrapTeamForZip, normalizeZip } from "@/lib/cases/assign-team-by-zip";
 import { CASE_STATUSES } from "@/lib/constants";
+import { sortTrapTeams } from "@/lib/trap-teams/sort-teams";
 import type { HelpRequestStatus } from "@/lib/types";
 
 export interface ReportCat {
@@ -458,10 +459,12 @@ export function reportFilterOptions(
 
   return {
     zips,
-    teams: teams.filter((team) => team.is_active !== false).map((team) => ({
-      id: team.id,
-      name: team.name,
-    })),
+    teams: sortTrapTeams(
+      teams.filter((team) => team.is_active !== false).map((team) => ({
+        id: team.id,
+        name: team.name,
+      }))
+    ),
     clinics: clinics
       .filter((clinic) => clinic.is_active !== false)
       .map((clinic) => ({ id: clinic.id, name: clinic.name })),

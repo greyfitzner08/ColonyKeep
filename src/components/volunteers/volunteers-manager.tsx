@@ -18,6 +18,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { getApiErrorMessage } from "@/lib/api/errors";
+import { sortTrapTeams } from "@/lib/trap-teams/sort-teams";
 import { getEmailValidationError, parsePrimaryEmail } from "@/lib/email-utils";
 import {
   requirementsForRole,
@@ -799,7 +800,7 @@ export function VolunteersManager({
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="none">No team assignment</SelectItem>
-                        {teams.map((t) => (
+                        {sortTrapTeams(teams).map((t) => (
                           <SelectItem key={t.id} value={t.id}>
                             {t.name}
                           </SelectItem>

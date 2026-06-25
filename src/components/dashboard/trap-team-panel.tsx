@@ -13,6 +13,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { formatDate } from "@/lib/utils";
+import { sortTrapTeams } from "@/lib/trap-teams/sort-teams";
 import type { TrapTeamDashboardData } from "@/lib/dashboard/trap-team-data";
 import { trapTeamStorageKey } from "@/lib/dashboard/sections";
 import { UnclaimedTeamAssignments } from "@/components/dashboard/unclaimed-team-assignments";
@@ -123,7 +124,7 @@ export function TrapTeamPanel({
                   <SelectValue placeholder="Select team" />
                 </SelectTrigger>
                 <SelectContent>
-                  {teams.map((team) => (
+                  {sortTrapTeams(teams).map((team) => (
                     <SelectItem key={team.id} value={team.id}>
                       {team.name}
                     </SelectItem>

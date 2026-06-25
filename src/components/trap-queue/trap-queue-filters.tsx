@@ -2,6 +2,7 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { sortTrapTeams } from "@/lib/trap-teams/sort-teams";
 
 interface TrapQueueFiltersProps {
   teams: { id: string; name: string }[];
@@ -43,7 +44,7 @@ export function TrapQueueFilters({
         )}
         <SelectItem value="unassigned">Unassigned Pool</SelectItem>
         <SelectItem value="all">All Teams</SelectItem>
-        {teams.map((team) => (
+        {sortTrapTeams(teams).map((team) => (
           <SelectItem key={team.id} value={team.id}>
             {team.id === myTeamId ? `${team.name} (my team)` : team.name}
           </SelectItem>

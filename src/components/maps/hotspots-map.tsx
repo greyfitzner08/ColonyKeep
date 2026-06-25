@@ -17,6 +17,8 @@ import {
   volunteerRoleLabel,
   type HotspotMapVolunteer,
 } from "@/lib/hotspots/volunteer-role-filter";
+import { densityMapCenter } from "@/lib/maps/density-center";
+import { HotspotsMapViewController } from "@/components/maps/hotspots-map-view-controller";
 import type { HelpRequest, VolunteerRole } from "@/lib/types";
 
 const MapContainer = dynamic(
@@ -138,7 +140,7 @@ export function HotspotsMap({
   }, [coloniesWithCoords, filteredVolunteers, feeders, layers]);
 
   const center: [number, number] =
-    allPoints.length > 0 ? allPoints[0] : [35.7796, -78.6382];
+    allPoints.length > 0 ? densityMapCenter(allPoints) : [35.7796, -78.6382];
 
   const visibleCount =
     (layers.colonies ? coloniesWithCoords.length : 0) +
@@ -256,6 +258,7 @@ export function HotspotsMap({
 
       <div className="relative isolate z-0 h-[400px] sm:h-[500px] lg:h-[600px] rounded-lg overflow-hidden border [&_.leaflet-container]:z-0">
         <MapContainer center={center} zoom={10} className="h-full w-full">
+          <HotspotsMapViewController points={allPoints} />
           <TileLayer
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"

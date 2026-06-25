@@ -7,6 +7,7 @@ import { CaseQueueSearch } from "@/components/cases/case-queue-search";
 import { getStatusOptionsForRole } from "@/lib/cases/statuses";
 import type { IntakeSortKey } from "@/lib/cases/sort-intake-cases";
 import type { CaseViewMode } from "@/components/cases/case-queue-view";
+import { sortTrapTeams } from "@/lib/trap-teams/sort-teams";
 
 interface IntakeFiltersProps {
   teams: { id: string; name: string }[];
@@ -57,7 +58,7 @@ export function IntakeFilters({ teams }: IntakeFiltersProps) {
           <SelectTrigger className="w-[180px]"><SelectValue placeholder="Team" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Teams</SelectItem>
-            {teams.map((t) => (
+            {sortTrapTeams(teams).map((t) => (
               <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
             ))}
           </SelectContent>

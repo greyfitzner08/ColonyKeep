@@ -24,6 +24,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { parseEquipmentQrPayload } from "@/lib/equipment/qr-parse";
+import { sortTrapTeams } from "@/lib/trap-teams/sort-teams";
 import { volunteerDisplayName } from "@/lib/equipment/volunteers";
 import {
   TRAP_EQUIPMENT_STATUSES,
@@ -620,7 +621,7 @@ export function TrapEquipmentManager({
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All teams</SelectItem>
-                    {teams.map((team) => (
+                    {sortTrapTeams(teams).map((team) => (
                       <SelectItem key={team.id} value={team.id}>
                         {team.name}
                       </SelectItem>
@@ -1057,7 +1058,7 @@ export function TrapEquipmentManager({
                     <SelectValue placeholder="Select team" />
                   </SelectTrigger>
                   <SelectContent>
-                    {teams.map((team) => (
+                    {sortTrapTeams(teams).map((team) => (
                       <SelectItem key={team.id} value={team.id}>
                         {team.name}
                       </SelectItem>
