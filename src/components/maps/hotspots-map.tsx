@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
 import { formatSingleLineAddress } from "@/lib/cases/colony-notes";
 import {
   HOTSPOT_COLONY_LEGEND,
@@ -10,7 +11,13 @@ import {
   hotspotColonyMarkerColor,
 } from "@/lib/cases/status-marker-colors";
 import { getStatusLabel, isHotspotColonyStatus } from "@/lib/cases/statuses";
-import type { HelpRequest } from "@/lib/types";
+import { VOLUNTEER_ROLES } from "@/lib/constants";
+import {
+  filterHotspotVolunteersByRole,
+  volunteerRoleLabel,
+  type HotspotMapVolunteer,
+} from "@/lib/hotspots/volunteer-role-filter";
+import type { HelpRequest, VolunteerRole } from "@/lib/types";
 
 const MapContainer = dynamic(
   () => import("react-leaflet").then((mod) => mod.MapContainer),
@@ -29,14 +36,7 @@ const Popup = dynamic(
   { ssr: false }
 );
 
-export interface MapVolunteer {
-  id: string;
-  full_name: string | null;
-  email: string;
-  role: string | null;
-  home_lat: number;
-  home_lng: number;
-}
+export type MapVolunteer = HotspotMapVolunteer;
 
 export interface MapFeeder {
   id: string;
@@ -86,7 +86,7 @@ function feederAddress(feeder: MapFeeder): string {
 
 interface HotspotsMapProps {
   helpRequests: HelpRequest[];
-  volunteers: MapVolunteer[];
+  volunteers: HotspotMapVolunteer[];
   feeders: MapFeeder[];
 }
 
@@ -97,6 +97,7 @@ export function HotspotsMap({ helpRequests, volunteers, feeders }: HotspotsMapPr
     volunteers: false,
     feeders: false,
   });
+  const [selectedVolunteerRoles, setSelectedVolunteerRoles] = useState<VolunteerRole[]>([]);
 
   useEffect(() => {
     setMounted(true);
@@ -111,30 +112,41 @@ export function HotspotsMap({ helpRequests, volunteers, feeders }: HotspotsMapPr
     [helpRequests]
   );
 
+  const filteredVolunteers = useMemo(
+    () => filterHotspotVolunteersByRole(volunteers, selectedVolunteerRoles),
+    [volunteers, selectedVolunteerRoles]
+  );
+
   const allPoints = useMemo(() => {
     const points: [number, number][] = [];
     if (layers.colonies) {
       coloniesWithCoords.forEach((hr) => points.push([hr.colony_lat!, hr.colony_lng!]));
     }
     if (layers.volunteers) {
-      volunteers.forEach((v) => points.push([v.home_lat, v.home_lng]));
+      filteredVolunteers.forEach((v) => points.push([v.home_lat, v.home_lng]));
     }
     if (layers.feeders) {
       feeders.forEach((f) => points.push([f.feeder_lat, f.feeder_lng]));
     }
     return points;
-  }, [coloniesWithCoords, volunteers, feeders, layers]);
+  }, [coloniesWithCoords, filteredVolunteers, feeders, layers]);
 
   const center: [number, number] =
     allPoints.length > 0 ? allPoints[0] : [35.7796, -78.6382];
 
   const visibleCount =
     (layers.colonies ? coloniesWithCoords.length : 0) +
-    (layers.volunteers ? volunteers.length : 0) +
+    (layers.volunteers ? filteredVolunteers.length : 0) +
     (layers.feeders ? feeders.length : 0);
 
   function toggleLayer(layer: MapLayer) {
     setLayers((current) => ({ ...current, [layer]: !current[layer] }));
+  }
+
+  function toggleVolunteerRole(role: VolunteerRole) {
+    setSelectedVolunteerRoles((current) =>
+      current.includes(role) ? current.filter((r) => r !== role) : [...current, role]
+    );
   }
 
   if (!mounted) {
@@ -165,7 +177,8 @@ export function HotspotsMap({ helpRequests, volunteers, feeders }: HotspotsMapPr
               className="inline-block h-3 w-3 rounded-full"
               style={{ backgroundColor: LAYER_COLORS.volunteers }}
             />
-            Volunteers & team ({volunteers.length})
+            Volunteers & team ({filteredVolunteers.length}
+            {layers.volunteers && selectedVolunteerRoles.length > 0 ? ` of ${volunteers.length}` : ""})
           </label>
           <label className="flex items-center gap-2 text-sm cursor-pointer">
             <Checkbox
@@ -195,6 +208,43 @@ export function HotspotsMap({ helpRequests, volunteers, feeders }: HotspotsMapPr
               {entry.label}
             </div>
           ))}
+        </div>
+      )}
+
+      {layers.volunteers && (
+        <div className="space-y-3 rounded-lg border bg-muted/30 p-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-sm font-medium">Filter by volunteer role</p>
+            {selectedVolunteerRoles.length > 0 && (
+              <button
+                type="button"
+                className="text-xs text-primary underline"
+                onClick={() => setSelectedVolunteerRoles([])}
+              >
+                Clear filters
+              </button>
+            )}
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Select one or more roles to find nearby trappers, transporters, recovery hosts, and other
+            volunteers. Leave all unchecked to show everyone who opted in.
+          </p>
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 max-h-48 overflow-y-auto pr-1">
+            {VOLUNTEER_ROLES.map((role) => (
+              <label
+                key={role.value}
+                htmlFor={`hotspot-role-${role.value}`}
+                className="flex items-center gap-2 rounded-md border bg-background px-3 py-2 cursor-pointer"
+              >
+                <Checkbox
+                  id={`hotspot-role-${role.value}`}
+                  checked={selectedVolunteerRoles.includes(role.value)}
+                  onCheckedChange={() => toggleVolunteerRole(role.value)}
+                />
+                <span className="text-sm">{role.label}</span>
+              </label>
+            ))}
+          </div>
         </div>
       )}
 
@@ -237,7 +287,7 @@ export function HotspotsMap({ helpRequests, volunteers, feeders }: HotspotsMapPr
               </CircleMarker>
             ))}
           {layers.volunteers &&
-            volunteers.map((volunteer) => (
+            filteredVolunteers.map((volunteer) => (
               <CircleMarker
                 key={`volunteer-${volunteer.id}`}
                 center={[volunteer.home_lat, volunteer.home_lng]}
@@ -250,12 +300,22 @@ export function HotspotsMap({ helpRequests, volunteers, feeders }: HotspotsMapPr
                 }}
               >
                 <Popup>
-                  <div className="space-y-1 text-sm min-w-[180px]">
+                  <div className="space-y-1.5 text-sm min-w-[180px]">
                     <p className="font-semibold">{volunteer.full_name ?? "Team member"}</p>
-                    {volunteer.role && (
-                      <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                        {volunteer.role.replace(/_/g, " ")}
-                      </p>
+                    {volunteer.volunteer_roles.length > 0 ? (
+                      <div className="flex flex-wrap gap-1">
+                        {volunteer.volunteer_roles.map((role) => (
+                          <Badge key={role} variant="secondary" className="text-xs font-normal">
+                            {volunteerRoleLabel(role)}
+                          </Badge>
+                        ))}
+                      </div>
+                    ) : (
+                      volunteer.role && (
+                        <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                          {volunteer.role.replace(/_/g, " ")}
+                        </p>
+                      )
                     )}
                     <p className="text-muted-foreground">{volunteer.email}</p>
                   </div>

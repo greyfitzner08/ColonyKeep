@@ -1,8 +1,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { MapVolunteer } from "@/components/maps/hotspots-map";
 import { geocodeStreetAddress } from "@/lib/geocode";
+import type { HotspotMapVolunteer } from "@/lib/hotspots/volunteer-role-filter";
 import { isHomeAddressComplete } from "@/lib/volunteers/contact-fields";
-import type { UserRole } from "@/lib/types";
+import type { UserRole, VolunteerRole } from "@/lib/types";
 
 const MAP_PROFILE_ROLES: UserRole[] = [
   "admin",
@@ -13,15 +13,18 @@ const MAP_PROFILE_ROLES: UserRole[] = [
 ];
 
 const PROFILE_MAP_FIELDS =
-  "id, full_name, email, role, home_street, home_city, home_state, home_zip, home_county, home_lat, home_lng";
+  "id, full_name, email, role, volunteer_roles, show_on_hotspots_map, home_street, home_city, home_state, home_zip, home_county, home_lat, home_lng";
 
-const PROFILE_MAP_FIELDS_LEGACY = "id, full_name, email, role, home_street, home_city, home_state, home_zip, home_county";
+const PROFILE_MAP_FIELDS_LEGACY =
+  "id, full_name, email, role, volunteer_roles, home_street, home_city, home_state, home_zip, home_county";
 
 interface ProfileMapRow {
   id: string;
   full_name: string | null;
   email: string;
   role: UserRole | null;
+  volunteer_roles: VolunteerRole[] | null;
+  show_on_hotspots_map?: boolean | null;
   home_street: string | null;
   home_city: string | null;
   home_state: string | null;
@@ -39,10 +42,14 @@ function hasMappableAddress(profile: ProfileMapRow) {
   return Boolean(profile.home_street?.trim() || profile.home_city?.trim() || profile.home_zip?.trim());
 }
 
+function isVisibleOnHotspotsMap(profile: ProfileMapRow) {
+  return profile.show_on_hotspots_map !== false;
+}
+
 export async function loadHotspotVolunteers(
   service: SupabaseClient,
   options?: { geocodeLimit?: number }
-): Promise<MapVolunteer[]> {
+): Promise<HotspotMapVolunteer[]> {
   const geocodeLimit = options?.geocodeLimit ?? 25;
   let rows: ProfileMapRow[] = [];
   let canPersistCoords = true;
@@ -68,11 +75,13 @@ export async function loadHotspotVolunteers(
     rows = (extendedResult.data ?? []) as ProfileMapRow[];
   }
 
-  const volunteers: MapVolunteer[] = [];
+  const volunteers: HotspotMapVolunteer[] = [];
   let geocoded = 0;
 
   for (const profile of rows) {
-    if (!hasMappableAddress(profile)) continue;
+    if (!isVisibleOnHotspotsMap(profile) || !hasMappableAddress(profile)) continue;
+
+    const volunteerRoles = profile.volunteer_roles ?? [];
 
     if (profile.home_lat != null && profile.home_lng != null) {
       volunteers.push({
@@ -80,6 +89,7 @@ export async function loadHotspotVolunteers(
         full_name: profile.full_name,
         email: profile.email,
         role: profile.role,
+        volunteer_roles: volunteerRoles,
         home_lat: profile.home_lat,
         home_lng: profile.home_lng,
       });
@@ -112,6 +122,7 @@ export async function loadHotspotVolunteers(
       full_name: profile.full_name,
       email: profile.email,
       role: profile.role,
+      volunteer_roles: volunteerRoles,
       home_lat: coords.lat,
       home_lng: coords.lng,
     });

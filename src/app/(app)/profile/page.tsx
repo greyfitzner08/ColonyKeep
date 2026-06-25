@@ -1,5 +1,6 @@
 import { getAppProfile } from "@/lib/auth";
 import { VolunteerProfileContactPanel } from "@/components/volunteers/volunteer-profile-contact-panel";
+import { VolunteerHotspotsPrivacyPanel } from "@/components/volunteers/volunteer-hotspots-privacy-panel";
 
 export default async function ProfilePage() {
   const profile = await getAppProfile();
@@ -14,6 +15,7 @@ export default async function ProfilePage() {
         </p>
       </div>
       <VolunteerProfileContactPanel profile={profile} />
+      <VolunteerHotspotsPrivacyPanel profile={profile} />
     </div>
   );
 }

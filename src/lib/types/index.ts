@@ -132,6 +132,7 @@ export interface Profile {
   home_county: string | null;
   home_lat: number | null;
   home_lng: number | null;
+  show_on_hotspots_map?: boolean;
   tnvr_certificate_uploaded: boolean;
   tnvr_certificate_url: string | null;
   created_at: string;
