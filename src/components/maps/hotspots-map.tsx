@@ -5,8 +5,8 @@ import dynamic from "next/dynamic";
 import { Checkbox } from "@/components/ui/checkbox";
 import { formatSingleLineAddress } from "@/lib/cases/colony-notes";
 import { STATUS_MARKER_COLORS, statusMarkerColor } from "@/lib/cases/status-marker-colors";
-import { getStatusLabel } from "@/lib/cases/statuses";
-import type { HelpRequest, HelpRequestStatus } from "@/lib/types";
+import { getStatusLabel, HOTSPOT_COLONY_STATUSES, isHotspotColonyStatus } from "@/lib/cases/statuses";
+import type { HelpRequest } from "@/lib/types";
 
 const MapContainer = dynamic(
   () => import("react-leaflet").then((mod) => mod.MapContainer),
@@ -100,7 +100,10 @@ export function HotspotsMap({ helpRequests, volunteers, feeders }: HotspotsMapPr
   }, []);
 
   const coloniesWithCoords = useMemo(
-    () => helpRequests.filter((hr) => hr.colony_lat && hr.colony_lng),
+    () =>
+      helpRequests.filter(
+        (hr) => hr.colony_lat && hr.colony_lng && isHotspotColonyStatus(hr.status)
+      ),
     [helpRequests]
   );
 
@@ -179,7 +182,7 @@ export function HotspotsMap({ helpRequests, volunteers, feeders }: HotspotsMapPr
 
       {layers.colonies && (
         <div className="flex flex-wrap gap-x-3 gap-y-1.5">
-          {(Object.keys(STATUS_MARKER_COLORS) as HelpRequestStatus[]).map((status) => (
+          {HOTSPOT_COLONY_STATUSES.map((status) => (
             <div key={status} className="flex items-center gap-1.5 text-xs text-muted-foreground">
               <span
                 className="h-3 w-3 shrink-0 rounded-full border border-black/10"

@@ -27,7 +27,7 @@ export default async function HotspotsPage() {
       <div>
         <h1 className="text-2xl font-bold sm:text-3xl">Hotspots Map</h1>
         <p className="text-sm text-muted-foreground sm:text-base">
-          Colonies, volunteers, and colony feeders across the service area
+          Open intake colonies, closed cases, volunteers, and colony feeders across the service area
           {coloniesMapped > 0 && ` · ${coloniesMapped} colonies mapped`}
         </p>
       </div>

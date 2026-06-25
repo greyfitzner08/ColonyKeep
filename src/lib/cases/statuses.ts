@@ -8,6 +8,16 @@ export const INTAKE_QUEUE_STATUSES: HelpRequestStatus[] = [
   "needs_more_info",
 ];
 
+/** Colony hotspots map — open intake cases and closed cases only. */
+export const HOTSPOT_COLONY_STATUSES: HelpRequestStatus[] = [
+  ...INTAKE_QUEUE_STATUSES,
+  "closed",
+];
+
+export function isHotspotColonyStatus(status: HelpRequestStatus) {
+  return HOTSPOT_COLONY_STATUSES.includes(status);
+}
+
 /** Statuses intake/inquiry volunteers may set on a case. */
 export const INTAKE_EDITABLE_STATUSES: HelpRequestStatus[] = [
   "new_intake",

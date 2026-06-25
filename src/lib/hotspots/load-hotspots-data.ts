@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { MapFeeder } from "@/components/maps/hotspots-map";
+import { HOTSPOT_COLONY_STATUSES } from "@/lib/cases/statuses";
 import { loadHotspotVolunteers } from "@/lib/hotspots/geocode-profile-locations";
 import type { HelpRequest } from "@/lib/types";
 
@@ -20,6 +21,7 @@ export async function loadHotspotHelpRequests(
   const extendedResult = await supabase
     .from("help_requests")
     .select(extendedFields)
+    .in("status", HOTSPOT_COLONY_STATUSES)
     .order("created_at", { ascending: false });
 
   if (!isMissingColumnError(extendedResult.error?.message)) {
@@ -32,6 +34,7 @@ export async function loadHotspotHelpRequests(
   const colonyResult = await supabase
     .from("help_requests")
     .select(COLONY_HOTSPOT_FIELDS)
+    .in("status", HOTSPOT_COLONY_STATUSES)
     .order("created_at", { ascending: false });
 
   if (colonyResult.error) {
