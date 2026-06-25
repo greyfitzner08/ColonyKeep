@@ -28,6 +28,7 @@ interface CaseIntakeSectionProps {
   onSave: () => void;
   onRouteToTrap: () => void;
   onCloseCase: () => void;
+  canCloseCase: boolean;
 }
 
 export function CaseIntakeSection({
@@ -45,6 +46,7 @@ export function CaseIntakeSection({
   onSave,
   onRouteToTrap,
   onCloseCase,
+  canCloseCase,
 }: CaseIntakeSectionProps) {
   const statusOptions = getStatusOptionsForRole(userRole);
   const showRouteButton = canRouteToTrap && isIntakeQueueStatus(hr.status);
@@ -231,30 +233,32 @@ export function CaseIntakeSection({
         </CaseCollapsibleSection>
       )}
 
-      <CaseCollapsibleSection title="Close case" defaultOpen={false}>
-        <div className="space-y-4">
-          <div className="space-y-2 max-w-sm">
-            <Label>Close case — outcome</Label>
-            <Select value={hr.outcome ?? ""} onValueChange={(v) => onChange({ ...hr, outcome: v })}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select outcome" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="tnvr_complete">TNVR Complete</SelectItem>
-                <SelectItem value="partial_tnvr">Partial TNVR</SelectItem>
-                <SelectItem value="referred_elsewhere">Referred Elsewhere</SelectItem>
-                <SelectItem value="colony_relocated">Colony Relocated</SelectItem>
-                <SelectItem value="unable_to_assist">Unable to Assist</SelectItem>
-                <SelectItem value="duplicate">Duplicate</SelectItem>
-              </SelectContent>
-            </Select>
+      {canCloseCase && (
+        <CaseCollapsibleSection title="Close case" defaultOpen={false}>
+          <div className="space-y-4">
+            <div className="space-y-2 max-w-sm">
+              <Label>Close case — outcome</Label>
+              <Select value={hr.outcome ?? ""} onValueChange={(v) => onChange({ ...hr, outcome: v })}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select outcome" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="tnvr_complete">TNVR Complete</SelectItem>
+                  <SelectItem value="partial_tnvr">Partial TNVR</SelectItem>
+                  <SelectItem value="referred_elsewhere">Referred Elsewhere</SelectItem>
+                  <SelectItem value="colony_relocated">Colony Relocated</SelectItem>
+                  <SelectItem value="unable_to_assist">Unable to Assist</SelectItem>
+                  <SelectItem value="duplicate">Duplicate</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <Button onClick={onCloseCase} variant="destructive" disabled={routing || saving}>
+              <Trash2 className="h-4 w-4 mr-2" />
+              Close case
+            </Button>
           </div>
-          <Button onClick={onCloseCase} variant="destructive" disabled={routing || saving}>
-            <Trash2 className="h-4 w-4 mr-2" />
-            Close case
-          </Button>
-        </div>
-      </CaseCollapsibleSection>
+        </CaseCollapsibleSection>
+      )}
     </div>
   );
 }

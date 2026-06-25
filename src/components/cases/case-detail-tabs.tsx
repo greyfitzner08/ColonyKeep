@@ -17,13 +17,22 @@ import {
 import { createClient } from "@/lib/supabase/client";
 import { findTrapTeamForZip } from "@/lib/cases/assign-team-by-zip";
 import { detectMedicalKeywords, mergeMedicalFlags } from "@/lib/medical-flags";
-import { formatDateTime } from "@/lib/utils";
-import type { HelpRequest, Cat, Appointment, FollowUpEntry, UserRole } from "@/lib/types";
+import { canAddCaseHistoryNote, canCloseCase } from "@/lib/cases/case-permissions";
+import { feederPayload, geocodeFeederIfNeeded } from "@/lib/cases/feeder-fields";
+import type {
+  HelpRequest,
+  Cat,
+  Appointment,
+  FollowUpEntry,
+  UserRole,
+  HistoryEntry,
+  HistoryNoteColor,
+} from "@/lib/types";
 import { CaseReporterSection } from "@/components/cases/case-colony-info-section";
 import { CaseColonyTab } from "@/components/cases/case-colony-tab";
 import { CaseIntakeSection } from "@/components/cases/case-intake-section";
+import { CaseHistorySection } from "@/components/cases/case-history-section";
 import { CaseCollapsibleSection } from "@/components/cases/case-collapsible-section";
-import { feederPayload, geocodeFeederIfNeeded } from "@/lib/cases/feeder-fields";
 import { CaseAppointmentsSection } from "@/components/appointments/case-appointments-section";
 import { TrackedCatCard } from "@/components/cases/tracked-cat-card";
 import { ColonyCatSummaryEditor } from "@/components/cases/colony-cat-summary-editor";
@@ -38,6 +47,8 @@ interface CaseDetailTabsProps {
   clinics: { id: string; name: string }[];
   userRole: UserRole | null;
   canReviewMedical: boolean;
+  userName: string;
+  userEmail: string;
 }
 
 const EMPTY_CAT = {
@@ -57,6 +68,8 @@ export function CaseDetailTabs({
   clinics,
   userRole,
   canReviewMedical,
+  userName,
+  userEmail,
 }: CaseDetailTabsProps) {
   const router = useRouter();
   const [hr, setHr] = useState(initial);
@@ -67,8 +80,11 @@ export function CaseDetailTabs({
   const [followUpNote, setFollowUpNote] = useState("");
   const [savingFeeder, setSavingFeeder] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [savingHistory, setSavingHistory] = useState(false);
 
   const canRouteToTrap = userRole === "admin" || userRole === "inquiry_team";
+  const showCloseCase = canCloseCase(userRole);
+  const showAddHistoryNote = canAddCaseHistoryNote(userRole);
 
   function withTeamAssignment(next: HelpRequest): HelpRequest {
     const match = findTrapTeamForZip(next.colony_zip, teams);
@@ -220,7 +236,41 @@ export function CaseDetailTabs({
     router.refresh();
   }
 
+  async function addHistoryNote(note: {
+    text: string;
+    highlighted: boolean;
+    follow_up: boolean;
+    text_color: HistoryNoteColor;
+  }) {
+    setSavingHistory(true);
+    setSaveError(null);
+    const supabase = createClient();
+    const entry: HistoryEntry = {
+      id: crypto.randomUUID(),
+      timestamp: new Date().toISOString(),
+      action: "note",
+      actor_email: userEmail,
+      actor_name: userName,
+      details: note.text,
+      highlighted: note.highlighted,
+      follow_up: note.follow_up,
+      text_color: note.text_color,
+    };
+    const log = [...(hr.history_log ?? []), entry];
+    const { error } = await supabase.from("help_requests").update({ history_log: log }).eq("id", hr.id);
+    setSavingHistory(false);
+
+    if (error) {
+      setSaveError(error.message);
+      return;
+    }
+
+    setHr({ ...hr, history_log: log });
+    router.refresh();
+  }
+
   async function closeCase() {
+    if (!showCloseCase) return;
     const supabase = createClient();
     await supabase
       .from("help_requests")
@@ -280,6 +330,7 @@ export function CaseDetailTabs({
           onSave={saveIntake}
           onRouteToTrap={routeToTrap}
           onCloseCase={closeCase}
+          canCloseCase={showCloseCase}
         />
       </TabsContent>
 
@@ -371,21 +422,14 @@ export function CaseDetailTabs({
       </TabsContent>
 
       <TabsContent value="history" className="mt-4">
-        <CaseCollapsibleSection title="Case history" defaultOpen>
-          {(hr.history_log ?? []).length === 0 ? (
-            <p className="text-base text-muted-foreground">No history entries yet.</p>
-          ) : (
-            <div className="space-y-3">
-              {(hr.history_log ?? []).slice().reverse().map((entry, i) => (
-                <div key={i} className="border-b pb-3 text-base last:border-0">
-                  <span className="text-muted-foreground">{formatDateTime(entry.timestamp)}</span>
-                  <span className="mx-2">·</span>
-                  <span>{entry.details ?? entry.action}</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </CaseCollapsibleSection>
+        <CaseHistorySection
+          entries={hr.history_log ?? []}
+          canAddNote={showAddHistoryNote}
+          authorName={userName}
+          authorEmail={userEmail}
+          saving={savingHistory}
+          onAddNote={addHistoryNote}
+        />
       </TabsContent>
     </Tabs>
   );

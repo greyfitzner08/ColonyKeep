@@ -27,17 +27,21 @@ export function CaseCollapsibleSection({
       <CardHeader className="pb-0">
         <button
           type="button"
-          className="flex w-full items-start justify-between gap-3 rounded-md text-left transition-colors hover:bg-muted/40 -mx-1 px-1 py-1"
+          className={cn(
+            "flex w-full gap-3 rounded-md text-left transition-colors hover:bg-muted/40",
+            description ? "items-start py-1" : "items-center min-h-10"
+          )}
           onClick={() => setOpen((value) => !value)}
           aria-expanded={open}
         >
-          <div className="min-w-0 space-y-1">
-            <CardTitle className="text-lg">{title}</CardTitle>
-            {description && <CardDescription>{description}</CardDescription>}
+          <div className="min-w-0 flex-1">
+            <CardTitle className="text-lg leading-snug">{title}</CardTitle>
+            {description && <CardDescription className="mt-1">{description}</CardDescription>}
           </div>
           <ChevronDown
             className={cn(
-              "mt-1 h-5 w-5 shrink-0 text-muted-foreground transition-transform",
+              "h-5 w-5 shrink-0 text-muted-foreground transition-transform",
+              description ? "mt-0.5" : "",
               open && "rotate-180"
             )}
           />

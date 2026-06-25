@@ -17,6 +17,7 @@ import {
   normalizeServiceCatalog,
 } from "@/lib/clinics/service-catalog";
 import type { PublicClinicEvent } from "@/lib/types";
+import { isEventPastDate } from "@/lib/clinic-events/visibility";
 import { formatCurrency } from "@/lib/utils";
 import Link from "next/link";
 
@@ -289,10 +290,17 @@ function ClinicBookingContent() {
               <Card><CardContent className="py-8 text-center text-destructive">{loadError}</CardContent></Card>
             )}
             {events.length === 0 && !loadError && (
-              <Card><CardContent className="py-8 text-center text-muted-foreground">No upcoming clinic events available.</CardContent></Card>
+              <Card>
+                <CardContent className="py-8 text-center text-muted-foreground">
+                  {eventFilter
+                    ? "This clinic event is not available for booking. It may have been deactivated."
+                    : "No clinic events are open for booking right now."}
+                </CardContent>
+              </Card>
             )}
             {events.map((event) => {
               const remaining = available[event.id] ?? event.total_spots;
+              const pastDate = isEventPastDate(event.date);
               return (
                 <Card
                   key={event.id}
@@ -300,11 +308,18 @@ function ClinicBookingContent() {
                   onClick={() => remaining > 0 && setSelectedEvent(event)}
                 >
                   <CardHeader>
-                    <div className="flex justify-between items-start">
+                    <div className="flex justify-between items-start gap-2">
                       <CardTitle className="text-lg">{event.title}</CardTitle>
-                      <Badge variant={remaining > 0 ? "default" : "secondary"}>
-                        {remaining} spots left
-                      </Badge>
+                      <div className="flex flex-col items-end gap-1">
+                        <Badge variant={remaining > 0 ? "default" : "secondary"}>
+                          {remaining} spots left
+                        </Badge>
+                        {pastDate && (
+                          <Badge variant="outline" className="text-xs">
+                            Past event date
+                          </Badge>
+                        )}
+                      </div>
                     </div>
                     <CardDescription>{event.clinic_name}</CardDescription>
                   </CardHeader>

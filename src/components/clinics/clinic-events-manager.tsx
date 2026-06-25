@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ServiceCatalogEditor } from "@/components/clinics/service-catalog-editor";
 import { countOccupiedSpots } from "@/lib/clinic-events/availability";
+import { eventBookingStatusLabel } from "@/lib/clinic-events/visibility";
 import {
   defaultIncludedCatalog,
   normalizeServiceCatalog,
@@ -311,7 +312,7 @@ export function ClinicEventsManager({ events, clinics, bookings }: ClinicEventsM
           checked={form.is_active}
           onChange={(e) => setForm({ ...form, is_active: e.target.checked })}
         />
-        <Label htmlFor="event-active">Active (visible on public booking page)</Label>
+        <Label htmlFor="event-active">Active (open for public booking — deactivate when signups should close)</Label>
       </div>
       {error && <p className="text-sm text-destructive">{error}</p>}
     </div>
@@ -328,6 +329,7 @@ export function ClinicEventsManager({ events, clinics, bookings }: ClinicEventsM
           const eventRows = bookings.filter((b) => b.event_id === event.id);
           const occupied = countOccupiedSpots(eventRows);
           const remaining = Math.max(0, event.total_spots - occupied);
+          const bookingStatus = eventBookingStatusLabel(event);
           return (
             <Card key={event.id}>
               <CardHeader>
@@ -336,8 +338,8 @@ export function ClinicEventsManager({ events, clinics, bookings }: ClinicEventsM
                     <CardTitle className="text-base">{event.title}</CardTitle>
                     <p className="text-sm text-muted-foreground">{event.clinic_name}</p>
                   </div>
-                  <Badge variant={event.is_active ? "default" : "secondary"}>
-                    {event.is_active ? "Active" : "Inactive"}
+                  <Badge variant={bookingStatus.variant}>
+                    {bookingStatus.label}
                   </Badge>
                 </div>
               </CardHeader>

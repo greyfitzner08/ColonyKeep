@@ -78,6 +78,8 @@ export default async function CasePage({ params }: CasePageProps) {
         clinics={clinics ?? []}
         userRole={profile?.role ?? null}
         canReviewMedical={profile?.role === "admin" || profile?.role === "inquiry_team"}
+        userName={profile?.full_name ?? profile?.email ?? "Team member"}
+        userEmail={profile?.email ?? ""}
       />
     </div>
   );

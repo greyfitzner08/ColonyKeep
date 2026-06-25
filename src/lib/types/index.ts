@@ -233,12 +233,18 @@ export interface MedicalFlag {
 }
 
 export interface HistoryEntry {
+  id?: string;
   timestamp: string;
   action: string;
   actor_email: string | null;
   actor_name: string | null;
   details: string | null;
+  highlighted?: boolean;
+  follow_up?: boolean;
+  text_color?: HistoryNoteColor;
 }
+
+export type HistoryNoteColor = "default" | "amber" | "blue" | "green" | "red";
 
 export interface Clinic {
   id: string;

@@ -24,7 +24,6 @@ export const INTAKE_EDITABLE_STATUSES: HelpRequestStatus[] = [
   "under_review",
   "needs_more_info",
   "routed_to_trap_team",
-  "closed",
 ];
 
 /** Statuses shown on trap queue navigation and loaded into the trap queue view. */

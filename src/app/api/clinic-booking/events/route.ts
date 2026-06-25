@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { availableSpots } from "@/lib/clinic-events/availability";
 import { createServiceClient } from "@/lib/supabase/server";
+import { hasSupabaseAdminConfig } from "@/lib/supabase/env";
 import type { PublicBooking, PublicClinicEvent } from "@/lib/types";
 import { normalizeServiceCatalog } from "@/lib/clinics/service-catalog";
 
@@ -27,14 +28,20 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const eventId = searchParams.get("eventId");
 
-  const service = await createServiceClient();
-  const today = new Date().toISOString().split("T")[0];
+  if (!hasSupabaseAdminConfig()) {
+    return NextResponse.json(
+      { error: "Clinic booking is not configured on this server." },
+      { status: 503 }
+    );
+  }
 
+  const service = await createServiceClient();
+
+  // Visibility is controlled by is_active — admins deactivate events when booking should close.
   let eventsQuery = service
     .from("public_clinic_events")
     .select("*, clinics(check_in_details)")
     .eq("is_active", true)
-    .gte("date", today)
     .order("date");
 
   if (eventId) {
