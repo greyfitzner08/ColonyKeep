@@ -11,6 +11,7 @@ import {
   historyEntryBody,
   historyEntryClasses,
   historyEntryLabel,
+  historyNotePreviewEntry,
 } from "@/lib/cases/history-note-styles";
 import { cn, formatDateTime } from "@/lib/utils";
 import type { HistoryEntry, HistoryNoteColor } from "@/lib/types";
@@ -22,12 +23,13 @@ interface CaseHistorySectionProps {
   authorName: string;
   authorEmail: string;
   saving?: boolean;
+  saveError?: string | null;
   onAddNote: (note: {
     text: string;
     highlighted: boolean;
     follow_up: boolean;
     text_color: HistoryNoteColor;
-  }) => void;
+  }) => Promise<boolean>;
 }
 
 export function CaseHistorySection({
@@ -36,6 +38,7 @@ export function CaseHistorySection({
   authorName,
   authorEmail,
   saving = false,
+  saveError = null,
   onAddNote,
 }: CaseHistorySectionProps) {
   const [noteText, setNoteText] = useState("");
@@ -47,14 +50,22 @@ export function CaseHistorySection({
     (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
   );
 
-  function handleSubmit() {
-    if (!noteText.trim()) return;
-    onAddNote({
+  const previewEntry = historyNotePreviewEntry({
+    text: noteText,
+    highlighted,
+    follow_up: followUp,
+    text_color: textColor,
+  });
+
+  async function handleSubmit() {
+    if (!noteText.trim() || saving) return;
+    const saved = await onAddNote({
       text: noteText.trim(),
       highlighted,
       follow_up: followUp,
       text_color: textColor,
     });
+    if (!saved) return;
     setNoteText("");
     setHighlighted(false);
     setFollowUp(false);
@@ -64,25 +75,27 @@ export function CaseHistorySection({
   return (
     <div className="space-y-4">
       {canAddNote && (
-        <div className="rounded-lg border bg-muted/20 p-3 space-y-2">
-          <Textarea
-            id="history-note-text"
-            value={noteText}
-            onChange={(e) => setNoteText(e.target.value)}
-            rows={2}
-            className="min-h-[4.5rem] resize-y bg-background text-sm"
-            placeholder="Add a note — call, visit, trap update…"
-            onKeyDown={(e) => {
-              if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
-                e.preventDefault();
-                handleSubmit();
-              }
-            }}
-          />
+        <div className="rounded-lg border bg-muted/20 p-3 space-y-3">
+          <div className={cn(historyEntryClasses(previewEntry), "p-0 overflow-hidden")}>
+            <Textarea
+              id="history-note-text"
+              value={noteText}
+              onChange={(e) => setNoteText(e.target.value)}
+              rows={2}
+              className="min-h-[4.5rem] resize-y border-0 bg-transparent shadow-none focus-visible:ring-0 rounded-none text-sm"
+              placeholder="Add a note — call, visit, trap update…"
+              onKeyDown={(e) => {
+                if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+                  e.preventDefault();
+                  void handleSubmit();
+                }
+              }}
+            />
+          </div>
 
           <div className="flex flex-wrap items-center gap-2">
             <div
-              className="flex items-center gap-1 rounded-md border bg-background px-1.5 py-1"
+              className="flex items-center gap-1.5 rounded-md border bg-background px-2 py-1.5"
               role="group"
               aria-label="Note color"
             >
@@ -95,9 +108,10 @@ export function CaseHistorySection({
                   aria-pressed={textColor === option.value}
                   onClick={() => setTextColor(option.value)}
                   className={cn(
-                    "h-5 w-5 rounded-full transition-transform",
+                    "h-6 w-6 rounded-full transition-all",
                     HISTORY_NOTE_SWATCH[option.value],
-                    textColor === option.value && "ring-2 ring-primary ring-offset-1 scale-110"
+                    textColor === option.value &&
+                      "ring-2 ring-primary ring-offset-2 ring-offset-background scale-110"
                   )}
                 />
               ))}
@@ -105,9 +119,12 @@ export function CaseHistorySection({
 
             <Button
               type="button"
-              variant={highlighted ? "secondary" : "ghost"}
+              variant="outline"
               size="sm"
-              className="h-8 px-2.5 text-xs"
+              className={cn(
+                "h-8 px-2.5 text-xs",
+                highlighted && "border-amber-500 bg-amber-50 text-amber-950"
+              )}
               aria-pressed={highlighted}
               onClick={() => setHighlighted((value) => !value)}
             >
@@ -117,9 +134,12 @@ export function CaseHistorySection({
 
             <Button
               type="button"
-              variant={followUp ? "secondary" : "ghost"}
+              variant="outline"
               size="sm"
-              className="h-8 px-2.5 text-xs"
+              className={cn(
+                "h-8 px-2.5 text-xs",
+                followUp && "border-orange-500 bg-orange-50 text-orange-950"
+              )}
               aria-pressed={followUp}
               onClick={() => setFollowUp((value) => !value)}
             >
@@ -128,14 +148,11 @@ export function CaseHistorySection({
             </Button>
 
             <div className="ml-auto flex items-center gap-2">
-              <span className="hidden text-xs text-muted-foreground sm:inline">
-                {authorName}
-              </span>
               <Button
                 type="button"
                 size="sm"
                 className="h-8"
-                onClick={handleSubmit}
+                onClick={() => void handleSubmit()}
                 disabled={saving || !noteText.trim()}
               >
                 <Plus className="h-3.5 w-3.5 mr-1" />
@@ -144,9 +161,21 @@ export function CaseHistorySection({
             </div>
           </div>
 
-          <p className="text-[11px] text-muted-foreground">
-            Saved as {authorName} · {authorEmail}. Ctrl+Enter to submit.
-          </p>
+          <div className="flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
+            <span>Saved as {authorName} · {authorEmail}</span>
+            {(highlighted || followUp || textColor !== "default") && (
+              <span className="text-foreground/70">
+                ·
+                {textColor !== "default" && ` ${HISTORY_NOTE_COLORS.find((c) => c.value === textColor)?.label} text`}
+                {highlighted && " · highlighted"}
+                {followUp && " · follow-up"}
+              </span>
+            )}
+          </div>
+
+          {saveError && (
+            <p className="text-sm text-destructive">{saveError}</p>
+          )}
         </div>
       )}
 

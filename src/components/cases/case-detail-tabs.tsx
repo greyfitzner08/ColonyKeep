@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -17,7 +17,8 @@ import {
 import { createClient } from "@/lib/supabase/client";
 import { findTrapTeamForZip } from "@/lib/cases/assign-team-by-zip";
 import { detectMedicalKeywords, mergeMedicalFlags } from "@/lib/medical-flags";
-import { canAddCaseHistoryNote, canCloseCase } from "@/lib/cases/case-permissions";
+import { canCloseCase } from "@/lib/cases/case-permissions";
+import { normalizeHistoryLog } from "@/lib/cases/history-log";
 import { feederPayload, geocodeFeederIfNeeded } from "@/lib/cases/feeder-fields";
 import type {
   HelpRequest,
@@ -25,7 +26,6 @@ import type {
   Appointment,
   FollowUpEntry,
   UserRole,
-  HistoryEntry,
   HistoryNoteColor,
 } from "@/lib/types";
 import { CaseReporterSection } from "@/components/cases/case-colony-info-section";
@@ -47,6 +47,7 @@ interface CaseDetailTabsProps {
   clinics: { id: string; name: string }[];
   userRole: UserRole | null;
   canReviewMedical: boolean;
+  canAddHistoryNote: boolean;
   userName: string;
   userEmail: string;
 }
@@ -68,6 +69,7 @@ export function CaseDetailTabs({
   clinics,
   userRole,
   canReviewMedical,
+  canAddHistoryNote,
   userName,
   userEmail,
 }: CaseDetailTabsProps) {
@@ -84,7 +86,13 @@ export function CaseDetailTabs({
 
   const canRouteToTrap = userRole === "admin" || userRole === "inquiry_team";
   const showCloseCase = canCloseCase(userRole);
-  const showAddHistoryNote = canAddCaseHistoryNote(userRole);
+
+  useEffect(() => {
+    setHr({
+      ...initial,
+      history_log: normalizeHistoryLog(initial.history_log),
+    });
+  }, [initial]);
 
   function withTeamAssignment(next: HelpRequest): HelpRequest {
     const match = findTrapTeamForZip(next.colony_zip, teams);
@@ -241,32 +249,33 @@ export function CaseDetailTabs({
     highlighted: boolean;
     follow_up: boolean;
     text_color: HistoryNoteColor;
-  }) {
+  }): Promise<boolean> {
     setSavingHistory(true);
     setSaveError(null);
-    const supabase = createClient();
-    const entry: HistoryEntry = {
-      id: crypto.randomUUID(),
-      timestamp: new Date().toISOString(),
-      action: "note",
-      actor_email: userEmail,
-      actor_name: userName,
-      details: note.text,
-      highlighted: note.highlighted,
-      follow_up: note.follow_up,
-      text_color: note.text_color,
-    };
-    const log = [...(hr.history_log ?? []), entry];
-    const { error } = await supabase.from("help_requests").update({ history_log: log }).eq("id", hr.id);
+
+    const response = await fetch("/api/help-requests/history-note", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        help_request_id: hr.id,
+        text: note.text,
+        highlighted: note.highlighted,
+        follow_up: note.follow_up,
+        text_color: note.text_color,
+      }),
+    });
+    const result = await response.json().catch(() => null);
     setSavingHistory(false);
 
-    if (error) {
-      setSaveError(error.message);
-      return;
+    if (!response.ok) {
+      setSaveError(result?.error ?? "Unable to save history note");
+      return false;
     }
 
-    setHr({ ...hr, history_log: log });
+    const history_log = normalizeHistoryLog(result.history_log);
+    setHr({ ...hr, history_log });
     router.refresh();
+    return true;
   }
 
   async function closeCase() {
@@ -424,10 +433,11 @@ export function CaseDetailTabs({
       <TabsContent value="history" className="mt-4">
         <CaseHistorySection
           entries={hr.history_log ?? []}
-          canAddNote={showAddHistoryNote}
+          canAddNote={canAddHistoryNote}
           authorName={userName}
           authorEmail={userEmail}
           saving={savingHistory}
+          saveError={saveError}
           onAddNote={addHistoryNote}
         />
       </TabsContent>

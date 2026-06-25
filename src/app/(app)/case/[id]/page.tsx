@@ -8,6 +8,8 @@ import { hasActiveMedicalFlag } from "@/lib/medical-flags";
 import { getStatusLabel } from "@/lib/cases/statuses";
 import { AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { canAddCaseHistoryNote } from "@/lib/cases/case-permissions";
+import { normalizeHistoryLog } from "@/lib/cases/history-log";
 import type { HelpRequest, Cat, Appointment } from "@/lib/types";
 
 interface CasePageProps {
@@ -41,7 +43,10 @@ export default async function CasePage({ params }: CasePageProps) {
       supabase.from("clinics").select("id, name").eq("is_active", true),
     ]);
 
-  const hr = helpRequest as HelpRequest;
+  const hr = {
+    ...(helpRequest as HelpRequest),
+    history_log: normalizeHistoryLog(helpRequest.history_log),
+  };
   const medical = hasActiveMedicalFlag(
     hr.medical_flags ?? [],
     hr.medical_flag_dismissed,
@@ -78,6 +83,7 @@ export default async function CasePage({ params }: CasePageProps) {
         clinics={clinics ?? []}
         userRole={profile?.role ?? null}
         canReviewMedical={profile?.role === "admin" || profile?.role === "inquiry_team"}
+        canAddHistoryNote={canAddCaseHistoryNote(profile)}
         userName={profile?.full_name ?? profile?.email ?? "Team member"}
         userEmail={profile?.email ?? ""}
       />
