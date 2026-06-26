@@ -33,7 +33,7 @@ export default async function TrapQueuePage({ searchParams }: TrapQueuePageProps
         ["trapper", "trap_loaner", "transporter", "recovery", "intake_representative"].includes(role)
       ));
 
-  const defaultView: TrapQueueView = isTrapRole ? "mine" : "all";
+  const defaultView: TrapQueueView = "all";
   const view = (params.view ?? defaultView) as TrapQueueView;
 
   const [{ data: teams }, { data: myTeam }] = await Promise.all([

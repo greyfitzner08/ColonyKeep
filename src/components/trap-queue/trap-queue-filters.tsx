@@ -19,11 +19,11 @@ export function TrapQueueFilters({
 }: TrapQueueFiltersProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const currentView = searchParams.get("view") ?? (isTrapRole ? "mine" : "all");
+  const currentView = searchParams.get("view") ?? "all";
 
   function updateView(view: string) {
     const params = new URLSearchParams(searchParams.toString());
-    if (view === "mine" && isTrapRole) {
+    if (view === "all") {
       params.delete("view");
     } else {
       params.set("view", view);
