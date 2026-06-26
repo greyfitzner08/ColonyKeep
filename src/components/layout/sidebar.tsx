@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import type { LucideIcon } from "lucide-react";
 import {
   LayoutDashboard,
   Inbox,
@@ -35,25 +36,86 @@ import { LogoutButton } from "@/components/layout/logout-button";
 import { AdminRolePreviewControl } from "@/components/admin/admin-role-preview";
 import { PlatformTutorialTrigger } from "@/components/platform-tutorial/platform-tutorial-trigger";
 
-const NAV_ITEMS = [
-  { href: "/", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/intake", label: "Inquiry Queue", icon: Inbox },
-  { href: "/trap-queue", label: "Trap Queue", icon: Kanban },
-  { href: "/appointments", label: "Appointments", icon: Calendar },
-  { href: "/clinics", label: "Clinics", icon: Building2 },
-  { href: "/clinic-events", label: "Clinic Events", icon: Stethoscope },
-  { href: "/hotspots", label: "Hotspots Map", icon: Map },
-  { href: "/equipment", label: "Equipment", icon: Package },
-  { href: "/volunteers", label: "Volunteers", icon: Users },
-  { href: "/team-directory", label: "Team Directory", icon: Contact },
-  { href: "/shift-board", label: "Shift Board", icon: CalendarDays },
-  { href: "/team-feed", label: "Team Feed", icon: MessageSquare },
-  { href: "/my-impact", label: "My Impact", icon: Heart },
-  { href: "/profile", label: "My Profile", icon: UserRound },
-  { href: "/resources", label: "Resources", icon: BookOpen },
-  { href: "/reports", label: "Reports", icon: BarChart3 },
-  { href: "/admin", label: "Admin", icon: Settings },
+interface NavItem {
+  href: string;
+  label: string;
+  icon: LucideIcon;
+}
+
+interface NavGroup {
+  id: string;
+  label: string;
+  items: NavItem[];
+}
+
+const NAV_GROUPS: NavGroup[] = [
+  {
+    id: "home",
+    label: "Home",
+    items: [
+      { href: "/", label: "Dashboard", icon: LayoutDashboard },
+      { href: "/my-impact", label: "My Impact", icon: Heart },
+    ],
+  },
+  {
+    id: "cases",
+    label: "Cases",
+    items: [
+      { href: "/intake", label: "Inquiry Queue", icon: Inbox },
+      { href: "/trap-queue", label: "Trap Queue", icon: Kanban },
+      { href: "/appointments", label: "Appointments", icon: Calendar },
+      { href: "/hotspots", label: "Hotspots Map", icon: Map },
+      { href: "/equipment", label: "Equipment", icon: Package },
+    ],
+  },
+  {
+    id: "clinics",
+    label: "Clinics",
+    items: [
+      { href: "/clinics", label: "Clinics", icon: Building2 },
+      { href: "/clinic-events", label: "Clinic Events", icon: Stethoscope },
+    ],
+  },
+  {
+    id: "team",
+    label: "Team",
+    items: [
+      { href: "/team-feed", label: "Team Feed", icon: MessageSquare },
+      { href: "/team-directory", label: "Team Directory", icon: Contact },
+      { href: "/shift-board", label: "Shift Board", icon: CalendarDays },
+    ],
+  },
+  {
+    id: "resources",
+    label: "Resources",
+    items: [
+      { href: "/resources", label: "Resources", icon: BookOpen },
+      { href: "/profile", label: "My Profile", icon: UserRound },
+    ],
+  },
+  {
+    id: "admin",
+    label: "Administration",
+    items: [
+      { href: "/volunteers", label: "Volunteers", icon: Users },
+      { href: "/reports", label: "Reports", icon: BarChart3 },
+      { href: "/admin", label: "Admin", icon: Settings },
+    ],
+  },
 ];
+
+function isRouteAllowed(href: string, allowedRoutes: string[]): boolean {
+  return allowedRoutes.some(
+    (route) => href === route || (route !== "/" && href.startsWith(route))
+  );
+}
+
+function visibleNavGroups(allowedRoutes: string[]): NavGroup[] {
+  return NAV_GROUPS.map((group) => ({
+    ...group,
+    items: group.items.filter((item) => isRouteAllowed(item.href, allowedRoutes)),
+  })).filter((group) => group.items.length > 0);
+}
 
 interface SidebarProps {
   profile: Profile | null;
@@ -76,11 +138,7 @@ export function Sidebar({
 
   const permissions = getProfilePermissions(profile);
   const allowedRoutes = permissions?.routes ?? [];
-  const visibleItems = NAV_ITEMS.filter((item) =>
-    allowedRoutes.some(
-      (route) => item.href === route || (route !== "/" && item.href.startsWith(route))
-    )
-  );
+  const visibleGroups = visibleNavGroups(allowedRoutes);
 
   useEffect(() => {
     if (!tourActive || !highlightedNav || highlightedNav === "sidebar") return;
@@ -104,32 +162,40 @@ export function Sidebar({
           tourActive && highlightedNav === "sidebar" && "rounded-md ring-2 ring-primary ring-offset-2 ring-offset-sidebar"
         )}
       >
-        <div className="flex flex-col gap-1">
-          {visibleItems.map((item) => {
-            const Icon = item.icon;
-            const active =
-              pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));
-            const tourHighlight = tourActive && highlightedNav === item.href;
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                data-tutorial-nav={item.href}
-                onClick={() => setMobileOpen(false)}
-                className={cn(
-                  "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
-                  active
-                    ? "bg-primary text-primary-foreground"
-                    : "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground",
-                  tourHighlight &&
-                    "ring-2 ring-amber-400 ring-offset-2 ring-offset-sidebar shadow-md animate-pulse"
-                )}
-              >
-                <Icon className="h-4 w-4" />
-                {item.label}
-              </Link>
-            );
-          })}
+        <div className="flex flex-col gap-4">
+          {visibleGroups.map((group) => (
+            <div key={group.id} className="flex flex-col gap-1">
+              <p className="px-3 pb-0.5 text-[11px] font-semibold uppercase tracking-wide text-sidebar-foreground/45">
+                {group.label}
+              </p>
+              {group.items.map((item) => {
+                const Icon = item.icon;
+                const active =
+                  pathname === item.href ||
+                  (item.href !== "/" && pathname.startsWith(item.href));
+                const tourHighlight = tourActive && highlightedNav === item.href;
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    data-tutorial-nav={item.href}
+                    onClick={() => setMobileOpen(false)}
+                    className={cn(
+                      "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                      active
+                        ? "bg-primary text-primary-foreground"
+                        : "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground",
+                      tourHighlight &&
+                        "ring-2 ring-amber-400 ring-offset-2 ring-offset-sidebar shadow-md animate-pulse"
+                    )}
+                  >
+                    <Icon className="h-4 w-4" />
+                    {item.label}
+                  </Link>
+                );
+              })}
+            </div>
+          ))}
         </div>
       </div>
 
