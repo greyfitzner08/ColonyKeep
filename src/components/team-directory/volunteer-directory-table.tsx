@@ -14,16 +14,8 @@ import {
 import { VOLUNTEER_ROLES } from "@/lib/constants";
 import { volunteerRoleLabel } from "@/lib/hotspots/volunteer-role-filter";
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
-import type { UserRole, VolunteerRole } from "@/lib/types";
+import type { VolunteerRole } from "@/lib/types";
 import type { VolunteerDirectoryEntry } from "@/lib/team-directory/load-directory";
-
-const PLATFORM_ROLE_LABELS: Record<UserRole, string> = {
-  admin: "Administrator",
-  inquiry_team: "Inquiry Team",
-  trap_team_lead: "Trap Team Lead",
-  clinic_coordination: "Clinic Coordination",
-  volunteer: "Volunteer",
-};
 
 interface VolunteerDirectoryTableProps {
   entries: VolunteerDirectoryEntry[];
@@ -37,7 +29,6 @@ function matchesSearch(entry: VolunteerDirectoryEntry, query: string): boolean {
     entry.phone,
     entry.address,
     entry.team_name,
-    PLATFORM_ROLE_LABELS[entry.platform_role],
     ...entry.volunteer_roles.map((role) => volunteerRoleLabel(role)),
   ]
     .filter(Boolean)
@@ -73,12 +64,6 @@ export function VolunteerDirectoryTable({ entries, teams }: VolunteerDirectoryTa
         label: "Name",
         defaultWidth: 160,
         render: (entry) => <span className="font-medium">{entry.full_name ?? "—"}</span>,
-      },
-      {
-        id: "platform_role",
-        label: "Platform role",
-        defaultWidth: 140,
-        render: (entry) => PLATFORM_ROLE_LABELS[entry.platform_role],
       },
       {
         id: "volunteer_roles",
@@ -188,7 +173,7 @@ export function VolunteerDirectoryTable({ entries, teams }: VolunteerDirectoryTa
         rows={filtered}
         getRowKey={(entry) => entry.id}
         emptyMessage="No team members match your filters."
-        minTableWidth={960}
+        minTableWidth={820}
       />
     </div>
   );
