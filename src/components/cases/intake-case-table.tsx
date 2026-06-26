@@ -39,7 +39,8 @@ export function IntakeCaseTable({ cases, canClaim, userEmail }: IntakeCaseTableP
       {
         id: "case_number",
         label: "Case #",
-        defaultWidth: 140,
+        defaultWidth: 180,
+        minWidth: 130,
         render: (helpRequest) => {
           const medical = hasActiveMedicalFlag(
             helpRequest.medical_flags ?? [],
@@ -47,15 +48,15 @@ export function IntakeCaseTable({ cases, canClaim, userEmail }: IntakeCaseTableP
             helpRequest.medical_flag_forced
           );
           return (
-            <div className="flex items-center gap-2">
+            <div className="flex min-w-0 flex-wrap items-center gap-1.5">
               <Link
                 href={`/case/${helpRequest.id}`}
-                className="font-medium text-primary hover:underline"
+                className="shrink-0 font-medium text-primary hover:underline"
               >
                 {helpRequest.case_number}
               </Link>
               {medical && (
-                <Badge variant="destructive" className="gap-1 text-xs">
+                <Badge variant="destructive" className="gap-1 text-xs whitespace-nowrap">
                   <AlertTriangle className="h-3 w-3" />
                   Medical
                 </Badge>
@@ -67,9 +68,10 @@ export function IntakeCaseTable({ cases, canClaim, userEmail }: IntakeCaseTableP
       {
         id: "status",
         label: "Status",
-        defaultWidth: 150,
+        defaultWidth: 170,
+        minWidth: 110,
         render: (helpRequest) => (
-          <Badge className={cn("text-xs", STATUS_COLORS[helpRequest.status])}>
+          <Badge className={cn("max-w-full truncate text-xs", STATUS_COLORS[helpRequest.status])}>
             {helpRequest.status.replace(/_/g, " ")}
           </Badge>
         ),

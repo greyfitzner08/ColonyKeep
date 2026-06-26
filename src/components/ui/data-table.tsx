@@ -166,7 +166,7 @@ export function DataTable<T>({
                     setDropTargetColumnId(null);
                   }}
                   className={cn(
-                    "relative px-3 py-3 font-medium align-middle",
+                    "relative max-w-0 overflow-hidden px-3 py-3 font-medium align-middle",
                     draggingColumnId === column.id && "opacity-50",
                     isDropTarget && "bg-primary/10 ring-1 ring-inset ring-primary/30",
                     column.headerClassName
@@ -214,8 +214,11 @@ export function DataTable<T>({
               className={cn("border-t align-top hover:bg-muted/30", getRowClassName?.(row))}
             >
               {orderedColumns.map((column) => (
-                <td key={column.id} className={cn("px-3 py-3", column.cellClassName)}>
-                  {column.render(row)}
+                <td
+                  key={column.id}
+                  className={cn("max-w-0 overflow-hidden px-3 py-3 align-top", column.cellClassName)}
+                >
+                  <div className="min-w-0 overflow-hidden">{column.render(row)}</div>
                 </td>
               ))}
             </tr>
