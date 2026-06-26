@@ -22,6 +22,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { createClient } from "@/lib/supabase/client";
+import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import { resolveVolunteerRoleCatalog, signupVolunteerRoleOptions } from "@/lib/volunteers/role-catalog";
 import {
   REQUIREMENT_FIELD_OPTIONS,
@@ -125,6 +126,68 @@ export function RoleDescriptionsManager({ roleDescriptions }: RoleDescriptionsMa
     router.refresh();
   }
 
+  const roleColumns = useMemo((): DataTableColumn<(typeof selectableRoles)[number]>[] => {
+    return [
+      {
+        id: "role",
+        label: "Role",
+        defaultWidth: 180,
+        render: (role) => (
+          <div>
+            <p className="font-medium">{role.label}</p>
+            <p className="text-xs text-muted-foreground">{role.role_id.replace(/_/g, " ")}</p>
+          </div>
+        ),
+      },
+      {
+        id: "requirements",
+        label: "Requirements",
+        defaultWidth: 240,
+        render: (role) => {
+          const roleRequirements = role.requirements ?? [];
+          if (roleRequirements.length === 0) {
+            return <span className="text-sm text-muted-foreground">None</span>;
+          }
+          return (
+            <div className="flex flex-wrap gap-1">
+              {roleRequirements.map((requirement) => (
+                <Badge
+                  key={requirement}
+                  variant={isKnownRequirementField(requirement) ? "secondary" : "outline"}
+                  className="text-[11px]"
+                >
+                  {displayRequirementLabel(requirement)}
+                </Badge>
+              ))}
+            </div>
+          );
+        },
+      },
+      {
+        id: "description",
+        label: "Description",
+        defaultWidth: 280,
+        render: (role) => (
+          <p className="line-clamp-2 text-sm text-muted-foreground">{role.description || "—"}</p>
+        ),
+      },
+      {
+        id: "actions",
+        label: "Actions",
+        defaultWidth: 100,
+        minWidth: 88,
+        headerClassName: "text-right",
+        cellClassName: "text-right",
+        render: (role) => (
+          <Button type="button" size="sm" variant="outline" onClick={() => setEditingRole(role)}>
+            <Pencil className="mr-1.5 h-3.5 w-3.5" />
+            Edit
+          </Button>
+        ),
+      },
+    ];
+  }, []);
+
   return (
     <div className="space-y-4">
       <p className="text-sm text-muted-foreground">
@@ -133,64 +196,13 @@ export function RoleDescriptionsManager({ roleDescriptions }: RoleDescriptionsMa
         manual checklists for admins.
       </p>
 
-      <div className="rounded-lg border overflow-hidden">
-        <div className="hidden md:grid md:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)_minmax(0,1.4fr)_auto] gap-3 px-4 py-3 bg-muted/40 text-xs font-medium text-muted-foreground border-b">
-          <span>Role</span>
-          <span>Requirements</span>
-          <span>Description</span>
-          <span className="text-right">Actions</span>
-        </div>
-
-        <div className="divide-y">
-          {selectableRoles.map((role) => {
-            const roleRequirements = role.requirements ?? [];
-
-            return (
-              <div
-                key={role.role_id}
-                className="grid gap-3 px-4 py-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)_minmax(0,1.4fr)_auto] md:items-start"
-              >
-                <div>
-                  <p className="font-medium">{role.label}</p>
-                  <p className="text-xs text-muted-foreground">{role.role_id.replace(/_/g, " ")}</p>
-                </div>
-
-                <div className="flex flex-wrap gap-1">
-                  {roleRequirements.length === 0 ? (
-                    <span className="text-sm text-muted-foreground">None</span>
-                  ) : (
-                    roleRequirements.map((requirement) => (
-                      <Badge
-                        key={requirement}
-                        variant={isKnownRequirementField(requirement) ? "secondary" : "outline"}
-                        className="text-[11px]"
-                      >
-                        {displayRequirementLabel(requirement)}
-                      </Badge>
-                    ))
-                  )}
-                </div>
-
-                <p className="text-sm text-muted-foreground line-clamp-2">
-                  {role.description || "—"}
-                </p>
-
-                <div className="md:text-right">
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setEditingRole(role)}
-                  >
-                    <Pencil className="h-3.5 w-3.5 mr-1.5" />
-                    Edit
-                  </Button>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
+      <DataTable
+        tableId="admin-role-descriptions"
+        columns={roleColumns}
+        rows={selectableRoles}
+        getRowKey={(role) => role.role_id}
+        emptyMessage="No volunteer roles configured."
+      />
 
       <Dialog open={editingRole != null} onOpenChange={(open) => !open && setEditingRole(null)}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">

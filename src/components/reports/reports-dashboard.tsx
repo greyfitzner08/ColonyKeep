@@ -15,6 +15,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { NewsletterSignupPanel } from "@/components/reports/newsletter-signup-panel";
+import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import {
   DEFAULT_REPORT_FILTERS,
   type ReportAppointment,
@@ -128,6 +129,15 @@ export function ReportsDashboard({
   );
 
   const activeReport = REPORT_TYPES.find((entry) => entry.value === reportType);
+
+  const reportTableColumns = useMemo((): DataTableColumn<(typeof result.rows)[number]>[] => {
+    return result.columns.map((column) => ({
+      id: column.key,
+      label: column.label,
+      defaultWidth: column.key === "count" || column.key === "cats" ? 100 : 180,
+      render: (row) => cellValue(row, column.key),
+    }));
+  }, [result.columns]);
 
   function updateFilter<K extends keyof ReportFilters>(key: K, value: ReportFilters[K]) {
     setFilters((current) => ({ ...current, [key]: value }));
@@ -375,36 +385,13 @@ export function ReportsDashboard({
             ))}
           </div>
 
-          {result.rows.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-8 text-center">
-              No rows match the current filters.
-            </p>
-          ) : (
-            <div className="rounded-lg border overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="bg-muted/40">
-                  <tr>
-                    {result.columns.map((column) => (
-                      <th key={column.key} className="px-4 py-3 text-left font-medium">
-                        {column.label}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="divide-y">
-                  {result.rows.map((row) => (
-                    <tr key={row.key} className="hover:bg-muted/20">
-                      {result.columns.map((column) => (
-                        <td key={column.key} className="px-4 py-3">
-                          {cellValue(row, column.key)}
-                        </td>
-                      ))}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+          <DataTable
+            tableId={`reports-${reportType}`}
+            columns={reportTableColumns}
+            rows={result.rows}
+            getRowKey={(row) => row.key}
+            emptyMessage="No rows match the current filters."
+          />
         </CardContent>
       </Card>
 

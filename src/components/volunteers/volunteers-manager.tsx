@@ -48,6 +48,7 @@ import {
   type ApplicationViewMode,
 } from "@/lib/volunteers/application-review";
 import { cn, formatDate } from "@/lib/utils";
+import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import type {
   VolunteerApplication,
   TrapTeam,
@@ -973,6 +974,134 @@ export function VolunteersManager({
     );
   }
 
+  const applicationTableColumns = useMemo((): DataTableColumn<VolunteerApplication>[] => {
+    const applicantHeader = (
+      <button
+        type="button"
+        className="inline-flex items-center gap-1 text-left transition-colors hover:text-foreground"
+        onClick={() => setNameSort((current) => (current === "asc" ? "desc" : "asc"))}
+      >
+        Applicant
+        {nameSort === "asc" ? (
+          <ArrowUp className="h-3.5 w-3.5" />
+        ) : nameSort === "desc" ? (
+          <ArrowDown className="h-3.5 w-3.5" />
+        ) : (
+          <ArrowUpDown className="h-3.5 w-3.5 opacity-50" />
+        )}
+      </button>
+    );
+
+    return [
+      {
+        id: "applicant",
+        label: "Applicant",
+        header: applicantHeader,
+        defaultWidth: 220,
+        render: (app) => (
+          <div className="min-w-0">
+            <p className="truncate font-medium">{app.full_name}</p>
+            <p className="truncate text-sm text-muted-foreground">{app.email}</p>
+            <p className="text-xs text-muted-foreground">Applied {formatDate(app.created_at)}</p>
+          </div>
+        ),
+      },
+      {
+        id: "status",
+        label: "Status",
+        defaultWidth: 130,
+        render: (app) => (
+          <Badge className={STATUS_COLORS[app.status]}>{app.status.replace(/_/g, " ")}</Badge>
+        ),
+      },
+      {
+        id: "attention",
+        label: "Attention",
+        defaultWidth: 180,
+        render: (app) => {
+          const context = getApplicationReviewContext(
+            app,
+            profilesByEmail,
+            roleRequests,
+            roleCatalog
+          );
+          return (
+            <div className="space-y-1">
+              {context.attentionLabel ? (
+                <Badge
+                  variant="outline"
+                  className={cn(
+                    "text-xs",
+                    context.isRoleExpansion && !context.rolesReady
+                      ? "border-amber-400 bg-amber-50 text-amber-900"
+                      : "border-primary/30 text-primary"
+                  )}
+                >
+                  {context.attentionLabel}
+                </Badge>
+              ) : (
+                <span className="text-sm text-muted-foreground">—</span>
+              )}
+              {context.attentionDetail && (
+                <p className="line-clamp-2 text-xs text-muted-foreground">{context.attentionDetail}</p>
+              )}
+            </div>
+          );
+        },
+      },
+      {
+        id: "roles",
+        label: "Roles / requirements",
+        defaultWidth: 260,
+        render: (app) => {
+          const context = getApplicationReviewContext(
+            app,
+            profilesByEmail,
+            roleRequests,
+            roleCatalog
+          );
+          return (
+            <div className="flex flex-wrap gap-1">
+              {context.rolesToReview.map((role) => {
+                const missing = context.missingByRole[role] ?? [];
+                return (
+                  <Badge
+                    key={role}
+                    variant={missing.length === 0 ? "secondary" : "outline"}
+                    className={cn(
+                      "text-[11px]",
+                      missing.length > 0 && "border-amber-400 bg-amber-50 text-amber-900"
+                    )}
+                  >
+                    {roleLabel(role)}
+                  </Badge>
+                );
+              })}
+              {!context.rolesReady && context.allMissingRequirements.length > 0 && (
+                <span className="w-full text-xs text-amber-900">
+                  Needs: {context.allMissingRequirements.map(requirementLabel).join(", ")}
+                </span>
+              )}
+            </div>
+          );
+        },
+      },
+      {
+        id: "actions",
+        label: "Actions",
+        defaultWidth: 110,
+        minWidth: 96,
+        headerClassName: "text-right",
+        cellClassName: "text-right",
+        render: (app) => (
+          <Button type="button" size="sm" variant="outline" onClick={() => setReviewingApplication(app)}>
+            Review
+          </Button>
+        ),
+      },
+    ];
+  }, [nameSort, profilesByEmail, roleCatalog, roleRequests]);
+
   return (
     <div className="space-y-4">
       {actionError && (
@@ -1103,114 +1232,23 @@ export function VolunteersManager({
         );
       })}
 
-      {viewMode === "table" && filtered.length > 0 && (
-        <div className="rounded-lg border overflow-hidden">
-          <div className="hidden md:grid md:grid-cols-[minmax(0,1.1fr)_minmax(0,0.8fr)_minmax(0,1fr)_minmax(0,1fr)_auto] gap-3 px-4 py-3 bg-muted/40 text-xs font-medium text-muted-foreground border-b">
-            <button
-              type="button"
-              className="inline-flex items-center gap-1 text-left hover:text-foreground transition-colors"
-              onClick={() =>
-                setNameSort((current) => (current === "asc" ? "desc" : "asc"))
-              }
-            >
-              Applicant
-              {nameSort === "asc" ? (
-                <ArrowUp className="h-3.5 w-3.5" />
-              ) : nameSort === "desc" ? (
-                <ArrowDown className="h-3.5 w-3.5" />
-              ) : (
-                <ArrowUpDown className="h-3.5 w-3.5 opacity-50" />
-              )}
-            </button>
-            <span>Status</span>
-            <span>Attention</span>
-            <span>Roles / requirements</span>
-            <span className="text-right">Actions</span>
-          </div>
-          <div className="divide-y">
-            {filtered.map((app) => {
-              const context = getApplicationReviewContext(
-                app,
-                profilesByEmail,
-                roleRequests,
-                roleCatalog
-              );
-
-              return (
-                <div
-                  key={app.id}
-                  className={cn(
-                    "grid gap-3 px-4 py-4 md:grid-cols-[minmax(0,1.1fr)_minmax(0,0.8fr)_minmax(0,1fr)_minmax(0,1fr)_auto] md:items-center",
-                    context.isRoleExpansion && !context.rolesReady && "bg-amber-50/60"
-                  )}
-                >
-                  <div className="min-w-0">
-                    <p className="font-medium truncate">{app.full_name}</p>
-                    <p className="text-sm text-muted-foreground truncate">{app.email}</p>
-                    <p className="text-xs text-muted-foreground md:hidden">
-                      Applied {formatDate(app.created_at)}
-                    </p>
-                  </div>
-                  <div>
-                    <Badge className={STATUS_COLORS[app.status]}>{app.status.replace(/_/g, " ")}</Badge>
-                  </div>
-                  <div className="space-y-1">
-                    {context.attentionLabel ? (
-                      <Badge
-                        variant="outline"
-                        className={cn(
-                          "text-xs",
-                          context.isRoleExpansion && !context.rolesReady
-                            ? "border-amber-400 bg-amber-50 text-amber-900"
-                            : "border-primary/30 text-primary"
-                        )}
-                      >
-                        {context.attentionLabel}
-                      </Badge>
-                    ) : (
-                      <span className="text-sm text-muted-foreground">—</span>
-                    )}
-                    {context.attentionDetail && (
-                      <p className="text-xs text-muted-foreground line-clamp-2">{context.attentionDetail}</p>
-                    )}
-                  </div>
-                  <div className="flex flex-wrap gap-1">
-                    {context.rolesToReview.map((role) => {
-                      const missing = context.missingByRole[role] ?? [];
-                      return (
-                        <Badge
-                          key={role}
-                          variant={missing.length === 0 ? "secondary" : "outline"}
-                          className={cn(
-                            "text-[11px]",
-                            missing.length > 0 && "border-amber-400 text-amber-900 bg-amber-50"
-                          )}
-                        >
-                          {roleLabel(role)}
-                        </Badge>
-                      );
-                    })}
-                    {!context.rolesReady && context.allMissingRequirements.length > 0 && (
-                      <span className="text-xs text-amber-900 w-full">
-                        Needs: {context.allMissingRequirements.map(requirementLabel).join(", ")}
-                      </span>
-                    )}
-                  </div>
-                  <div className="md:text-right">
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      onClick={() => setReviewingApplication(app)}
-                    >
-                      Review
-                    </Button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
+      {viewMode === "table" && (
+        <DataTable
+          tableId="volunteer-applications"
+          columns={applicationTableColumns}
+          rows={filtered}
+          getRowKey={(app) => app.id}
+          getRowClassName={(app) => {
+            const context = getApplicationReviewContext(
+              app,
+              profilesByEmail,
+              roleRequests,
+              roleCatalog
+            );
+            return context.isRoleExpansion && !context.rolesReady ? "bg-amber-50/60" : undefined;
+          }}
+          emptyMessage="No applications match your filters."
+        />
       )}
 
       <Dialog

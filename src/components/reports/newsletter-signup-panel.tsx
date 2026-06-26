@@ -7,6 +7,7 @@ import { Check, ClipboardCopy, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
+import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import { NEWSLETTER_SIGNUP_LABEL } from "@/lib/constants";
 import { formatDateTime } from "@/lib/utils";
 
@@ -115,6 +116,65 @@ export function NewsletterSignupPanel({ signups }: { signups: NewsletterSignupRo
   const selectedPending = selectedRows.filter((row) => !row.newsletter_list_added_at);
   const selectedAdded = selectedRows.filter((row) => row.newsletter_list_added_at);
 
+  const newsletterColumns = useMemo((): DataTableColumn<NewsletterSignupRow>[] => {
+    return [
+      {
+        id: "select",
+        label: "Select",
+        header: (
+          <Checkbox
+            checked={allVisibleSelected}
+            onCheckedChange={toggleAllVisible}
+            aria-label="Select all"
+          />
+        ),
+        defaultWidth: 52,
+        minWidth: 52,
+        render: (row) => (
+          <Checkbox
+            checked={selected.has(row.id)}
+            onCheckedChange={() => toggleRow(row.id)}
+            aria-label={`Select ${row.contact_name || row.contact_email}`}
+          />
+        ),
+      },
+      {
+        id: "contact",
+        label: "Contact",
+        defaultWidth: 260,
+        render: (row) => (
+          <div className="min-w-0">
+            <p className="truncate font-medium">{row.contact_name || "Unknown"}</p>
+            <p className="truncate text-muted-foreground">{row.contact_email}</p>
+          </div>
+        ),
+      },
+      {
+        id: "case",
+        label: "Case",
+        defaultWidth: 120,
+        render: (row) =>
+          row.case_number ? (
+            <Link href={`/case/${row.id}`} className="text-primary hover:underline">
+              {row.case_number}
+            </Link>
+          ) : (
+            "—"
+          ),
+      },
+      {
+        id: "date",
+        label: showAdded ? "Added" : "Signed up",
+        defaultWidth: 160,
+        render: (row) => (
+          <span className="text-xs text-muted-foreground">
+            {formatDateTime(showAdded ? row.newsletter_list_added_at! : row.created_at)}
+          </span>
+        ),
+      },
+    ];
+  }, [allVisibleSelected, selected, showAdded]);
+
   return (
     <Card>
       <CardHeader>
@@ -200,51 +260,15 @@ export function NewsletterSignupPanel({ signups }: { signups: NewsletterSignupRo
 
         {error && <p className="text-sm text-destructive">{error}</p>}
 
-        {visibleRows.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            {showAdded ? "No signups marked as added yet." : "No pending newsletter signups."}
-          </p>
-        ) : (
-          <div className="rounded-lg border divide-y">
-            <div className="flex items-center gap-3 px-3 py-2 bg-muted/40 text-sm font-medium">
-              <Checkbox
-                checked={allVisibleSelected}
-                onCheckedChange={toggleAllVisible}
-                aria-label="Select all"
-              />
-              <span className="flex-1">Contact</span>
-              <span className="w-28 hidden sm:block">Case</span>
-              <span className="w-36 hidden md:block">{showAdded ? "Added" : "Signed up"}</span>
-            </div>
-            {visibleRows.map((row) => (
-              <label
-                key={row.id}
-                className="flex items-center gap-3 px-3 py-2 text-sm cursor-pointer hover:bg-muted/30"
-              >
-                <Checkbox
-                  checked={selected.has(row.id)}
-                  onCheckedChange={() => toggleRow(row.id)}
-                />
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium truncate">{row.contact_name || "Unknown"}</p>
-                  <p className="text-muted-foreground truncate">{row.contact_email}</p>
-                </div>
-                <span className="w-28 hidden sm:block shrink-0">
-                  {row.case_number ? (
-                    <Link href={`/case/${row.id}`} className="text-primary hover:underline">
-                      {row.case_number}
-                    </Link>
-                  ) : (
-                    "—"
-                  )}
-                </span>
-                <span className="w-36 hidden md:block shrink-0 text-muted-foreground text-xs">
-                  {formatDateTime(showAdded ? row.newsletter_list_added_at! : row.created_at)}
-                </span>
-              </label>
-            ))}
-          </div>
-        )}
+        <DataTable
+          tableId={showAdded ? "newsletter-signups-added" : "newsletter-signups-pending"}
+          columns={newsletterColumns}
+          rows={visibleRows}
+          getRowKey={(row) => row.id}
+          emptyMessage={
+            showAdded ? "No signups marked as added yet." : "No pending newsletter signups."
+          }
+        />
       </CardContent>
     </Card>
   );

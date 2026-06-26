@@ -15,6 +15,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { VolunteerTeamPicker } from "@/components/admin/volunteer-team-picker";
+import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import { getTeamEligibleVolunteers } from "@/lib/volunteers/eligibility";
 import type { Profile, TrapTeam, VolunteerApplication } from "@/lib/types";
 import { Pencil, Plus, X } from "lucide-react";
@@ -145,6 +146,52 @@ export function TrapTeamsManager({ teams, users, applications }: TrapTeamsManage
     router.refresh();
   }
 
+  const teamColumns = useMemo((): DataTableColumn<TrapTeam>[] => {
+    return [
+      {
+        id: "team",
+        label: "Team",
+        defaultWidth: 140,
+        render: (team) => (
+          <div>
+            <p className="text-sm font-medium">{team.name}</p>
+            {team.region && <p className="text-xs text-muted-foreground">{team.region}</p>}
+          </div>
+        ),
+      },
+      {
+        id: "zip_codes",
+        label: "ZIP codes",
+        defaultWidth: 260,
+        render: (team) => (
+          <p className="line-clamp-2 text-sm text-muted-foreground">{formatZipCodes(team.zip_codes)}</p>
+        ),
+      },
+      {
+        id: "lead",
+        label: "Lead",
+        defaultWidth: 220,
+        render: (team) => (
+          <p className="truncate text-sm text-muted-foreground">{formatLead(team, profileByEmail)}</p>
+        ),
+      },
+      {
+        id: "actions",
+        label: "Actions",
+        defaultWidth: 100,
+        minWidth: 88,
+        headerClassName: "text-right",
+        cellClassName: "text-right",
+        render: (team) => (
+          <Button type="button" size="sm" variant="outline" onClick={() => openTeamDialog(team)}>
+            <Pencil className="mr-1.5 h-3.5 w-3.5" />
+            Edit
+          </Button>
+        ),
+      },
+    ];
+  }, [profileByEmail]);
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-3">
@@ -157,53 +204,13 @@ export function TrapTeamsManager({ teams, users, applications }: TrapTeamsManage
         </Button>
       </div>
 
-      <div className="rounded-lg border overflow-hidden">
-        <div className="hidden md:grid md:grid-cols-[minmax(0,0.9fr)_minmax(0,1.3fr)_minmax(0,1.2fr)_auto] gap-3 px-4 py-3 bg-muted/40 text-xs font-medium text-muted-foreground border-b">
-          <span>Team</span>
-          <span>ZIP codes</span>
-          <span>Lead</span>
-          <span className="text-right">Actions</span>
-        </div>
-
-        {teams.length === 0 ? (
-          <p className="px-4 py-10 text-center text-sm text-muted-foreground">
-            No trap teams configured yet.
-          </p>
-        ) : (
-          <div className="divide-y">
-            {sortTrapTeams(teams).map((team) => (
-              <div
-                key={team.id}
-                className="grid gap-2 px-4 py-3 md:grid-cols-[minmax(0,0.9fr)_minmax(0,1.3fr)_minmax(0,1.2fr)_auto] md:items-center"
-              >
-                <div>
-                  <p className="text-sm font-medium">{team.name}</p>
-                  {team.region && (
-                    <p className="text-xs text-muted-foreground md:hidden">{team.region}</p>
-                  )}
-                </div>
-                <p className="text-sm text-muted-foreground line-clamp-2">
-                  {formatZipCodes(team.zip_codes)}
-                </p>
-                <p className="text-sm text-muted-foreground truncate">
-                  {formatLead(team, profileByEmail)}
-                </p>
-                <div className="md:text-right">
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    onClick={() => openTeamDialog(team)}
-                  >
-                    <Pencil className="h-3.5 w-3.5 mr-1.5" />
-                    Edit
-                  </Button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+      <DataTable
+        tableId="admin-trap-teams"
+        columns={teamColumns}
+        rows={sortTrapTeams(teams)}
+        getRowKey={(team) => team.id}
+        emptyMessage="No trap teams configured yet."
+      />
 
       {teamError && !teamDialog && <p className="text-sm text-destructive">{teamError}</p>}
 

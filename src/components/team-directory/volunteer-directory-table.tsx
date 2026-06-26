@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/select";
 import { VOLUNTEER_ROLES } from "@/lib/constants";
 import { volunteerRoleLabel } from "@/lib/hotspots/volunteer-role-filter";
+import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import type { UserRole, VolunteerRole } from "@/lib/types";
 import type { VolunteerDirectoryEntry } from "@/lib/team-directory/load-directory";
 
@@ -65,6 +66,75 @@ export function VolunteerDirectoryTable({ entries, teams }: VolunteerDirectoryTa
     });
   }, [entries, roleFilter, search, teamFilter]);
 
+  const columns = useMemo((): DataTableColumn<VolunteerDirectoryEntry>[] => {
+    return [
+      {
+        id: "name",
+        label: "Name",
+        defaultWidth: 160,
+        render: (entry) => <span className="font-medium">{entry.full_name ?? "—"}</span>,
+      },
+      {
+        id: "platform_role",
+        label: "Platform role",
+        defaultWidth: 140,
+        render: (entry) => PLATFORM_ROLE_LABELS[entry.platform_role],
+      },
+      {
+        id: "volunteer_roles",
+        label: "Volunteer roles",
+        defaultWidth: 220,
+        render: (entry) =>
+          entry.volunteer_roles.length === 0 ? (
+            <span className="text-muted-foreground">—</span>
+          ) : (
+            <div className="flex flex-wrap gap-1">
+              {entry.volunteer_roles.map((role) => (
+                <Badge key={role} variant="secondary" className="font-normal">
+                  {volunteerRoleLabel(role)}
+                </Badge>
+              ))}
+            </div>
+          ),
+      },
+      {
+        id: "team",
+        label: "Trap team",
+        defaultWidth: 120,
+        render: (entry) => entry.team_name ?? "—",
+      },
+      {
+        id: "phone",
+        label: "Phone",
+        defaultWidth: 130,
+        render: (entry) =>
+          entry.phone ? (
+            <a href={`tel:${entry.phone}`} className="whitespace-nowrap text-primary hover:underline">
+              {entry.phone}
+            </a>
+          ) : (
+            "—"
+          ),
+      },
+      {
+        id: "email",
+        label: "Email",
+        defaultWidth: 200,
+        render: (entry) => (
+          <a href={`mailto:${entry.email}`} className="break-all text-primary hover:underline">
+            {entry.email}
+          </a>
+        ),
+      },
+      {
+        id: "address",
+        label: "Address",
+        defaultWidth: 260,
+        render: (entry) => <span className="text-muted-foreground">{entry.address}</span>,
+      },
+    ];
+  }, []);
+
   return (
     <div className="space-y-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
@@ -112,62 +182,14 @@ export function VolunteerDirectoryTable({ entries, teams }: VolunteerDirectoryTa
         Showing {filtered.length} of {entries.length} team members
       </p>
 
-      {filtered.length === 0 ? (
-        <p className="py-12 text-center text-muted-foreground">No team members match your filters.</p>
-      ) : (
-        <div className="overflow-x-auto rounded-lg border">
-          <table className="w-full min-w-[960px] text-sm">
-            <thead className="bg-muted/50 text-left">
-              <tr>
-                <th className="px-4 py-3 font-medium">Name</th>
-                <th className="px-4 py-3 font-medium">Platform role</th>
-                <th className="px-4 py-3 font-medium">Volunteer roles</th>
-                <th className="px-4 py-3 font-medium">Trap team</th>
-                <th className="px-4 py-3 font-medium">Phone</th>
-                <th className="px-4 py-3 font-medium">Email</th>
-                <th className="px-4 py-3 font-medium">Address</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((entry) => (
-                <tr key={entry.id} className="border-t align-top hover:bg-muted/30">
-                  <td className="px-4 py-3 font-medium">{entry.full_name ?? "—"}</td>
-                  <td className="px-4 py-3">{PLATFORM_ROLE_LABELS[entry.platform_role]}</td>
-                  <td className="px-4 py-3">
-                    {entry.volunteer_roles.length === 0 ? (
-                      <span className="text-muted-foreground">—</span>
-                    ) : (
-                      <div className="flex flex-wrap gap-1">
-                        {entry.volunteer_roles.map((role) => (
-                          <Badge key={role} variant="secondary" className="font-normal">
-                            {volunteerRoleLabel(role)}
-                          </Badge>
-                        ))}
-                      </div>
-                    )}
-                  </td>
-                  <td className="px-4 py-3">{entry.team_name ?? "—"}</td>
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    {entry.phone ? (
-                      <a href={`tel:${entry.phone}`} className="text-primary hover:underline">
-                        {entry.phone}
-                      </a>
-                    ) : (
-                      "—"
-                    )}
-                  </td>
-                  <td className="px-4 py-3">
-                    <a href={`mailto:${entry.email}`} className="text-primary hover:underline">
-                      {entry.email}
-                    </a>
-                  </td>
-                  <td className="px-4 py-3 text-muted-foreground">{entry.address}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+      <DataTable
+        tableId="team-directory"
+        columns={columns}
+        rows={filtered}
+        getRowKey={(entry) => entry.id}
+        emptyMessage="No team members match your filters."
+        minTableWidth={960}
+      />
     </div>
   );
 }

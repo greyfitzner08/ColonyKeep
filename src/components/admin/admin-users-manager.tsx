@@ -11,6 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import { AdminUserEditDialog } from "@/components/admin/admin-user-edit-dialog";
 import { ROLE_PERMISSIONS, isKnownUserRole } from "@/lib/constants";
 import {
@@ -22,7 +23,6 @@ import type {
   Profile,
   RoleDescription,
   TrapTeam,
-  UserRole,
   VolunteerApplication,
 } from "@/lib/types";
 import { Pencil, Search } from "lucide-react";
@@ -85,12 +85,100 @@ export function AdminUsersManager({
     });
   }, [users, search, roleFilter, teamById, roleCatalog]);
 
+  const columns = useMemo((): DataTableColumn<Profile>[] => {
+    return [
+      {
+        id: "name",
+        label: "Name",
+        defaultWidth: 180,
+        render: (user) => (
+          <span className="truncate font-medium">{user.full_name?.trim() || "—"}</span>
+        ),
+      },
+      {
+        id: "email",
+        label: "Email",
+        defaultWidth: 220,
+        render: (user) => <span className="truncate text-muted-foreground">{user.email}</span>,
+      },
+      {
+        id: "platform_role",
+        label: "Platform role",
+        defaultWidth: 140,
+        render: (user) => (
+          <Badge variant="outline">
+            {isKnownUserRole(user.role) ? ROLE_PERMISSIONS[user.role].label : "No role"}
+          </Badge>
+        ),
+      },
+      {
+        id: "team",
+        label: "Team",
+        defaultWidth: 120,
+        render: (user) => (
+          <span className="text-muted-foreground">
+            {user.team_id ? teamById.get(user.team_id) ?? "—" : "—"}
+          </span>
+        ),
+      },
+      {
+        id: "volunteer_roles",
+        label: "Volunteer interests",
+        defaultWidth: 220,
+        render: (user) => {
+          const roles = user.volunteer_roles ?? [];
+          const visibleRoles = roles.slice(0, MAX_ROLE_BADGES);
+          const hiddenRoleCount = Math.max(0, roles.length - MAX_ROLE_BADGES);
+          if (roles.length === 0) {
+            return <span className="text-xs text-muted-foreground">None</span>;
+          }
+          return (
+            <div className="flex flex-wrap gap-1">
+              {visibleRoles.map((role) => (
+                <Badge key={role} variant="secondary" className="text-[11px]">
+                  {volunteerRoleLabel(role, roleCatalog)}
+                </Badge>
+              ))}
+              {hiddenRoleCount > 0 && (
+                <Badge variant="outline" className="text-[11px]">
+                  +{hiddenRoleCount}
+                </Badge>
+              )}
+            </div>
+          );
+        },
+      },
+      {
+        id: "actions",
+        label: "Actions",
+        defaultWidth: 100,
+        minWidth: 88,
+        headerClassName: "text-right",
+        cellClassName: "text-right",
+        render: (user) => (
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              setUserError(null);
+              setEditingUser(user);
+            }}
+          >
+            <Pencil className="mr-1.5 h-3.5 w-3.5" />
+            Edit
+          </Button>
+        ),
+      },
+    ];
+  }, [roleCatalog, teamById]);
+
   return (
     <div className="space-y-4">
       {userError && <p className="text-sm text-destructive">{userError}</p>}
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-        <div className="relative flex-1 max-w-md">
+        <div className="relative max-w-md flex-1">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={search}
@@ -117,93 +205,13 @@ export function AdminUsersManager({
         </p>
       </div>
 
-      <div className="rounded-lg border overflow-hidden">
-        <div className="hidden md:grid md:grid-cols-[minmax(0,1.2fr)_minmax(0,1.4fr)_minmax(0,0.9fr)_minmax(0,0.8fr)_minmax(0,1.2fr)_auto] gap-3 px-4 py-3 bg-muted/40 text-xs font-medium text-muted-foreground border-b">
-          <span>Name</span>
-          <span>Email</span>
-          <span>Platform role</span>
-          <span>Team</span>
-          <span>Volunteer interests</span>
-          <span className="text-right">Actions</span>
-        </div>
-
-        {filteredUsers.length === 0 ? (
-          <p className="px-4 py-10 text-center text-sm text-muted-foreground">
-            No users match your search.
-          </p>
-        ) : (
-          <div className="divide-y">
-            {filteredUsers.map((user) => {
-              const application = getApplicationByEmail(applications, user.email);
-              const teamEligible = eligibleVolunteers.some(
-                (entry) => entry.profile.id === user.id
-              );
-              const roles = user.volunteer_roles ?? [];
-              const visibleRoles = roles.slice(0, MAX_ROLE_BADGES);
-              const hiddenRoleCount = Math.max(0, roles.length - MAX_ROLE_BADGES);
-
-              return (
-                <div
-                  key={user.id}
-                  className="grid gap-3 px-4 py-4 md:grid-cols-[minmax(0,1.2fr)_minmax(0,1.4fr)_minmax(0,0.9fr)_minmax(0,0.8fr)_minmax(0,1.2fr)_auto] md:items-center"
-                >
-                  <div className="space-y-1">
-                    <p className="text-sm font-medium truncate">
-                      {user.full_name?.trim() || "—"}
-                    </p>
-                    <p className="text-xs text-muted-foreground md:hidden">{user.email}</p>
-                  </div>
-                  <p className="text-sm text-muted-foreground truncate hidden md:block">
-                    {user.email}
-                  </p>
-                  <div>
-                    <Badge variant="outline">
-                      {isKnownUserRole(user.role)
-                        ? ROLE_PERMISSIONS[user.role].label
-                        : "No role"}
-                    </Badge>
-                  </div>
-                  <p className="text-sm text-muted-foreground">
-                    {user.team_id ? teamById.get(user.team_id) ?? "—" : "—"}
-                  </p>
-                  <div className="flex flex-wrap gap-1">
-                    {roles.length === 0 ? (
-                      <span className="text-xs text-muted-foreground">None</span>
-                    ) : (
-                      <>
-                        {visibleRoles.map((role) => (
-                          <Badge key={role} variant="secondary" className="text-[11px]">
-                            {volunteerRoleLabel(role, roleCatalog)}
-                          </Badge>
-                        ))}
-                        {hiddenRoleCount > 0 && (
-                          <Badge variant="outline" className="text-[11px]">
-                            +{hiddenRoleCount}
-                          </Badge>
-                        )}
-                      </>
-                    )}
-                  </div>
-                  <div className="md:text-right">
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      onClick={() => {
-                        setUserError(null);
-                        setEditingUser(user);
-                      }}
-                    >
-                      <Pencil className="h-3.5 w-3.5 mr-1.5" />
-                      Edit
-                    </Button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
+      <DataTable
+        tableId="admin-users"
+        columns={columns}
+        rows={filteredUsers}
+        getRowKey={(user) => user.id}
+        emptyMessage="No users match your search."
+      />
 
       <AdminUserEditDialog
         user={editingUser}

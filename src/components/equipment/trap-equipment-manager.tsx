@@ -40,6 +40,7 @@ import type {
   TrapTeam,
 } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 
 const EquipmentQrScanner = dynamic(
   () =>
@@ -86,38 +87,6 @@ type EquipmentSortKey =
   | "location";
 
 type SortDirection = "asc" | "desc";
-
-function SortableHeader({
-  label,
-  sortKey,
-  activeKey,
-  direction,
-  onSort,
-  className,
-}: {
-  label: string;
-  sortKey: EquipmentSortKey;
-  activeKey: EquipmentSortKey;
-  direction: SortDirection;
-  onSort: (key: EquipmentSortKey) => void;
-  className?: string;
-}) {
-  const isActive = activeKey === sortKey;
-  const Icon = !isActive ? ArrowUpDown : direction === "asc" ? ArrowUp : ArrowDown;
-
-  return (
-    <th className={cn("px-3 py-3 font-medium", className)}>
-      <button
-        type="button"
-        className="inline-flex items-center gap-1.5 text-left hover:text-foreground text-muted-foreground"
-        onClick={() => onSort(sortKey)}
-      >
-        {label}
-        <Icon className="h-4 w-4 shrink-0" aria-hidden />
-      </button>
-    </th>
-  );
-}
 
 export function TrapEquipmentManager({
   items: initialItems,
@@ -578,6 +547,177 @@ export function TrapEquipmentManager({
     );
   }
 
+  const renderSortHeader = useCallback(
+    (label: string, key: EquipmentSortKey) => {
+      const isActive = sortKey === key;
+      const Icon = !isActive ? ArrowUpDown : sortDirection === "asc" ? ArrowUp : ArrowDown;
+      return (
+        <button
+          type="button"
+          className="inline-flex items-center gap-1.5 text-left text-muted-foreground hover:text-foreground"
+          onClick={() => handleSort(key)}
+        >
+          {label}
+          <Icon className="h-4 w-4 shrink-0" aria-hidden />
+        </button>
+      );
+    },
+    [sortDirection, sortKey]
+  );
+
+  const equipmentColumns = useMemo((): DataTableColumn<TrapEquipmentItem>[] => {
+    return [
+      {
+        id: "item",
+        label: "Item",
+        header: renderSortHeader("Item", "item"),
+        defaultWidth: 180,
+        render: (item) => (
+          <>
+            <div className="font-medium">{itemTitle(item)}</div>
+            {item.description && (
+              <p className="mt-0.5 text-sm text-muted-foreground">{item.description}</p>
+            )}
+          </>
+        ),
+      },
+      {
+        id: "type",
+        label: "Type",
+        header: renderSortHeader("Type", "type"),
+        defaultWidth: 120,
+        render: (item) => (
+          <span className="text-muted-foreground">{equipmentTypeLabel(item.equipment_type)}</span>
+        ),
+      },
+      {
+        id: "quantity",
+        label: "Qty",
+        header: renderSortHeader("Qty", "quantity"),
+        defaultWidth: 72,
+        minWidth: 56,
+        render: (item) => item.quantity,
+      },
+      {
+        id: "status",
+        label: "Status",
+        header: renderSortHeader("Status", "status"),
+        defaultWidth: 160,
+        render: (item) => {
+          const isSaving = savingRowId === item.id;
+          return (
+            <Select
+              value={item.status}
+              disabled={isSaving}
+              onValueChange={(value) => updateRow(item.id, { status: value as TrapEquipmentStatus })}
+            >
+              <SelectTrigger className="h-9 w-[140px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {TRAP_EQUIPMENT_STATUSES.map((entry) => (
+                  <SelectItem key={entry.value} value={entry.value}>
+                    {entry.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          );
+        },
+      },
+      {
+        id: "team",
+        label: "Trap team",
+        header: renderSortHeader("Trap team", "team"),
+        defaultWidth: 130,
+        render: (item) => teamLabel(item),
+      },
+      {
+        id: "custodian",
+        label: "Keeps equipment",
+        header: renderSortHeader("Keeps equipment", "custodian"),
+        defaultWidth: 200,
+        render: (item) => {
+          const isSaving = savingRowId === item.id;
+          return (
+            <>
+              <Select
+                value={item.assigned_to_profile_id ?? UNASSIGNED}
+                disabled={isSaving}
+                onValueChange={(value) =>
+                  updateRow(item.id, {
+                    assigned_to_profile_id: value === UNASSIGNED ? null : value,
+                  })
+                }
+              >
+                <SelectTrigger className="h-9 min-w-[160px]">
+                  <SelectValue placeholder="TNVR volunteer" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={UNASSIGNED}>Unassigned</SelectItem>
+                  {volunteers.map((volunteer) => (
+                    <SelectItem key={volunteer.id} value={volunteer.id}>
+                      {volunteerDisplayName(volunteer)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {renderCustodian(item)}
+              {volunteers.length === 0 && (
+                <p className="mt-1 text-sm text-muted-foreground">No TNVR volunteers found</p>
+              )}
+            </>
+          );
+        },
+      },
+      {
+        id: "borrower",
+        label: "Public borrower",
+        defaultWidth: 200,
+        render: (item) => renderBorrowerContact(item, savingRowId === item.id),
+      },
+      {
+        id: "location",
+        label: "Location",
+        header: renderSortHeader("Location", "location"),
+        defaultWidth: 150,
+        render: (item) => <span className="text-muted-foreground">{item.location ?? "—"}</span>,
+      },
+      {
+        id: "actions",
+        label: "Actions",
+        defaultWidth: 110,
+        minWidth: 96,
+        render: (item) => {
+          const isSaving = savingRowId === item.id;
+          return (
+            <div className="flex items-center gap-1">
+              {isSaving && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
+              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(item)}>
+                <Pencil className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-destructive"
+                disabled={deletingId === item.id}
+                onClick={() => removeItem(item.id)}
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </div>
+          );
+        },
+      },
+    ];
+  }, [
+    deletingId,
+    renderSortHeader,
+    savingRowId,
+    teamLabel,
+    volunteers,
+  ]);
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap justify-end gap-2">
@@ -684,155 +824,15 @@ export function TrapEquipmentManager({
               </CardContent>
             </Card>
           ) : (
-            <div className="overflow-x-auto rounded-lg border">
-              <table className="w-full min-w-[1050px] text-sm">
-                <thead className="bg-muted/50 text-left">
-                  <tr>
-                    <SortableHeader
-                      label="Item"
-                      sortKey="item"
-                      activeKey={sortKey}
-                      direction={sortDirection}
-                      onSort={handleSort}
-                    />
-                    <SortableHeader
-                      label="Type"
-                      sortKey="type"
-                      activeKey={sortKey}
-                      direction={sortDirection}
-                      onSort={handleSort}
-                    />
-                    <SortableHeader
-                      label="Qty"
-                      sortKey="quantity"
-                      activeKey={sortKey}
-                      direction={sortDirection}
-                      onSort={handleSort}
-                    />
-                    <SortableHeader
-                      label="Status"
-                      sortKey="status"
-                      activeKey={sortKey}
-                      direction={sortDirection}
-                      onSort={handleSort}
-                    />
-                    <SortableHeader
-                      label="Trap team"
-                      sortKey="team"
-                      activeKey={sortKey}
-                      direction={sortDirection}
-                      onSort={handleSort}
-                    />
-                    <SortableHeader
-                      label="Keeps equipment"
-                      sortKey="custodian"
-                      activeKey={sortKey}
-                      direction={sortDirection}
-                      onSort={handleSort}
-                      className="min-w-[180px]"
-                    />
-                    <th className="px-3 py-3 font-medium min-w-[200px]">Public borrower</th>
-                    <SortableHeader
-                      label="Location"
-                      sortKey="location"
-                      activeKey={sortKey}
-                      direction={sortDirection}
-                      onSort={handleSort}
-                    />
-                    <th className="px-3 py-3 font-medium">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {displayRows.map((item) => {
-                const isSaving = savingRowId === item.id;
-                return (
-                  <tr
-                    key={item.id}
-                    className={cn("border-t align-top hover:bg-muted/20", isSaving && "opacity-70")}
-                  >
-                    <td className="px-3 py-3">
-                      <div className="font-medium">{itemTitle(item)}</div>
-                      {item.description && (
-                        <p className="text-sm text-muted-foreground mt-0.5">{item.description}</p>
-                      )}
-                    </td>
-                    <td className="px-3 py-3 text-muted-foreground">
-                      {equipmentTypeLabel(item.equipment_type)}
-                    </td>
-                    <td className="px-3 py-3">{item.quantity}</td>
-                    <td className="px-3 py-3">
-                      <Select
-                        value={item.status}
-                        disabled={isSaving}
-                        onValueChange={(value) =>
-                          updateRow(item.id, { status: value as TrapEquipmentStatus })
-                        }
-                      >
-                        <SelectTrigger className="h-9 w-[140px]">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {TRAP_EQUIPMENT_STATUSES.map((entry) => (
-                            <SelectItem key={entry.value} value={entry.value}>
-                              {entry.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </td>
-                    <td className="px-3 py-3">{teamLabel(item)}</td>
-                    <td className="px-3 py-3">
-                      <Select
-                        value={item.assigned_to_profile_id ?? UNASSIGNED}
-                        disabled={isSaving}
-                        onValueChange={(value) =>
-                          updateRow(item.id, {
-                            assigned_to_profile_id: value === UNASSIGNED ? null : value,
-                          })
-                        }
-                      >
-                        <SelectTrigger className="h-9 min-w-[160px]">
-                          <SelectValue placeholder="TNVR volunteer" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value={UNASSIGNED}>Unassigned</SelectItem>
-                          {volunteers.map((volunteer) => (
-                            <SelectItem key={volunteer.id} value={volunteer.id}>
-                              {volunteerDisplayName(volunteer)}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      {renderCustodian(item)}
-                      {volunteers.length === 0 && (
-                        <p className="text-sm text-muted-foreground mt-1">No TNVR volunteers found</p>
-                      )}
-                    </td>
-                    <td className="px-3 py-3">{renderBorrowerContact(item, isSaving)}</td>
-                    <td className="px-3 py-3 text-muted-foreground">{item.location ?? "—"}</td>
-                    <td className="px-3 py-3">
-                      <div className="flex items-center gap-1">
-                        {isSaving && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(item)}>
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-destructive"
-                          disabled={deletingId === item.id}
-                          onClick={() => removeItem(item.id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-                })}
-                </tbody>
-              </table>
-            </div>
+            <DataTable
+              tableId="trap-equipment"
+              columns={equipmentColumns}
+              rows={displayRows}
+              getRowKey={(item) => item.id}
+              getRowClassName={(item) => (savingRowId === item.id ? "opacity-70" : undefined)}
+              emptyMessage="No equipment matches your filters."
+              minTableWidth={1050}
+            />
           )}
         </div>
       )}
