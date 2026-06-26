@@ -22,6 +22,7 @@ import {
   BookOpen,
   Package,
   UserRound,
+  Contact,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getProfilePermissions } from "@/lib/permissions";
@@ -44,6 +45,7 @@ const NAV_ITEMS = [
   { href: "/hotspots", label: "Hotspots Map", icon: Map },
   { href: "/equipment", label: "Equipment", icon: Package },
   { href: "/volunteers", label: "Volunteers", icon: Users },
+  { href: "/team-directory", label: "Team Directory", icon: Contact },
   { href: "/shift-board", label: "Shift Board", icon: CalendarDays },
   { href: "/team-feed", label: "Team Feed", icon: MessageSquare },
   { href: "/my-impact", label: "My Impact", icon: Heart },

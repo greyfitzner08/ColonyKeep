@@ -1,4 +1,5 @@
 import { TNVR_ROLES } from "@/lib/constants";
+import { isAdult } from "@/lib/volunteers/age-eligibility";
 import type { Profile, UserRole, VolunteerRole } from "@/lib/types";
 
 /** Volunteer interests that can sign up for event/shift board slots. */
@@ -34,6 +35,7 @@ export interface ProfilePermissions {
   canManageClinicEvents: boolean;
   canViewReports: boolean;
   canManageAdmin: boolean;
+  canViewVolunteerDirectory: boolean;
 }
 
 function volunteerRoles(profile: Profile): VolunteerRole[] {
@@ -92,6 +94,12 @@ export function canClaimShifts(profile: Profile | null): boolean {
   return hasVolunteerRole(profile, SHIFT_ELIGIBLE_VOLUNTEER_ROLES);
 }
 
+export function canViewVolunteerDirectory(profile: Profile | null): boolean {
+  if (!profile?.role) return false;
+  if (profile.role === "admin") return true;
+  return Boolean(profile.birthday && isAdult(profile.birthday));
+}
+
 export function getProfilePermissions(profile: Profile | null): ProfilePermissions | null {
   if (!profile?.role) return null;
 
@@ -99,6 +107,7 @@ export function getProfilePermissions(profile: Profile | null): ProfilePermissio
   const caseWorker = isCaseWorker(profile);
   const appointments = canManageAppointments(profile);
   const shifts = canClaimShifts(profile);
+  const volunteerDirectory = canViewVolunteerDirectory(profile);
 
   if (role === "admin") {
     return {
@@ -113,6 +122,7 @@ export function getProfilePermissions(profile: Profile | null): ProfilePermissio
         "/clinic-events",
         "/hotspots",
         "/volunteers",
+        "/team-directory",
         "/shift-board",
         "/team-feed",
         "/my-impact",
@@ -132,10 +142,15 @@ export function getProfilePermissions(profile: Profile | null): ProfilePermissio
       canManageClinicEvents: true,
       canViewReports: true,
       canManageAdmin: true,
+      canViewVolunteerDirectory: true,
     };
   }
 
   const routes = new Set<string>(["/", "/profile", "/team-feed", "/my-impact", "/resources"]);
+
+  if (volunteerDirectory) {
+    routes.add("/team-directory");
+  }
 
   if (caseWorker) {
     routes.add("/intake");
@@ -186,11 +201,16 @@ export function getProfilePermissions(profile: Profile | null): ProfilePermissio
     canManageClinicEvents: role === "clinic_coordination",
     canViewReports: false,
     canManageAdmin: false,
+    canViewVolunteerDirectory: volunteerDirectory,
   };
 }
 
 export function canAccessRoute(profile: Profile | null, pathname: string): boolean {
   if (!profile?.role) return false;
+
+  if (pathname === "/team-directory" || pathname.startsWith("/team-directory/")) {
+    return canViewVolunteerDirectory(profile);
+  }
 
   const permissions = getProfilePermissions(profile);
   if (!permissions) return false;
