@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   loadColumnLayout,
   minColumnWidth,
@@ -10,7 +10,30 @@ import {
   type ColumnLayoutState,
 } from "@/lib/data-table/column-layout";
 
+function mergeLayoutWithDefinitions(
+  layout: ColumnLayoutState,
+  definitions: ColumnLayoutDefinition[]
+): ColumnLayoutState {
+  const knownIds = new Set(definitions.map((definition) => definition.id));
+  const order = [
+    ...layout.order.filter((id) => knownIds.has(id)),
+    ...definitions.map((definition) => definition.id).filter((id) => !layout.order.includes(id)),
+  ];
+
+  const widths = { ...layout.widths };
+  for (const definition of definitions) {
+    if (widths[definition.id] == null) {
+      widths[definition.id] = definition.defaultWidth ?? 160;
+    }
+  }
+
+  return { order, widths };
+}
+
 export function useColumnLayout(tableId: string, definitions: ColumnLayoutDefinition[]) {
+  const definitionsRef = useRef(definitions);
+  definitionsRef.current = definitions;
+
   const definitionKey = useMemo(
     () => definitions.map((definition) => `${definition.id}:${definition.defaultWidth ?? ""}`).join("|"),
     [definitions]
@@ -21,8 +44,8 @@ export function useColumnLayout(tableId: string, definitions: ColumnLayoutDefini
   );
 
   useEffect(() => {
-    setLayout(loadColumnLayout(tableId, definitions));
-  }, [tableId, definitionKey, definitions]);
+    setLayout(loadColumnLayout(tableId, definitionsRef.current));
+  }, [tableId, definitionKey]);
 
   useEffect(() => {
     saveColumnLayout(tableId, layout);
@@ -34,24 +57,21 @@ export function useColumnLayout(tableId: string, definitions: ColumnLayoutDefini
   );
 
   const orderedColumnIds = useMemo(() => {
-    const known = new Set(definitions.map((definition) => definition.id));
-    const next = layout.order.filter((id) => known.has(id));
-    for (const definition of definitions) {
-      if (!next.includes(definition.id)) next.push(definition.id);
-    }
-    return next;
-  }, [definitions, layout.order]);
+    return mergeLayoutWithDefinitions(layout, definitions).order;
+  }, [definitions, layout]);
+
+  const columnWidths = layout.widths;
 
   const setColumnWidth = useCallback(
     (columnId: string, width: number) => {
       const definition = definitionById.get(columnId);
       if (!definition) return;
-      const minWidth = minColumnWidth(definition);
+      const minimum = minColumnWidth(definition);
       setLayout((current) => ({
         ...current,
         widths: {
           ...current.widths,
-          [columnId]: Math.max(minWidth, Math.round(width)),
+          [columnId]: Math.max(minimum, Math.round(width)),
         },
       }));
     },
@@ -67,7 +87,7 @@ export function useColumnLayout(tableId: string, definitions: ColumnLayoutDefini
 
   return {
     orderedColumnIds,
-    columnWidths: layout.widths,
+    columnWidths,
     setColumnWidth,
     moveColumn,
   };

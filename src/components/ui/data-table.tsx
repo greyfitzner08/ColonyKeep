@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState, type ReactNode } from "react";
+import { useCallback, useMemo, useRef, useState, type ReactNode } from "react";
 import { GripVertical } from "lucide-react";
 import { useColumnLayout } from "@/hooks/use-column-layout";
 import { cn } from "@/lib/utils";
@@ -39,34 +39,50 @@ export function DataTable<T>({
   tableClassName,
   minTableWidth,
 }: DataTableProps<T>) {
-  const columnDefinitions = columns.map((column) => ({
-    id: column.id,
-    defaultWidth: column.defaultWidth,
-    minWidth: column.minWidth,
-  }));
+  const columnDefinitions = useMemo(
+    () =>
+      columns.map((column) => ({
+        id: column.id,
+        defaultWidth: column.defaultWidth,
+        minWidth: column.minWidth,
+      })),
+    [columns]
+  );
 
   const { orderedColumnIds, columnWidths, setColumnWidth, moveColumn } = useColumnLayout(
     tableId,
     columnDefinitions
   );
 
-  const columnById = new Map(columns.map((column) => [column.id, column]));
+  const columnById = useMemo(() => new Map(columns.map((column) => [column.id, column])), [columns]);
   const orderedColumns = orderedColumnIds
     .map((id) => columnById.get(id))
     .filter((column): column is DataTableColumn<T> => Boolean(column));
 
   const [draggingColumnId, setDraggingColumnId] = useState<string | null>(null);
   const [dropTargetColumnId, setDropTargetColumnId] = useState<string | null>(null);
+  const draggingColumnIdRef = useRef<string | null>(null);
   const resizingRef = useRef<{
     columnId: string;
     startX: number;
     startWidth: number;
   } | null>(null);
 
+  const totalTableWidth = useMemo(() => {
+    const calculated = orderedColumns.reduce(
+      (sum, column) => sum + (columnWidths[column.id] ?? column.defaultWidth ?? 160),
+      0
+    );
+    return Math.max(minTableWidth ?? 0, calculated);
+  }, [columnWidths, minTableWidth, orderedColumns]);
+
   const startResize = useCallback(
-    (event: React.MouseEvent<HTMLDivElement>, columnId: string) => {
+    (event: React.PointerEvent<HTMLDivElement>, columnId: string) => {
       event.preventDefault();
       event.stopPropagation();
+
+      const target = event.currentTarget;
+      target.setPointerCapture(event.pointerId);
 
       resizingRef.current = {
         columnId,
@@ -74,25 +90,28 @@ export function DataTable<T>({
         startWidth: columnWidths[columnId] ?? 160,
       };
 
-      const handleMove = (moveEvent: MouseEvent) => {
+      const handleMove = (moveEvent: PointerEvent) => {
         const state = resizingRef.current;
         if (!state) return;
         const delta = moveEvent.clientX - state.startX;
         setColumnWidth(state.columnId, state.startWidth + delta);
       };
 
-      const handleUp = () => {
+      const handleUp = (upEvent: PointerEvent) => {
         resizingRef.current = null;
-        document.removeEventListener("mousemove", handleMove);
-        document.removeEventListener("mouseup", handleUp);
+        target.releasePointerCapture(upEvent.pointerId);
+        target.removeEventListener("pointermove", handleMove);
+        target.removeEventListener("pointerup", handleUp);
+        target.removeEventListener("pointercancel", handleUp);
         document.body.style.cursor = "";
         document.body.style.userSelect = "";
       };
 
       document.body.style.cursor = "col-resize";
       document.body.style.userSelect = "none";
-      document.addEventListener("mousemove", handleMove);
-      document.addEventListener("mouseup", handleUp);
+      target.addEventListener("pointermove", handleMove);
+      target.addEventListener("pointerup", handleUp);
+      target.addEventListener("pointercancel", handleUp);
     },
     [columnWidths, setColumnWidth]
   );
@@ -104,15 +123,16 @@ export function DataTable<T>({
   return (
     <div className={cn("overflow-x-auto rounded-lg border", className)}>
       <table
-        className={cn("w-full text-sm", tableClassName)}
+        className={cn("text-sm", tableClassName)}
         style={{
           tableLayout: "fixed",
-          minWidth: minTableWidth ?? orderedColumns.reduce((sum, column) => sum + (columnWidths[column.id] ?? 160), 0),
+          width: totalTableWidth,
+          minWidth: totalTableWidth,
         }}
       >
         <colgroup>
           {orderedColumns.map((column) => (
-            <col key={column.id} style={{ width: columnWidths[column.id] }} />
+            <col key={column.id} style={{ width: columnWidths[column.id] ?? column.defaultWidth ?? 160 }} />
           ))}
         </colgroup>
         <thead className="bg-muted/50 text-left">
@@ -124,7 +144,8 @@ export function DataTable<T>({
                   key={column.id}
                   onDragOver={(event) => {
                     event.preventDefault();
-                    if (draggingColumnId && draggingColumnId !== column.id) {
+                    event.dataTransfer.dropEffect = "move";
+                    if (draggingColumnIdRef.current && draggingColumnIdRef.current !== column.id) {
                       setDropTargetColumnId(column.id);
                     }
                   }}
@@ -135,10 +156,12 @@ export function DataTable<T>({
                   }}
                   onDrop={(event) => {
                     event.preventDefault();
-                    const sourceId = draggingColumnId ?? event.dataTransfer.getData("text/plain");
+                    const sourceId =
+                      draggingColumnIdRef.current ?? event.dataTransfer.getData("text/plain");
                     if (sourceId && sourceId !== column.id) {
                       moveColumn(sourceId, column.id);
                     }
+                    draggingColumnIdRef.current = null;
                     setDraggingColumnId(null);
                     setDropTargetColumnId(null);
                   }}
@@ -149,20 +172,22 @@ export function DataTable<T>({
                     column.headerClassName
                   )}
                 >
-                  <div className="flex min-w-0 items-center gap-1 pr-3">
+                  <div className="flex min-w-0 items-center gap-1 pr-4">
                     <span
                       draggable
                       onDragStart={(event) => {
+                        draggingColumnIdRef.current = column.id;
                         setDraggingColumnId(column.id);
                         event.dataTransfer.effectAllowed = "move";
                         event.dataTransfer.setData("text/plain", column.id);
                       }}
                       onDragEnd={() => {
+                        draggingColumnIdRef.current = null;
                         setDraggingColumnId(null);
                         setDropTargetColumnId(null);
                       }}
-                      className="inline-flex shrink-0 cursor-grab active:cursor-grabbing"
-                      aria-hidden
+                      className="inline-flex shrink-0 cursor-grab touch-none active:cursor-grabbing"
+                      title="Drag to reorder column"
                     >
                       <GripVertical className="h-3.5 w-3.5 text-muted-foreground/50" />
                     </span>
@@ -174,8 +199,8 @@ export function DataTable<T>({
                     role="separator"
                     aria-orientation="vertical"
                     aria-label={`Resize ${String(column.label)} column`}
-                    className="absolute right-0 top-0 h-full w-2 cursor-col-resize touch-none hover:bg-primary/25"
-                    onMouseDown={(event) => startResize(event, column.id)}
+                    className="absolute right-0 top-0 z-10 h-full w-3 cursor-col-resize touch-none hover:bg-primary/30"
+                    onPointerDown={(event) => startResize(event, column.id)}
                   />
                 </th>
               );

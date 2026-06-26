@@ -9,7 +9,7 @@ import {
   type TrapQueueView,
 } from "@/lib/cases/trap-queue-query";
 import { TrapQueueFilters } from "@/components/trap-queue/trap-queue-filters";
-import { TrapQueueKanban } from "@/components/trap-queue/trap-queue-kanban";
+import { TrapQueueShell } from "@/components/trap-queue/trap-queue-shell";
 import type { HelpRequest } from "@/lib/types";
 
 interface TrapQueuePageProps {
@@ -80,11 +80,13 @@ export default async function TrapQueuePage({ searchParams }: TrapQueuePageProps
         </Suspense>
       </div>
 
-      <TrapQueueKanban
-        cases={cases}
-        canClaim={isTrapRole}
-        userEmail={profile?.email ?? ""}
-      />
+      <Suspense fallback={<div className="h-40 animate-pulse rounded-lg bg-muted" />}>
+        <TrapQueueShell
+          cases={cases}
+          canClaim={isTrapRole}
+          userEmail={profile?.email ?? ""}
+        />
+      </Suspense>
     </div>
   );
 }
