@@ -1,8 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Search } from "lucide-react";
+import { Check, ClipboardCopy, Search } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -38,10 +39,30 @@ function matchesSearch(entry: VolunteerDirectoryEntry, query: string): boolean {
   return haystack.includes(query);
 }
 
+function uniqueEmails(entries: VolunteerDirectoryEntry[]): string[] {
+  const seen = new Set<string>();
+  const emails: string[] = [];
+  for (const entry of entries) {
+    const normalized = entry.email.trim().toLowerCase();
+    if (!normalized || seen.has(normalized)) continue;
+    seen.add(normalized);
+    emails.push(entry.email.trim());
+  }
+  return emails;
+}
+
 export function VolunteerDirectoryTable({ entries, teams }: VolunteerDirectoryTableProps) {
   const [search, setSearch] = useState("");
   const [teamFilter, setTeamFilter] = useState<string>("all");
   const [roleFilter, setRoleFilter] = useState<VolunteerRole | "all">("all");
+  const [copiedEmail, setCopiedEmail] = useState<string | null>(null);
+  const [allEmailsCopied, setAllEmailsCopied] = useState(false);
+
+  async function copyEmail(email: string) {
+    await navigator.clipboard.writeText(email);
+    setCopiedEmail(email);
+    window.setTimeout(() => setCopiedEmail(null), 2000);
+  }
 
   const filtered = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -56,6 +77,15 @@ export function VolunteerDirectoryTable({ entries, teams }: VolunteerDirectoryTa
       return true;
     });
   }, [entries, roleFilter, search, teamFilter]);
+
+  async function copyAllEmails() {
+    const emails = uniqueEmails(filtered);
+    if (!emails.length) return;
+
+    await navigator.clipboard.writeText(emails.join("\n"));
+    setAllEmailsCopied(true);
+    window.setTimeout(() => setAllEmailsCopied(false), 2000);
+  }
 
   const columns = useMemo((): DataTableColumn<VolunteerDirectoryEntry>[] => {
     return [
@@ -104,11 +134,30 @@ export function VolunteerDirectoryTable({ entries, teams }: VolunteerDirectoryTa
       {
         id: "email",
         label: "Email",
-        defaultWidth: 200,
+        defaultWidth: 240,
         render: (entry) => (
-          <a href={`mailto:${entry.email}`} className="break-all text-primary hover:underline">
-            {entry.email}
-          </a>
+          <div className="flex min-w-0 items-center gap-1">
+            <a
+              href={`mailto:${entry.email}`}
+              className="min-w-0 flex-1 break-all text-primary hover:underline select-text"
+            >
+              {entry.email}
+            </a>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 shrink-0"
+              aria-label={`Copy ${entry.email}`}
+              onClick={() => copyEmail(entry.email)}
+            >
+              {copiedEmail === entry.email ? (
+                <Check className="h-3.5 w-3.5 text-primary" />
+              ) : (
+                <ClipboardCopy className="h-3.5 w-3.5" />
+              )}
+            </Button>
+          </div>
         ),
       },
       {
@@ -118,7 +167,9 @@ export function VolunteerDirectoryTable({ entries, teams }: VolunteerDirectoryTa
         render: (entry) => <span className="text-muted-foreground">{entry.address}</span>,
       },
     ];
-  }, []);
+  }, [copiedEmail]);
+
+  const filteredEmailCount = uniqueEmails(filtered).length;
 
   return (
     <div className="space-y-4">
@@ -163,9 +214,30 @@ export function VolunteerDirectoryTable({ entries, teams }: VolunteerDirectoryTa
         </Select>
       </div>
 
-      <p className="text-sm text-muted-foreground">
-        Showing {filtered.length} of {entries.length} team members
-      </p>
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-sm text-muted-foreground">
+          Showing {filtered.length} of {entries.length} team members
+        </p>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          disabled={filteredEmailCount === 0}
+          onClick={copyAllEmails}
+        >
+          {allEmailsCopied ? (
+            <>
+              <Check className="mr-1 h-3.5 w-3.5" />
+              Copied!
+            </>
+          ) : (
+            <>
+              <ClipboardCopy className="mr-1 h-3.5 w-3.5" />
+              Copy {filteredEmailCount} email{filteredEmailCount === 1 ? "" : "s"}
+            </>
+          )}
+        </Button>
+      </div>
 
       <DataTable
         tableId="team-directory"
