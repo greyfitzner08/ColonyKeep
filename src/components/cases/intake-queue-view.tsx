@@ -12,6 +12,7 @@ interface IntakeQueueViewProps {
   cases: HelpRequest[];
   canClaim: boolean;
   userEmail: string;
+  isAdmin?: boolean;
   view: CaseViewMode;
   sort: IntakeSortKey;
   searchQuery?: string;
@@ -21,6 +22,7 @@ export function IntakeQueueView({
   cases,
   canClaim,
   userEmail,
+  isAdmin = false,
   view,
   sort,
   searchQuery = "",
@@ -39,12 +41,24 @@ export function IntakeQueueView({
   }
 
   if (view === "table") {
-    return <IntakeCaseTable cases={visibleCases} canClaim={canClaim} userEmail={userEmail} />;
+    return (
+      <IntakeCaseTable
+        cases={visibleCases}
+        canClaim={canClaim}
+        userEmail={userEmail}
+        isAdmin={isAdmin}
+      />
+    );
   }
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-      <IntakeCaseGrid cases={visibleCases} canClaim={canClaim} userEmail={userEmail} />
+      <IntakeCaseGrid
+        cases={visibleCases}
+        canClaim={canClaim}
+        userEmail={userEmail}
+        isAdmin={isAdmin}
+      />
     </div>
   );
 }

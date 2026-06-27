@@ -2,24 +2,26 @@
 
 import { useRouter } from "next/navigation";
 import { CaseCard } from "@/components/cases/case-card";
+import { postCaseClaim } from "@/lib/cases/case-claim-api";
 import type { HelpRequest } from "@/lib/types";
 
 interface TrapQueueBoardProps {
   cases: HelpRequest[];
   canClaim: boolean;
   userEmail: string;
+  isAdmin?: boolean;
 }
 
-export function TrapQueueBoard({ cases, canClaim, userEmail }: TrapQueueBoardProps) {
+export function TrapQueueBoard({
+  cases,
+  canClaim,
+  userEmail,
+  isAdmin = false,
+}: TrapQueueBoardProps) {
   const router = useRouter();
 
-  async function claimCase(caseId: string) {
-    const response = await fetch("/api/help-requests/claim", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ helpRequestId: caseId }),
-    });
-
+  async function mutateCaseClaim(caseId: string, action: "claim" | "unclaim") {
+    const response = await postCaseClaim(caseId, action);
     if (response.ok) {
       router.refresh();
     }
@@ -32,11 +34,13 @@ export function TrapQueueBoard({ cases, canClaim, userEmail }: TrapQueueBoardPro
           key={helpRequest.id}
           helpRequest={helpRequest}
           claim={
-            canClaim
+            canClaim || isAdmin || helpRequest.claimed_by_email === userEmail
               ? {
-                  canClaim: true,
-                  onClaim: () => claimCase(helpRequest.id),
+                  canClaim,
+                  onClaim: () => mutateCaseClaim(helpRequest.id, "claim"),
+                  onUnclaim: () => mutateCaseClaim(helpRequest.id, "unclaim"),
                   userEmail,
+                  isAdmin,
                 }
               : undefined
           }

@@ -18,6 +18,7 @@ interface TrapQueueKanbanProps {
   cases: HelpRequest[];
   canClaim: boolean;
   userEmail: string;
+  isAdmin?: boolean;
   layout: CaseViewMode;
   sort: IntakeSortKey;
   searchQuery: string;
@@ -32,6 +33,7 @@ export function TrapQueueKanban({
   cases,
   canClaim,
   userEmail,
+  isAdmin = false,
   layout,
   sort,
   searchQuery,
@@ -120,9 +122,19 @@ export function TrapQueueKanban({
       ) : visibleCases.length === 0 ? (
         <p className="py-8 text-center text-muted-foreground">No cases in this status.</p>
       ) : layout === "table" ? (
-        <IntakeCaseTable cases={visibleCases} canClaim={canClaim} userEmail={userEmail} />
+        <IntakeCaseTable
+          cases={visibleCases}
+          canClaim={canClaim}
+          userEmail={userEmail}
+          isAdmin={isAdmin}
+        />
       ) : (
-        <TrapQueueBoard cases={visibleCases} canClaim={canClaim} userEmail={userEmail} />
+        <TrapQueueBoard
+          cases={visibleCases}
+          canClaim={canClaim}
+          userEmail={userEmail}
+          isAdmin={isAdmin}
+        />
       )}
     </div>
   );

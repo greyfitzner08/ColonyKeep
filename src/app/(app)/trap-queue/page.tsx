@@ -85,6 +85,7 @@ export default async function TrapQueuePage({ searchParams }: TrapQueuePageProps
           cases={cases}
           canClaim={isTrapRole}
           userEmail={profile?.email ?? ""}
+          isAdmin={profile?.role === "admin"}
         />
       </Suspense>
     </div>

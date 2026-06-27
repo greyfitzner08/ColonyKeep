@@ -17,6 +17,7 @@ interface MyCasesSectionProps {
   hintLabel?: string;
   canClaim?: boolean;
   userEmail?: string;
+  isAdmin?: boolean;
 }
 
 export function MyCasesSection({
@@ -29,6 +30,7 @@ export function MyCasesSection({
   hintLabel = "Go to inquiry queue",
   canClaim = false,
   userEmail = "",
+  isAdmin = false,
 }: MyCasesSectionProps) {
   return (
     <Card>
@@ -54,6 +56,7 @@ export function MyCasesSection({
             cases={cases}
             canClaim={canClaim}
             userEmail={userEmail}
+            isAdmin={isAdmin}
             showControls
           />
         )}

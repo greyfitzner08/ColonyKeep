@@ -10,6 +10,8 @@ import { AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { canAddCaseHistoryNote } from "@/lib/cases/case-permissions";
 import { normalizeHistoryLog } from "@/lib/cases/history-log";
+import { isCaseWorker } from "@/lib/permissions";
+import { CaseClaimActions } from "@/components/cases/case-claim-actions";
 import type { HelpRequest, Cat, Appointment } from "@/lib/types";
 
 interface CasePageProps {
@@ -67,10 +69,19 @@ export default async function CasePage({ params }: CasePageProps) {
             </Badge>
           )}
         </div>
-        <div className="text-base text-muted-foreground">
-          {hr.contact_name}
-          {hr.colony_zip ? ` · ${hr.colony_zip}` : ""}
-          {hr.assigned_team_name ? ` · ${hr.assigned_team_name}` : ""}
+        <div className="flex flex-col items-start gap-2 sm:items-end">
+          <CaseClaimActions
+            helpRequestId={hr.id}
+            claimedByEmail={hr.claimed_by_email}
+            userEmail={profile?.email ?? ""}
+            isAdmin={profile?.role === "admin"}
+            canClaim={isCaseWorker(profile)}
+          />
+          <div className="text-base text-muted-foreground">
+            {hr.contact_name}
+            {hr.colony_zip ? ` · ${hr.colony_zip}` : ""}
+            {hr.assigned_team_name ? ` · ${hr.assigned_team_name}` : ""}
+          </div>
         </div>
       </div>
 

@@ -10,9 +10,10 @@ interface TrapQueueShellProps {
   cases: HelpRequest[];
   canClaim: boolean;
   userEmail: string;
+  isAdmin?: boolean;
 }
 
-export function TrapQueueShell({ cases, canClaim, userEmail }: TrapQueueShellProps) {
+export function TrapQueueShell({ cases, canClaim, userEmail, isAdmin = false }: TrapQueueShellProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -35,6 +36,7 @@ export function TrapQueueShell({ cases, canClaim, userEmail }: TrapQueueShellPro
       cases={cases}
       canClaim={canClaim}
       userEmail={userEmail}
+      isAdmin={isAdmin}
       layout={layout}
       sort={sort}
       searchQuery={searchQuery}

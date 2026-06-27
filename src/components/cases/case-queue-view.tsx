@@ -15,6 +15,7 @@ interface CaseQueueViewProps {
   cases: HelpRequest[];
   canClaim?: boolean;
   userEmail?: string;
+  isAdmin?: boolean;
   initialView?: CaseViewMode;
   initialSort?: IntakeSortKey;
   showControls?: boolean;
@@ -24,6 +25,7 @@ export function CaseQueueView({
   cases,
   canClaim = false,
   userEmail = "",
+  isAdmin = false,
   initialView = "cards",
   initialSort = "date_desc",
   showControls = true,
@@ -56,10 +58,20 @@ export function CaseQueueView({
           {search.trim() ? "No cases match your search." : "No cases to show."}
         </p>
       ) : view === "table" ? (
-        <IntakeCaseTable cases={visibleCases} canClaim={canClaim} userEmail={userEmail} />
+        <IntakeCaseTable
+          cases={visibleCases}
+          canClaim={canClaim}
+          userEmail={userEmail}
+          isAdmin={isAdmin}
+        />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          <IntakeCaseGrid cases={visibleCases} canClaim={canClaim} userEmail={userEmail} />
+          <IntakeCaseGrid
+            cases={visibleCases}
+            canClaim={canClaim}
+            userEmail={userEmail}
+            isAdmin={isAdmin}
+          />
         </div>
       )}
     </div>

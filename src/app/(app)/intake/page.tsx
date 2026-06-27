@@ -81,6 +81,7 @@ export default async function IntakePage({ searchParams }: IntakePageProps) {
         cases={filtered}
         canClaim={canClaim}
         userEmail={profile?.email ?? ""}
+        isAdmin={profile?.role === "admin"}
         view={view}
         sort={sort}
         searchQuery={params.q ?? ""}

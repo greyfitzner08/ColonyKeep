@@ -10,6 +10,7 @@ import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import { STATUS_COLORS } from "@/lib/constants";
 import { hasActiveMedicalFlag } from "@/lib/medical-flags";
 import { formatDateTime } from "@/lib/utils";
+import { postCaseClaim } from "@/lib/cases/case-claim-api";
 import type { HelpRequest } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -17,18 +18,19 @@ interface IntakeCaseTableProps {
   cases: HelpRequest[];
   canClaim: boolean;
   userEmail: string;
+  isAdmin?: boolean;
 }
 
-export function IntakeCaseTable({ cases, canClaim, userEmail }: IntakeCaseTableProps) {
+export function IntakeCaseTable({
+  cases,
+  canClaim,
+  userEmail,
+  isAdmin = false,
+}: IntakeCaseTableProps) {
   const router = useRouter();
 
-  async function claimCase(caseId: string) {
-    const response = await fetch("/api/help-requests/claim", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ helpRequestId: caseId }),
-    });
-
+  async function mutateCaseClaim(caseId: string, action: "claim" | "unclaim") {
+    const response = await postCaseClaim(caseId, action);
     if (response.ok) {
       router.refresh();
     }
@@ -130,17 +132,32 @@ export function IntakeCaseTable({ cases, canClaim, userEmail }: IntakeCaseTableP
         render: (helpRequest) => {
           const isMine = helpRequest.claimed_by_email === userEmail;
           const isUnclaimed = !helpRequest.claimed_by_email;
+          const canUnclaim =
+            helpRequest.claimed_by_email && (isMine || isAdmin);
           return (
             <div className="flex flex-wrap gap-2">
               <Button asChild size="sm" variant="outline">
                 <Link href={`/case/${helpRequest.id}`}>Open</Link>
               </Button>
               {canClaim && isUnclaimed && (
-                <Button size="sm" variant="secondary" onClick={() => claimCase(helpRequest.id)}>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => mutateCaseClaim(helpRequest.id, "claim")}
+                >
                   Claim
                 </Button>
               )}
-              {helpRequest.claimed_by_email && !isMine && (
+              {canUnclaim && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => mutateCaseClaim(helpRequest.id, "unclaim")}
+                >
+                  {isMine ? "Unclaim" : "Release"}
+                </Button>
+              )}
+              {helpRequest.claimed_by_email && !isMine && !canUnclaim && (
                 <span className="self-center text-xs text-muted-foreground">Assigned</span>
               )}
             </div>
@@ -148,7 +165,7 @@ export function IntakeCaseTable({ cases, canClaim, userEmail }: IntakeCaseTableP
         },
       },
     ];
-  }, [canClaim, userEmail]);
+  }, [canClaim, userEmail, isAdmin]);
 
   return (
     <DataTable

@@ -213,6 +213,7 @@ export function ConfigurableDashboard({
             showClaimHint
             canClaim={intakeWorker}
             userEmail={userEmail}
+            isAdmin={isAdmin}
           />
         );
       case "my-trap-work":
@@ -227,6 +228,7 @@ export function ConfigurableDashboard({
             hintLabel="Open trap queue"
             canClaim={trapWorker}
             userEmail={userEmail}
+            isAdmin={isAdmin}
           />
         );
       case "trap-team":

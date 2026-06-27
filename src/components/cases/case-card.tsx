@@ -13,7 +13,9 @@ interface CaseCardProps {
   claim?: {
     canClaim: boolean;
     onClaim: () => void;
+    onUnclaim: () => void;
     userEmail: string;
+    isAdmin?: boolean;
   };
 }
 
@@ -26,8 +28,10 @@ export function CaseCard({ helpRequest: hr, claim }: CaseCardProps) {
   const totalCats = hr.kittens_under_8_weeks + hr.cats_over_8_weeks;
   const isUnclaimed = !hr.claimed_by_email;
   const isMine = claim ? hr.claimed_by_email === claim.userEmail : false;
+  const canUnclaim =
+    claim && hr.claimed_by_email && (isMine || claim.isAdmin);
   const showClaimButton = claim?.canClaim && isUnclaimed;
-  const showAssignedToOther = claim && hr.claimed_by_email && !isMine;
+  const showAssignedToOther = claim && hr.claimed_by_email && !isMine && !canUnclaim;
 
   return (
     <Card className="flex flex-col overflow-hidden">
@@ -77,7 +81,7 @@ export function CaseCard({ helpRequest: hr, claim }: CaseCardProps) {
         </CardContent>
       </Link>
 
-      {(showClaimButton || showAssignedToOther) && (
+      {(showClaimButton || canUnclaim || showAssignedToOther) && (
         <CardFooter className="flex-col items-stretch gap-2 border-t bg-muted/30 px-4 py-3">
           {showClaimButton && (
             <Button
@@ -90,6 +94,19 @@ export function CaseCard({ helpRequest: hr, claim }: CaseCardProps) {
               }}
             >
               Claim case
+            </Button>
+          )}
+          {canUnclaim && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="w-full"
+              onClick={(event) => {
+                event.preventDefault();
+                claim.onUnclaim();
+              }}
+            >
+              {isMine ? "Unclaim" : "Release claim"}
             </Button>
           )}
           {showAssignedToOther && (
