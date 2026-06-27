@@ -57,7 +57,7 @@ export default async function TrapQueuePage({ searchParams }: TrapQueuePageProps
     view === "mine"
       ? "Cases assigned to your trap team and cases you have personally claimed."
       : view === "unassigned"
-        ? "Cases waiting for a trap team assignment."
+        ? "Cases not yet assigned to a trap team."
         : view === "all"
           ? "All active trapping cases across every team."
           : `Cases assigned to ${viewLabel}.`;

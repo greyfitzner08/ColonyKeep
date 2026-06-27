@@ -42,7 +42,7 @@ export function TrapQueueFilters({
             {myTeamName ? `My Team (${myTeamName})` : "My Work"}
           </SelectItem>
         )}
-        <SelectItem value="unassigned">Unassigned Pool</SelectItem>
+        <SelectItem value="unassigned">No team</SelectItem>
         <SelectItem value="all">All Teams</SelectItem>
         {sortTrapTeams(teams).map((team) => (
           <SelectItem key={team.id} value={team.id}>

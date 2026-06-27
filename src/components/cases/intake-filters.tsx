@@ -58,6 +58,7 @@ export function IntakeFilters({ teams }: IntakeFiltersProps) {
           <SelectTrigger className="w-[180px]"><SelectValue placeholder="Team" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Teams</SelectItem>
+            <SelectItem value="none">No team</SelectItem>
             {sortTrapTeams(teams).map((t) => (
               <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
             ))}

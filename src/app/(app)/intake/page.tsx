@@ -34,7 +34,9 @@ export default async function IntakePage({ searchParams }: IntakePageProps) {
   } else {
     query = query.in("status", INTAKE_QUEUE_STATUSES);
   }
-  if (params.team) {
+  if (params.team === "none") {
+    query = query.is("assigned_team_id", null);
+  } else if (params.team) {
     query = query.eq("assigned_team_id", params.team);
   }
 

@@ -47,7 +47,7 @@ export function trapQueueViewLabel(
   if (view === "mine") {
     return myTeamName ? `My Team (${myTeamName})` : "My Work";
   }
-  if (view === "unassigned") return "Unassigned Pool";
+  if (view === "unassigned") return "No team";
   if (view === "all") return "All Teams";
   return teams.find((team) => team.id === view)?.name ?? "Team Queue";
 }
