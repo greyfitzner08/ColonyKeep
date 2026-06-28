@@ -20,11 +20,12 @@ import { isTrackedCatClinicFixed } from "@/lib/cases/tracked-cat-fix";
 import {
   ClinicFixFosterFields,
   fosterFormToPayload,
-  validateClinicFixFosterForm,
 } from "@/components/cases/clinic-fix-foster-fields";
 import {
   fosterFormFromCat,
+  hasFosterFormAnswer,
   trackedCatReturnFields,
+  validateTrackedCatFosterForm,
 } from "@/lib/cases/tracked-cat-foster";
 import type { FosterFacility } from "@/lib/cases/foster-facility";
 import { InfoRow } from "@/components/cases/case-detail-fields";
@@ -106,27 +107,29 @@ export function TrackedCatCard({ cat, clinics, onUpdated }: TrackedCatCardProps)
       appointment_status: draft.appointment_status,
     });
 
-    if (clinicFixed) {
-      if (!draft.age_category) {
-        setError("Select adult or kitten.");
-        return;
-      }
-      const fosterError = validateClinicFixFosterForm({
+    if (clinicFixed && !draft.age_category) {
+      setError("Select adult or kitten.");
+      return;
+    }
+
+    const fosterError = validateTrackedCatFosterForm(
+      {
         wentToFoster: draft.wentToFoster,
         fosterFacility: draft.fosterFacility,
         fosterFacilityOther: draft.fosterFacilityOther,
-      });
-      if (fosterError) {
-        setError(fosterError);
-        return;
-      }
+      },
+      { required: clinicFixed }
+    );
+    if (fosterError) {
+      setError(fosterError);
+      return;
     }
 
     setSaving(true);
     setError(null);
     const supabase = createClient();
 
-    const fosterPayload = clinicFixed
+    const fosterPayload = hasFosterFormAnswer(draft.wentToFoster)
       ? fosterFormToPayload({
           wentToFoster: draft.wentToFoster,
           fosterFacility: draft.fosterFacility,
@@ -292,56 +295,41 @@ export function TrackedCatCard({ cat, clinics, onUpdated }: TrackedCatCardProps)
               placeholder="e.g. reserved, completed"
             />
           </div>
-          {isTrackedCatClinicFixed(draft) ? (
-            <>
-              <div className="space-y-2">
-                <Label>Age at clinic</Label>
-                <Select
-                  value={draft.age_category || "unset"}
-                  onValueChange={(value) =>
-                    setDraft({
-                      ...draft,
-                      age_category: value === "unset" ? "" : (value as "adult" | "kitten"),
-                    })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select age" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="unset">Select age</SelectItem>
-                    <SelectItem value="adult">Adult (8+ weeks)</SelectItem>
-                    <SelectItem value="kitten">Kitten (&lt;8 weeks)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="sm:col-span-2">
-                <ClinicFixFosterFields
-                  wentToFoster={draft.wentToFoster}
-                  onWentToFosterChange={(value) =>
-                    setDraft({ ...draft, wentToFoster: value })
-                  }
-                  fosterFacility={draft.fosterFacility}
-                  onFosterFacilityChange={(value) =>
-                    setDraft({ ...draft, fosterFacility: value })
-                  }
-                  fosterFacilityOther={draft.fosterFacilityOther}
-                  onFosterFacilityOtherChange={(value) =>
-                    setDraft({ ...draft, fosterFacilityOther: value })
-                  }
-                />
-              </div>
-            </>
-          ) : (
+          {isTrackedCatClinicFixed(draft) && (
             <div className="space-y-2">
-              <Label>Return status</Label>
-              <Input
-                value={draft.return_status}
-                onChange={(e) => setDraft({ ...draft, return_status: e.target.value })}
-                placeholder="e.g. returned, foster"
-              />
+              <Label>Age at clinic</Label>
+              <Select
+                value={draft.age_category || "unset"}
+                onValueChange={(value) =>
+                  setDraft({
+                    ...draft,
+                    age_category: value === "unset" ? "" : (value as "adult" | "kitten"),
+                  })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select age" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="unset">Select age</SelectItem>
+                  <SelectItem value="adult">Adult (8+ weeks)</SelectItem>
+                  <SelectItem value="kitten">Kitten (&lt;8 weeks)</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           )}
+          <div className="sm:col-span-2">
+            <ClinicFixFosterFields
+              wentToFoster={draft.wentToFoster}
+              onWentToFosterChange={(value) => setDraft({ ...draft, wentToFoster: value })}
+              fosterFacility={draft.fosterFacility}
+              onFosterFacilityChange={(value) => setDraft({ ...draft, fosterFacility: value })}
+              fosterFacilityOther={draft.fosterFacilityOther}
+              onFosterFacilityOtherChange={(value) =>
+                setDraft({ ...draft, fosterFacilityOther: value })
+              }
+            />
+          </div>
           <div className="space-y-2 sm:col-span-2">
             <Label>Medical notes</Label>
             <Textarea

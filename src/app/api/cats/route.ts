@@ -2,10 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireCaseWorker } from "@/lib/api/auth";
 import {
   fosterFormToPayload,
-  validateClinicFixFosterForm,
+  hasFosterFormAnswer,
+  trackedCatReturnFields,
+  validateTrackedCatFosterForm,
 } from "@/lib/cases/tracked-cat-foster";
 import { validateFosterFacilityInput } from "@/lib/cases/foster-facility";
-import { trackedCatReturnFields } from "@/lib/cases/tracked-cat-foster";
 import { syncTrackedCatFixesForCase } from "@/lib/cases/tracked-cat-fix";
 import { createServiceClient } from "@/lib/supabase/server";
 import type { FosterFacility } from "@/lib/cases/foster-facility";
@@ -31,18 +32,15 @@ export async function POST(request: NextRequest) {
   const fosterFacility = (body?.fosterFacility ?? "") as FosterFacility | "";
   const fosterFacilityOther = (body?.fosterFacilityOther ?? "") as string;
 
-  if (fixedAtClinic) {
-    const fosterError = validateClinicFixFosterForm({
-      wentToFoster,
-      fosterFacility,
-      fosterFacilityOther,
-    });
-    if (fosterError) {
-      return NextResponse.json({ error: fosterError }, { status: 400 });
-    }
+  const fosterError = validateTrackedCatFosterForm(
+    { wentToFoster, fosterFacility, fosterFacilityOther },
+    { required: fixedAtClinic }
+  );
+  if (fosterError) {
+    return NextResponse.json({ error: fosterError }, { status: 400 });
   }
 
-  const fosterPayload = fixedAtClinic
+  const fosterPayload = hasFosterFormAnswer(wentToFoster)
     ? fosterFormToPayload({ wentToFoster, fosterFacility, fosterFacilityOther })
     : null;
 
@@ -76,11 +74,11 @@ export async function POST(request: NextRequest) {
         colors: body?.colors?.trim() || null,
         microchip_id: body?.microchip_id?.trim() || null,
         medical_notes: body?.medical_notes?.trim() || null,
+        ...(returnFields ?? {}),
         ...(fixedAtClinic && {
           trapped_status: "Trapped",
           appointment_status: "Complete",
           age_category: ageCategory,
-          ...returnFields,
         }),
       })
       .select("*")

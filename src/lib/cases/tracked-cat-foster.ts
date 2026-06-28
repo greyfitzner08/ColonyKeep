@@ -5,6 +5,24 @@ import {
 } from "@/lib/cases/foster-facility";
 import type { Cat } from "@/lib/types";
 
+export function hasFosterFormAnswer(wentToFoster: "" | "yes" | "no") {
+  return wentToFoster === "yes" || wentToFoster === "no";
+}
+
+export function validateTrackedCatFosterForm(
+  input: {
+    wentToFoster: "" | "yes" | "no";
+    fosterFacility: FosterFacility | "";
+    fosterFacilityOther: string;
+  },
+  { required }: { required: boolean }
+): string | null {
+  if (!required && !hasFosterFormAnswer(input.wentToFoster)) {
+    return null;
+  }
+  return validateClinicFixFosterForm(input);
+}
+
 export function validateClinicFixFosterForm(input: {
   wentToFoster: "" | "yes" | "no";
   fosterFacility: FosterFacility | "";

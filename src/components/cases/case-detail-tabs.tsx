@@ -38,10 +38,8 @@ import { CaseCollapsibleSection } from "@/components/cases/case-collapsible-sect
 import { CaseAppointmentsSection } from "@/components/appointments/case-appointments-section";
 import { TrackedCatCard } from "@/components/cases/tracked-cat-card";
 import { ColonyCatSummaryEditor } from "@/components/cases/colony-cat-summary-editor";
-import {
-  ClinicFixFosterFields,
-  validateClinicFixFosterForm,
-} from "@/components/cases/clinic-fix-foster-fields";
+import { ClinicFixFosterFields } from "@/components/cases/clinic-fix-foster-fields";
+import { validateTrackedCatFosterForm } from "@/lib/cases/tracked-cat-foster";
 import type { FosterFacility } from "@/lib/cases/foster-facility";
 import { useDebouncedCallback } from "@/lib/hooks/use-debounced-callback";
 import { Plus } from "lucide-react";
@@ -272,20 +270,22 @@ export function CaseDetailTabs({
   }
 
   async function addCat() {
-    if (newCatFixedAtClinic) {
-      if (!newCatAgeCategory) {
-        setAddCatError("Select adult or kitten.");
-        return;
-      }
-      const fosterError = validateClinicFixFosterForm({
+    if (newCatFixedAtClinic && !newCatAgeCategory) {
+      setAddCatError("Select adult or kitten.");
+      return;
+    }
+
+    const fosterError = validateTrackedCatFosterForm(
+      {
         wentToFoster: newCatWentToFoster,
         fosterFacility: newCatFosterFacility,
         fosterFacilityOther: newCatFosterFacilityOther,
-      });
-      if (fosterError) {
-        setAddCatError(fosterError);
-        return;
-      }
+      },
+      { required: newCatFixedAtClinic }
+    );
+    if (fosterError) {
+      setAddCatError(fosterError);
+      return;
     }
 
     setAddingCat(true);
@@ -303,9 +303,9 @@ export function CaseDetailTabs({
         medical_notes: newCat.medical_notes,
         fixedAtClinic: newCatFixedAtClinic,
         ageCategory: newCatFixedAtClinic ? newCatAgeCategory : undefined,
-        wentToFoster: newCatFixedAtClinic ? newCatWentToFoster : undefined,
-        fosterFacility: newCatFixedAtClinic ? newCatFosterFacility : undefined,
-        fosterFacilityOther: newCatFixedAtClinic ? newCatFosterFacilityOther : undefined,
+        wentToFoster: newCatWentToFoster || undefined,
+        fosterFacility: newCatFosterFacility || undefined,
+        fosterFacilityOther: newCatFosterFacilityOther || undefined,
       }),
     });
 
@@ -513,13 +513,9 @@ export function CaseDetailTabs({
               <Select
                 value={newCatFixedAtClinic ? "yes" : "no"}
                 onValueChange={(value) => {
-                  const fixed = value === "yes";
-                  setNewCatFixedAtClinic(fixed);
-                  if (!fixed) {
+                  setNewCatFixedAtClinic(value === "yes");
+                  if (value !== "yes") {
                     setNewCatAgeCategory("");
-                    setNewCatWentToFoster("");
-                    setNewCatFosterFacility("");
-                    setNewCatFosterFacilityOther("");
                   }
                   setAddCatError(null);
                 }}
@@ -535,37 +531,36 @@ export function CaseDetailTabs({
             </div>
 
             {newCatFixedAtClinic && (
-              <>
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium">Age at clinic</Label>
-                  <Select
-                    value={newCatAgeCategory || "unset"}
-                    onValueChange={(value) =>
-                      setNewCatAgeCategory(value === "unset" ? "" : (value as "adult" | "kitten"))
-                    }
-                  >
-                    <SelectTrigger className="text-base">
-                      <SelectValue placeholder="Select age" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="unset">Select age</SelectItem>
-                      <SelectItem value="adult">Adult (8+ weeks)</SelectItem>
-                      <SelectItem value="kitten">Kitten (&lt;8 weeks)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="sm:col-span-2">
-                  <ClinicFixFosterFields
-                    wentToFoster={newCatWentToFoster}
-                    onWentToFosterChange={setNewCatWentToFoster}
-                    fosterFacility={newCatFosterFacility}
-                    onFosterFacilityChange={setNewCatFosterFacility}
-                    fosterFacilityOther={newCatFosterFacilityOther}
-                    onFosterFacilityOtherChange={setNewCatFosterFacilityOther}
-                  />
-                </div>
-              </>
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Age at clinic</Label>
+                <Select
+                  value={newCatAgeCategory || "unset"}
+                  onValueChange={(value) =>
+                    setNewCatAgeCategory(value === "unset" ? "" : (value as "adult" | "kitten"))
+                  }
+                >
+                  <SelectTrigger className="text-base">
+                    <SelectValue placeholder="Select age" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="unset">Select age</SelectItem>
+                    <SelectItem value="adult">Adult (8+ weeks)</SelectItem>
+                    <SelectItem value="kitten">Kitten (&lt;8 weeks)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             )}
+
+            <div className="sm:col-span-2">
+              <ClinicFixFosterFields
+                wentToFoster={newCatWentToFoster}
+                onWentToFosterChange={setNewCatWentToFoster}
+                fosterFacility={newCatFosterFacility}
+                onFosterFacilityChange={setNewCatFosterFacility}
+                fosterFacilityOther={newCatFosterFacilityOther}
+                onFosterFacilityOtherChange={setNewCatFosterFacilityOther}
+              />
+            </div>
 
             {addCatError && (
               <p className="text-sm text-destructive sm:col-span-2">{addCatError}</p>
