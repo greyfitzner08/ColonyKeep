@@ -113,6 +113,7 @@ export function fosterFormFromCat(
     | "foster_facility"
     | "foster_facility_other"
     | "return_status"
+    | "foster_program"
   >
 ): {
   wentToFoster: "" | "yes" | "no";
@@ -139,7 +140,8 @@ export function fosterFormFromCat(
     return {
       wentToFoster: "yes",
       fosterFacility: "other",
-      fosterFacilityOther: cat.foster_facility_other ?? "",
+      fosterFacilityOther:
+        cat.foster_facility_other?.trim() || cat.foster_program?.trim() || "",
     };
   }
 

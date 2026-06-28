@@ -29,7 +29,7 @@ export async function PATCH(
     const service = await createServiceClient();
     const { data: existing } = await service
       .from("cats")
-      .select("help_request_id, trapped_status, appointment_status")
+      .select("help_request_id, trapped_status, appointment_status, age_category")
       .eq("id", id)
       .single();
 
@@ -77,7 +77,7 @@ export async function PATCH(
       medical_notes: emptyOrNull(body?.medical_notes),
       appointment_status: resolvedAppointmentStatus,
       notes: emptyOrNull(body?.notes),
-      age_category: clinicFixed ? ageCategory : null,
+      age_category: clinicFixed ? ageCategory : existing.age_category,
       ...(fosterFields ?? {}),
     };
 

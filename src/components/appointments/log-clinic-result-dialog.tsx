@@ -164,12 +164,16 @@ export function LogClinicResultDialog({ appointment, onOpenChange }: LogClinicRe
           </div>
 
           <ClinicFixFosterFields
-            wentToFoster={wentToFoster}
-            onWentToFosterChange={setWentToFoster}
-            fosterFacility={fosterFacility}
-            onFosterFacilityChange={setFosterFacility}
-            fosterFacilityOther={fosterFacilityOther}
-            onFosterFacilityOtherChange={setFosterFacilityOther}
+            value={{
+              wentToFoster,
+              fosterFacility,
+              fosterFacilityOther,
+            }}
+            onChange={(foster) => {
+              setWentToFoster(foster.wentToFoster);
+              setFosterFacility(foster.fosterFacility);
+              setFosterFacilityOther(foster.fosterFacilityOther);
+            }}
           />
 
           <p className="text-sm text-muted-foreground">

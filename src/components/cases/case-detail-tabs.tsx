@@ -581,12 +581,16 @@ export function CaseDetailTabs({
             <div className="sm:col-span-2">
               <ClinicFixFosterFields
                 variant="tracked-cat"
-                wentToFoster={newCatWentToFoster}
-                onWentToFosterChange={setNewCatWentToFoster}
-                fosterFacility={newCatFosterFacility}
-                onFosterFacilityChange={setNewCatFosterFacility}
-                fosterFacilityOther={newCatFosterFacilityOther}
-                onFosterFacilityOtherChange={setNewCatFosterFacilityOther}
+                value={{
+                  wentToFoster: newCatWentToFoster,
+                  fosterFacility: newCatFosterFacility,
+                  fosterFacilityOther: newCatFosterFacilityOther,
+                }}
+                onChange={(foster) => {
+                  setNewCatWentToFoster(foster.wentToFoster);
+                  setNewCatFosterFacility(foster.fosterFacility);
+                  setNewCatFosterFacilityOther(foster.fosterFacilityOther);
+                }}
               />
             </div>
 

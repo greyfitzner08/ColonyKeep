@@ -17,27 +17,32 @@ import {
 
 export { validateClinicFixFosterForm, fosterFormToPayload };
 
-interface ClinicFixFosterFieldsProps {
+export type FosterFormFields = {
   wentToFoster: "" | "yes" | "no";
-  onWentToFosterChange: (value: "" | "yes" | "no") => void;
   fosterFacility: FosterFacility | "";
-  onFosterFacilityChange: (value: FosterFacility | "") => void;
   fosterFacilityOther: string;
-  onFosterFacilityOtherChange: (value: string) => void;
+};
+
+export const EMPTY_FOSTER_FORM: FosterFormFields = {
+  wentToFoster: "",
+  fosterFacility: "",
+  fosterFacilityOther: "",
+};
+
+interface ClinicFixFosterFieldsProps {
+  value: FosterFormFields;
+  onChange: (value: FosterFormFields) => void;
   /** Use tracked-cat copy when the cat may not be fixed yet. */
   variant?: "clinic-fix" | "tracked-cat";
 }
 
 export function ClinicFixFosterFields({
-  wentToFoster,
-  onWentToFosterChange,
-  fosterFacility,
-  onFosterFacilityChange,
-  fosterFacilityOther,
-  onFosterFacilityOtherChange,
+  value,
+  onChange,
   variant = "clinic-fix",
 }: ClinicFixFosterFieldsProps) {
   const isTrackedCat = variant === "tracked-cat";
+  const { wentToFoster, fosterFacility, fosterFacilityOther } = value;
 
   return (
     <div className="space-y-4">
@@ -49,13 +54,13 @@ export function ClinicFixFosterFields({
         </Label>
         <Select
           value={wentToFoster || "unset"}
-          onValueChange={(value) => {
-            const next = value === "unset" ? "" : (value as "yes" | "no");
-            onWentToFosterChange(next);
+          onValueChange={(nextValue) => {
+            const next = nextValue === "unset" ? "" : (nextValue as "yes" | "no");
             if (next !== "yes") {
-              onFosterFacilityChange("");
-              onFosterFacilityOtherChange("");
+              onChange({ wentToFoster: next, fosterFacility: "", fosterFacilityOther: "" });
+              return;
             }
+            onChange({ ...value, wentToFoster: next });
           }}
         >
           <SelectTrigger>
@@ -74,43 +79,43 @@ export function ClinicFixFosterFields({
       </div>
 
       {wentToFoster === "yes" && (
-        <>
-          <div className="space-y-2">
-            <Label>{isTrackedCat ? "Where will the cat go?" : "Where did the cat go?"}</Label>
-            <Select
-              value={fosterFacility || "unset"}
-              onValueChange={(value) => {
-                onFosterFacilityChange(value === "unset" ? "" : (value as FosterFacility));
-                if (value !== "other") {
-                  onFosterFacilityOtherChange("");
-                }
-              }}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select location" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="unset">Select location</SelectItem>
-                {FOSTER_FACILITIES.map((entry) => (
-                  <SelectItem key={entry.value} value={entry.value}>
-                    {entry.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+        <div className="space-y-2">
+          <Label>{isTrackedCat ? "Where will the cat go?" : "Where did the cat go?"}</Label>
+          <Select
+            value={fosterFacility || "unset"}
+            onValueChange={(nextValue) => {
+              const facility = nextValue === "unset" ? "" : (nextValue as FosterFacility);
+              onChange({
+                ...value,
+                fosterFacility: facility,
+                fosterFacilityOther: facility === "other" ? fosterFacilityOther : "",
+              });
+            }}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Select location" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="unset">Select location</SelectItem>
+              {FOSTER_FACILITIES.map((entry) => (
+                <SelectItem key={entry.value} value={entry.value}>
+                  {entry.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
 
-          {fosterFacility === "other" && (
-            <div className="space-y-2">
-              <Label>Other location</Label>
-              <Input
-                value={fosterFacilityOther}
-                onChange={(e) => onFosterFacilityOtherChange(e.target.value)}
-                placeholder="Where did the cat go?"
-              />
-            </div>
-          )}
-        </>
+      {wentToFoster === "yes" && fosterFacility === "other" && (
+        <div className="space-y-2">
+          <Label>Other location</Label>
+          <Input
+            value={fosterFacilityOther}
+            onChange={(e) => onChange({ ...value, fosterFacilityOther: e.target.value })}
+            placeholder={isTrackedCat ? "Where will the cat go?" : "Where did the cat go?"}
+          />
+        </div>
       )}
     </div>
   );

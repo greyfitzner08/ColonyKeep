@@ -19,7 +19,7 @@ import { isTrackedCatClinicFixed, parseTrackedCatGender } from "@/lib/cases/trac
 import { ClinicFixFosterFields } from "@/components/cases/clinic-fix-foster-fields";
 import { ClinicFixSummary } from "@/components/cases/clinic-fix-summary";
 import { LogClinicFixDialog } from "@/components/cases/log-clinic-fix-dialog";
-import { fosterFormFromCat } from "@/lib/cases/tracked-cat-foster";
+import { fosterFormFromCat, validateTrackedCatFosterForm } from "@/lib/cases/tracked-cat-foster";
 import { formatFosterFacilitySummary } from "@/lib/cases/foster-facility";
 import { InfoRow } from "@/components/cases/case-detail-fields";
 import type { Cat, ClinicFix } from "@/lib/types";
@@ -118,13 +118,46 @@ export function TrackedCatCard({
   }
 
   async function saveCat() {
+    const clinicFixed = isTrackedCatClinicFixed({
+      trapped_status: cat.trapped_status,
+      appointment_status: draft.appointment_status,
+    });
+
+    const fosterError = validateTrackedCatFosterForm(
+      {
+        wentToFoster: draft.wentToFoster,
+        fosterFacility: draft.fosterFacility,
+        fosterFacilityOther: draft.fosterFacilityOther,
+      },
+      { required: clinicFixed }
+    );
+    if (fosterError) {
+      setError(fosterError);
+      return;
+    }
+
     setSaving(true);
     setError(null);
 
     const response = await fetch(`/api/cats/${cat.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(draft),
+      body: JSON.stringify({
+        name: draft.name,
+        gender: draft.gender,
+        colors: draft.colors,
+        breed: draft.breed,
+        microchip_id: draft.microchip_id,
+        clinic_id: draft.clinic_id,
+        clinic_name: draft.clinic_name,
+        medical_notes: draft.medical_notes,
+        appointment_status: draft.appointment_status,
+        notes: draft.notes,
+        age_category: draft.age_category,
+        wentToFoster: draft.wentToFoster,
+        fosterFacility: draft.fosterFacility,
+        fosterFacilityOther: draft.fosterFacilityOther,
+      }),
     });
 
     const result = await response.json().catch(() => null);
@@ -261,28 +294,12 @@ export function TrackedCatCard({
           <div className="sm:col-span-2">
             <ClinicFixFosterFields
               variant="tracked-cat"
-              wentToFoster={draft.wentToFoster}
-              onWentToFosterChange={(value) =>
-                setDraft((prev) => ({
-                  ...prev,
-                  wentToFoster: value,
-                  ...(value !== "yes"
-                    ? { fosterFacility: "", fosterFacilityOther: "" }
-                    : {}),
-                }))
-              }
-              fosterFacility={draft.fosterFacility}
-              onFosterFacilityChange={(value) =>
-                setDraft((prev) => ({
-                  ...prev,
-                  fosterFacility: value,
-                  ...(value !== "other" ? { fosterFacilityOther: "" } : {}),
-                }))
-              }
-              fosterFacilityOther={draft.fosterFacilityOther}
-              onFosterFacilityOtherChange={(value) =>
-                setDraft((prev) => ({ ...prev, fosterFacilityOther: value }))
-              }
+              value={{
+                wentToFoster: draft.wentToFoster,
+                fosterFacility: draft.fosterFacility,
+                fosterFacilityOther: draft.fosterFacilityOther,
+              }}
+              onChange={(foster) => setDraft((prev) => ({ ...prev, ...foster }))}
             />
           </div>
           <div className="space-y-2 sm:col-span-2">
