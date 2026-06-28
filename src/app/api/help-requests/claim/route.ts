@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireCaseWorker } from "@/lib/api/auth";
+import { canShowIntakeClaimActions } from "@/lib/cases/case-assignment";
 import { createServiceClient } from "@/lib/supabase/server";
+import type { HelpRequestStatus } from "@/lib/types";
 
 export async function POST(request: NextRequest) {
   const { profile, response } = await requireCaseWorker();
@@ -34,10 +36,22 @@ export async function POST(request: NextRequest) {
 
     const isOwner = existing.claimed_by_email === profile!.email;
     const isAdmin = profile!.role === "admin";
+    const canManageClaim = canShowIntakeClaimActions(
+      profile!.role,
+      existing.status as HelpRequestStatus
+    );
+
     if (!isOwner && !isAdmin) {
       return NextResponse.json(
         { error: "Only the person who claimed this case (or an admin) can unclaim it" },
         { status: 403 }
+      );
+    }
+
+    if (!canManageClaim && !isAdmin) {
+      return NextResponse.json(
+        { error: "This case is no longer in the inquiry queue." },
+        { status: 400 }
       );
     }
 
@@ -61,6 +75,15 @@ export async function POST(request: NextRequest) {
 
   if (existing.claimed_by_email && existing.claimed_by_email !== profile!.email) {
     return NextResponse.json({ error: "This case is already assigned to someone else" }, { status: 409 });
+  }
+
+  if (
+    !canShowIntakeClaimActions(profile!.role, existing.status as HelpRequestStatus)
+  ) {
+    return NextResponse.json(
+      { error: "Inquiry team can only claim cases still in the inquiry queue." },
+      { status: 400 }
+    );
   }
 
   const trapClaimStatuses = new Set(["routed_to_trap_team", "claimed"]);

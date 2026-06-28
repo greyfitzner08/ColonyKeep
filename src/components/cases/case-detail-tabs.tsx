@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/select";
 import { createClient } from "@/lib/supabase/client";
 import { findTrapTeamForZip } from "@/lib/cases/assign-team-by-zip";
+import { releaseIntakeAssignmentFields } from "@/lib/cases/case-assignment";
 import { detectMedicalKeywords, mergeMedicalFlags } from "@/lib/medical-flags";
 import { canCloseCase } from "@/lib/cases/case-permissions";
 import { normalizeHistoryLog, staffNotesText } from "@/lib/cases/history-log";
@@ -156,20 +157,28 @@ export function CaseDetailTabs({
     const supabase = createClient();
     const payload = withTeamAssignment({ ...next, medical_flags: medicalFlags });
     const includeStatus = options?.includeStatus ?? userRole !== "inquiry_team";
+    const routedToTrap = includeStatus && payload.status === "routed_to_trap_team";
+    const persistedPayload = routedToTrap ? releaseIntakeAssignmentFields(payload) : payload;
 
     const update: Record<string, unknown> = {
-      follow_up_due_date: payload.follow_up_due_date,
-      assigned_team_id: payload.assigned_team_id,
-      assigned_team_name: payload.assigned_team_name,
-      assigned_team: payload.assigned_team_name,
-      closure_notes: payload.closure_notes,
-      outcome: payload.outcome,
-      resolution: payload.resolution,
-      medical_flags: payload.medical_flags,
+      follow_up_due_date: persistedPayload.follow_up_due_date,
+      assigned_team_id: persistedPayload.assigned_team_id,
+      assigned_team_name: persistedPayload.assigned_team_name,
+      assigned_team: persistedPayload.assigned_team_name,
+      closure_notes: persistedPayload.closure_notes,
+      outcome: persistedPayload.outcome,
+      resolution: persistedPayload.resolution,
+      medical_flags: persistedPayload.medical_flags,
     };
 
     if (includeStatus) {
-      update.status = payload.status;
+      update.status = persistedPayload.status;
+    }
+
+    if (routedToTrap) {
+      update.claimed_by_email = null;
+      update.claimed_by_name = null;
+      update.assigned_to = null;
     }
 
     const { error } = await supabase.from("help_requests").update(update).eq("id", hr.id);
@@ -179,7 +188,7 @@ export function CaseDetailTabs({
       return false;
     }
 
-    setHr(payload);
+    setHr(persistedPayload);
     setSaveError(null);
     router.refresh();
     return true;

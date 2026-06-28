@@ -7,6 +7,7 @@ import { fetchCommunityStats } from "@/components/dashboard/community-stats-card
 import { fetchTrapTeamDashboardData } from "@/lib/dashboard/trap-team-data";
 import { fetchPendingClinicResults } from "@/lib/appointments/pending-clinic-results";
 import { sortCasesMedicalFirst } from "@/lib/cases/sort-cases";
+import { INTAKE_QUEUE_STATUSES } from "@/lib/cases/statuses";
 import { sortTrapTeams } from "@/lib/trap-teams/sort-teams";
 import {
   canClaimShifts,
@@ -80,14 +81,14 @@ export default async function DashboardPage() {
         .from("help_requests")
         .select("*")
         .eq("claimed_by_email", email)
-        .not("status", "in", CLOSED_STATUSES)
+        .in("status", INTAKE_QUEUE_STATUSES)
         .order("updated_at", { ascending: false }),
       supabase
         .from("help_requests")
         .select("id, case_number, follow_up_due_date")
         .eq("claimed_by_email", email)
-        .lt("follow_up_due_date", today)
-        .not("status", "in", CLOSED_STATUSES),
+        .in("status", INTAKE_QUEUE_STATUSES)
+        .lt("follow_up_due_date", today),
     ]);
 
     myCases = sortCasesMedicalFirst((claimedCases ?? []) as HelpRequest[]);

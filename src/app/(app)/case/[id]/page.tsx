@@ -83,8 +83,10 @@ export default async function CasePage({ params }: CasePageProps) {
           <div className="flex flex-wrap gap-2">
             <CaseClaimActions
               helpRequestId={hr.id}
+              status={hr.status}
               claimedByEmail={hr.claimed_by_email}
               userEmail={profile?.email ?? ""}
+              userRole={profile?.role ?? null}
               isAdmin={profile?.role === "admin"}
               canClaim={isCaseWorker(profile)}
             />

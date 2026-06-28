@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireApiRole } from "@/lib/api/auth";
 import { applyTrapTeamAssignment } from "@/lib/cases/assign-team-by-zip";
+import { releaseIntakeAssignmentFields } from "@/lib/cases/case-assignment";
 import { INTAKE_QUEUE_STATUSES } from "@/lib/cases/statuses";
 import { createServiceClient } from "@/lib/supabase/server";
 import type { HelpRequestStatus, HistoryEntry } from "@/lib/types";
@@ -65,14 +66,13 @@ export async function POST(request: NextRequest) {
   const { error } = await service
     .from("help_requests")
     .update({
-      status: "routed_to_trap_team",
-      assigned_team_id: assignment.assigned_team_id ?? existing.assigned_team_id,
-      assigned_team_name: teamName,
+      ...releaseIntakeAssignmentFields({
+        status: "routed_to_trap_team",
+        assigned_team_id: assignment.assigned_team_id ?? existing.assigned_team_id,
+        assigned_team_name: teamName,
+        history_log: historyLog,
+      }),
       assigned_team: teamName,
-      claimed_by_email: null,
-      claimed_by_name: null,
-      assigned_to: null,
-      history_log: historyLog,
     })
     .eq("id", helpRequestId);
 
