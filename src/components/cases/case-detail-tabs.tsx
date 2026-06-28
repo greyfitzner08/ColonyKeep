@@ -77,14 +77,12 @@ export function CaseDetailTabs({
   const [hr, setHr] = useState(initial);
   const [cats, setCats] = useState(initialCats);
   const [saving, setSaving] = useState(false);
-  const [routing, setRouting] = useState(false);
   const [newCat, setNewCat] = useState(EMPTY_CAT);
   const [followUpNote, setFollowUpNote] = useState("");
   const [savingFeeder, setSavingFeeder] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [savingHistory, setSavingHistory] = useState(false);
 
-  const canRouteToTrap = userRole === "admin" || userRole === "inquiry_team";
   const showCloseCase = canCloseCase(userRole);
 
   useEffect(() => {
@@ -171,30 +169,6 @@ export function CaseDetailTabs({
     const ok = await persistCase(hr, medicalFlags);
     setSaving(false);
     if (!ok) return;
-  }
-
-  async function routeToTrap() {
-    setRouting(true);
-    const response = await fetch("/api/help-requests/route-to-trap", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ helpRequestId: hr.id }),
-    });
-    const result = await response.json().catch(() => null);
-    setRouting(false);
-
-    if (!response.ok) {
-      alert(result?.error ?? "Could not route case to trap team");
-      return;
-    }
-
-    setHr({
-      ...hr,
-      status: "routed_to_trap_team",
-      assigned_team_id: result.assignedTeamId ?? hr.assigned_team_id,
-      assigned_team_name: result.assignedTeamName ?? hr.assigned_team_name,
-    });
-    router.refresh();
   }
 
   async function addFollowUp() {
@@ -329,15 +303,12 @@ export function CaseDetailTabs({
           teams={teams}
           userRole={userRole}
           canReviewMedical={canReviewMedical}
-          canRouteToTrap={canRouteToTrap}
           saving={saving}
-          routing={routing}
           followUpNote={followUpNote}
           onFollowUpNoteChange={setFollowUpNote}
           onAddFollowUp={addFollowUp}
           onChange={setHr}
           onSave={saveIntake}
-          onRouteToTrap={routeToTrap}
           onCloseCase={closeCase}
           canCloseCase={showCloseCase}
         />

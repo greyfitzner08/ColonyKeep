@@ -8,26 +8,23 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { CaseCollapsibleSection } from "@/components/cases/case-collapsible-section";
 import { InfoRow } from "@/components/cases/case-detail-fields";
 import { MedicalReviewActions } from "@/components/cases/medical-review-actions";
-import { getStatusOptionsForRole, isIntakeQueueStatus } from "@/lib/cases/statuses";
+import { getStatusOptionsForRole } from "@/lib/cases/statuses";
 import { sortTrapTeams } from "@/lib/trap-teams/sort-teams";
 import { formatDateTime } from "@/lib/utils";
 import type { HelpRequest, HelpRequestStatus, UserRole, FollowUpEntry } from "@/lib/types";
-import { ArrowRight, Trash2 } from "lucide-react";
+import { Trash2 } from "lucide-react";
 
 interface CaseIntakeSectionProps {
   helpRequest: HelpRequest;
   teams: { id: string; name: string; zip_codes: string[] }[];
   userRole: UserRole | null;
   canReviewMedical: boolean;
-  canRouteToTrap: boolean;
   saving: boolean;
-  routing: boolean;
   followUpNote: string;
   onFollowUpNoteChange: (value: string) => void;
   onAddFollowUp: () => void;
   onChange: (next: HelpRequest) => void;
   onSave: () => void;
-  onRouteToTrap: () => void;
   onCloseCase: () => void;
   canCloseCase: boolean;
 }
@@ -37,20 +34,16 @@ export function CaseIntakeSection({
   teams,
   userRole,
   canReviewMedical,
-  canRouteToTrap,
   saving,
-  routing,
   followUpNote,
   onFollowUpNoteChange,
   onAddFollowUp,
   onChange,
   onSave,
-  onRouteToTrap,
   onCloseCase,
   canCloseCase,
 }: CaseIntakeSectionProps) {
   const statusOptions = getStatusOptionsForRole(userRole);
-  const showRouteButton = canRouteToTrap && isIntakeQueueStatus(hr.status);
   const hasOutcomes =
     hr.outcome ||
     hr.resolution ||
@@ -66,7 +59,7 @@ export function CaseIntakeSection({
         <p className="text-sm text-muted-foreground">
           Save changes to case management, follow-up, and intake notes.
         </p>
-        <Button onClick={onSave} disabled={saving || routing}>
+        <Button onClick={onSave} disabled={saving}>
           {saving ? "Saving…" : "Save changes"}
         </Button>
       </div>
@@ -74,21 +67,6 @@ export function CaseIntakeSection({
       {canReviewMedical && (
         <CaseCollapsibleSection title="Medical review" defaultOpen={false}>
           <MedicalReviewActions helpRequest={hr} />
-        </CaseCollapsibleSection>
-      )}
-
-      {showRouteButton && (
-        <CaseCollapsibleSection title="Route to trap team" defaultOpen>
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-sm text-muted-foreground">
-              Sends this case to the trap queue and assigns a team from colony ZIP{" "}
-              {hr.colony_zip || "—"}.
-            </p>
-            <Button onClick={onRouteToTrap} disabled={routing || saving} className="shrink-0">
-              <ArrowRight className="h-4 w-4 mr-2" />
-              {routing ? "Routing…" : "Route to Trap Team"}
-            </Button>
-          </div>
         </CaseCollapsibleSection>
       )}
 
@@ -253,7 +231,7 @@ export function CaseIntakeSection({
                 </SelectContent>
               </Select>
             </div>
-            <Button onClick={onCloseCase} variant="destructive" disabled={routing || saving}>
+            <Button onClick={onCloseCase} variant="destructive" disabled={saving}>
               <Trash2 className="h-4 w-4 mr-2" />
               Close case
             </Button>

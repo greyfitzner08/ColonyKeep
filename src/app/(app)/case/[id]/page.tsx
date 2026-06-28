@@ -12,6 +12,7 @@ import { canAddCaseHistoryNote } from "@/lib/cases/case-permissions";
 import { normalizeHistoryLog } from "@/lib/cases/history-log";
 import { isCaseWorker } from "@/lib/permissions";
 import { CaseClaimActions } from "@/components/cases/case-claim-actions";
+import { CaseRouteToTrapAction } from "@/components/cases/case-route-to-trap-action";
 import type { HelpRequest, Cat, Appointment } from "@/lib/types";
 
 interface CasePageProps {
@@ -70,13 +71,21 @@ export default async function CasePage({ params }: CasePageProps) {
           )}
         </div>
         <div className="flex flex-col items-start gap-2 sm:items-end">
-          <CaseClaimActions
-            helpRequestId={hr.id}
-            claimedByEmail={hr.claimed_by_email}
-            userEmail={profile?.email ?? ""}
-            isAdmin={profile?.role === "admin"}
-            canClaim={isCaseWorker(profile)}
-          />
+          <div className="flex flex-wrap gap-2">
+            <CaseClaimActions
+              helpRequestId={hr.id}
+              claimedByEmail={hr.claimed_by_email}
+              userEmail={profile?.email ?? ""}
+              isAdmin={profile?.role === "admin"}
+              canClaim={isCaseWorker(profile)}
+            />
+            <CaseRouteToTrapAction
+              helpRequestId={hr.id}
+              status={hr.status}
+              colonyZip={hr.colony_zip}
+              userRole={profile?.role ?? null}
+            />
+          </div>
           <div className="text-base text-muted-foreground">
             {hr.contact_name}
             {hr.colony_zip ? ` · ${hr.colony_zip}` : ""}
