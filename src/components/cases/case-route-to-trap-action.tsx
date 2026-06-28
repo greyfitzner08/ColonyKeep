@@ -44,7 +44,6 @@ export function CaseRouteToTrapAction({
       return;
     }
 
-    router.push("/trap-queue");
     router.refresh();
   }
 
@@ -55,7 +54,7 @@ export function CaseRouteToTrapAction({
       size="sm"
       onClick={routeToTrap}
       disabled={routing}
-      title={`Sends this case to the trap queue and assigns a team from colony ZIP ${zipHint}.`}
+      title={`Routes this case to the trap queue, assigns a team from colony ZIP ${zipHint}, and releases your intake claim.`}
     >
       <ArrowRight className="h-4 w-4 mr-2" />
       {routing ? "Routing…" : "Route to trap team"}
