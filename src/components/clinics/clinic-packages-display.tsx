@@ -1,4 +1,5 @@
 import type { ClinicPackage } from "@/lib/types";
+import { getVisibleClinicPackages } from "@/lib/clinics/clinic-packages";
 import { formatCurrency } from "@/lib/utils";
 
 interface ClinicPackagesDisplayProps {
@@ -6,9 +7,7 @@ interface ClinicPackagesDisplayProps {
 }
 
 export function ClinicPackagesDisplay({ packages }: ClinicPackagesDisplayProps) {
-  const visiblePackages = (packages ?? []).filter(
-    (pkg) => pkg.name.trim() || pkg.services.length > 0 || pkg.price > 0
-  );
+  const visiblePackages = getVisibleClinicPackages(packages);
 
   if (visiblePackages.length === 0) return null;
 

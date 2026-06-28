@@ -2,16 +2,14 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { ClinicPartnersTable } from "@/components/clinics/clinic-partners-table";
 import { ServiceCatalogEditor } from "@/components/clinics/service-catalog-editor";
-import { ServiceCatalogDisplay } from "@/components/clinics/service-catalog-display";
 import { ClinicPackagesDisplay } from "@/components/clinics/clinic-packages-display";
 import {
   defaultIncludedCatalog,
@@ -20,7 +18,7 @@ import {
 } from "@/lib/clinics/service-catalog";
 import type { Clinic, ClinicServiceOption } from "@/lib/types";
 import { formatCurrency } from "@/lib/utils";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
@@ -142,46 +140,7 @@ export function ClinicsManager({ clinics: initial }: ClinicsManagerProps) {
         <Button onClick={openNew}><Plus className="h-4 w-4 mr-2" />Add Clinic</Button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {initial.map((clinic) => {
-          const usesPackagePricing = hasVisibleClinicPackages(clinic.packages);
-
-          return (
-          <Card key={clinic.id}>
-            <CardHeader className="flex flex-row items-start justify-between">
-              <div>
-                <CardTitle className="text-lg">{clinic.name}</CardTitle>
-                <p className="text-sm text-muted-foreground">{clinic.address}</p>
-              </div>
-              <div className="flex gap-2">
-                <Badge variant={clinic.is_active ? "default" : "secondary"}>
-                  {clinic.is_active ? "Active" : "Inactive"}
-                </Badge>
-                <Button variant="ghost" size="icon" onClick={() => openEdit(clinic)}>
-                  <Pencil className="h-4 w-4" />
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent className="text-sm space-y-3">
-              <p>{clinic.phone}</p>
-              <p><strong>Days:</strong> {clinic.operating_days.join(", ") || "Not set"}</p>
-              <p><strong>Slots/day:</strong> {clinic.slots_per_day}</p>
-              <ClinicPackagesDisplay packages={clinic.packages ?? []} />
-              <ServiceCatalogDisplay
-                catalog={clinic.service_catalog ?? []}
-                legacyIncluded={clinic.included_services}
-                legacyAddons={clinic.addon_services}
-                compact
-                hideIncluded={usesPackagePricing}
-              />
-              {clinic.check_in_details && (
-                <p className="text-muted-foreground line-clamp-2">{clinic.check_in_details}</p>
-              )}
-            </CardContent>
-          </Card>
-          );
-        })}
-      </div>
+      <ClinicPartnersTable clinics={initial} onEdit={openEdit} />
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">

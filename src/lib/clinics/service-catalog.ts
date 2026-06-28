@@ -1,3 +1,4 @@
+import { getVisibleClinicPackages } from "@/lib/clinics/clinic-packages";
 import type { ClinicPackage, ClinicServiceOption } from "@/lib/types";
 
 export const DEFAULT_INCLUDED_SERVICE_NAMES = [
@@ -83,7 +84,5 @@ export function buildInitialAddonPayments(
 }
 
 export function hasVisibleClinicPackages(packages: ClinicPackage[] | null | undefined): boolean {
-  return (packages ?? []).some(
-    (pkg) => pkg.name.trim() || pkg.services.length > 0 || pkg.price > 0
-  );
+  return getVisibleClinicPackages(packages).length > 0;
 }
