@@ -16,6 +16,17 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { createClient } from "@/lib/supabase/client";
+import { isTrackedCatClinicFixed } from "@/lib/cases/tracked-cat-fix";
+import {
+  ClinicFixFosterFields,
+  fosterFormToPayload,
+  validateClinicFixFosterForm,
+} from "@/components/cases/clinic-fix-foster-fields";
+import {
+  fosterFormFromCat,
+  trackedCatReturnFields,
+} from "@/lib/cases/tracked-cat-foster";
+import type { FosterFacility } from "@/lib/cases/foster-facility";
 import { InfoRow } from "@/components/cases/case-detail-fields";
 import type { Cat } from "@/lib/types";
 import { Pencil, X, Check } from "lucide-react";
@@ -39,9 +50,14 @@ type CatDraft = {
   appointment_status: string;
   return_status: string;
   notes: string;
+  age_category: "" | "adult" | "kitten";
+  wentToFoster: "" | "yes" | "no";
+  fosterFacility: FosterFacility | "";
+  fosterFacilityOther: string;
 };
 
 function toDraft(cat: Cat): CatDraft {
+  const foster = fosterFormFromCat(cat);
   return {
     name: cat.name ?? "",
     gender: cat.gender ?? "",
@@ -55,6 +71,8 @@ function toDraft(cat: Cat): CatDraft {
     appointment_status: cat.appointment_status ?? "",
     return_status: cat.return_status ?? "",
     notes: cat.notes ?? "",
+    age_category: cat.age_category ?? "",
+    ...foster,
   };
 }
 
@@ -83,9 +101,47 @@ export function TrackedCatCard({ cat, clinics, onUpdated }: TrackedCatCardProps)
   }
 
   async function saveCat() {
+    const clinicFixed = isTrackedCatClinicFixed({
+      trapped_status: draft.trapped_status,
+      appointment_status: draft.appointment_status,
+    });
+
+    if (clinicFixed) {
+      if (!draft.age_category) {
+        setError("Select adult or kitten.");
+        return;
+      }
+      const fosterError = validateClinicFixFosterForm({
+        wentToFoster: draft.wentToFoster,
+        fosterFacility: draft.fosterFacility,
+        fosterFacilityOther: draft.fosterFacilityOther,
+      });
+      if (fosterError) {
+        setError(fosterError);
+        return;
+      }
+    }
+
     setSaving(true);
     setError(null);
     const supabase = createClient();
+
+    const fosterPayload = clinicFixed
+      ? fosterFormToPayload({
+          wentToFoster: draft.wentToFoster,
+          fosterFacility: draft.fosterFacility,
+          fosterFacilityOther: draft.fosterFacilityOther,
+        })
+      : null;
+
+    const returnFields = fosterPayload
+      ? trackedCatReturnFields({
+          wentToFosterFacility: fosterPayload.wentToFosterFacility,
+          fosterFacility: fosterPayload.fosterFacility as FosterFacility | null,
+          fosterFacilityOther: fosterPayload.fosterFacilityOther,
+        })
+      : null;
+
     const payload = {
       name: emptyOrNull(draft.name),
       gender: emptyOrNull(draft.gender),
@@ -97,8 +153,13 @@ export function TrackedCatCard({ cat, clinics, onUpdated }: TrackedCatCardProps)
       medical_notes: emptyOrNull(draft.medical_notes),
       trapped_status: emptyOrNull(draft.trapped_status),
       appointment_status: emptyOrNull(draft.appointment_status),
-      return_status: emptyOrNull(draft.return_status),
       notes: emptyOrNull(draft.notes),
+      age_category: clinicFixed ? draft.age_category : null,
+      return_status: returnFields?.return_status ?? emptyOrNull(draft.return_status),
+      foster_program: returnFields?.foster_program ?? null,
+      went_to_foster_facility: returnFields?.went_to_foster_facility ?? null,
+      foster_facility: returnFields?.foster_facility ?? null,
+      foster_facility_other: returnFields?.foster_facility_other ?? null,
     };
 
     const { data, error: updateError } = await supabase
@@ -231,14 +292,56 @@ export function TrackedCatCard({ cat, clinics, onUpdated }: TrackedCatCardProps)
               placeholder="e.g. reserved, completed"
             />
           </div>
-          <div className="space-y-2">
-            <Label>Return status</Label>
-            <Input
-              value={draft.return_status}
-              onChange={(e) => setDraft({ ...draft, return_status: e.target.value })}
-              placeholder="e.g. returned, foster"
-            />
-          </div>
+          {isTrackedCatClinicFixed(draft) ? (
+            <>
+              <div className="space-y-2">
+                <Label>Age at clinic</Label>
+                <Select
+                  value={draft.age_category || "unset"}
+                  onValueChange={(value) =>
+                    setDraft({
+                      ...draft,
+                      age_category: value === "unset" ? "" : (value as "adult" | "kitten"),
+                    })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select age" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="unset">Select age</SelectItem>
+                    <SelectItem value="adult">Adult (8+ weeks)</SelectItem>
+                    <SelectItem value="kitten">Kitten (&lt;8 weeks)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="sm:col-span-2">
+                <ClinicFixFosterFields
+                  wentToFoster={draft.wentToFoster}
+                  onWentToFosterChange={(value) =>
+                    setDraft({ ...draft, wentToFoster: value })
+                  }
+                  fosterFacility={draft.fosterFacility}
+                  onFosterFacilityChange={(value) =>
+                    setDraft({ ...draft, fosterFacility: value })
+                  }
+                  fosterFacilityOther={draft.fosterFacilityOther}
+                  onFosterFacilityOtherChange={(value) =>
+                    setDraft({ ...draft, fosterFacilityOther: value })
+                  }
+                />
+              </div>
+            </>
+          ) : (
+            <div className="space-y-2">
+              <Label>Return status</Label>
+              <Input
+                value={draft.return_status}
+                onChange={(e) => setDraft({ ...draft, return_status: e.target.value })}
+                placeholder="e.g. returned, foster"
+              />
+            </div>
+          )}
           <div className="space-y-2 sm:col-span-2">
             <Label>Medical notes</Label>
             <Textarea

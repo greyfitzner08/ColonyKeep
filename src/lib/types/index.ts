@@ -350,12 +350,22 @@ export interface Cat {
   medical_notes: string | null;
   description: string | null;
   estimated_status: string | null;
+  age_category: "adult" | "kitten" | null;
   trapped_status: string | null;
   appointment_status: string | null;
   appointment_id: string | null;
   clinic_id: string | null;
   clinic_name: string | null;
   return_status: string | null;
+  went_to_foster_facility: boolean | null;
+  foster_facility:
+    | "humane_society_charlotte"
+    | "animal_care_control"
+    | "pet_supermarket"
+    | "princetons_meow"
+    | "other"
+    | null;
+  foster_facility_other: string | null;
   foster_program: string | null;
   foster_name: string | null;
   foster_email: string | null;

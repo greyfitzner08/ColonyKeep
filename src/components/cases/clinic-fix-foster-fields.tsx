@@ -10,6 +10,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { FOSTER_FACILITIES, type FosterFacility } from "@/lib/cases/foster-facility";
+import {
+  validateClinicFixFosterForm,
+  fosterFormToPayload,
+} from "@/lib/cases/tracked-cat-foster";
+
+export { validateClinicFixFosterForm, fosterFormToPayload };
 
 interface ClinicFixFosterFieldsProps {
   wentToFoster: "" | "yes" | "no";
@@ -95,41 +101,4 @@ export function ClinicFixFosterFields({
       )}
     </div>
   );
-}
-
-export function validateClinicFixFosterForm(input: {
-  wentToFoster: "" | "yes" | "no";
-  fosterFacility: FosterFacility | "";
-  fosterFacilityOther: string;
-}): string | null {
-  if (!input.wentToFoster) {
-    return "Select whether the cat went to foster/facility or returned to colony.";
-  }
-
-  if (input.wentToFoster === "no") return null;
-
-  if (!input.fosterFacility) {
-    return "Select where the cat went.";
-  }
-
-  if (input.fosterFacility === "other" && !input.fosterFacilityOther.trim()) {
-    return "Enter where the cat went.";
-  }
-
-  return null;
-}
-
-export function fosterFormToPayload(input: {
-  wentToFoster: "" | "yes" | "no";
-  fosterFacility: FosterFacility | "";
-  fosterFacilityOther: string;
-}) {
-  return {
-    wentToFosterFacility: input.wentToFoster === "yes",
-    fosterFacility: input.wentToFoster === "yes" ? input.fosterFacility : null,
-    fosterFacilityOther:
-      input.wentToFoster === "yes" && input.fosterFacility === "other"
-        ? input.fosterFacilityOther.trim()
-        : null,
-  };
 }

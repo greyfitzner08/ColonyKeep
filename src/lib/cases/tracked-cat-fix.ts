@@ -1,4 +1,5 @@
 import { summarizeCatCounts } from "@/lib/cases/cat-counts";
+import { fosterFieldsFromCat } from "@/lib/cases/tracked-cat-foster";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Cat } from "@/lib/types";
 
@@ -19,25 +20,6 @@ export function parseTrackedCatGender(gender: string | null | undefined): "male"
   const value = gender?.trim().toLowerCase() ?? "";
   if (value.startsWith("f") || value === "female") return "female";
   return "male";
-}
-
-function fosterFieldsFromCat(cat: Pick<Cat, "return_status" | "foster_program">) {
-  const returnStatus = cat.return_status?.trim().toLowerCase() ?? "";
-  const wentToFoster = returnStatus.includes("foster");
-
-  if (!wentToFoster) {
-    return {
-      went_to_foster_facility: false,
-      foster_facility: null,
-      foster_facility_other: null,
-    };
-  }
-
-  return {
-    went_to_foster_facility: true,
-    foster_facility: "other" as const,
-    foster_facility_other: cat.foster_program?.trim() || "Foster",
-  };
 }
 
 function fixDateFromCat(cat: Pick<Cat, "return_date" | "trap_date">) {
@@ -138,6 +120,25 @@ export async function syncTrackedCatFixesForCase(
       }
 
       if (existingByCat || existingByAppointment) {
+        const fixId = existingByCat?.id ?? existingByAppointment?.id;
+        if (
+          fixed &&
+          fixId &&
+          (existingByCat?.logged_by === TRACKED_CAT_SYNC_ACTOR ||
+            existingByAppointment?.logged_by === TRACKED_CAT_SYNC_ACTOR)
+        ) {
+          const { error } = await service
+            .from("clinic_fixes")
+            .update({
+              age_category: cat.age_category ?? "adult",
+              gender: parseTrackedCatGender(cat.gender),
+              clinic_name: cat.clinic_name,
+              fix_date: fixDateFromCat(cat),
+              ...fosterFieldsFromCat(cat),
+            })
+            .eq("id", fixId);
+          if (error) throw new Error(error.message);
+        }
         continue;
       }
 
@@ -147,7 +148,7 @@ export async function syncTrackedCatFixesForCase(
           help_request_id: helpRequestId,
           cat_id: cat.id,
           appointment_id: cat.appointment_id,
-          age_category: "adult",
+          age_category: cat.age_category ?? "adult",
           gender: parseTrackedCatGender(cat.gender),
           clinic_name: cat.clinic_name,
           fix_date: fixDateFromCat(cat),

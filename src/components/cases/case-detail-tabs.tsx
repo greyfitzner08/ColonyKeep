@@ -38,6 +38,11 @@ import { CaseCollapsibleSection } from "@/components/cases/case-collapsible-sect
 import { CaseAppointmentsSection } from "@/components/appointments/case-appointments-section";
 import { TrackedCatCard } from "@/components/cases/tracked-cat-card";
 import { ColonyCatSummaryEditor } from "@/components/cases/colony-cat-summary-editor";
+import {
+  ClinicFixFosterFields,
+  validateClinicFixFosterForm,
+} from "@/components/cases/clinic-fix-foster-fields";
+import type { FosterFacility } from "@/lib/cases/foster-facility";
 import { useDebouncedCallback } from "@/lib/hooks/use-debounced-callback";
 import { Plus } from "lucide-react";
 
@@ -87,6 +92,13 @@ export function CaseDetailTabs({
   const [cats, setCats] = useState(initialCats);
   const [intakeSaveState, setIntakeSaveState] = useState<SaveState>("idle");
   const [newCat, setNewCat] = useState(EMPTY_CAT);
+  const [newCatFixedAtClinic, setNewCatFixedAtClinic] = useState(false);
+  const [newCatAgeCategory, setNewCatAgeCategory] = useState<"" | "adult" | "kitten">("");
+  const [newCatWentToFoster, setNewCatWentToFoster] = useState<"" | "yes" | "no">("");
+  const [newCatFosterFacility, setNewCatFosterFacility] = useState<FosterFacility | "">("");
+  const [newCatFosterFacilityOther, setNewCatFosterFacilityOther] = useState("");
+  const [addingCat, setAddingCat] = useState(false);
+  const [addCatError, setAddCatError] = useState<string | null>(null);
   const [followUpNote, setFollowUpNote] = useState("");
   const [savingFeeder, setSavingFeeder] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -249,28 +261,69 @@ export function CaseDetailTabs({
     setFollowUpNote("");
   }
 
+  function resetNewCatForm() {
+    setNewCat(EMPTY_CAT);
+    setNewCatFixedAtClinic(false);
+    setNewCatAgeCategory("");
+    setNewCatWentToFoster("");
+    setNewCatFosterFacility("");
+    setNewCatFosterFacilityOther("");
+    setAddCatError(null);
+  }
+
   async function addCat() {
-    const supabase = createClient();
-    const { data, error } = await supabase
-      .from("cats")
-      .insert({
-        help_request_id: hr.id,
-        name: newCat.name || null,
-        gender: newCat.gender || null,
-        colors: newCat.colors || null,
-        microchip_id: newCat.microchip_id || null,
-        medical_notes: newCat.medical_notes || null,
-      })
-      .select()
-      .single();
-    if (error) {
-      alert(error.message);
+    if (newCatFixedAtClinic) {
+      if (!newCatAgeCategory) {
+        setAddCatError("Select adult or kitten.");
+        return;
+      }
+      const fosterError = validateClinicFixFosterForm({
+        wentToFoster: newCatWentToFoster,
+        fosterFacility: newCatFosterFacility,
+        fosterFacilityOther: newCatFosterFacilityOther,
+      });
+      if (fosterError) {
+        setAddCatError(fosterError);
+        return;
+      }
+    }
+
+    setAddingCat(true);
+    setAddCatError(null);
+
+    const response = await fetch("/api/cats", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        helpRequestId: hr.id,
+        name: newCat.name,
+        gender: newCat.gender,
+        colors: newCat.colors,
+        microchip_id: newCat.microchip_id,
+        medical_notes: newCat.medical_notes,
+        fixedAtClinic: newCatFixedAtClinic,
+        ageCategory: newCatFixedAtClinic ? newCatAgeCategory : undefined,
+        wentToFoster: newCatFixedAtClinic ? newCatWentToFoster : undefined,
+        fosterFacility: newCatFixedAtClinic ? newCatFosterFacility : undefined,
+        fosterFacilityOther: newCatFixedAtClinic ? newCatFosterFacilityOther : undefined,
+      }),
+    });
+
+    const result = await response.json().catch(() => null);
+    setAddingCat(false);
+
+    if (!response.ok) {
+      setAddCatError(result?.error ?? "Unable to add tracked cat");
       return;
     }
-    if (data) {
-      setCats([...cats, data as Cat]);
-      setNewCat(EMPTY_CAT);
-      router.refresh();
+
+    if (result?.cat) {
+      const wasFixedAtClinic = newCatFixedAtClinic;
+      setCats([...cats, result.cat as Cat]);
+      resetNewCatForm();
+      if (wasFixedAtClinic) {
+        router.refresh();
+      }
     }
   }
 
@@ -454,9 +507,72 @@ export function CaseDetailTabs({
                 rows={3}
               />
             </div>
-            <Button onClick={addCat} className="sm:col-span-2">
+
+            <div className="space-y-2 sm:col-span-2">
+              <Label className="text-sm font-medium">Fixed at clinic?</Label>
+              <Select
+                value={newCatFixedAtClinic ? "yes" : "no"}
+                onValueChange={(value) => {
+                  const fixed = value === "yes";
+                  setNewCatFixedAtClinic(fixed);
+                  if (!fixed) {
+                    setNewCatAgeCategory("");
+                    setNewCatWentToFoster("");
+                    setNewCatFosterFacility("");
+                    setNewCatFosterFacilityOther("");
+                  }
+                  setAddCatError(null);
+                }}
+              >
+                <SelectTrigger className="text-base">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="no">Not yet — still at colony or in progress</SelectItem>
+                  <SelectItem value="yes">Yes — already fixed at clinic</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {newCatFixedAtClinic && (
+              <>
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">Age at clinic</Label>
+                  <Select
+                    value={newCatAgeCategory || "unset"}
+                    onValueChange={(value) =>
+                      setNewCatAgeCategory(value === "unset" ? "" : (value as "adult" | "kitten"))
+                    }
+                  >
+                    <SelectTrigger className="text-base">
+                      <SelectValue placeholder="Select age" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="unset">Select age</SelectItem>
+                      <SelectItem value="adult">Adult (8+ weeks)</SelectItem>
+                      <SelectItem value="kitten">Kitten (&lt;8 weeks)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="sm:col-span-2">
+                  <ClinicFixFosterFields
+                    wentToFoster={newCatWentToFoster}
+                    onWentToFosterChange={setNewCatWentToFoster}
+                    fosterFacility={newCatFosterFacility}
+                    onFosterFacilityChange={setNewCatFosterFacility}
+                    fosterFacilityOther={newCatFosterFacilityOther}
+                    onFosterFacilityOtherChange={setNewCatFosterFacilityOther}
+                  />
+                </div>
+              </>
+            )}
+
+            {addCatError && (
+              <p className="text-sm text-destructive sm:col-span-2">{addCatError}</p>
+            )}
+            <Button onClick={addCat} className="sm:col-span-2" disabled={addingCat}>
               <Plus className="h-4 w-4 mr-2" />
-              Add Cat
+              {addingCat ? "Adding…" : "Add Cat"}
             </Button>
           </div>
         </CaseCollapsibleSection>
