@@ -19,7 +19,9 @@ export async function POST(request: NextRequest) {
   const service = await createServiceClient();
   const { data: existing, error: fetchError } = await service
     .from("help_requests")
-    .select("id, status, colony_zip, assigned_team_id, assigned_team_name, history_log")
+    .select(
+      "id, status, colony_zip, assigned_team_id, assigned_team_name, history_log, claimed_by_email, claimed_by_name, assigned_to"
+    )
     .eq("id", helpRequestId)
     .single();
 
@@ -42,6 +44,11 @@ export async function POST(request: NextRequest) {
 
   const assignment = applyTrapTeamAssignment({}, existing.colony_zip, teams ?? []);
   const teamName = assignment.assigned_team_name ?? existing.assigned_team_name;
+  const hadIntakeClaim = Boolean(
+    existing.claimed_by_email?.trim() ||
+      existing.claimed_by_name?.trim() ||
+      existing.assigned_to?.trim()
+  );
 
   const historyEntry: HistoryEntry = {
     timestamp: new Date().toISOString(),
@@ -49,8 +56,8 @@ export async function POST(request: NextRequest) {
     actor_email: profile!.email,
     actor_name: profile!.full_name ?? profile!.email,
     details: teamName
-      ? `Routed to trap team ${teamName} by intake`
-      : "Routed to trap queue by intake (no matching team ZIP)",
+      ? `Routed to trap team ${teamName} by intake${hadIntakeClaim ? " (released from intake assignment)" : ""}`
+      : `Routed to trap queue by intake${hadIntakeClaim ? " (released from intake assignment)" : ""} (no matching team ZIP)`,
   };
 
   const historyLog = [...(existing.history_log ?? []), historyEntry];
@@ -62,6 +69,9 @@ export async function POST(request: NextRequest) {
       assigned_team_id: assignment.assigned_team_id ?? existing.assigned_team_id,
       assigned_team_name: teamName,
       assigned_team: teamName,
+      claimed_by_email: null,
+      claimed_by_name: null,
+      assigned_to: null,
       history_log: historyLog,
     })
     .eq("id", helpRequestId);

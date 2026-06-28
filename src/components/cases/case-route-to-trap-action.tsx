@@ -44,6 +44,7 @@ export function CaseRouteToTrapAction({
       return;
     }
 
+    router.push("/trap-queue");
     router.refresh();
   }
 
