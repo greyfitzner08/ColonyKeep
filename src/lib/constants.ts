@@ -91,6 +91,10 @@ export const NEWSLETTER_SIGNUP_LABEL = "Newsletter Signup";
 export const NEWSLETTER_SIGNUP_DESCRIPTION =
   "I agree to receive occasional communications from Friends of Feral Felines, including volunteer opportunities, TNVR updates, and organizational news.";
 
+/** Shown on the public colony intake form (implied consent, not a checkbox). */
+export const INTAKE_COMMUNICATIONS_NOTICE =
+  "By contacting us, you agree to receive occasional communications related to your request.";
+
 export const LIABILITY_WAIVER_URL =
   "https://zealous-sherbet-f24.notion.site/Liability-Agreement-389a52ca229f80cfb2b3d8435a4a0990";
 export const POLICY_URL =

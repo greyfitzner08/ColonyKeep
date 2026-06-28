@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/select";
 import { AddressAutocomplete } from "@/components/forms/address-autocomplete";
 import { CountySelect } from "@/components/forms/county-select";
-import { NEWSLETTER_SIGNUP_DESCRIPTION, NEWSLETTER_SIGNUP_LABEL } from "@/lib/constants";
+import { INTAKE_COMMUNICATIONS_NOTICE } from "@/lib/constants";
 import { resolveCountyFromAutocomplete } from "@/lib/counties";
 import type { CommunityIntakeSubmission } from "@/lib/cases/public-intake";
 
@@ -250,7 +250,10 @@ export function ColonyIntakeForm() {
     setSubmitting(true);
 
     try {
-      const submission = colonySameAsHome ? copyHomeAddressToColony(form) : form;
+      const submission = {
+        ...(colonySameAsHome ? copyHomeAddressToColony(form) : form),
+        consent_communications: true,
+      };
       const response = await fetch("/api/help-requests/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -707,18 +710,6 @@ export function ColonyIntakeForm() {
                     onChange={(e) => update("how_heard", e.target.value)}
                   />
                 </div>
-                <div className="flex items-start gap-2 rounded-lg border p-3">
-                  <Checkbox
-                    id="consent_communications"
-                    checked={form.consent_communications}
-                    onCheckedChange={(v) => update("consent_communications", !!v)}
-                    className="mt-0.5"
-                  />
-                  <div className="space-y-1">
-                    <Label htmlFor="consent_communications">{NEWSLETTER_SIGNUP_LABEL}</Label>
-                    <p className="text-sm text-muted-foreground">{NEWSLETTER_SIGNUP_DESCRIPTION}</p>
-                  </div>
-                </div>
               </>
             )}
 
@@ -796,9 +787,14 @@ export function ColonyIntakeForm() {
                   Next <ChevronRight className="h-4 w-4" />
                 </Button>
               ) : (
-                <Button type="button" onClick={handleSubmit} disabled={submitting}>
-                  {submitting ? "Submitting..." : "Submit Request"}
-                </Button>
+                <div className="flex flex-col items-end gap-2">
+                  <Button type="button" onClick={handleSubmit} disabled={submitting}>
+                    {submitting ? "Submitting..." : "Submit Request"}
+                  </Button>
+                  <p className="max-w-xs text-right text-xs text-muted-foreground/80">
+                    {INTAKE_COMMUNICATIONS_NOTICE}
+                  </p>
+                </div>
               )}
             </div>
             {submitError && <p className="text-sm text-destructive">{submitError}</p>}
