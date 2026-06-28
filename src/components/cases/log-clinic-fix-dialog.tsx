@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
@@ -25,7 +24,14 @@ import {
   fosterFormToPayload,
   validateClinicFixFosterForm,
 } from "@/components/cases/clinic-fix-foster-fields";
+import { TrackedCatDetailsFields } from "@/components/cases/tracked-cat-details-fields";
+import {
+  EMPTY_TRACKED_CAT_DETAILS,
+  trackedCatDetailsFromCat,
+  type TrackedCatDetails,
+} from "@/lib/cases/tracked-cat-form";
 import type { FosterFacility } from "@/lib/cases/foster-facility";
+import type { Cat } from "@/lib/types";
 
 interface LogClinicFixDialogProps {
   open: boolean;
@@ -33,6 +39,7 @@ interface LogClinicFixDialogProps {
   helpRequestId: string;
   caseNumber: string;
   catId?: string;
+  cat?: Cat | null;
   catName?: string | null;
   defaultClinicName?: string | null;
   defaultGender?: "" | "male" | "female";
@@ -44,16 +51,16 @@ export function LogClinicFixDialog({
   helpRequestId,
   caseNumber,
   catId,
+  cat,
   catName,
   defaultClinicName,
   defaultGender = "",
 }: LogClinicFixDialogProps) {
   const router = useRouter();
+  const [details, setDetails] = useState<TrackedCatDetails>(EMPTY_TRACKED_CAT_DETAILS);
   const [ageCategory, setAgeCategory] = useState<"adult" | "kitten" | "">("");
-  const [gender, setGender] = useState<"" | "male" | "female">("");
   const [clinicName, setClinicName] = useState("");
   const [fixDate, setFixDate] = useState(new Date().toISOString().split("T")[0]);
-  const [notes, setNotes] = useState("");
   const [wentToFoster, setWentToFoster] = useState<"" | "yes" | "no">("");
   const [fosterFacility, setFosterFacility] = useState<FosterFacility | "">("");
   const [fosterFacilityOther, setFosterFacilityOther] = useState("");
@@ -62,16 +69,34 @@ export function LogClinicFixDialog({
 
   useEffect(() => {
     if (!open) return;
+    if (cat) {
+      setDetails(trackedCatDetailsFromCat(cat));
+      setAgeCategory(cat.age_category ?? "");
+    } else {
+      setDetails({
+        ...EMPTY_TRACKED_CAT_DETAILS,
+        name: catName?.trim() ?? "",
+        gender: defaultGender,
+      });
+      setAgeCategory("");
+    }
     setClinicName(defaultClinicName?.trim() ?? "");
-    setGender(defaultGender);
-  }, [open, defaultClinicName, defaultGender]);
+  }, [open, cat, catName, defaultClinicName, defaultGender]);
 
   function resetForm() {
-    setAgeCategory("");
-    setGender(defaultGender);
+    if (cat) {
+      setDetails(trackedCatDetailsFromCat(cat));
+      setAgeCategory(cat.age_category ?? "");
+    } else {
+      setDetails({
+        ...EMPTY_TRACKED_CAT_DETAILS,
+        name: catName?.trim() ?? "",
+        gender: defaultGender,
+      });
+      setAgeCategory("");
+    }
     setClinicName(defaultClinicName?.trim() ?? "");
     setFixDate(new Date().toISOString().split("T")[0]);
-    setNotes("");
     setWentToFoster("");
     setFosterFacility("");
     setFosterFacilityOther("");
@@ -79,7 +104,7 @@ export function LogClinicFixDialog({
   }
 
   async function submit() {
-    if (!ageCategory || !gender) {
+    if (!ageCategory || !details.gender) {
       setError("Select age category and gender.");
       return;
     }
@@ -110,10 +135,14 @@ export function LogClinicFixDialog({
         helpRequestId,
         catId,
         ageCategory,
-        gender,
+        gender: details.gender,
+        femaleReproductiveStatus: details.femaleReproductiveStatus || undefined,
+        name: details.name,
+        colors: details.colors,
+        microchip_id: details.microchip_id,
+        medical_notes: details.medical_notes,
         clinicName: clinicName.trim() || undefined,
         fixDate,
-        notes: notes.trim() || undefined,
         ...fosterPayload,
       }),
     });
@@ -139,63 +168,64 @@ export function LogClinicFixDialog({
         onOpenChange(nextOpen);
       }}
     >
-      <DialogContent>
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Log clinic fix</DialogTitle>
           <DialogDescription>
             {caseNumber}
-            {catName ? ` — ${catName}` : " — walk-in fix"}
+            {catName || details.name ? ` — ${catName || details.name}` : " — walk-in fix"}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
-          <div className="space-y-2">
-            <Label>Clinic name (optional)</Label>
-            <Input
-              value={clinicName}
-              onChange={(e) => setClinicName(e.target.value)}
-              placeholder="e.g. Feral Fixers"
-            />
+          <TrackedCatDetailsFields
+            idPrefix="clinic-fix"
+            value={details}
+            onChange={setDetails}
+          />
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Clinic name (optional)</Label>
+              <Input
+                className="text-base"
+                value={clinicName}
+                onChange={(e) => setClinicName(e.target.value)}
+                placeholder="e.g. Feral Fixers"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Fix date</Label>
+              <Input
+                className="text-base"
+                type="date"
+                value={fixDate}
+                onChange={(e) => setFixDate(e.target.value)}
+              />
+            </div>
           </div>
 
           <div className="space-y-2">
-            <Label>Fix date</Label>
-            <Input type="date" value={fixDate} onChange={(e) => setFixDate(e.target.value)} />
-          </div>
-
-          <div className="space-y-2">
-            <Label>Age category</Label>
+            <Label className="text-sm font-medium">Age at clinic</Label>
             <Select
-              value={ageCategory}
-              onValueChange={(value) => setAgeCategory(value as "adult" | "kitten")}
+              value={ageCategory || "unset"}
+              onValueChange={(value) =>
+                setAgeCategory(value === "unset" ? "" : (value as "adult" | "kitten"))
+              }
             >
-              <SelectTrigger>
-                <SelectValue placeholder="Select age category" />
+              <SelectTrigger className="text-base">
+                <SelectValue placeholder="Select age" />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="unset">Select age</SelectItem>
                 <SelectItem value="adult">Adult (8+ weeks)</SelectItem>
-                <SelectItem value="kitten">Kitten (under 8 weeks)</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label>Gender</Label>
-            <Select
-              value={gender}
-              onValueChange={(value) => setGender(value as "male" | "female")}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select gender" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="male">Male</SelectItem>
-                <SelectItem value="female">Female</SelectItem>
+                <SelectItem value="kitten">Kitten (&lt;8 weeks)</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
           <ClinicFixFosterFields
+            variant="tracked-cat"
             value={{
               wentToFoster,
               fosterFacility,
@@ -207,16 +237,6 @@ export function LogClinicFixDialog({
               setFosterFacilityOther(foster.fosterFacilityOther);
             }}
           />
-
-          <div className="space-y-2">
-            <Label>Notes (optional)</Label>
-            <Textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              rows={2}
-              placeholder="Ear tip color, trap used, etc."
-            />
-          </div>
 
           {error && <p className="text-sm text-destructive">{error}</p>}
         </div>

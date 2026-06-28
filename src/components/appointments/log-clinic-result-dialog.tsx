@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Dialog,
@@ -24,15 +24,48 @@ import {
   fosterFormToPayload,
   validateClinicFixFosterForm,
 } from "@/components/cases/clinic-fix-foster-fields";
+import { TrackedCatDetailsFields } from "@/components/cases/tracked-cat-details-fields";
+import {
+  EMPTY_TRACKED_CAT_DETAILS,
+  type TrackedCatDetails,
+} from "@/lib/cases/tracked-cat-form";
 import type { FosterFacility } from "@/lib/cases/foster-facility";
 
 export interface ClinicResultAppointment {
   id: string;
   date: string;
   clinic_name: string;
+  cat_id: string | null;
   cat_name: string | null;
+  cat_colors: string | null;
+  cat_gender: string | null;
   case_number: string | null;
   help_request_id: string | null;
+  defaultDetails?: Partial<TrackedCatDetails>;
+}
+
+function defaultDetailsForAppointment(
+  appointment: ClinicResultAppointment
+): TrackedCatDetails {
+  const gender = appointment.cat_gender?.trim().toLowerCase();
+  const normalizedGender =
+    gender === "male" || gender === "female"
+      ? gender
+      : gender?.startsWith("f")
+        ? "female"
+        : gender?.startsWith("m")
+          ? "male"
+          : "";
+
+  return {
+    ...EMPTY_TRACKED_CAT_DETAILS,
+    name: appointment.defaultDetails?.name ?? appointment.cat_name ?? "",
+    gender: appointment.defaultDetails?.gender ?? normalizedGender,
+    femaleReproductiveStatus: appointment.defaultDetails?.femaleReproductiveStatus ?? "",
+    colors: appointment.defaultDetails?.colors ?? appointment.cat_colors ?? "",
+    microchip_id: appointment.defaultDetails?.microchip_id ?? "",
+    medical_notes: appointment.defaultDetails?.medical_notes ?? "",
+  };
 }
 
 interface LogClinicResultDialogProps {
@@ -42,17 +75,22 @@ interface LogClinicResultDialogProps {
 
 export function LogClinicResultDialog({ appointment, onOpenChange }: LogClinicResultDialogProps) {
   const router = useRouter();
+  const [details, setDetails] = useState<TrackedCatDetails>(EMPTY_TRACKED_CAT_DETAILS);
   const [ageCategory, setAgeCategory] = useState<"adult" | "kitten" | "">("");
-  const [gender, setGender] = useState<"male" | "female" | "">("");
   const [wentToFoster, setWentToFoster] = useState<"" | "yes" | "no">("");
   const [fosterFacility, setFosterFacility] = useState<FosterFacility | "">("");
   const [fosterFacilityOther, setFosterFacilityOther] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (!appointment) return;
+    setDetails(defaultDetailsForAppointment(appointment));
+  }, [appointment]);
+
   function resetForm() {
+    setDetails(appointment ? defaultDetailsForAppointment(appointment) : EMPTY_TRACKED_CAT_DETAILS);
     setAgeCategory("");
-    setGender("");
     setWentToFoster("");
     setFosterFacility("");
     setFosterFacilityOther("");
@@ -61,7 +99,7 @@ export function LogClinicResultDialog({ appointment, onOpenChange }: LogClinicRe
 
   async function submit() {
     if (!appointment) return;
-    if (!ageCategory || !gender) {
+    if (!ageCategory || !details.gender) {
       setError("Select age category and gender.");
       return;
     }
@@ -91,7 +129,12 @@ export function LogClinicResultDialog({ appointment, onOpenChange }: LogClinicRe
       body: JSON.stringify({
         appointmentId: appointment.id,
         ageCategory,
-        gender,
+        gender: details.gender,
+        femaleReproductiveStatus: details.femaleReproductiveStatus || undefined,
+        name: details.name,
+        colors: details.colors,
+        microchip_id: details.microchip_id,
+        medical_notes: details.medical_notes,
         ...fosterPayload,
       }),
     });
@@ -117,7 +160,7 @@ export function LogClinicResultDialog({ appointment, onOpenChange }: LogClinicRe
         onOpenChange(open);
       }}
     >
-      <DialogContent>
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Log clinic results</DialogTitle>
           <DialogDescription>
@@ -125,7 +168,6 @@ export function LogClinicResultDialog({ appointment, onOpenChange }: LogClinicRe
               <>
                 {appointment.case_number ? `${appointment.case_number} · ` : ""}
                 {appointment.clinic_name} · {formatDate(appointment.date)}
-                {appointment.cat_name ? ` · ${appointment.cat_name}` : ""}
               </>
             ) : (
               "Record the cat fixed at this appointment."
@@ -134,36 +176,33 @@ export function LogClinicResultDialog({ appointment, onOpenChange }: LogClinicRe
         </DialogHeader>
 
         <div className="space-y-4">
-          <div className="space-y-2">
-            <Label>Age category</Label>
-            <Select
-              value={ageCategory}
-              onValueChange={(value) => setAgeCategory(value as "adult" | "kitten")}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select age category" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="adult">Adult (8+ weeks)</SelectItem>
-                <SelectItem value="kitten">Kitten (under 8 weeks)</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+          <TrackedCatDetailsFields
+            idPrefix="clinic-result"
+            value={details}
+            onChange={setDetails}
+          />
 
           <div className="space-y-2">
-            <Label>Gender</Label>
-            <Select value={gender} onValueChange={(value) => setGender(value as "male" | "female")}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select gender" />
+            <Label className="text-sm font-medium">Age at clinic</Label>
+            <Select
+              value={ageCategory || "unset"}
+              onValueChange={(value) =>
+                setAgeCategory(value === "unset" ? "" : (value as "adult" | "kitten"))
+              }
+            >
+              <SelectTrigger className="text-base">
+                <SelectValue placeholder="Select age" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="male">Male</SelectItem>
-                <SelectItem value="female">Female</SelectItem>
+                <SelectItem value="unset">Select age</SelectItem>
+                <SelectItem value="adult">Adult (8+ weeks)</SelectItem>
+                <SelectItem value="kitten">Kitten (&lt;8 weeks)</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
           <ClinicFixFosterFields
+            variant="tracked-cat"
             value={{
               wentToFoster,
               fosterFacility,
@@ -175,11 +214,6 @@ export function LogClinicResultDialog({ appointment, onOpenChange }: LogClinicRe
               setFosterFacilityOther(foster.fosterFacilityOther);
             }}
           />
-
-          <p className="text-sm text-muted-foreground">
-            This records one fixed cat, keeps the originally reported colony size, and updates
-            remaining counts on the case.
-          </p>
 
           {error && <p className="text-sm text-destructive">{error}</p>}
         </div>

@@ -3,9 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -15,21 +13,12 @@ import {
 } from "@/components/ui/select";
 import { CaseCollapsibleSection } from "@/components/cases/case-collapsible-section";
 import { ClinicFixFosterFields } from "@/components/cases/clinic-fix-foster-fields";
-import { FemaleReproductiveStatusSelect } from "@/components/cases/female-reproductive-status-select";
+import { TrackedCatDetailsFields } from "@/components/cases/tracked-cat-details-fields";
 import { hasFosterFormAnswer, validateTrackedCatFosterForm } from "@/lib/cases/tracked-cat-foster";
-import type { FemaleReproductiveStatus } from "@/lib/cases/female-reproductive-status";
+import { EMPTY_TRACKED_CAT_DETAILS, type TrackedCatDetails } from "@/lib/cases/tracked-cat-form";
 import type { FosterFacility } from "@/lib/cases/foster-facility";
 import type { Cat } from "@/lib/types";
 import { Plus } from "lucide-react";
-
-const EMPTY_CAT = {
-  name: "",
-  gender: "" as "" | "male" | "female",
-  femaleReproductiveStatus: "" as FemaleReproductiveStatus | "",
-  colors: "",
-  microchip_id: "",
-  medical_notes: "",
-};
 
 interface AddTrackedCatFormProps {
   helpRequestId: string;
@@ -43,7 +32,7 @@ export function AddTrackedCatForm({
   onAdded,
 }: AddTrackedCatFormProps) {
   const router = useRouter();
-  const [newCat, setNewCat] = useState(EMPTY_CAT);
+  const [newCat, setNewCat] = useState<TrackedCatDetails>(EMPTY_TRACKED_CAT_DETAILS);
   const [fixedAtClinic, setFixedAtClinic] = useState(false);
   const [ageCategory, setAgeCategory] = useState<"" | "adult" | "kitten">("");
   const [wentToFoster, setWentToFoster] = useState<"" | "yes" | "no">("");
@@ -53,7 +42,7 @@ export function AddTrackedCatForm({
   const [error, setError] = useState<string | null>(null);
 
   function resetForm() {
-    setNewCat(EMPTY_CAT);
+    setNewCat(EMPTY_TRACKED_CAT_DETAILS);
     setFixedAtClinic(false);
     setAgeCategory("");
     setWentToFoster("");
@@ -127,77 +116,10 @@ export function AddTrackedCatForm({
 
   return (
     <CaseCollapsibleSection title="Add cat" defaultOpen={defaultOpen}>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label className="text-sm font-medium">Name</Label>
-          <Input
-            className="text-base"
-            placeholder="e.g. Marmalade"
-            value={newCat.name}
-            onChange={(e) => setNewCat({ ...newCat, name: e.target.value })}
-          />
-        </div>
-        <div className="space-y-2">
-          <Label className="text-sm font-medium">Gender</Label>
-          <Select
-            value={newCat.gender || undefined}
-            onValueChange={(value) =>
-              setNewCat({
-                ...newCat,
-                gender: value as "male" | "female",
-                femaleReproductiveStatus:
-                  value === "female" ? newCat.femaleReproductiveStatus : "",
-              })
-            }
-          >
-            <SelectTrigger className="text-base">
-              <SelectValue placeholder="Select gender" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="male">Male</SelectItem>
-              <SelectItem value="female">Female</SelectItem>
-            </SelectContent>
-          </Select>
-          {newCat.gender === "female" && (
-            <FemaleReproductiveStatusSelect
-              id="add-cat-reproductive-status"
-              value={newCat.femaleReproductiveStatus}
-              onChange={(femaleReproductiveStatus) =>
-                setNewCat({ ...newCat, femaleReproductiveStatus })
-              }
-            />
-          )}
-        </div>
-        <div className="space-y-2">
-          <Label className="text-sm font-medium">Colors / Markings</Label>
-          <Input
-            className="text-base"
-            placeholder="Colors"
-            value={newCat.colors}
-            onChange={(e) => setNewCat({ ...newCat, colors: e.target.value })}
-          />
-        </div>
-        <div className="space-y-2">
-          <Label className="text-sm font-medium">Microchip ID #</Label>
-          <Input
-            className="text-base"
-            placeholder="Microchip number"
-            value={newCat.microchip_id}
-            onChange={(e) => setNewCat({ ...newCat, microchip_id: e.target.value })}
-          />
-        </div>
-        <div className="space-y-2 sm:col-span-2">
-          <Label className="text-sm font-medium">Medical Notes</Label>
-          <Textarea
-            className="text-base"
-            placeholder="Injuries, illness, special handling..."
-            value={newCat.medical_notes}
-            onChange={(e) => setNewCat({ ...newCat, medical_notes: e.target.value })}
-            rows={3}
-          />
-        </div>
+      <div className="space-y-4">
+        <TrackedCatDetailsFields idPrefix="add-cat" value={newCat} onChange={setNewCat} />
 
-        <div className="space-y-2 sm:col-span-2">
+        <div className="space-y-2">
           <Label className="text-sm font-medium">Fixed at clinic?</Label>
           <Select
             value={fixedAtClinic ? "yes" : "no"}
@@ -220,7 +142,7 @@ export function AddTrackedCatForm({
         </div>
 
         {fixedAtClinic && (
-          <div className="space-y-2">
+          <div className="space-y-2 max-w-sm">
             <Label className="text-sm font-medium">Age at clinic</Label>
             <Select
               value={ageCategory || "unset"}
@@ -256,8 +178,8 @@ export function AddTrackedCatForm({
           />
         </div>
 
-        {error && <p className="text-sm text-destructive sm:col-span-2">{error}</p>}
-        <Button onClick={addCat} className="sm:col-span-2" disabled={adding}>
+        {error && <p className="text-sm text-destructive">{error}</p>}
+        <Button onClick={addCat} disabled={adding}>
           <Plus className="h-4 w-4 mr-2" />
           {adding ? "Adding…" : "Add Cat"}
         </Button>

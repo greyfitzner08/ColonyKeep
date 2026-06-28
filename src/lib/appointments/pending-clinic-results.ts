@@ -10,7 +10,7 @@ export async function fetchPendingClinicResults(
 
   const { data } = await supabase
     .from("appointments")
-    .select("id, date, clinic_name, help_request_id, cat_name, help_requests(case_number)")
+    .select("id, date, clinic_name, help_request_id, cat_id, cat_name, cat_colors, cat_gender, help_requests(case_number)")
     .eq("reserved_by", userEmail)
     .in("status", ["reserved", "confirmed_transport"])
     .is("clinic_result_logged_at", null)
@@ -27,7 +27,10 @@ export async function fetchPendingClinicResults(
       date: row.date,
       clinic_name: row.clinic_name,
       help_request_id: row.help_request_id,
+      cat_id: row.cat_id,
       cat_name: row.cat_name,
+      cat_colors: row.cat_colors,
+      cat_gender: row.cat_gender,
       case_number: helpRequest?.case_number ?? null,
     };
   });

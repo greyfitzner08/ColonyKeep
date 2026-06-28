@@ -430,6 +430,7 @@ export function TrackedCatCard({
           helpRequestId={helpRequestId}
           caseNumber={caseNumber}
           catId={cat.id}
+          cat={cat}
           catName={cat.name}
           defaultClinicName={cat.clinic_name}
           defaultGender={defaultGender}

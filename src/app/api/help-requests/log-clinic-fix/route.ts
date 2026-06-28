@@ -2,10 +2,20 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAppointmentManager } from "@/lib/api/auth";
 import { recordClinicFix } from "@/lib/cases/record-clinic-fix";
 import type { RecordClinicFixInput } from "@/lib/cases/record-clinic-fix";
-import { trackedCatReturnFields } from "@/lib/cases/tracked-cat-foster";
-import { syncTrackedCatFixesForCase } from "@/lib/cases/tracked-cat-fix";
+import { saveTrackedCatFromClinicLog } from "@/lib/cases/save-tracked-cat-from-clinic-log";
+import { parseFemaleReproductiveStatus, type TrackedCatDetails } from "@/lib/cases/tracked-cat-form";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
-import type { FosterFacility } from "@/lib/cases/foster-facility";
+
+function readCatDetails(body: Record<string, unknown>): TrackedCatDetails {
+  return {
+    name: String(body.name ?? ""),
+    gender: body.gender === "male" || body.gender === "female" ? body.gender : "",
+    femaleReproductiveStatus: parseFemaleReproductiveStatus(body.femaleReproductiveStatus),
+    colors: String(body.colors ?? ""),
+    microchip_id: String(body.microchip_id ?? ""),
+    medical_notes: String(body.medical_notes ?? ""),
+  };
+}
 
 export async function POST(request: NextRequest) {
   const { profile, response } = await requireAppointmentManager();
@@ -26,7 +36,6 @@ export async function POST(request: NextRequest) {
     gender,
     clinicName,
     fixDate,
-    notes,
     wentToFosterFacility,
     fosterFacility,
     fosterFacilityOther,
@@ -37,11 +46,11 @@ export async function POST(request: NextRequest) {
     gender?: "male" | "female";
     clinicName?: string;
     fixDate?: string;
-    notes?: string;
     wentToFosterFacility?: boolean;
     fosterFacility?: string;
     fosterFacilityOther?: string;
   };
+  const details = readCatDetails(body);
 
   if (!helpRequestId) {
     return NextResponse.json({ error: "Missing helpRequestId" }, { status: 400 });
@@ -51,7 +60,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Select adult or kitten" }, { status: 400 });
   }
 
-  if (gender !== "male" && gender !== "female") {
+  const resolvedGender = details.gender || gender;
+  if (resolvedGender !== "male" && resolvedGender !== "female") {
     return NextResponse.json({ error: "Select male or female" }, { status: 400 });
   }
 
@@ -75,14 +85,30 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const { summary } = await recordClinicFix(service, {
+    const catDetails: TrackedCatDetails = {
+      ...details,
+      gender: resolvedGender,
+    };
+
+    const savedCatId = await saveTrackedCatFromClinicLog(service, {
       helpRequestId,
       catId: catId ?? null,
+      clinicName: clinicName?.trim() || null,
+      details: catDetails,
       ageCategory,
-      gender,
+      wentToFosterFacility,
+      fosterFacility: (fosterFacility as RecordClinicFixInput["fosterFacility"]) ?? null,
+      fosterFacilityOther: fosterFacilityOther?.trim() || null,
+    });
+
+    const { summary } = await recordClinicFix(service, {
+      helpRequestId,
+      catId: savedCatId,
+      ageCategory,
+      gender: resolvedGender,
       clinicName: clinicName?.trim() || null,
       fixDate,
-      notes: notes?.trim() || null,
+      notes: catDetails.medical_notes.trim() || null,
       wentToFosterFacility,
       fosterFacility: (fosterFacility as RecordClinicFixInput["fosterFacility"]) ?? null,
       fosterFacilityOther: fosterFacilityOther?.trim() || null,
@@ -90,29 +116,7 @@ export async function POST(request: NextRequest) {
       actorName: profile!.full_name ?? user.email!,
     });
 
-    if (catId) {
-      const returnFields = trackedCatReturnFields({
-        wentToFosterFacility,
-        fosterFacility: fosterFacility as FosterFacility | null,
-        fosterFacilityOther: fosterFacilityOther?.trim() || null,
-      });
-
-      await service
-        .from("cats")
-        .update({
-          gender,
-          age_category: ageCategory,
-          trapped_status: "Trapped",
-          appointment_status: "Complete",
-          clinic_name: clinicName?.trim() || null,
-          ...returnFields,
-        })
-        .eq("id", catId);
-
-      await syncTrackedCatFixesForCase(service, helpRequestId);
-    }
-
-    return NextResponse.json({ success: true, summary });
+    return NextResponse.json({ success: true, summary, catId: savedCatId });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to log clinic fix";
     return NextResponse.json({ error: message }, { status: 400 });

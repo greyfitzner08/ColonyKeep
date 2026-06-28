@@ -112,16 +112,37 @@ export function CaseAppointmentsSection({
                   {canLogResults(appt) && (
                     <Button
                       size="sm"
-                      onClick={() =>
+                      onClick={() => {
+                        const linkedCat = appt.cat_id
+                          ? cats.find((cat) => cat.id === appt.cat_id)
+                          : undefined;
+
                         setLogTarget({
                           id: appt.id,
                           date: appt.date,
                           clinic_name: appt.clinic_name,
+                          cat_id: appt.cat_id,
                           cat_name: appt.cat_name,
+                          cat_colors: appt.cat_colors,
+                          cat_gender: appt.cat_gender,
                           case_number: helpRequest.case_number,
                           help_request_id: helpRequest.id,
-                        })
-                      }
+                          defaultDetails: linkedCat
+                            ? {
+                                name: linkedCat.name ?? "",
+                                gender:
+                                  linkedCat.gender === "male" || linkedCat.gender === "female"
+                                    ? linkedCat.gender
+                                    : "",
+                                femaleReproductiveStatus:
+                                  linkedCat.female_reproductive_status ?? "",
+                                colors: linkedCat.colors ?? "",
+                                microchip_id: linkedCat.microchip_id ?? "",
+                                medical_notes: linkedCat.medical_notes ?? "",
+                              }
+                            : undefined,
+                        });
+                      }}
                     >
                       Log clinic results
                     </Button>

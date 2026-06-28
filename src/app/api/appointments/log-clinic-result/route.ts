@@ -2,8 +2,20 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAppointmentManager } from "@/lib/api/auth";
 import { isClinicResultDue } from "@/lib/appointments/clinic-result";
 import { recordClinicFix, type RecordClinicFixInput } from "@/lib/cases/record-clinic-fix";
-import { fosterFacilityLabel } from "@/lib/cases/foster-facility";
+import { saveTrackedCatFromClinicLog } from "@/lib/cases/save-tracked-cat-from-clinic-log";
+import { parseFemaleReproductiveStatus, type TrackedCatDetails } from "@/lib/cases/tracked-cat-form";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
+
+function readCatDetails(body: Record<string, unknown>): TrackedCatDetails {
+  return {
+    name: String(body.name ?? ""),
+    gender: body.gender === "male" || body.gender === "female" ? body.gender : "",
+    femaleReproductiveStatus: parseFemaleReproductiveStatus(body.femaleReproductiveStatus),
+    colors: String(body.colors ?? ""),
+    microchip_id: String(body.microchip_id ?? ""),
+    medical_notes: String(body.medical_notes ?? ""),
+  };
+}
 
 export async function POST(request: NextRequest) {
   const { profile, response } = await requireAppointmentManager();
@@ -32,6 +44,7 @@ export async function POST(request: NextRequest) {
     fosterFacility?: string;
     fosterFacilityOther?: string;
   };
+  const details = readCatDetails(body);
 
   if (!appointmentId) {
     return NextResponse.json({ error: "Missing appointmentId" }, { status: 400 });
@@ -41,7 +54,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Select adult or kitten" }, { status: 400 });
   }
 
-  if (gender !== "male" && gender !== "female") {
+  const resolvedGender = details.gender || gender;
+  if (resolvedGender !== "male" && resolvedGender !== "female") {
     return NextResponse.json({ error: "Select male or female" }, { status: 400 });
   }
 
@@ -90,14 +104,32 @@ export async function POST(request: NextRequest) {
   const actorName = profile!.full_name ?? user.email!;
 
   try {
+    const catDetails: TrackedCatDetails = {
+      ...details,
+      gender: resolvedGender,
+    };
+
+    const savedCatId = await saveTrackedCatFromClinicLog(service, {
+      helpRequestId: appointment.help_request_id,
+      catId: appointment.cat_id,
+      appointmentId: appointment.id,
+      clinicName: appointment.clinic_name,
+      details: catDetails,
+      ageCategory,
+      wentToFosterFacility,
+      fosterFacility: (fosterFacility as RecordClinicFixInput["fosterFacility"]) ?? null,
+      fosterFacilityOther: fosterFacilityOther?.trim() || null,
+    });
+
     const { summary } = await recordClinicFix(service, {
       helpRequestId: appointment.help_request_id,
       appointmentId: appointment.id,
-      catId: appointment.cat_id,
+      catId: savedCatId,
       ageCategory,
-      gender,
+      gender: resolvedGender,
       clinicName: appointment.clinic_name,
       fixDate: appointment.date,
+      notes: catDetails.medical_notes.trim() || null,
       wentToFosterFacility,
       fosterFacility: (fosterFacility as RecordClinicFixInput["fosterFacility"]) ?? null,
       fosterFacilityOther: fosterFacilityOther?.trim() || null,
@@ -105,38 +137,21 @@ export async function POST(request: NextRequest) {
       actorName,
     });
 
-    const fosterLabel = wentToFosterFacility
-      ? fosterFacilityLabel(
-          fosterFacility as RecordClinicFixInput["fosterFacility"],
-          fosterFacilityOther
-        )
-      : null;
-
     await service
       .from("appointments")
       .update({
         status: "completed",
         clinic_result_logged_at: loggedAt,
         clinic_result_age_category: ageCategory,
-        clinic_result_gender: gender,
+        clinic_result_gender: resolvedGender,
         clinic_result_logged_by: user.email,
         clinic_result_logged_by_name: actorName,
-        cat_gender: gender,
+        cat_id: savedCatId,
+        cat_name: catDetails.name.trim() || appointment.cat_name,
+        cat_colors: catDetails.colors.trim() || appointment.cat_colors,
+        cat_gender: resolvedGender,
       })
       .eq("id", appointmentId);
-
-    if (appointment.cat_id) {
-      await service
-        .from("cats")
-        .update({
-          gender,
-          trapped_status: "fixed",
-          return_status: wentToFosterFacility ? "foster" : "returned",
-          foster_program: fosterLabel,
-          appointment_status: "completed",
-        })
-        .eq("id", appointment.cat_id);
-    }
 
     return NextResponse.json({ success: true, summary });
   } catch (error) {
