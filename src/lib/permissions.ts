@@ -47,6 +47,21 @@ function hasVolunteerRole(profile: Profile, roles: VolunteerRole[]): boolean {
   return roles.some((role) => mine.includes(role));
 }
 
+export function hasClinicCoordinationVolunteerRole(profile: Profile | null): boolean {
+  if (!profile) return false;
+  return hasVolunteerRole(profile, ["clinic_coordination"]);
+}
+
+export function canManageClinics(profile: Profile | null): boolean {
+  if (!profile?.role) return false;
+  if (profile.role === "admin") return true;
+  return hasClinicCoordinationVolunteerRole(profile);
+}
+
+export function canManageClinicEvents(profile: Profile | null): boolean {
+  return canManageClinics(profile);
+}
+
 function hasTnvrVolunteerInterest(profile: Profile): boolean {
   return hasVolunteerRole(profile, TNVR_ROLES);
 }
@@ -73,7 +88,8 @@ export function isCaseWorker(profile: Profile | null): boolean {
 export function canManageAppointments(profile: Profile | null): boolean {
   if (!profile?.role) return false;
   if (profile.role === "admin") return true;
-  if (profile.role === "trap_team_lead" || profile.role === "clinic_coordination") return true;
+  if (profile.role === "trap_team_lead") return true;
+  if (hasClinicCoordinationVolunteerRole(profile)) return true;
   if (hasTnvrVolunteerInterest(profile)) return true;
   return false;
 }
@@ -90,7 +106,7 @@ export function canClaimShifts(profile: Profile | null): boolean {
   if (!profile?.role) return false;
   if (profile.role === "admin") return true;
   if (profile.role === "inquiry_team" || profile.role === "trap_team_lead") return true;
-  if (profile.role === "clinic_coordination") return true;
+  if (hasClinicCoordinationVolunteerRole(profile)) return true;
   return hasVolunteerRole(profile, SHIFT_ELIGIBLE_VOLUNTEER_ROLES);
 }
 
@@ -162,7 +178,7 @@ export function getProfilePermissions(profile: Profile | null): ProfilePermissio
     routes.add("/appointments");
   }
 
-  if (role === "clinic_coordination") {
+  if (canManageClinics(profile)) {
     routes.add("/clinics");
     routes.add("/clinic-events");
   }
@@ -183,7 +199,6 @@ export function getProfilePermissions(profile: Profile | null): ProfilePermissio
     admin: "Administrator",
     inquiry_team: "Inquiry Team",
     trap_team_lead: "TNVR Team",
-    clinic_coordination: "Clinic Coordination",
     volunteer: "Volunteer",
   };
 
@@ -197,8 +212,8 @@ export function getProfilePermissions(profile: Profile | null): ProfilePermissio
     canClaimShifts: shifts,
     canViewCommunityStats: !caseWorker || role === "volunteer",
     canManageVolunteers: false,
-    canManageClinics: role === "clinic_coordination",
-    canManageClinicEvents: role === "clinic_coordination",
+    canManageClinics: canManageClinics(profile),
+    canManageClinicEvents: canManageClinicEvents(profile),
     canViewReports: false,
     canManageAdmin: false,
     canViewVolunteerDirectory: volunteerDirectory,
@@ -232,5 +247,6 @@ export function documentVisibleToProfile(
   if (!profile?.role) return false;
   if (profile.role === "admin") return true;
   if (section === "Volunteer Onboarding") return true;
-  return viewRoles.includes(profile.role);
+  if (viewRoles.includes(profile.role)) return true;
+  return false;
 }

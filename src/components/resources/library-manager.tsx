@@ -32,7 +32,7 @@ const emptyForm = {
   file_url: "",
   section: "General",
   new_section: "",
-  view_roles: ["admin", "inquiry_team", "trap_team_lead", "clinic_coordination", "volunteer"] as UserRole[],
+  view_roles: ["admin", "inquiry_team", "trap_team_lead", "volunteer"] as UserRole[],
 };
 
 export function LibraryManager({ documents: initial, isAdmin }: LibraryManagerProps) {

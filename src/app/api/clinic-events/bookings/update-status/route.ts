@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireApiRole } from "@/lib/api/auth";
+import { requireClinicManager } from "@/lib/api/auth";
 import {
   sendPublicBookingCancelledEmail,
   sendPublicBookingConfirmedEmail,
@@ -11,7 +11,7 @@ import type { PublicBooking, PublicBookingStatus, PublicClinicEvent } from "@/li
 const ALLOWED: PublicBookingStatus[] = ["confirmed", "cancelled", "waitlist"];
 
 export async function POST(request: NextRequest) {
-  const { response } = await requireApiRole(["admin", "clinic_coordination"]);
+  const { response } = await requireClinicManager();
   if (response) return response;
 
   const body = await request.json();

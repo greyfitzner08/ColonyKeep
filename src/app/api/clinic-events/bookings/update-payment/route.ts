@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireApiRole } from "@/lib/api/auth";
+import { requireClinicManager } from "@/lib/api/auth";
 import { createServiceClient } from "@/lib/supabase/server";
 
 export async function POST(request: NextRequest) {
-  const { response } = await requireApiRole(["admin", "clinic_coordination"]);
+  const { response } = await requireClinicManager();
   if (response) return response;
 
   const body = await request.json();

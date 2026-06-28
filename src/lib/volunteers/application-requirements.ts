@@ -11,7 +11,6 @@ import {
 export const STAFF_ROLES_EXEMPT_FROM_APPLICATION: UserRole[] = [
   "inquiry_team",
   "trap_team_lead",
-  "clinic_coordination",
 ];
 
 /** Requirement fields volunteers can complete themselves at login (before using the portal). */

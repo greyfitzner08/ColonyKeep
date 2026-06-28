@@ -90,8 +90,8 @@ Open [http://localhost:3000](http://localhost:3000)
 | `/intake` | admin, inquiry_team, trap_team_lead |
 | `/case/:id` | Staff + assigned team |
 | `/trap-queue` | trap roles, volunteers |
-| `/appointments` | clinic_coordination, trap leads |
-| `/clinics` | admin, clinic_coordination |
+| `/appointments` | clinic coordination volunteer role, trap leads |
+| `/clinics` | admin, clinic coordination volunteer role |
 | `/hotspots` | Most staff roles |
 | `/volunteers` | admin |
 | `/shift-board` | All volunteers |
@@ -99,7 +99,7 @@ Open [http://localhost:3000](http://localhost:3000)
 | `/my-impact` | All volunteers |
 | `/reports` | admin |
 | `/admin` | admin |
-| `/clinic-events` | admin, clinic_coordination |
+| `/clinic-events` | admin, clinic coordination volunteer role |
 
 ## Key Features
 

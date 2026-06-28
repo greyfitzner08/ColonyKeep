@@ -29,7 +29,7 @@ export function announcementVisibleToProfile(
     if (targets.length === 0) return true;
 
     const platformRoles = targets.filter((role): role is UserRole =>
-      ["admin", "inquiry_team", "trap_team_lead", "clinic_coordination", "volunteer"].includes(role)
+      ["admin", "inquiry_team", "trap_team_lead", "volunteer"].includes(role)
     );
     const volunteerTargets = targets.filter(
       (role) => !platformRoles.includes(role as UserRole)

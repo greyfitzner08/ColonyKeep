@@ -7,7 +7,6 @@ const VALID_ROLES = new Set<UserRole>([
   "admin",
   "inquiry_team",
   "trap_team_lead",
-  "clinic_coordination",
   "volunteer",
 ]);
 

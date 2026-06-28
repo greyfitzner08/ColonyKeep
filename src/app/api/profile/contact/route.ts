@@ -10,7 +10,6 @@ export async function POST(request: NextRequest) {
     "volunteer",
     "inquiry_team",
     "trap_team_lead",
-    "clinic_coordination",
   ]);
   if (response) return response;
 

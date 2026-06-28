@@ -2,7 +2,6 @@ export type UserRole =
   | "admin"
   | "inquiry_team"
   | "trap_team_lead"
-  | "clinic_coordination"
   | "volunteer";
 
 export type HelpRequestStatus =
@@ -48,6 +47,7 @@ export type VolunteerRole =
   | "photographer"
   | "videographer"
   | "community_outreach"
+  | "clinic_coordination"
   | "youth_volunteer"
   | "other";
 

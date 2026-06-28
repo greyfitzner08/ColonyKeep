@@ -40,6 +40,7 @@ export const VOLUNTEER_ROLES: { value: VolunteerRole; label: string }[] = [
   { value: "photographer", label: "Photographer" },
   { value: "videographer", label: "Videographer" },
   { value: "community_outreach", label: "Community Outreach" },
+  { value: "clinic_coordination", label: "Clinic Coordination" },
   { value: "youth_volunteer", label: "Youth Volunteer (under 18)" },
   { value: "other", label: "Other" },
 ];
@@ -147,21 +148,6 @@ export const ROLE_PERMISSIONS: Record<
       "/my-impact",
       "/resources",
       "/equipment",
-    ],
-  },
-  clinic_coordination: {
-    label: "Clinic Coordination",
-    routes: [
-      "/",
-      "/intake",
-      "/case",
-      "/appointments",
-      "/clinics",
-      "/clinic-events",
-      "/shift-board",
-      "/team-feed",
-      "/my-impact",
-      "/resources",
     ],
   },
   volunteer: {

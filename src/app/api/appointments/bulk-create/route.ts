@@ -1,14 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireApiRole } from "@/lib/api/auth";
+import { requireAppointmentManager } from "@/lib/api/auth";
 import { createServiceClient } from "@/lib/supabase/server";
 
 export async function POST(request: NextRequest) {
-  const { response } = await requireApiRole([
-    "admin",
-    "clinic_coordination",
-    "trap_team_lead",
-    "inquiry_team",
-  ]);
+  const { response } = await requireAppointmentManager();
   if (response) return response;
 
   const body = await request.json();

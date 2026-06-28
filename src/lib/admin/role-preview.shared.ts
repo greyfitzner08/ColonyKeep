@@ -12,7 +12,6 @@ export const VOLUNTEER_ROLES_EXCLUDED_FROM_PREVIEW: VolunteerRole[] = [
 export const PLATFORM_ROLE_PREVIEW_OPTIONS: { key: UserRole; label: string }[] = [
   { key: "inquiry_team", label: "Inquiry team" },
   { key: "trap_team_lead", label: "TNVR team" },
-  { key: "clinic_coordination", label: "Clinic coordination" },
   { key: "volunteer", label: "Volunteer (general)" },
 ];
 

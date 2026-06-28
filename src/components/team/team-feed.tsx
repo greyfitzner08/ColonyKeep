@@ -34,7 +34,6 @@ const PLATFORM_ROLES: { value: UserRole; label: string }[] = [
   { value: "admin", label: "Administrators" },
   { value: "inquiry_team", label: "Inquiry Team" },
   { value: "trap_team_lead", label: "Trap Team Leads" },
-  { value: "clinic_coordination", label: "Clinic Coordination" },
   { value: "volunteer", label: "Volunteers (platform role)" },
 ];
 

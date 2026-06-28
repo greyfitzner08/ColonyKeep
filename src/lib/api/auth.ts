@@ -3,6 +3,7 @@ import { isKnownUserRole } from "@/lib/constants";
 import {
   canClaimShifts,
   canManageAppointments,
+  canManageClinics,
   canManageTrapEquipment,
   isCaseWorker,
 } from "@/lib/permissions";
@@ -91,6 +92,20 @@ export async function requireAppointmentManager() {
   if (response) return { profile, response };
 
   if (!canManageAppointments(profile)) {
+    return {
+      profile: null,
+      response: NextResponse.json({ error: "Forbidden" }, { status: 403 }),
+    };
+  }
+
+  return { profile, response: null };
+}
+
+export async function requireClinicManager() {
+  const { profile, response } = await getAuthenticatedProfile();
+  if (response) return { profile, response };
+
+  if (!canManageClinics(profile)) {
     return {
       profile: null,
       response: NextResponse.json({ error: "Forbidden" }, { status: 403 }),
