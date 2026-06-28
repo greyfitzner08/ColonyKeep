@@ -1,4 +1,4 @@
-import type { ClinicServiceOption } from "@/lib/types";
+import type { ClinicPackage, ClinicServiceOption } from "@/lib/types";
 
 export const DEFAULT_INCLUDED_SERVICE_NAMES = [
   "Spay/Neuter Surgery",
@@ -80,4 +80,10 @@ export function buildInitialAddonPayments(
   selectedAddonNames: string[]
 ): Record<string, boolean> {
   return Object.fromEntries(selectedAddonNames.map((name) => [name, false]));
+}
+
+export function hasVisibleClinicPackages(packages: ClinicPackage[] | null | undefined): boolean {
+  return (packages ?? []).some(
+    (pkg) => pkg.name.trim() || pkg.services.length > 0 || pkg.price > 0
+  );
 }

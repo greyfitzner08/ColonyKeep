@@ -16,9 +16,15 @@ import { Plus, Trash2 } from "lucide-react";
 interface ServiceCatalogEditorProps {
   value: ClinicServiceOption[];
   onChange: (catalog: ClinicServiceOption[]) => void;
+  /** When true, clinic pricing is package-based — hide base-price included section. */
+  packageMode?: boolean;
 }
 
-export function ServiceCatalogEditor({ value, onChange }: ServiceCatalogEditorProps) {
+export function ServiceCatalogEditor({
+  value,
+  onChange,
+  packageMode = false,
+}: ServiceCatalogEditorProps) {
   const included = getIncludedOptions(value);
   const addons = getAddonOptions(value);
 
@@ -74,6 +80,7 @@ export function ServiceCatalogEditor({ value, onChange }: ServiceCatalogEditorPr
 
   return (
     <div className="space-y-6">
+      {!packageMode && (
       <div className="space-y-3">
         <Label className="text-base">Included in base price</Label>
         <p className="text-sm text-muted-foreground">
@@ -115,13 +122,59 @@ export function ServiceCatalogEditor({ value, onChange }: ServiceCatalogEditorPr
           Add custom included item
         </Button>
       </div>
+      )}
+
+      {packageMode && (
+        <div className="space-y-3">
+          <Label className="text-base">Services</Label>
+          <p className="text-sm text-muted-foreground">
+            Define services that can be grouped into packages below.
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {DEFAULT_INCLUDED_SERVICE_NAMES.map((name) => (
+              <div key={name} className="flex items-center gap-2 rounded-md border px-3 py-2">
+                <Checkbox
+                  checked={included.some((item) => item.name === name) || addons.some((item) => item.name === name)}
+                  onCheckedChange={(checked) => toggleIncludedPreset(name, !!checked)}
+                />
+                <Label className="font-normal">{name}</Label>
+              </div>
+            ))}
+          </div>
+
+          {customIncluded.length > 0 && (
+            <div className="space-y-2">
+              <Label className="text-sm">Custom services</Label>
+              {customIncluded.map((item) => (
+                <div key={item.name || "new"} className="flex gap-2">
+                  <Input
+                    value={item.name}
+                    placeholder="Custom service"
+                    onChange={(e) => updateCustomIncluded(item.name, e.target.value)}
+                  />
+                  <Button type="button" variant="ghost" size="icon" onClick={() => removeCustomIncluded(item.name)}>
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <Button type="button" variant="outline" size="sm" onClick={addCustomIncluded}>
+            <Plus className="h-4 w-4 mr-1" />
+            Add custom service
+          </Button>
+        </div>
+      )}
 
       <div className="space-y-3">
         <div className="flex items-center justify-between gap-2">
           <div>
             <Label className="text-base">Optional add-on services</Label>
             <p className="text-sm text-muted-foreground">
-              Sign-ups can opt in. Track payment for each add-on in booking management.
+              {packageMode
+                ? "Extras outside packages that sign-ups can opt into (e.g. microchip)."
+                : "Sign-ups can opt in. Track payment for each add-on in booking management."}
             </p>
           </div>
           <Button type="button" variant="outline" size="sm" onClick={addAddon}>

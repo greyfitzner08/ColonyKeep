@@ -1,32 +1,11 @@
-import type { ClinicPackage, ClinicServiceOption } from "@/lib/types";
-import { normalizeServiceCatalog } from "@/lib/clinics/service-catalog";
+import type { ClinicPackage } from "@/lib/types";
 import { formatCurrency } from "@/lib/utils";
 
 interface ClinicPackagesDisplayProps {
   packages: ClinicPackage[];
-  catalog: ClinicServiceOption[];
-  legacyIncluded?: string[];
-  legacyAddons?: { name: string; price: number }[];
 }
 
-function findCatalogService(catalog: ClinicServiceOption[], serviceName: string) {
-  const normalized = serviceName.trim().toLowerCase();
-  return catalog.find((item) => item.name.trim().toLowerCase() === normalized);
-}
-
-function formatServicePrice(item: ClinicServiceOption | undefined): string {
-  if (!item) return "—";
-  if (item.included_in_base) return "Included";
-  return formatCurrency(item.price);
-}
-
-export function ClinicPackagesDisplay({
-  packages,
-  catalog,
-  legacyIncluded,
-  legacyAddons,
-}: ClinicPackagesDisplayProps) {
-  const normalizedCatalog = normalizeServiceCatalog(catalog, legacyIncluded, legacyAddons);
+export function ClinicPackagesDisplay({ packages }: ClinicPackagesDisplayProps) {
   const visiblePackages = (packages ?? []).filter(
     (pkg) => pkg.name.trim() || pkg.services.length > 0 || pkg.price > 0
   );
@@ -45,21 +24,10 @@ export function ClinicPackagesDisplay({
             </div>
 
             {pkg.services.length > 0 ? (
-              <ul className="divide-y rounded-md border bg-background text-sm">
-                {pkg.services.map((serviceName) => {
-                  const catalogItem = findCatalogService(normalizedCatalog, serviceName);
-                  return (
-                    <li
-                      key={serviceName}
-                      className="flex items-center justify-between gap-3 px-3 py-2"
-                    >
-                      <span>{serviceName}</span>
-                      <span className="shrink-0 text-muted-foreground">
-                        {formatServicePrice(catalogItem)}
-                      </span>
-                    </li>
-                  );
-                })}
+              <ul className="rounded-md border bg-background px-3 py-2 text-sm space-y-1">
+                {pkg.services.map((serviceName) => (
+                  <li key={serviceName}>{serviceName}</li>
+                ))}
               </ul>
             ) : (
               <p className="text-sm text-muted-foreground">No services listed for this package.</p>

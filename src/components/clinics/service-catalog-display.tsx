@@ -9,6 +9,8 @@ interface ServiceCatalogDisplayProps {
   legacyAddons?: { name: string; price: number }[];
   basePrice?: number;
   compact?: boolean;
+  /** Hide the included-in-base section (e.g. when clinic pricing is package-based). */
+  hideIncluded?: boolean;
 }
 
 export function ServiceCatalogDisplay({
@@ -17,16 +19,17 @@ export function ServiceCatalogDisplay({
   legacyAddons,
   basePrice,
   compact = false,
+  hideIncluded = false,
 }: ServiceCatalogDisplayProps) {
   const normalized = normalizeServiceCatalog(catalog, legacyIncluded, legacyAddons);
-  const included = getIncludedOptions(normalized);
+  const included = hideIncluded ? [] : getIncludedOptions(normalized);
   const addons = getAddonOptions(normalized);
 
   if (included.length === 0 && addons.length === 0) return null;
 
   return (
     <div className="space-y-4">
-      {basePrice != null && (
+      {basePrice != null && !hideIncluded && (
         <p className="font-semibold text-base">{formatCurrency(basePrice)} base price per cat</p>
       )}
 

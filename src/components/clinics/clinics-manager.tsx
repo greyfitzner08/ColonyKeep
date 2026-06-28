@@ -15,6 +15,7 @@ import { ServiceCatalogDisplay } from "@/components/clinics/service-catalog-disp
 import { ClinicPackagesDisplay } from "@/components/clinics/clinic-packages-display";
 import {
   defaultIncludedCatalog,
+  hasVisibleClinicPackages,
   normalizeServiceCatalog,
 } from "@/lib/clinics/service-catalog";
 import type { Clinic, ClinicServiceOption } from "@/lib/types";
@@ -126,6 +127,7 @@ export function ClinicsManager({ clinics: initial }: ClinicsManagerProps) {
   }
 
   const catalogForForm = normalizeServiceCatalog(form.service_catalog);
+  const usesPackagePricing = hasVisibleClinicPackages(form.packages);
 
   function addPackage() {
     setForm({
@@ -141,7 +143,10 @@ export function ClinicsManager({ clinics: initial }: ClinicsManagerProps) {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {initial.map((clinic) => (
+        {initial.map((clinic) => {
+          const usesPackagePricing = hasVisibleClinicPackages(clinic.packages);
+
+          return (
           <Card key={clinic.id}>
             <CardHeader className="flex flex-row items-start justify-between">
               <div>
@@ -161,24 +166,21 @@ export function ClinicsManager({ clinics: initial }: ClinicsManagerProps) {
               <p>{clinic.phone}</p>
               <p><strong>Days:</strong> {clinic.operating_days.join(", ") || "Not set"}</p>
               <p><strong>Slots/day:</strong> {clinic.slots_per_day}</p>
-              <ClinicPackagesDisplay
-                packages={clinic.packages ?? []}
-                catalog={clinic.service_catalog ?? []}
-                legacyIncluded={clinic.included_services}
-                legacyAddons={clinic.addon_services}
-              />
+              <ClinicPackagesDisplay packages={clinic.packages ?? []} />
               <ServiceCatalogDisplay
                 catalog={clinic.service_catalog ?? []}
                 legacyIncluded={clinic.included_services}
                 legacyAddons={clinic.addon_services}
                 compact
+                hideIncluded={usesPackagePricing}
               />
               {clinic.check_in_details && (
                 <p className="text-muted-foreground line-clamp-2">{clinic.check_in_details}</p>
               )}
             </CardContent>
           </Card>
-        ))}
+          );
+        })}
       </div>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
@@ -205,6 +207,7 @@ export function ClinicsManager({ clinics: initial }: ClinicsManagerProps) {
             <ServiceCatalogEditor
               value={form.service_catalog}
               onChange={(service_catalog) => setForm({ ...form, service_catalog })}
+              packageMode={usesPackagePricing}
             />
 
             <div className="space-y-2">
@@ -265,9 +268,11 @@ export function ClinicsManager({ clinics: initial }: ClinicsManagerProps) {
                               }
                             />
                             <span className="min-w-0 flex-1 text-sm">{service.name}</span>
-                            <span className="shrink-0 text-xs text-muted-foreground">
-                              {service.included_in_base ? "Included" : formatCurrency(service.price)}
-                            </span>
+                            {!usesPackagePricing && (
+                              <span className="shrink-0 text-xs text-muted-foreground">
+                                {service.included_in_base ? "Included" : formatCurrency(service.price)}
+                              </span>
+                            )}
                           </label>
                         ))}
                       </div>
@@ -276,10 +281,7 @@ export function ClinicsManager({ clinics: initial }: ClinicsManagerProps) {
                 </div>
               ))}
               {form.packages.length > 0 && (
-                <ClinicPackagesDisplay
-                  packages={form.packages}
-                  catalog={form.service_catalog}
-                />
+                <ClinicPackagesDisplay packages={form.packages} />
               )}
             </div>
 
