@@ -79,11 +79,7 @@ export function ColonyCatSummaryEditor({
   return (
     <CaseCollapsibleSection title="Colony cat counts" defaultOpen>
       <div className="space-y-4">
-        <CatCountSummaryDisplay
-          counts={counts}
-          pregnantCount={pregnant}
-          fixedBreakdown
-        />
+        <CatCountSummaryDisplay counts={counts} pregnantCount={pregnant} />
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <div className="space-y-2">

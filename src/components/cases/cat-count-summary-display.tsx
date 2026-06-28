@@ -1,76 +1,105 @@
 import type { CatCountSummary } from "@/lib/cases/cat-counts";
-
-function CountPill({ label, value }: { label: string; value: number }) {
-  return (
-    <div className="rounded-lg bg-muted px-4 py-3 text-center">
-      <p className="text-2xl font-semibold tabular-nums">{value}</p>
-      <p className="mt-0.5 text-sm text-muted-foreground">{label}</p>
-    </div>
-  );
-}
+import { cn } from "@/lib/utils";
 
 interface CatCountSummaryDisplayProps {
   counts: CatCountSummary;
   pregnantCount?: number;
-  /** When true, show fixed adults and kittens separately instead of one total. */
-  fixedBreakdown?: boolean;
 }
 
-export function CatCountSummaryDisplay({
-  counts,
-  pregnantCount,
-  fixedBreakdown = false,
-}: CatCountSummaryDisplayProps) {
+function CountCell({ value, className }: { value: number; className?: string }) {
+  return (
+    <td className={cn("px-4 py-2.5 text-right tabular-nums", className)}>
+      {value}
+    </td>
+  );
+}
+
+export function CatCountSummaryDisplay({ counts, pregnantCount }: CatCountSummaryDisplayProps) {
   const reportedTotal = counts.reportedAdults + counts.reportedKittens;
-  const remainingTotal = counts.remainingTotal;
+  const fixedPercent = reportedTotal > 0 ? Math.round((counts.fixedTotal / reportedTotal) * 100) : 0;
 
   return (
     <div className="overflow-hidden rounded-lg border">
-      <div className="grid divide-y sm:grid-cols-2 sm:divide-x sm:divide-y-0">
-        <section className="p-4">
-          <h4 className="text-sm font-medium">Originally reported at intake</h4>
-          <p className="mt-0.5 text-xs text-muted-foreground">
-            Baseline from the initial report — this number does not change when cats are fixed.
-          </p>
-          <div className="mt-3 grid grid-cols-2 gap-2">
-            <CountPill label="Adults (8+ wks)" value={counts.reportedAdults} />
-            <CountPill label="Kittens (<8 wks)" value={counts.reportedKittens} />
+      <div className="border-b bg-muted/20 px-4 py-3">
+        <p className="text-sm">
+          <span className="font-semibold tabular-nums">{counts.fixedTotal}</span>
+          <span className="text-muted-foreground"> of </span>
+          <span className="font-semibold tabular-nums">{reportedTotal}</span>
+          <span className="text-muted-foreground"> originally reported cats have been fixed</span>
+        </p>
+        <p className="mt-1 text-sm text-muted-foreground tabular-nums">
+          {counts.remainingTotal} still at the colony
+          {reportedTotal > 0 ? ` (${100 - fixedPercent}% remaining)` : ""}
+        </p>
+        {reportedTotal > 0 && (
+          <div
+            className="mt-2.5 h-1.5 overflow-hidden rounded-full bg-muted"
+            role="progressbar"
+            aria-valuenow={counts.fixedTotal}
+            aria-valuemin={0}
+            aria-valuemax={reportedTotal}
+            aria-label={`${counts.fixedTotal} of ${reportedTotal} cats fixed`}
+          >
+            <div
+              className="h-full rounded-full bg-primary transition-all"
+              style={{ width: `${fixedPercent}%` }}
+            />
           </div>
-          <p className="mt-2 text-sm text-muted-foreground tabular-nums">{reportedTotal} total</p>
-        </section>
-
-        <section className="p-4">
-          <h4 className="text-sm font-medium">Still at colony</h4>
-          <p className="mt-0.5 text-xs text-muted-foreground">
-            Cats not yet fixed — updates when clinic fixes are logged.
-          </p>
-          <div className="mt-3 grid grid-cols-2 gap-2">
-            <CountPill label="Adults (8+ wks)" value={counts.remainingAdults} />
-            <CountPill label="Kittens (<8 wks)" value={counts.remainingKittens} />
-          </div>
-          <p className="mt-2 text-sm text-muted-foreground tabular-nums">{remainingTotal} total</p>
-        </section>
+        )}
       </div>
 
-      <section className="border-t bg-muted/30 p-4">
-        <h4 className="text-sm font-medium">Fixed at clinic</h4>
-        <p className="mt-0.5 text-xs text-muted-foreground">
-          {counts.fixedTotal > 0
-            ? `${counts.fixedTotal} of ${reportedTotal} originally reported`
-            : "None logged yet"}
-        </p>
-        {fixedBreakdown ? (
-          <div className="mt-3 grid grid-cols-2 gap-2 sm:max-w-md">
-            <CountPill label="Adults fixed" value={counts.fixedAdults} />
-            <CountPill label="Kittens fixed" value={counts.fixedKittens} />
-          </div>
-        ) : (
-          <p className="mt-2 text-2xl font-semibold tabular-nums">{counts.fixedTotal}</p>
-        )}
-      </section>
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[280px] text-sm">
+          <thead>
+            <tr className="border-b text-muted-foreground">
+              <th className="px-4 py-2 text-left font-medium" scope="col" />
+              <th className="px-4 py-2 text-right font-medium" scope="col">
+                Adults
+              </th>
+              <th className="px-4 py-2 text-right font-medium" scope="col">
+                Kittens
+              </th>
+              <th className="px-4 py-2 text-right font-medium" scope="col">
+                Total
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr className="border-b">
+              <th className="px-4 py-2.5 text-left font-medium" scope="row">
+                Originally reported
+              </th>
+              <CountCell value={counts.reportedAdults} />
+              <CountCell value={counts.reportedKittens} />
+              <CountCell value={reportedTotal} className="font-medium" />
+            </tr>
+            <tr className="border-b bg-primary/5">
+              <th className="px-4 py-2.5 text-left font-medium text-primary" scope="row">
+                Fixed at clinic
+              </th>
+              <CountCell value={counts.fixedAdults} className="text-primary" />
+              <CountCell value={counts.fixedKittens} className="text-primary" />
+              <CountCell value={counts.fixedTotal} className="font-medium text-primary" />
+            </tr>
+            <tr>
+              <th className="px-4 py-2.5 text-left font-medium" scope="row">
+                Still at colony
+              </th>
+              <CountCell value={counts.remainingAdults} />
+              <CountCell value={counts.remainingKittens} />
+              <CountCell value={counts.remainingTotal} className="font-medium" />
+            </tr>
+          </tbody>
+        </table>
+      </div>
 
-      {pregnantCount !== undefined && (
-        <div className="border-t px-4 py-3 text-sm">
+      <p className="border-t px-4 py-2 text-xs text-muted-foreground">
+        Originally reported counts stay fixed. Fixed and still-at-colony update when clinic results
+        are logged.
+      </p>
+
+      {pregnantCount !== undefined && pregnantCount > 0 && (
+        <div className="border-t px-4 py-2.5 text-sm">
           <span className="text-muted-foreground">Suspected pregnant: </span>
           <span className="font-medium tabular-nums">{pregnantCount}</span>
         </div>
