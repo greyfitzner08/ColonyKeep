@@ -35,6 +35,8 @@ import { Button } from "@/components/ui/button";
 import { LogoutButton } from "@/components/layout/logout-button";
 import { AdminRolePreviewControl } from "@/components/admin/admin-role-preview";
 import { PlatformTutorialTrigger } from "@/components/platform-tutorial/platform-tutorial-trigger";
+import { useTeamFeedNavIndicator } from "@/components/layout/use-team-feed-nav-indicator";
+import type { TeamFeedActivity } from "@/lib/team-feed/activity";
 
 interface NavItem {
   href: string;
@@ -123,6 +125,7 @@ interface SidebarProps {
   isAdmin?: boolean;
   previewKey?: string | null;
   roleDescriptions?: RoleDescription[];
+  teamFeedActivity?: TeamFeedActivity | null;
 }
 
 export function Sidebar({
@@ -131,10 +134,12 @@ export function Sidebar({
   isAdmin = false,
   previewKey = null,
   roleDescriptions = [],
+  teamFeedActivity = null,
 }: SidebarProps) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
   const { highlightedNav, tourActive } = useTutorialNavigation();
+  const showTeamFeedIndicator = useTeamFeedNavIndicator(teamFeedActivity, profile?.id);
 
   const permissions = getProfilePermissions(profile);
   const allowedRoutes = permissions?.routes ?? [];
@@ -189,8 +194,14 @@ export function Sidebar({
                         "ring-2 ring-amber-400 ring-offset-2 ring-offset-sidebar shadow-md animate-pulse"
                     )}
                   >
-                    <Icon className="h-4 w-4" />
-                    {item.label}
+                    <Icon className="h-4 w-4 shrink-0" />
+                    <span className="min-w-0 flex-1">{item.label}</span>
+                    {item.href === "/team-feed" && showTeamFeedIndicator && (
+                      <span
+                        className="h-1.5 w-1.5 shrink-0 rounded-full bg-pink-400/75"
+                        aria-label="New team feed activity"
+                      />
+                    )}
                   </Link>
                 );
               })}

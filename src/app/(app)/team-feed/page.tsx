@@ -1,6 +1,7 @@
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { getAppProfile } from "@/lib/auth";
 import { TeamFeed } from "@/components/team/team-feed";
+import { TeamFeedSeenTracker } from "@/components/layout/team-feed-seen-tracker";
 import { announcementVisibleToProfile } from "@/lib/team-feed/visibility";
 import type { TeamAnnouncement } from "@/lib/types";
 
@@ -34,6 +35,7 @@ export default async function TeamFeedPage() {
 
   return (
     <div className="space-y-6">
+      {profile?.id && <TeamFeedSeenTracker profileId={profile.id} />}
       <div>
         <h1 className="text-2xl font-bold sm:text-3xl">Team Feed</h1>
         <p className="text-sm text-muted-foreground sm:text-base">

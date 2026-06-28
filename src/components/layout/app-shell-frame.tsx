@@ -7,6 +7,7 @@ import { PlatformTutorialGate } from "@/components/platform-tutorial/platform-tu
 import { PlatformTutorialNavigationProvider } from "@/components/platform-tutorial/tutorial-navigation-context";
 import { cn } from "@/lib/utils";
 import type { Profile, RoleDescription } from "@/lib/types";
+import type { TeamFeedActivity } from "@/lib/team-feed/activity";
 
 interface AppShellFrameProps {
   children: React.ReactNode;
@@ -17,6 +18,7 @@ interface AppShellFrameProps {
   roleDescriptions: RoleDescription[];
   needsBirthday: boolean;
   showPlatformTutorial: boolean;
+  teamFeedActivity: TeamFeedActivity | null;
 }
 
 export function AppShellFrame({
@@ -28,6 +30,7 @@ export function AppShellFrame({
   roleDescriptions,
   needsBirthday,
   showPlatformTutorial,
+  teamFeedActivity,
 }: AppShellFrameProps) {
   const previewActive = Boolean(previewKey && previewLabel);
 
@@ -52,6 +55,7 @@ export function AppShellFrame({
           previewKey={previewKey}
           roleDescriptions={roleDescriptions}
           userName={effectiveProfile.full_name ?? effectiveProfile.email}
+          teamFeedActivity={teamFeedActivity}
         />
         <main
           className={cn(

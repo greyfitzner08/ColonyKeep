@@ -7,13 +7,14 @@ import { SupabaseConfigGate } from "@/components/layout/supabase-config-gate";
 import { AppShellFrame } from "@/components/layout/app-shell-frame";
 import { isKnownUserRole } from "@/lib/constants";
 import { hasSupabaseServerConfig } from "@/lib/supabase/env";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { resolveVolunteerRoleCatalog } from "@/lib/volunteers/role-catalog";
 import {
   isApplicationPendingReview,
   requiresVolunteerApplication,
   requiresVolunteerRequirementCompletion,
 } from "@/lib/volunteers/application-requirements";
+import { fetchTeamFeedActivity, type TeamFeedActivity } from "@/lib/team-feed/activity";
 import type { RoleDescription, VolunteerApplication } from "@/lib/types";
 
 export async function AppShell({ children }: { children: React.ReactNode }) {
@@ -78,6 +79,17 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
     !needsBirthday &&
     !previewKey;
 
+  let teamFeedActivity: TeamFeedActivity | null = null;
+  if (effectiveProfile) {
+    try {
+      const supabase = await createClient();
+      const service = await createServiceClient();
+      teamFeedActivity = await fetchTeamFeedActivity(supabase, service, effectiveProfile);
+    } catch {
+      teamFeedActivity = null;
+    }
+  }
+
   return (
     <AppShellFrame
       effectiveProfile={effectiveProfile}
@@ -87,6 +99,7 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
       roleDescriptions={roleDescriptions}
       needsBirthday={needsBirthday}
       showPlatformTutorial={showPlatformTutorial}
+      teamFeedActivity={teamFeedActivity}
     >
       {children}
     </AppShellFrame>
