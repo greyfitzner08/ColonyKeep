@@ -2,6 +2,7 @@
 
 import { CaseCollapsibleSection } from "@/components/cases/case-collapsible-section";
 import { CaseFeederSection } from "@/components/cases/case-feeder-section";
+import { CatCountSummaryDisplay } from "@/components/cases/cat-count-summary-display";
 import { InfoRow } from "@/components/cases/case-detail-fields";
 import {
   displayColonyNotes,
@@ -9,15 +10,6 @@ import {
 } from "@/lib/cases/colony-notes";
 import { summarizeCatCounts } from "@/lib/cases/cat-counts";
 import type { ClinicFix, HelpRequest } from "@/lib/types";
-
-function StatPill({ label, value }: { label: string; value: number }) {
-  return (
-    <div className="rounded-lg bg-muted px-4 py-3 text-center">
-      <p className="text-2xl font-semibold tabular-nums">{value}</p>
-      <p className="text-sm text-muted-foreground mt-0.5">{label}</p>
-    </div>
-  );
-}
 
 interface CaseColonyTabProps {
   helpRequest: HelpRequest;
@@ -53,14 +45,10 @@ export function CaseColonyTab({
       </CaseCollapsibleSection>
 
       <CaseCollapsibleSection title="Cat counts" defaultOpen>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-          <StatPill label="Reported adults" value={counts.reportedAdults} />
-          <StatPill label="Reported kittens" value={counts.reportedKittens} />
-          <StatPill label="Fixed" value={counts.fixedTotal} />
-          <StatPill label="Remaining adults" value={counts.remainingAdults} />
-          <StatPill label="Remaining kittens" value={counts.remainingKittens} />
-          <StatPill label="Suspected pregnant" value={hr.pregnant_count} />
-        </div>
+        <CatCountSummaryDisplay
+          counts={counts}
+          pregnantCount={hr.pregnant_count}
+        />
         <p className="mt-3 text-sm text-muted-foreground">
           Log clinic fixes on the Tracked Cats tab. Edit originally reported counts there if intake
           numbers need correction.

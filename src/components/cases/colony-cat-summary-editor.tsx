@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { CaseCollapsibleSection } from "@/components/cases/case-collapsible-section";
+import { CatCountSummaryDisplay } from "@/components/cases/cat-count-summary-display";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,15 +14,6 @@ interface ColonyCatSummaryEditorProps {
   helpRequest: HelpRequest;
   clinicFixes: ClinicFix[];
   onUpdated: (next: HelpRequest) => void;
-}
-
-function CountPill({ label, value }: { label: string; value: number }) {
-  return (
-    <div className="rounded-lg bg-muted px-4 py-3 text-center">
-      <p className="text-2xl font-semibold tabular-nums">{value}</p>
-      <p className="text-sm text-muted-foreground mt-0.5">{label}</p>
-    </div>
-  );
 }
 
 export function ColonyCatSummaryEditor({
@@ -87,21 +79,13 @@ export function ColonyCatSummaryEditor({
   return (
     <CaseCollapsibleSection title="Colony cat counts" defaultOpen>
       <div className="space-y-4">
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-          <CountPill label="Reported adults" value={counts.reportedAdults} />
-          <CountPill label="Reported kittens" value={counts.reportedKittens} />
-          <CountPill label="Fixed adults" value={counts.fixedAdults} />
-          <CountPill label="Fixed kittens" value={counts.fixedKittens} />
-          <CountPill label="Remaining adults" value={counts.remainingAdults} />
-          <CountPill label="Remaining kittens" value={counts.remainingKittens} />
-        </div>
+        <CatCountSummaryDisplay
+          counts={counts}
+          pregnantCount={pregnant}
+          fixedBreakdown
+        />
 
-        <p className="text-sm text-muted-foreground">
-          Originally reported counts are preserved. Remaining counts update automatically when clinic
-          fixes are logged.
-        </p>
-
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <div className="space-y-2">
             <Label>Originally reported adults (8+ weeks)</Label>
             <Input
