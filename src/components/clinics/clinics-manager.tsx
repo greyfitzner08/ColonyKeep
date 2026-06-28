@@ -6,9 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ClinicPartnersTable } from "@/components/clinics/clinic-partners-table";
+import { ClinicPackageItemsEditor } from "@/components/clinics/clinic-package-items-editor";
 import { ServiceCatalogEditor } from "@/components/clinics/service-catalog-editor";
 import { ClinicPackagesDisplay } from "@/components/clinics/clinic-packages-display";
 import {
@@ -17,7 +17,6 @@ import {
   normalizeServiceCatalog,
 } from "@/lib/clinics/service-catalog";
 import type { Clinic, ClinicServiceOption } from "@/lib/types";
-import { formatCurrency } from "@/lib/utils";
 import { Plus, Trash2 } from "lucide-react";
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
@@ -112,15 +111,9 @@ export function ClinicsManager({ clinics: initial }: ClinicsManagerProps) {
     });
   }
 
-  function togglePackageService(index: number, serviceName: string, checked: boolean) {
+  function updatePackageItems(index: number, services: string[]) {
     const packages = [...form.packages];
-    const pkg = packages[index];
-    packages[index] = {
-      ...pkg,
-      services: checked
-        ? [...pkg.services, serviceName]
-        : pkg.services.filter((name) => name !== serviceName),
-    };
+    packages[index] = { ...packages[index], services };
     setForm({ ...form, packages });
   }
 
@@ -207,36 +200,12 @@ export function ClinicsManager({ clinics: initial }: ClinicsManagerProps) {
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
-                  <div className="space-y-2">
-                    <Label className="text-sm font-normal text-muted-foreground">Services in package</Label>
-                    {catalogForForm.length === 0 ? (
-                      <p className="text-sm text-muted-foreground">
-                        Add services to the catalog above first.
-                      </p>
-                    ) : (
-                      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                        {catalogForForm.map((service) => (
-                          <label
-                            key={service.name}
-                            className="flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2"
-                          >
-                            <Checkbox
-                              checked={pkg.services.includes(service.name)}
-                              onCheckedChange={(checked) =>
-                                togglePackageService(index, service.name, !!checked)
-                              }
-                            />
-                            <span className="min-w-0 flex-1 text-sm">{service.name}</span>
-                            {!usesPackagePricing && (
-                              <span className="shrink-0 text-xs text-muted-foreground">
-                                {service.included_in_base ? "Included" : formatCurrency(service.price)}
-                              </span>
-                            )}
-                          </label>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+                  <ClinicPackageItemsEditor
+                    items={pkg.services}
+                    catalog={catalogForForm}
+                    showCatalogPrices={!usesPackagePricing}
+                    onChange={(services) => updatePackageItems(index, services)}
+                  />
                 </div>
               ))}
               {form.packages.length > 0 && (

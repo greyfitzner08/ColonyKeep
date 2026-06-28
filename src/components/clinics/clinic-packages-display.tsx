@@ -29,7 +29,7 @@ export function ClinicPackagesDisplay({ packages }: ClinicPackagesDisplayProps) 
                 ))}
               </ul>
             ) : (
-              <p className="text-sm text-muted-foreground">No services listed for this package.</p>
+              <p className="text-sm text-muted-foreground">No items listed for this package.</p>
             )}
           </div>
         ))}

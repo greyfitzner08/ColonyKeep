@@ -128,7 +128,7 @@ export function ServiceCatalogEditor({
         <div className="space-y-3">
           <Label className="text-base">Services</Label>
           <p className="text-sm text-muted-foreground">
-            Define services that can be grouped into packages below.
+            Optional catalog of services for add-ons and quick-add to packages.
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             {DEFAULT_INCLUDED_SERVICE_NAMES.map((name) => (
