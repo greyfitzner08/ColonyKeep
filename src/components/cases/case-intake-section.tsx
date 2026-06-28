@@ -74,14 +74,6 @@ export function CaseIntakeSection({
   const isInquiryTeam = userRole === "inquiry_team";
   const statusOptions = getStatusOptionsForRole(userRole);
   const reporterNotes = displayColonyNotes(hr.intake_notes, hr);
-  const hasOutcomes =
-    hr.outcome ||
-    hr.resolution ||
-    hr.outcome_tnvr_count > 0 ||
-    hr.outcome_acc_count > 0 ||
-    hr.outcome_foster_count > 0 ||
-    hr.outcome_other_count > 0 ||
-    hr.cats_remaining > 0;
 
   return (
     <div className="space-y-4">
@@ -193,20 +185,6 @@ export function CaseIntakeSection({
         mode="notes"
         onAddNote={onAddNote}
       />
-
-      {hasOutcomes && (
-        <CaseCollapsibleSection title="Outcomes" defaultOpen={false}>
-          <dl>
-            <InfoRow label="Outcome" value={hr.outcome} />
-            <InfoRow label="Resolution" value={hr.resolution} />
-            <InfoRow label="TNVR'd" value={hr.outcome_tnvr_count} />
-            <InfoRow label="To ACC" value={hr.outcome_acc_count} />
-            <InfoRow label="To foster" value={hr.outcome_foster_count} />
-            <InfoRow label="Other" value={hr.outcome_other_count} />
-            <InfoRow label="Remaining" value={hr.cats_remaining} />
-          </dl>
-        </CaseCollapsibleSection>
-      )}
 
       {canCloseCase && (
         <CaseCollapsibleSection title="Close case" defaultOpen={false}>
