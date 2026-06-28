@@ -18,6 +18,7 @@ import { Input } from "@/components/ui/input";
 import { ClaimAppointmentDialog } from "@/components/appointments/claim-appointment-dialog";
 import { AppointmentDetailDialog } from "@/components/appointments/appointment-detail-dialog";
 import { APPOINTMENT_STATUS_COLORS } from "@/lib/constants";
+import { canUnreserveAppointment } from "@/lib/appointments/clinic-result";
 import { formatDate, cn } from "@/lib/utils";
 import type { Appointment, Clinic, Cat } from "@/lib/types";
 import type { HelpRequestOption } from "@/lib/cases/help-request-options";
@@ -147,7 +148,7 @@ export function AppointmentsCalendar({
               <Badge className={cn("text-xs", APPOINTMENT_STATUS_COLORS[appt.status])}>
                 {appt.status}
               </Badge>
-              {appt.status === "reserved" && (
+              {canUnreserveAppointment(appt) && (
                 <Button
                   variant="outline"
                   size="sm"

@@ -14,6 +14,7 @@ import { APPOINTMENT_STATUS_COLORS } from "@/lib/constants";
 import {
   clinicResultAgeLabel,
   clinicResultGenderLabel,
+  canUnreserveAppointment,
   isClinicResultDue,
 } from "@/lib/appointments/clinic-result";
 import { formatDate, cn } from "@/lib/utils";
@@ -122,7 +123,7 @@ export function CaseAppointmentsSection({
                       Log clinic results
                     </Button>
                   )}
-                  {appt.status === "reserved" && !isClinicResultDue(appt) && (
+                  {canUnreserveAppointment(appt) && !isClinicResultDue(appt) && (
                     <Button
                       variant="outline"
                       size="sm"

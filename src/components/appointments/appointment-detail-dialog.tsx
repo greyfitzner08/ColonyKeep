@@ -10,6 +10,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { APPOINTMENT_STATUS_COLORS } from "@/lib/constants";
+import { canUnreserveAppointment } from "@/lib/appointments/clinic-result";
 import { formatDate, cn } from "@/lib/utils";
 import type { Appointment } from "@/lib/types";
 
@@ -28,7 +29,7 @@ export function AppointmentDetailDialog({
 }: AppointmentDetailDialogProps) {
   if (!appointment) return null;
 
-  const canUnreserve = ["reserved", "confirmed_transport"].includes(appointment.status);
+  const canUnreserve = canUnreserveAppointment(appointment);
 
   return (
     <Dialog open={Boolean(appointment)} onOpenChange={onOpenChange}>

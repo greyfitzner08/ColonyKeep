@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
 
   const { data: appointment } = await supabase
     .from("appointments")
-    .select("id, status, help_request_id, cat_id")
+    .select("id, status, help_request_id, cat_id, clinic_result_logged_at")
     .eq("id", appointmentId)
     .single();
 
@@ -35,6 +35,13 @@ export async function POST(request: NextRequest) {
   if (!["reserved", "confirmed_transport"].includes(appointment.status)) {
     return NextResponse.json(
       { error: "Only reserved appointments can be released" },
+      { status: 400 }
+    );
+  }
+
+  if (appointment.clinic_result_logged_at) {
+    return NextResponse.json(
+      { error: "Cannot un-reserve an appointment after clinic results have been logged" },
       { status: 400 }
     );
   }

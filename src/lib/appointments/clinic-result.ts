@@ -34,3 +34,10 @@ export function clinicResultAgeLabel(ageCategory: "adult" | "kitten") {
 export function clinicResultGenderLabel(gender: "male" | "female") {
   return gender === "male" ? "Male" : "Female";
 }
+
+export function canUnreserveAppointment(
+  appointment: Pick<Appointment, "status" | "clinic_result_logged_at">
+): boolean {
+  if (appointment.clinic_result_logged_at) return false;
+  return appointment.status === "reserved" || appointment.status === "confirmed_transport";
+}
