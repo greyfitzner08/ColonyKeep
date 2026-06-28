@@ -19,6 +19,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { formatDate } from "@/lib/utils";
+import {
+  ClinicFixFosterFields,
+  fosterFormToPayload,
+  validateClinicFixFosterForm,
+} from "@/components/cases/clinic-fix-foster-fields";
+import type { FosterFacility } from "@/lib/cases/foster-facility";
 
 export interface ClinicResultAppointment {
   id: string;
@@ -38,12 +44,18 @@ export function LogClinicResultDialog({ appointment, onOpenChange }: LogClinicRe
   const router = useRouter();
   const [ageCategory, setAgeCategory] = useState<"adult" | "kitten" | "">("");
   const [gender, setGender] = useState<"male" | "female" | "">("");
+  const [wentToFoster, setWentToFoster] = useState<"" | "yes" | "no">("");
+  const [fosterFacility, setFosterFacility] = useState<FosterFacility | "">("");
+  const [fosterFacilityOther, setFosterFacilityOther] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   function resetForm() {
     setAgeCategory("");
     setGender("");
+    setWentToFoster("");
+    setFosterFacility("");
+    setFosterFacilityOther("");
     setError(null);
   }
 
@@ -54,8 +66,24 @@ export function LogClinicResultDialog({ appointment, onOpenChange }: LogClinicRe
       return;
     }
 
+    const fosterError = validateClinicFixFosterForm({
+      wentToFoster,
+      fosterFacility,
+      fosterFacilityOther,
+    });
+    if (fosterError) {
+      setError(fosterError);
+      return;
+    }
+
     setLoading(true);
     setError(null);
+
+    const fosterPayload = fosterFormToPayload({
+      wentToFoster,
+      fosterFacility,
+      fosterFacilityOther,
+    });
 
     const response = await fetch("/api/appointments/log-clinic-result", {
       method: "POST",
@@ -64,6 +92,7 @@ export function LogClinicResultDialog({ appointment, onOpenChange }: LogClinicRe
         appointmentId: appointment.id,
         ageCategory,
         gender,
+        ...fosterPayload,
       }),
     });
 
@@ -133,6 +162,15 @@ export function LogClinicResultDialog({ appointment, onOpenChange }: LogClinicRe
               </SelectContent>
             </Select>
           </div>
+
+          <ClinicFixFosterFields
+            wentToFoster={wentToFoster}
+            onWentToFosterChange={setWentToFoster}
+            fosterFacility={fosterFacility}
+            onFosterFacilityChange={setFosterFacility}
+            fosterFacilityOther={fosterFacilityOther}
+            onFosterFacilityOtherChange={setFosterFacilityOther}
+          />
 
           <p className="text-sm text-muted-foreground">
             This records one fixed cat, keeps the originally reported colony size, and updates

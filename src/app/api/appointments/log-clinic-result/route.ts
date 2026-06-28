@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAppointmentManager } from "@/lib/api/auth";
 import { isClinicResultDue } from "@/lib/appointments/clinic-result";
-import { recordClinicFix } from "@/lib/cases/record-clinic-fix";
+import { recordClinicFix, type RecordClinicFixInput } from "@/lib/cases/record-clinic-fix";
+import { fosterFacilityLabel } from "@/lib/cases/foster-facility";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 
 export async function POST(request: NextRequest) {
@@ -16,10 +17,20 @@ export async function POST(request: NextRequest) {
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await request.json();
-  const { appointmentId, ageCategory, gender } = body as {
+  const {
+    appointmentId,
+    ageCategory,
+    gender,
+    wentToFosterFacility,
+    fosterFacility,
+    fosterFacilityOther,
+  } = body as {
     appointmentId?: string;
     ageCategory?: "adult" | "kitten";
     gender?: "male" | "female";
+    wentToFosterFacility?: boolean;
+    fosterFacility?: string;
+    fosterFacilityOther?: string;
   };
 
   if (!appointmentId) {
@@ -32,6 +43,13 @@ export async function POST(request: NextRequest) {
 
   if (gender !== "male" && gender !== "female") {
     return NextResponse.json({ error: "Select male or female" }, { status: 400 });
+  }
+
+  if (typeof wentToFosterFacility !== "boolean") {
+    return NextResponse.json(
+      { error: "Select whether the cat went to foster/facility or returned to colony." },
+      { status: 400 }
+    );
   }
 
   const { data: appointment } = await supabase
@@ -79,9 +97,19 @@ export async function POST(request: NextRequest) {
       gender,
       clinicName: appointment.clinic_name,
       fixDate: appointment.date,
+      wentToFosterFacility,
+      fosterFacility: (fosterFacility as RecordClinicFixInput["fosterFacility"]) ?? null,
+      fosterFacilityOther: fosterFacilityOther?.trim() || null,
       actorEmail: user.email!,
       actorName,
     });
+
+    const fosterLabel = wentToFosterFacility
+      ? fosterFacilityLabel(
+          fosterFacility as RecordClinicFixInput["fosterFacility"],
+          fosterFacilityOther
+        )
+      : null;
 
     await service
       .from("appointments")
@@ -102,7 +130,8 @@ export async function POST(request: NextRequest) {
         .update({
           gender,
           trapped_status: "fixed",
-          return_status: "returned",
+          return_status: wentToFosterFacility ? "foster" : "returned",
+          foster_program: fosterLabel,
           appointment_status: "completed",
         })
         .eq("id", appointment.cat_id);

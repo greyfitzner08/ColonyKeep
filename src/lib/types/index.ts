@@ -326,6 +326,15 @@ export interface ClinicFix {
   logged_by: string | null;
   logged_by_name: string | null;
   notes: string | null;
+  went_to_foster_facility: boolean;
+  foster_facility:
+    | "humane_society_charlotte"
+    | "animal_care_control"
+    | "pet_supermarket"
+    | "princetons_meow"
+    | "other"
+    | null;
+  foster_facility_other: string | null;
   created_at: string;
 }
 

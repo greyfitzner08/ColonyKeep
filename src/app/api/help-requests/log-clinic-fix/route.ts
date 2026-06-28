@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAppointmentManager } from "@/lib/api/auth";
 import { recordClinicFix } from "@/lib/cases/record-clinic-fix";
+import type { RecordClinicFixInput } from "@/lib/cases/record-clinic-fix";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 
 export async function POST(request: NextRequest) {
@@ -15,13 +16,26 @@ export async function POST(request: NextRequest) {
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await request.json();
-  const { helpRequestId, ageCategory, gender, clinicName, fixDate, notes } = body as {
+  const {
+    helpRequestId,
+    ageCategory,
+    gender,
+    clinicName,
+    fixDate,
+    notes,
+    wentToFosterFacility,
+    fosterFacility,
+    fosterFacilityOther,
+  } = body as {
     helpRequestId?: string;
     ageCategory?: "adult" | "kitten";
     gender?: "male" | "female";
     clinicName?: string;
     fixDate?: string;
     notes?: string;
+    wentToFosterFacility?: boolean;
+    fosterFacility?: string;
+    fosterFacilityOther?: string;
   };
 
   if (!helpRequestId) {
@@ -36,6 +50,13 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Select male or female" }, { status: 400 });
   }
 
+  if (typeof wentToFosterFacility !== "boolean") {
+    return NextResponse.json(
+      { error: "Select whether the cat went to foster/facility or returned to colony." },
+      { status: 400 }
+    );
+  }
+
   try {
     const { summary } = await recordClinicFix(service, {
       helpRequestId,
@@ -44,6 +65,9 @@ export async function POST(request: NextRequest) {
       clinicName: clinicName?.trim() || null,
       fixDate,
       notes: notes?.trim() || null,
+      wentToFosterFacility,
+      fosterFacility: (fosterFacility as RecordClinicFixInput["fosterFacility"]) ?? null,
+      fosterFacilityOther: fosterFacilityOther?.trim() || null,
       actorEmail: user.email!,
       actorName: profile!.full_name ?? user.email!,
     });

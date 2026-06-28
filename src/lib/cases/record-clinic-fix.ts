@@ -1,4 +1,10 @@
 import { formatClinicResultSummary } from "@/lib/appointments/clinic-result";
+import {
+  formatFosterFacilitySummary,
+  normalizeFosterFacilityInput,
+  validateFosterFacilityInput,
+  type FosterFacility,
+} from "@/lib/cases/foster-facility";
 import { summarizeCatCounts } from "@/lib/cases/cat-counts";
 import { normalizeHistoryLog } from "@/lib/cases/history-log";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -12,6 +18,9 @@ export interface RecordClinicFixInput {
   clinicName?: string | null;
   fixDate?: string;
   notes?: string | null;
+  wentToFosterFacility: boolean;
+  fosterFacility?: FosterFacility | null;
+  fosterFacilityOther?: string | null;
   actorEmail: string;
   actorName: string;
 }
@@ -44,6 +53,21 @@ export async function recordClinicFix(
     }
   }
 
+  const fosterError = validateFosterFacilityInput({
+    wentToFosterFacility: input.wentToFosterFacility,
+    fosterFacility: input.fosterFacility,
+    fosterFacilityOther: input.fosterFacilityOther,
+  });
+  if (fosterError) {
+    throw new Error(fosterError);
+  }
+
+  const fosterFields = normalizeFosterFacilityInput({
+    wentToFosterFacility: input.wentToFosterFacility,
+    fosterFacility: input.fosterFacility,
+    fosterFacilityOther: input.fosterFacilityOther,
+  });
+
   const fixDate = input.fixDate ?? new Date().toISOString().split("T")[0];
   const summary = formatClinicResultSummary({
     ageCategory: input.ageCategory,
@@ -62,6 +86,7 @@ export async function recordClinicFix(
       logged_by: input.actorEmail,
       logged_by_name: input.actorName,
       notes: input.notes ?? null,
+      ...fosterFields,
     })
     .select("id")
     .single();
@@ -83,13 +108,18 @@ export async function recordClinicFix(
     helpRequest.reported_kittens_under_8_weeks ??
     counts.remainingKittens + counts.fixedKittens;
   const clinicLabel = input.clinicName ? ` (${input.clinicName}, ${fixDate})` : ` (${fixDate})`;
+  const fosterSummary = formatFosterFacilitySummary(
+    fosterFields.went_to_foster_facility,
+    fosterFields.foster_facility as FosterFacility | null,
+    fosterFields.foster_facility_other
+  );
 
   const historyEntry: HistoryEntry = {
     timestamp: new Date().toISOString(),
     action: "clinic_result",
     actor_email: input.actorEmail,
     actor_name: input.actorName,
-    details: `${summary}${clinicLabel}${input.notes ? ` — ${input.notes}` : ""}`,
+    details: `${summary}${clinicLabel} · ${fosterSummary}${input.notes ? ` — ${input.notes}` : ""}`,
     highlighted: true,
     text_color: "green",
   };

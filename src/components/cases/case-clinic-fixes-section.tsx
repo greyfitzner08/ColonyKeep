@@ -25,6 +25,13 @@ import {
   clinicResultAgeLabel,
   clinicResultGenderLabel,
 } from "@/lib/appointments/clinic-result";
+import { formatFosterFacilitySummary } from "@/lib/cases/foster-facility";
+import {
+  ClinicFixFosterFields,
+  fosterFormToPayload,
+  validateClinicFixFosterForm,
+} from "@/components/cases/clinic-fix-foster-fields";
+import type { FosterFacility } from "@/lib/cases/foster-facility";
 import { formatDate } from "@/lib/utils";
 import type { ClinicFix, HelpRequest } from "@/lib/types";
 
@@ -46,6 +53,9 @@ export function CaseClinicFixesSection({
   const [clinicName, setClinicName] = useState("");
   const [fixDate, setFixDate] = useState(new Date().toISOString().split("T")[0]);
   const [notes, setNotes] = useState("");
+  const [wentToFoster, setWentToFoster] = useState<"" | "yes" | "no">("");
+  const [fosterFacility, setFosterFacility] = useState<FosterFacility | "">("");
+  const [fosterFacilityOther, setFosterFacilityOther] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -55,6 +65,9 @@ export function CaseClinicFixesSection({
     setClinicName("");
     setFixDate(new Date().toISOString().split("T")[0]);
     setNotes("");
+    setWentToFoster("");
+    setFosterFacility("");
+    setFosterFacilityOther("");
     setError(null);
   }
 
@@ -64,8 +77,24 @@ export function CaseClinicFixesSection({
       return;
     }
 
+    const fosterError = validateClinicFixFosterForm({
+      wentToFoster,
+      fosterFacility,
+      fosterFacilityOther,
+    });
+    if (fosterError) {
+      setError(fosterError);
+      return;
+    }
+
     setLoading(true);
     setError(null);
+
+    const fosterPayload = fosterFormToPayload({
+      wentToFoster,
+      fosterFacility,
+      fosterFacilityOther,
+    });
 
     const response = await fetch("/api/help-requests/log-clinic-fix", {
       method: "POST",
@@ -77,6 +106,7 @@ export function CaseClinicFixesSection({
         clinicName: clinicName.trim() || undefined,
         fixDate,
         notes: notes.trim() || undefined,
+        ...fosterPayload,
       }),
     });
 
@@ -123,6 +153,13 @@ export function CaseClinicFixesSection({
                     {fix.clinic_name ? `${fix.clinic_name} · ` : ""}
                     {formatDate(fix.fix_date)}
                     {fix.logged_by_name ? ` · ${fix.logged_by_name}` : ""}
+                  </p>
+                  <p className="text-muted-foreground">
+                    {formatFosterFacilitySummary(
+                      fix.went_to_foster_facility ?? false,
+                      fix.foster_facility,
+                      fix.foster_facility_other
+                    )}
                   </p>
                   {fix.notes && <p className="mt-1 whitespace-pre-wrap">{fix.notes}</p>}
                 </div>
@@ -193,6 +230,15 @@ export function CaseClinicFixesSection({
                 </SelectContent>
               </Select>
             </div>
+
+            <ClinicFixFosterFields
+              wentToFoster={wentToFoster}
+              onWentToFosterChange={setWentToFoster}
+              fosterFacility={fosterFacility}
+              onFosterFacilityChange={setFosterFacility}
+              fosterFacilityOther={fosterFacilityOther}
+              onFosterFacilityOtherChange={setFosterFacilityOther}
+            />
 
             <div className="space-y-2">
               <Label>Notes (optional)</Label>
