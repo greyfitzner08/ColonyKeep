@@ -331,6 +331,17 @@ export function HotspotsMap({
                       )
                     )}
                     <p className="text-muted-foreground">{volunteer.email}</p>
+                    {volunteer.phone && (
+                      <p>
+                        <span className="text-muted-foreground">Phone:</span>{" "}
+                        <a href={`tel:${volunteer.phone}`} className="text-primary hover:underline">
+                          {volunteer.phone}
+                        </a>
+                      </p>
+                    )}
+                    {volunteer.address && (
+                      <p className="text-muted-foreground">{volunteer.address}</p>
+                    )}
                   </div>
                 </Popup>
               </CircleMarker>

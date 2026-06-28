@@ -9,6 +9,8 @@ export interface HotspotMapVolunteer {
   volunteer_roles: VolunteerRole[];
   home_lat: number;
   home_lng: number;
+  phone?: string | null;
+  address?: string | null;
 }
 
 export function volunteerRoleLabel(role: VolunteerRole): string {

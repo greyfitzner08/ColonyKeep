@@ -133,6 +133,10 @@ export interface Profile {
   home_lat: number | null;
   home_lng: number | null;
   show_on_hotspots_map?: boolean;
+  show_phone_in_directory?: boolean;
+  show_address_in_directory?: boolean;
+  show_phone_on_hotspots_map?: boolean;
+  show_address_on_hotspots_map?: boolean;
   tnvr_certificate_uploaded: boolean;
   tnvr_certificate_url: string | null;
   created_at: string;

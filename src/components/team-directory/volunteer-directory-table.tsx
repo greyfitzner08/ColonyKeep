@@ -164,7 +164,12 @@ export function VolunteerDirectoryTable({ entries, teams }: VolunteerDirectoryTa
         id: "address",
         label: "Address",
         defaultWidth: 260,
-        render: (entry) => <span className="text-muted-foreground">{entry.address}</span>,
+        render: (entry) =>
+          entry.address ? (
+            <span className="text-muted-foreground">{entry.address}</span>
+          ) : (
+            "—"
+          ),
       },
     ];
   }, [copiedEmail]);

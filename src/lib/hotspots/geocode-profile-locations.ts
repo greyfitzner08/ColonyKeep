@@ -1,7 +1,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { geocodeStreetAddress } from "@/lib/geocode";
 import type { HotspotMapVolunteer } from "@/lib/hotspots/volunteer-role-filter";
-import { isHomeAddressComplete } from "@/lib/volunteers/contact-fields";
+import { resolveContactPrivacy } from "@/lib/volunteers/contact-privacy";
+import { formatHomeAddress, isHomeAddressComplete } from "@/lib/volunteers/contact-fields";
 import type { UserRole, VolunteerRole } from "@/lib/types";
 
 const MAP_PROFILE_ROLES: UserRole[] = [
@@ -12,18 +13,21 @@ const MAP_PROFILE_ROLES: UserRole[] = [
 ];
 
 const PROFILE_MAP_FIELDS =
-  "id, full_name, email, role, volunteer_roles, show_on_hotspots_map, home_street, home_city, home_state, home_zip, home_county, home_lat, home_lng";
+  "id, full_name, email, phone, role, volunteer_roles, show_on_hotspots_map, show_phone_on_hotspots_map, show_address_on_hotspots_map, home_street, home_city, home_state, home_zip, home_county, home_lat, home_lng";
 
 const PROFILE_MAP_FIELDS_LEGACY =
-  "id, full_name, email, role, volunteer_roles, home_street, home_city, home_state, home_zip, home_county";
+  "id, full_name, email, phone, role, volunteer_roles, show_on_hotspots_map, home_street, home_city, home_state, home_zip, home_county, home_lat, home_lng";
 
 interface ProfileMapRow {
   id: string;
   full_name: string | null;
   email: string;
+  phone: string | null;
   role: UserRole | null;
   volunteer_roles: VolunteerRole[] | null;
   show_on_hotspots_map?: boolean | null;
+  show_phone_on_hotspots_map?: boolean | null;
+  show_address_on_hotspots_map?: boolean | null;
   home_street: string | null;
   home_city: string | null;
   home_state: string | null;
@@ -45,6 +49,33 @@ function isVisibleOnHotspotsMap(profile: ProfileMapRow) {
   return profile.show_on_hotspots_map !== false;
 }
 
+function toHotspotMapVolunteer(
+  profile: ProfileMapRow,
+  coords: { lat: number; lng: number }
+): HotspotMapVolunteer {
+  const privacy = resolveContactPrivacy(profile);
+  const volunteer: HotspotMapVolunteer = {
+    id: profile.id,
+    full_name: profile.full_name,
+    email: profile.email,
+    role: profile.role,
+    volunteer_roles: profile.volunteer_roles ?? [],
+    home_lat: coords.lat,
+    home_lng: coords.lng,
+  };
+
+  if (privacy.show_phone_on_hotspots_map && profile.phone?.trim()) {
+    volunteer.phone = profile.phone.trim();
+  }
+
+  if (privacy.show_address_on_hotspots_map) {
+    const address = formatHomeAddress(profile);
+    if (address) volunteer.address = address;
+  }
+
+  return volunteer;
+}
+
 export async function loadHotspotVolunteersWithCoordsOnly(
   service: SupabaseClient
 ): Promise<HotspotMapVolunteer[]> {
@@ -55,15 +86,9 @@ export async function loadHotspotVolunteersWithCoordsOnly(
     if (!isVisibleOnHotspotsMap(profile) || !hasMappableAddress(profile)) continue;
     if (profile.home_lat == null || profile.home_lng == null) continue;
 
-    volunteers.push({
-      id: profile.id,
-      full_name: profile.full_name,
-      email: profile.email,
-      role: profile.role,
-      volunteer_roles: profile.volunteer_roles ?? [],
-      home_lat: profile.home_lat,
-      home_lng: profile.home_lng,
-    });
+    volunteers.push(
+      toHotspotMapVolunteer(profile, { lat: profile.home_lat, lng: profile.home_lng })
+    );
   }
 
   return volunteers.sort((a, b) =>
@@ -134,18 +159,10 @@ export async function loadHotspotVolunteers(
   for (const profile of rows) {
     if (!isVisibleOnHotspotsMap(profile) || !hasMappableAddress(profile)) continue;
 
-    const volunteerRoles = profile.volunteer_roles ?? [];
-
     if (profile.home_lat != null && profile.home_lng != null) {
-      volunteers.push({
-        id: profile.id,
-        full_name: profile.full_name,
-        email: profile.email,
-        role: profile.role,
-        volunteer_roles: volunteerRoles,
-        home_lat: profile.home_lat,
-        home_lng: profile.home_lng,
-      });
+      volunteers.push(
+        toHotspotMapVolunteer(profile, { lat: profile.home_lat, lng: profile.home_lng })
+      );
       continue;
     }
 
@@ -170,15 +187,7 @@ export async function loadHotspotVolunteers(
         .eq("id", profile.id);
     }
 
-    volunteers.push({
-      id: profile.id,
-      full_name: profile.full_name,
-      email: profile.email,
-      role: profile.role,
-      volunteer_roles: volunteerRoles,
-      home_lat: coords.lat,
-      home_lng: coords.lng,
-    });
+    volunteers.push(toHotspotMapVolunteer(profile, coords));
 
     if (!process.env.GOOGLE_MAPS_API_KEY) {
       await new Promise((resolve) => setTimeout(resolve, 1100));
