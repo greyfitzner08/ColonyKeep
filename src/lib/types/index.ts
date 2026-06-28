@@ -348,6 +348,13 @@ export interface Cat {
   help_request_id: string;
   name: string | null;
   gender: string | null;
+  female_reproductive_status:
+    | "not_pregnant"
+    | "pregnant"
+    | "in_heat"
+    | "lactating"
+    | "post_partum"
+    | null;
   colors: string | null;
   breed: string | null;
   microchip_id: string | null;

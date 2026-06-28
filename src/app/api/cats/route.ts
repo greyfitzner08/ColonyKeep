@@ -7,6 +7,7 @@ import {
 } from "@/lib/cases/tracked-cat-fix";
 import { createServiceClient } from "@/lib/supabase/server";
 import type { FosterFacility } from "@/lib/cases/foster-facility";
+import { resolveFemaleReproductiveStatusForSave } from "@/lib/cases/female-reproductive-status";
 
 export async function POST(request: NextRequest) {
   const { response } = await requireCaseWorker();
@@ -42,12 +43,17 @@ export async function POST(request: NextRequest) {
 
   try {
     const service = await createServiceClient();
+    const gender = body?.gender?.trim() || null;
     const { data: cat, error: insertError } = await service
       .from("cats")
       .insert({
         help_request_id: helpRequestId,
         name: body?.name?.trim() || null,
-        gender: body?.gender?.trim() || null,
+        gender,
+        female_reproductive_status: resolveFemaleReproductiveStatusForSave(
+          gender,
+          body?.femaleReproductiveStatus
+        ),
         colors: body?.colors?.trim() || null,
         microchip_id: body?.microchip_id?.trim() || null,
         medical_notes: body?.medical_notes?.trim() || null,

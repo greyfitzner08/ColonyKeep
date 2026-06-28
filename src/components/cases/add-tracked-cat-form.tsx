@@ -15,14 +15,20 @@ import {
 } from "@/components/ui/select";
 import { CaseCollapsibleSection } from "@/components/cases/case-collapsible-section";
 import { ClinicFixFosterFields } from "@/components/cases/clinic-fix-foster-fields";
+import { FemaleReproductiveStatusSelect } from "@/components/cases/female-reproductive-status-select";
 import { hasFosterFormAnswer, validateTrackedCatFosterForm } from "@/lib/cases/tracked-cat-foster";
+import {
+  isFemaleGender,
+  type FemaleReproductiveStatus,
+} from "@/lib/cases/female-reproductive-status";
 import type { FosterFacility } from "@/lib/cases/foster-facility";
 import type { Cat } from "@/lib/types";
 import { Plus } from "lucide-react";
 
 const EMPTY_CAT = {
   name: "",
-  gender: "",
+  gender: "" as "" | "male" | "female",
+  femaleReproductiveStatus: "" as FemaleReproductiveStatus | "",
   colors: "",
   microchip_id: "",
   medical_notes: "",
@@ -88,6 +94,7 @@ export function AddTrackedCatForm({
         helpRequestId,
         name: newCat.name,
         gender: newCat.gender,
+        femaleReproductiveStatus: newCat.femaleReproductiveStatus || undefined,
         colors: newCat.colors,
         microchip_id: newCat.microchip_id,
         medical_notes: newCat.medical_notes,
@@ -137,7 +144,14 @@ export function AddTrackedCatForm({
           <Label className="text-sm font-medium">Gender</Label>
           <Select
             value={newCat.gender || undefined}
-            onValueChange={(value) => setNewCat({ ...newCat, gender: value as "male" | "female" })}
+            onValueChange={(value) =>
+              setNewCat({
+                ...newCat,
+                gender: value as "male" | "female",
+                femaleReproductiveStatus:
+                  value === "female" ? newCat.femaleReproductiveStatus : "",
+              })
+            }
           >
             <SelectTrigger className="text-base">
               <SelectValue placeholder="Select gender" />
@@ -148,6 +162,14 @@ export function AddTrackedCatForm({
             </SelectContent>
           </Select>
         </div>
+        {isFemaleGender(newCat.gender) && (
+          <FemaleReproductiveStatusSelect
+            value={newCat.femaleReproductiveStatus}
+            onChange={(femaleReproductiveStatus) =>
+              setNewCat({ ...newCat, femaleReproductiveStatus })
+            }
+          />
+        )}
         <div className="space-y-2">
           <Label className="text-sm font-medium">Colors / Markings</Label>
           <Input

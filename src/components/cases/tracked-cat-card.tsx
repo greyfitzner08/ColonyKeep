@@ -19,7 +19,13 @@ import { isTrackedCatClinicFixed, parseTrackedCatGender } from "@/lib/cases/trac
 import { ClinicFixFosterFields } from "@/components/cases/clinic-fix-foster-fields";
 import { ClinicFixSummary } from "@/components/cases/clinic-fix-summary";
 import { LogClinicFixDialog } from "@/components/cases/log-clinic-fix-dialog";
+import { FemaleReproductiveStatusSelect } from "@/components/cases/female-reproductive-status-select";
 import { fosterFormFromCat, validateTrackedCatFosterForm } from "@/lib/cases/tracked-cat-foster";
+import {
+  femaleReproductiveStatusLabel,
+  isFemaleGender,
+  type FemaleReproductiveStatus,
+} from "@/lib/cases/female-reproductive-status";
 import { formatFosterFacilitySummary } from "@/lib/cases/foster-facility";
 import { InfoRow } from "@/components/cases/case-detail-fields";
 import type { Cat, ClinicFix } from "@/lib/types";
@@ -38,7 +44,8 @@ interface TrackedCatCardProps {
 
 type CatDraft = {
   name: string;
-  gender: string;
+  gender: "" | "male" | "female";
+  femaleReproductiveStatus: FemaleReproductiveStatus | "";
   colors: string;
   breed: string;
   microchip_id: string;
@@ -55,9 +62,20 @@ type CatDraft = {
 
 function toDraft(cat: Cat): CatDraft {
   const foster = fosterFormFromCat(cat);
+  const gender = cat.gender?.trim().toLowerCase();
+  const normalizedGender =
+    gender === "male" || gender === "female"
+      ? gender
+      : gender?.startsWith("f")
+        ? "female"
+        : gender?.startsWith("m")
+          ? "male"
+          : "";
+
   return {
     name: cat.name ?? "",
-    gender: cat.gender ?? "",
+    gender: normalizedGender,
+    femaleReproductiveStatus: cat.female_reproductive_status ?? "",
     colors: cat.colors ?? "",
     breed: cat.breed ?? "",
     microchip_id: cat.microchip_id ?? "",
@@ -145,6 +163,7 @@ export function TrackedCatCard({
       body: JSON.stringify({
         name: draft.name,
         gender: draft.gender,
+        femaleReproductiveStatus: draft.femaleReproductiveStatus || undefined,
         colors: draft.colors,
         breed: draft.breed,
         microchip_id: draft.microchip_id,
@@ -208,11 +227,34 @@ export function TrackedCatCard({
           </div>
           <div className="space-y-2">
             <Label>Gender</Label>
-            <Input
-              value={draft.gender}
-              onChange={(e) => setDraft({ ...draft, gender: e.target.value })}
-            />
+            <Select
+              value={draft.gender || undefined}
+              onValueChange={(value) =>
+                setDraft({
+                  ...draft,
+                  gender: value as "male" | "female",
+                  femaleReproductiveStatus:
+                    value === "female" ? draft.femaleReproductiveStatus : "",
+                })
+              }
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select gender" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="male">Male</SelectItem>
+                <SelectItem value="female">Female</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
+          {isFemaleGender(draft.gender) && (
+            <FemaleReproductiveStatusSelect
+              value={draft.femaleReproductiveStatus}
+              onChange={(femaleReproductiveStatus) =>
+                setDraft({ ...draft, femaleReproductiveStatus })
+              }
+            />
+          )}
           <div className="space-y-2">
             <Label>Colors / markings</Label>
             <Input
@@ -333,6 +375,11 @@ export function TrackedCatCard({
             <p className="text-base text-muted-foreground mt-1">
               {[cat.colors, cat.gender, cat.breed].filter(Boolean).join(" · ") || "—"}
             </p>
+            {femaleReproductiveStatusLabel(cat.female_reproductive_status) && (
+              <p className="text-sm text-muted-foreground mt-1">
+                {femaleReproductiveStatusLabel(cat.female_reproductive_status)}
+              </p>
+            )}
           </div>
           <Button size="sm" variant="outline" onClick={startEditing}>
             <Pencil className="h-4 w-4 mr-1" />

@@ -5,6 +5,7 @@ import { resolveTrackedCatFosterFields } from "@/lib/cases/tracked-cat-foster";
 import { syncTrackedCatFixesForCase } from "@/lib/cases/tracked-cat-fix";
 import { createServiceClient } from "@/lib/supabase/server";
 import type { FosterFacility } from "@/lib/cases/foster-facility";
+import { resolveFemaleReproductiveStatusForSave } from "@/lib/cases/female-reproductive-status";
 
 function emptyOrNull(value: unknown) {
   if (typeof value !== "string") return null;
@@ -29,7 +30,7 @@ export async function PATCH(
     const service = await createServiceClient();
     const { data: existing } = await service
       .from("cats")
-      .select("help_request_id, trapped_status, appointment_status, age_category")
+      .select("help_request_id, trapped_status, appointment_status, age_category, gender")
       .eq("id", id)
       .single();
 
@@ -66,9 +67,21 @@ export async function PATCH(
       return NextResponse.json({ error: fosterError }, { status: 400 });
     }
 
+    const gender =
+      body?.gender !== undefined ? emptyOrNull(body?.gender) : undefined;
+    const resolvedGender = gender !== undefined ? gender : existing.gender;
+
     const updatePayload: Record<string, unknown> = {
       name: emptyOrNull(body?.name),
-      gender: emptyOrNull(body?.gender),
+      ...(gender !== undefined ? { gender } : {}),
+      ...(body?.gender !== undefined || body?.femaleReproductiveStatus !== undefined
+        ? {
+            female_reproductive_status: resolveFemaleReproductiveStatusForSave(
+              resolvedGender,
+              body?.femaleReproductiveStatus
+            ),
+          }
+        : {}),
       colors: emptyOrNull(body?.colors),
       breed: emptyOrNull(body?.breed),
       microchip_id: emptyOrNull(body?.microchip_id),
