@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import { STATUS_COLORS } from "@/lib/constants";
 import { hasActiveMedicalFlag } from "@/lib/medical-flags";
+import { getStatusLabel } from "@/lib/cases/statuses";
 import { formatDateTime } from "@/lib/utils";
 import { postCaseClaim } from "@/lib/cases/case-claim-api";
 import type { HelpRequest } from "@/lib/types";
@@ -19,6 +20,7 @@ interface IntakeCaseTableProps {
   canClaim: boolean;
   userEmail: string;
   isAdmin?: boolean;
+  statusLabelContext?: "trap" | "default";
 }
 
 export function IntakeCaseTable({
@@ -26,6 +28,7 @@ export function IntakeCaseTable({
   canClaim,
   userEmail,
   isAdmin = false,
+  statusLabelContext = "default",
 }: IntakeCaseTableProps) {
   const router = useRouter();
 
@@ -74,7 +77,7 @@ export function IntakeCaseTable({
         minWidth: 110,
         render: (helpRequest) => (
           <Badge className={cn("max-w-full truncate text-xs", STATUS_COLORS[helpRequest.status])}>
-            {helpRequest.status.replace(/_/g, " ")}
+            {getStatusLabel(helpRequest.status, statusLabelContext)}
           </Badge>
         ),
       },
@@ -165,7 +168,7 @@ export function IntakeCaseTable({
         },
       },
     ];
-  }, [canClaim, userEmail, isAdmin]);
+  }, [canClaim, userEmail, isAdmin, statusLabelContext]);
 
   return (
     <DataTable

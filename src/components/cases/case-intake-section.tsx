@@ -70,14 +70,6 @@ export function CaseIntakeSection({
         </CaseCollapsibleSection>
       )}
 
-      {hr.status === "routed_to_trap_team" && (
-        <CaseCollapsibleSection title="Trap queue status" defaultOpen={false}>
-          <p className="text-base">
-            In trap queue{hr.assigned_team_name ? ` · ${hr.assigned_team_name}` : ""}
-          </p>
-        </CaseCollapsibleSection>
-      )}
-
       <CaseCollapsibleSection title="Case management" defaultOpen>
         <div className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-2">

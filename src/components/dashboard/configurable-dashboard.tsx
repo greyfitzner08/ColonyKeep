@@ -11,6 +11,8 @@ import { MyCasesSection } from "@/components/dashboard/my-cases-section";
 import { CommunityStatsDisplay, type CommunityStats } from "@/components/dashboard/community-stats-display";
 import { TrapTeamPanel } from "@/components/dashboard/trap-team-panel";
 import { DashboardSectionShell } from "@/components/dashboard/dashboard-section-shell";
+import { PendingClinicResultsBanner } from "@/components/appointments/pending-clinic-results-banner";
+import type { ClinicResultAppointment } from "@/components/appointments/log-clinic-result-dialog";
 import { formatDate } from "@/lib/utils";
 import type { HelpRequest, Shift } from "@/lib/types";
 import type { TrapTeamDashboardData } from "@/lib/dashboard/trap-team-data";
@@ -53,6 +55,7 @@ interface ConfigurableDashboardProps {
   trapTeamData: TrapTeamDashboardData | null;
   initialTrapTeamId: string | null;
   pendingAppointments: number;
+  pendingClinicResults: ClinicResultAppointment[];
   communityStats: CommunityStats | null;
 }
 
@@ -100,6 +103,7 @@ export function ConfigurableDashboard({
   trapTeamData,
   initialTrapTeamId,
   pendingAppointments,
+  pendingClinicResults,
   communityStats,
 }: ConfigurableDashboardProps) {
   const visibleSectionIds = useMemo(() => {
@@ -299,6 +303,8 @@ export function ConfigurableDashboard({
           </div>
         )}
       </div>
+
+      <PendingClinicResultsBanner appointments={pendingClinicResults} />
 
       <div className="space-y-4">
         {order

@@ -4,6 +4,7 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/componen
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { STATUS_COLORS } from "@/lib/constants";
+import { getStatusLabel } from "@/lib/cases/statuses";
 import { hasActiveMedicalFlag } from "@/lib/medical-flags";
 import type { HelpRequest } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -47,7 +48,7 @@ export function CaseCard({ helpRequest: hr, claim }: CaseCardProps) {
                 </Badge>
               )}
               <Badge className={cn("text-xs", STATUS_COLORS[hr.status])}>
-                {hr.status.replace(/_/g, " ")}
+                {getStatusLabel(hr.status, "trap")}
               </Badge>
             </div>
           </div>

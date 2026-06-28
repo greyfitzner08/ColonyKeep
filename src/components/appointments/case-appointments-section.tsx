@@ -6,7 +6,16 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ClaimAppointmentDialog } from "@/components/appointments/claim-appointment-dialog";
+import {
+  LogClinicResultDialog,
+  type ClinicResultAppointment,
+} from "@/components/appointments/log-clinic-result-dialog";
 import { APPOINTMENT_STATUS_COLORS } from "@/lib/constants";
+import {
+  clinicResultAgeLabel,
+  clinicResultGenderLabel,
+  isClinicResultDue,
+} from "@/lib/appointments/clinic-result";
 import { formatDate, cn } from "@/lib/utils";
 import type { Appointment, Cat } from "@/lib/types";
 import { Calendar, Plus } from "lucide-react";
@@ -17,6 +26,8 @@ interface CaseAppointmentsSectionProps {
   appointments: Appointment[];
   availableAppointments: Appointment[];
   cats?: Cat[];
+  userEmail?: string;
+  isAdmin?: boolean;
 }
 
 export function CaseAppointmentsSection({
@@ -24,9 +35,12 @@ export function CaseAppointmentsSection({
   appointments,
   availableAppointments,
   cats = [],
+  userEmail = "",
+  isAdmin = false,
 }: CaseAppointmentsSectionProps) {
   const router = useRouter();
   const [claimTarget, setClaimTarget] = useState<Appointment | null>(null);
+  const [logTarget, setLogTarget] = useState<ClinicResultAppointment | null>(null);
   const [unreserveId, setUnreserveId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -58,6 +72,11 @@ export function CaseAppointmentsSection({
     router.refresh();
   }
 
+  function canLogResults(appt: Appointment) {
+    if (!isClinicResultDue(appt)) return false;
+    return appt.reserved_by === userEmail || isAdmin;
+  }
+
   return (
     <div className="space-y-6">
       {error && <p className="text-sm text-destructive">{error}</p>}
@@ -68,17 +87,42 @@ export function CaseAppointmentsSection({
           {appointments.map((appt) => (
             <Card key={appt.id}>
               <CardContent className="pt-6 flex justify-between items-start gap-4">
-                <div>
+                <div className="space-y-1">
                   <p className="text-lg font-semibold">{appt.clinic_name}</p>
-                  <p className="text-base text-muted-foreground mt-1">
+                  <p className="text-base text-muted-foreground">
                     {formatDate(appt.date)} · {appt.cat_name ?? "No cat assigned"}
                   </p>
+                  {appt.clinic_result_logged_at &&
+                    appt.clinic_result_age_category &&
+                    appt.clinic_result_gender && (
+                      <p className="text-sm text-muted-foreground">
+                        Logged: {clinicResultAgeLabel(appt.clinic_result_age_category)} ·{" "}
+                        {clinicResultGenderLabel(appt.clinic_result_gender)} fixed
+                      </p>
+                    )}
                 </div>
                 <div className="flex flex-col items-end gap-2">
                   <Badge className={cn("text-sm", APPOINTMENT_STATUS_COLORS[appt.status])}>
                     {appt.status}
                   </Badge>
-                  {appt.status === "reserved" && (
+                  {canLogResults(appt) && (
+                    <Button
+                      size="sm"
+                      onClick={() =>
+                        setLogTarget({
+                          id: appt.id,
+                          date: appt.date,
+                          clinic_name: appt.clinic_name,
+                          cat_name: appt.cat_name,
+                          case_number: helpRequest.case_number,
+                          help_request_id: helpRequest.id,
+                        })
+                      }
+                    >
+                      Log clinic results
+                    </Button>
+                  )}
+                  {appt.status === "reserved" && !isClinicResultDue(appt) && (
                     <Button
                       variant="outline"
                       size="sm"
@@ -143,6 +187,11 @@ export function CaseAppointmentsSection({
         helpRequests={[]}
         linkedHelpRequest={helpRequest}
         cats={cats}
+      />
+
+      <LogClinicResultDialog
+        appointment={logTarget}
+        onOpenChange={(open) => !open && setLogTarget(null)}
       />
     </div>
   );

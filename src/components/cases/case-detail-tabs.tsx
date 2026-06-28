@@ -398,6 +398,8 @@ export function CaseDetailTabs({
           appointments={appointments}
           availableAppointments={availableAppointments}
           cats={cats}
+          userEmail={userEmail}
+          isAdmin={userRole === "admin"}
         />
       </TabsContent>
 

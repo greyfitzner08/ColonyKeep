@@ -304,6 +304,11 @@ export interface Appointment {
   transporter_name: string | null;
   transporter_email: string | null;
   transporter_phone: string | null;
+  clinic_result_logged_at: string | null;
+  clinic_result_age_category: "adult" | "kitten" | null;
+  clinic_result_gender: "male" | "female" | null;
+  clinic_result_logged_by: string | null;
+  clinic_result_logged_by_name: string | null;
   created_at: string;
   updated_at: string;
 }

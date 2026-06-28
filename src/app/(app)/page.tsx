@@ -5,6 +5,7 @@ import { hasSupabaseServerConfig, hasSupabaseAdminConfig } from "@/lib/supabase/
 import { ConfigurableDashboard } from "@/components/dashboard/configurable-dashboard";
 import { fetchCommunityStats } from "@/components/dashboard/community-stats-card";
 import { fetchTrapTeamDashboardData } from "@/lib/dashboard/trap-team-data";
+import { fetchPendingClinicResults } from "@/lib/appointments/pending-clinic-results";
 import { sortCasesMedicalFirst } from "@/lib/cases/sort-cases";
 import { sortTrapTeams } from "@/lib/trap-teams/sort-teams";
 import {
@@ -71,6 +72,7 @@ export default async function DashboardPage() {
   let teamCases: HelpRequest[] = [];
   let overdueFollowUps: { id: string; case_number: string; follow_up_due_date: string }[] = [];
   let pendingAppointments = 0;
+  let pendingClinicResults: Awaited<ReturnType<typeof fetchPendingClinicResults>> = [];
 
   if (intakeWorker) {
     const [{ data: claimedCases }, { data: overdue }] = await Promise.all([
@@ -112,12 +114,22 @@ export default async function DashboardPage() {
     teamCases = sortCasesMedicalFirst((teamCasesRaw ?? []) as HelpRequest[]);
   }
 
-  if (showAppointments) {
-    const { count } = await supabase
-      .from("appointments")
-      .select("*", { count: "exact", head: true })
-      .eq("status", "reserved");
-    pendingAppointments = count ?? 0;
+  if (showAppointments || trapWorker) {
+    if (showAppointments) {
+      const { count } = await supabase
+        .from("appointments")
+        .select("*", { count: "exact", head: true })
+        .eq("status", "reserved");
+      pendingAppointments = count ?? 0;
+    }
+
+    if (trapWorker || showAppointments) {
+      try {
+        pendingClinicResults = await fetchPendingClinicResults(supabase, email);
+      } catch {
+        pendingClinicResults = [];
+      }
+    }
   }
 
   const { data: trapTeamsRaw } = showTrapTeam
@@ -183,6 +195,7 @@ export default async function DashboardPage() {
       trapTeamData={trapTeamData}
       initialTrapTeamId={initialTrapTeamId}
       pendingAppointments={pendingAppointments}
+      pendingClinicResults={pendingClinicResults}
       communityStats={communityStats}
     />
   );
