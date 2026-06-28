@@ -1,9 +1,35 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { todayIsoDate } from "@/lib/appointments/clinic-result";
+import {
+  appointmentClinicResultsLogged,
+  todayIsoDate,
+} from "@/lib/appointments/clinic-result";
 import type { ClinicResultAppointment } from "@/components/appointments/log-clinic-result-dialog";
 import { trackedCatDetailsFromCat } from "@/lib/cases/tracked-cat-form";
 import { fosterFormFromCat } from "@/lib/cases/tracked-cat-foster";
-import type { Cat } from "@/lib/types";
+import type { Cat, ClinicFix } from "@/lib/types";
+
+type ClinicFixRef = Pick<
+  ClinicFix,
+  "appointment_id" | "cat_id" | "logged_by" | "age_category" | "gender"
+>;
+
+type LinkedCatRow = Pick<
+  Cat,
+  | "name"
+  | "gender"
+  | "female_reproductive_status"
+  | "colors"
+  | "microchip_id"
+  | "medical_notes"
+  | "age_category"
+  | "went_to_foster_facility"
+  | "foster_facility"
+  | "foster_facility_other"
+  | "return_status"
+  | "foster_program"
+> & {
+  clinic_fixes?: ClinicFixRef | ClinicFixRef[] | null;
+};
 
 type PendingClinicResultRow = {
   id: string;
@@ -14,40 +40,25 @@ type PendingClinicResultRow = {
   cat_name: string | null;
   cat_colors: string | null;
   cat_gender: string | null;
+  status: string;
+  clinic_result_logged_at: string | null;
   help_requests: { case_number: string | null } | { case_number: string | null }[] | null;
-  cats:
-    | Pick<
-        Cat,
-        | "name"
-        | "gender"
-        | "female_reproductive_status"
-        | "colors"
-        | "microchip_id"
-        | "medical_notes"
-        | "age_category"
-        | "went_to_foster_facility"
-        | "foster_facility"
-        | "foster_facility_other"
-        | "return_status"
-        | "foster_program"
-      >
-    | Pick<
-        Cat,
-        | "name"
-        | "gender"
-        | "female_reproductive_status"
-        | "colors"
-        | "microchip_id"
-        | "medical_notes"
-        | "age_category"
-        | "went_to_foster_facility"
-        | "foster_facility"
-        | "foster_facility_other"
-        | "return_status"
-        | "foster_program"
-      >[]
-    | null;
+  clinic_fixes: ClinicFixRef | ClinicFixRef[] | null;
+  cats: LinkedCatRow | LinkedCatRow[] | null;
 };
+
+function asArray<T>(value: T | T[] | null | undefined): T[] {
+  if (!value) return [];
+  return Array.isArray(value) ? value : [value];
+}
+
+function clinicFixesFromRow(row: PendingClinicResultRow): ClinicFixRef[] {
+  const fixes = [...asArray(row.clinic_fixes)];
+  for (const cat of asArray(row.cats)) {
+    fixes.push(...asArray(cat.clinic_fixes));
+  }
+  return fixes;
+}
 
 function linkedCatFromRow(row: PendingClinicResultRow): Cat | null {
   if (!row.cats) return null;
@@ -80,7 +91,7 @@ export async function fetchPendingClinicResults(
   const { data } = await supabase
     .from("appointments")
     .select(
-      "id, date, clinic_name, help_request_id, cat_id, cat_name, cat_colors, cat_gender, help_requests(case_number), cats(name, gender, female_reproductive_status, colors, microchip_id, medical_notes, age_category, went_to_foster_facility, foster_facility, foster_facility_other, return_status, foster_program)"
+      "id, date, clinic_name, help_request_id, cat_id, cat_name, cat_colors, cat_gender, status, clinic_result_logged_at, help_requests(case_number), clinic_fixes(appointment_id, cat_id, logged_by, age_category, gender), cats(name, gender, female_reproductive_status, colors, microchip_id, medical_notes, age_category, went_to_foster_facility, foster_facility, foster_facility_other, return_status, foster_program, clinic_fixes(appointment_id, cat_id, logged_by, age_category, gender))"
     )
     .eq("reserved_by", userEmail)
     .in("status", ["reserved", "confirmed_transport"])
@@ -88,7 +99,20 @@ export async function fetchPendingClinicResults(
     .lt("date", today)
     .order("date", { ascending: true });
 
-  return ((data ?? []) as PendingClinicResultRow[]).map((row) => {
+  return ((data ?? []) as PendingClinicResultRow[])
+    .filter(
+      (row) =>
+        !appointmentClinicResultsLogged(
+          {
+            id: row.id,
+            cat_id: row.cat_id,
+            clinic_result_logged_at: row.clinic_result_logged_at,
+            status: row.status as "reserved" | "confirmed_transport" | "completed",
+          },
+          clinicFixesFromRow(row)
+        )
+    )
+    .map((row) => {
     const helpRequest = Array.isArray(row.help_requests)
       ? row.help_requests[0]
       : row.help_requests;

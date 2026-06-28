@@ -12,14 +12,15 @@ import {
 } from "@/components/appointments/log-clinic-result-dialog";
 import { APPOINTMENT_STATUS_COLORS } from "@/lib/constants";
 import {
+  appointmentClinicResultSummary,
+  canUnreserveAppointment,
   clinicResultAgeLabel,
   clinicResultGenderLabel,
-  canUnreserveAppointment,
   isClinicResultDue,
   shouldShowAppointmentStatusBadge,
 } from "@/lib/appointments/clinic-result";
 import { formatDate, cn } from "@/lib/utils";
-import type { Appointment, Cat } from "@/lib/types";
+import type { Appointment, Cat, ClinicFix } from "@/lib/types";
 import { trackedCatDetailsFromCat } from "@/lib/cases/tracked-cat-form";
 import { fosterFormFromCat } from "@/lib/cases/tracked-cat-foster";
 import { Calendar, Plus } from "lucide-react";
@@ -30,6 +31,7 @@ interface CaseAppointmentsSectionProps {
   appointments: Appointment[];
   availableAppointments: Appointment[];
   cats?: Cat[];
+  clinicFixes?: ClinicFix[];
   userEmail?: string;
   isAdmin?: boolean;
 }
@@ -39,6 +41,7 @@ export function CaseAppointmentsSection({
   appointments,
   availableAppointments,
   cats = [],
+  clinicFixes = [],
   userEmail = "",
   isAdmin = false,
 }: CaseAppointmentsSectionProps) {
@@ -77,7 +80,7 @@ export function CaseAppointmentsSection({
   }
 
   function canLogResults(appt: Appointment) {
-    if (!isClinicResultDue(appt)) return false;
+    if (!isClinicResultDue(appt, clinicFixes)) return false;
     return appt.reserved_by === userEmail || isAdmin;
   }
 
@@ -88,7 +91,10 @@ export function CaseAppointmentsSection({
       {appointments.length > 0 && (
         <div className="space-y-3">
           <h3 className="text-base font-semibold">Reserved for this case</h3>
-          {appointments.map((appt) => (
+          {appointments.map((appt) => {
+            const loggedSummary = appointmentClinicResultSummary(appt, clinicFixes);
+
+            return (
             <Card key={appt.id}>
               <CardContent className="pt-6 flex justify-between items-start gap-4">
                 <div className="space-y-1">
@@ -96,17 +102,15 @@ export function CaseAppointmentsSection({
                   <p className="text-base text-muted-foreground">
                     {formatDate(appt.date)} · {appt.cat_name ?? "No cat assigned"}
                   </p>
-                  {appt.clinic_result_logged_at &&
-                    appt.clinic_result_age_category &&
-                    appt.clinic_result_gender && (
+                  {loggedSummary && (
                       <p className="text-sm text-muted-foreground">
-                        Logged: {clinicResultAgeLabel(appt.clinic_result_age_category)} ·{" "}
-                        {clinicResultGenderLabel(appt.clinic_result_gender)} fixed
+                        Logged: {clinicResultAgeLabel(loggedSummary.ageCategory)} ·{" "}
+                        {clinicResultGenderLabel(loggedSummary.gender)} fixed
                       </p>
                     )}
                 </div>
                 <div className="flex flex-col items-end gap-2">
-                  {shouldShowAppointmentStatusBadge(appt) && (
+                  {shouldShowAppointmentStatusBadge(appt, clinicFixes) && (
                     <Badge className={cn("text-sm", APPOINTMENT_STATUS_COLORS[appt.status])}>
                       {appt.status}
                     </Badge>
@@ -140,7 +144,7 @@ export function CaseAppointmentsSection({
                       Log clinic results
                     </Button>
                   )}
-                  {canUnreserveAppointment(appt) && !isClinicResultDue(appt) && (
+                  {canUnreserveAppointment(appt, clinicFixes) && !isClinicResultDue(appt, clinicFixes) && (
                     <Button
                       variant="outline"
                       size="sm"
@@ -153,7 +157,8 @@ export function CaseAppointmentsSection({
                 </div>
               </CardContent>
             </Card>
-          ))}
+            );
+          })}
         </div>
       )}
 

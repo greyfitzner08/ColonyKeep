@@ -387,6 +387,7 @@ export function CaseDetailTabs({
           appointments={appointments}
           availableAppointments={availableAppointments}
           cats={cats}
+          clinicFixes={clinicFixes}
           userEmail={userEmail}
           isAdmin={userRole === "admin"}
         />
