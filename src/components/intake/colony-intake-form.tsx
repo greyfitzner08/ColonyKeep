@@ -143,6 +143,12 @@ function copyHomeAddressToColony(form: CommunityIntakeSubmission): CommunityInta
   };
 }
 
+function formatHomeAddress(form: CommunityIntakeSubmission) {
+  return [form.contact_street, form.contact_city, form.contact_state, form.contact_zip]
+    .filter(Boolean)
+    .join(", ");
+}
+
 const CONTACT_ADDRESS_FIELDS = new Set<keyof CommunityIntakeSubmission>([
   "contact_street",
   "contact_city",
@@ -181,7 +187,7 @@ export function ColonyIntakeForm() {
   const [caseNumber, setCaseNumber] = useState("");
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [form, setForm] = useState<CommunityIntakeSubmission>(EMPTY_FORM);
-  const [colonyAtDifferentAddress, setColonyAtDifferentAddress] = useState("");
+  const [colonySameAsHome, setColonySameAsHome] = useState(true);
 
   function update<K extends keyof CommunityIntakeSubmission>(
     field: K,
@@ -189,18 +195,18 @@ export function ColonyIntakeForm() {
   ) {
     setForm((prev) => {
       const next = { ...prev, [field]: value };
-      if (colonyAtDifferentAddress === "No" && CONTACT_ADDRESS_FIELDS.has(field)) {
+      if (colonySameAsHome && CONTACT_ADDRESS_FIELDS.has(field)) {
         return copyHomeAddressToColony(next);
       }
       return next;
     });
   }
 
-  function handleColonyLocationAnswer(value: string) {
-    setColonyAtDifferentAddress(value);
-    if (value === "No") {
+  function setColonySameAsHomeChecked(checked: boolean) {
+    setColonySameAsHome(checked);
+    if (checked) {
       setForm((prev) => copyHomeAddressToColony(prev));
-    } else if (value === "Yes") {
+    } else {
       setForm((prev) => ({
         ...prev,
         colony_address: "",
@@ -224,8 +230,7 @@ export function ColonyIntakeForm() {
       );
     }
     if (currentStep === 1) {
-      if (!colonyAtDifferentAddress) return false;
-      if (colonyAtDifferentAddress === "No") {
+      if (colonySameAsHome) {
         return homeAddressComplete(form);
       }
       return colonyAddressComplete(form);
@@ -234,7 +239,7 @@ export function ColonyIntakeForm() {
   }
 
   function goToNextStep() {
-    if (step === 1 && colonyAtDifferentAddress === "No") {
+    if (step === 1 && colonySameAsHome) {
       setForm((prev) => copyHomeAddressToColony(prev));
     }
     setStep((current) => current + 1);
@@ -245,8 +250,7 @@ export function ColonyIntakeForm() {
     setSubmitting(true);
 
     try {
-      const submission =
-        colonyAtDifferentAddress === "No" ? copyHomeAddressToColony(form) : form;
+      const submission = colonySameAsHome ? copyHomeAddressToColony(form) : form;
       const response = await fetch("/api/help-requests/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -426,34 +430,59 @@ export function ColonyIntakeForm() {
                     placeholder="e.g. Feeder, property owner, neighbor"
                   />
                 </div>
+                <div className="flex items-start gap-2 rounded-lg border bg-muted/30 p-3">
+                  <Checkbox
+                    id="colony_same_as_home"
+                    checked={colonySameAsHome}
+                    onCheckedChange={(checked) => setColonySameAsHomeChecked(!!checked)}
+                    className="mt-0.5"
+                  />
+                  <div className="space-y-1">
+                    <Label htmlFor="colony_same_as_home" className="font-normal leading-snug">
+                      The cat colony is at this same address
+                    </Label>
+                    <p className="text-sm text-muted-foreground">
+                      Check this if you don&apos;t need to enter a separate colony location later.
+                    </p>
+                  </div>
+                </div>
               </>
             )}
 
             {step === 1 && (
               <>
-                <div className="space-y-2">
-                  <Label>Is the colony at a different address than your home?</Label>
-                  <YesNoSelect
-                    id="colony_at_different_address"
-                    value={colonyAtDifferentAddress}
-                    onChange={handleColonyLocationAnswer}
+                <div className="flex items-start gap-2 rounded-lg border p-3">
+                  <Checkbox
+                    id="colony_same_as_home_step1"
+                    checked={colonySameAsHome}
+                    onCheckedChange={(checked) => setColonySameAsHomeChecked(!!checked)}
+                    className="mt-0.5"
                   />
+                  <div className="space-y-1">
+                    <Label htmlFor="colony_same_as_home_step1" className="font-normal leading-snug">
+                      The cat colony is at my home address
+                    </Label>
+                    <p className="text-sm text-muted-foreground">
+                      We&apos;ll use the address you entered on the previous step.
+                    </p>
+                  </div>
                 </div>
 
-                {colonyAtDifferentAddress === "No" && (
+                {colonySameAsHome && (
                   <>
                     {homeAddressComplete(form) ? (
                       <div className="rounded-md border bg-muted/30 p-3 text-sm space-y-1">
-                        <p className="font-medium">We&apos;ll use your home address for the colony:</p>
+                        <p className="font-medium">Colony location</p>
                         <p>
-                          {form.contact_street}, {form.contact_city}, {form.contact_state}{" "}
-                          {form.contact_zip} ({form.contact_county})
+                          {formatHomeAddress(form)}
+                          {form.contact_county ? ` (${form.contact_county} County)` : ""}
                         </p>
                       </div>
                     ) : (
                       <div className="space-y-4 rounded-md border border-dashed p-4">
                         <p className="text-sm text-muted-foreground">
-                          Please enter your home address — we&apos;ll use it as the colony location.
+                          Please complete your home address on the previous step, or uncheck the box
+                          above to enter a separate colony location.
                         </p>
                         <div className="space-y-2">
                           <Label>Your home street address</Label>
@@ -501,7 +530,7 @@ export function ColonyIntakeForm() {
                   </>
                 )}
 
-                {colonyAtDifferentAddress === "Yes" && (
+                {!colonySameAsHome && (
                   <>
                     <AddressAutocomplete
                       label="Colony address"
@@ -553,15 +582,13 @@ export function ColonyIntakeForm() {
                   </>
                 )}
 
-                {colonyAtDifferentAddress && (
-                  <div className="space-y-2">
-                    <Label>Apartment community name (if applicable)</Label>
-                    <Input
-                      value={form.apartment_name}
-                      onChange={(e) => update("apartment_name", e.target.value)}
-                    />
-                  </div>
-                )}
+                <div className="space-y-2">
+                  <Label>Apartment community name (if applicable)</Label>
+                  <Input
+                    value={form.apartment_name}
+                    onChange={(e) => update("apartment_name", e.target.value)}
+                  />
+                </div>
               </>
             )}
 
