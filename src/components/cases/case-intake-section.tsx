@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CaseCollapsibleSection } from "@/components/cases/case-collapsible-section";
+import { CaseFollowUpAlert } from "@/components/cases/case-follow-up-alert";
 import { CaseHistorySection } from "@/components/cases/case-history-section";
 import { InfoRow } from "@/components/cases/case-detail-fields";
 import { MedicalReviewActions } from "@/components/cases/medical-review-actions";
@@ -14,7 +15,7 @@ import { getInquiryTeamStatusLabel, getStatusOptionsForRole } from "@/lib/cases/
 import { STATUS_COLORS } from "@/lib/constants";
 import { sortTrapTeams } from "@/lib/trap-teams/sort-teams";
 import { formatDateTime, cn } from "@/lib/utils";
-import type { HelpRequest, HelpRequestStatus, HistoryNoteColor, UserRole } from "@/lib/types";
+import type { HelpRequest, HelpRequestStatus, HistoryNoteColor, HistoryEntry, UserRole } from "@/lib/types";
 import { Trash2 } from "lucide-react";
 
 type SaveState = "idle" | "saving" | "saved" | "error";
@@ -30,12 +31,16 @@ interface CaseIntakeSectionProps {
   savingNote?: boolean;
   noteSaveError?: string | null;
   saveState?: SaveState;
+  resolvingFollowUp?: boolean;
+  canResolveFollowUp?: boolean;
   onAddNote: (note: {
     text: string;
     highlighted: boolean;
     follow_up: boolean;
     text_color: HistoryNoteColor;
   }) => Promise<boolean>;
+  onResolveFollowUp?: (entry: HistoryEntry) => Promise<boolean>;
+  onResolveAllFollowUps?: () => Promise<boolean>;
   onChange: (next: HelpRequest) => void;
   onCloseCase: () => void;
   canCloseCase: boolean;
@@ -65,7 +70,11 @@ export function CaseIntakeSection({
   savingNote = false,
   noteSaveError = null,
   saveState = "idle",
+  resolvingFollowUp = false,
+  canResolveFollowUp = false,
   onAddNote,
+  onResolveFollowUp,
+  onResolveAllFollowUps,
   onChange,
   onCloseCase,
   canCloseCase,
@@ -166,15 +175,26 @@ export function CaseIntakeSection({
         </CaseCollapsibleSection>
       )}
 
+      {onResolveAllFollowUps && (
+        <CaseFollowUpAlert
+          helpRequest={hr}
+          resolving={resolvingFollowUp}
+          onResolveAll={() => void onResolveAllFollowUps()}
+        />
+      )}
+
       <CaseHistorySection
         entries={hr.history_log ?? []}
         canAddNote={canAddNote}
+        canResolveFollowUp={canResolveFollowUp}
         authorName={noteAuthorName}
         authorEmail={noteAuthorEmail}
         saving={savingNote}
+        resolvingFollowUp={resolvingFollowUp}
         saveError={noteSaveError}
         mode="notes"
         onAddNote={onAddNote}
+        onResolveFollowUp={onResolveFollowUp}
       />
 
       {canCloseCase && (

@@ -20,7 +20,7 @@ export const HISTORY_NOTE_SWATCH: Record<HistoryNoteColor, string> = {
 export function historyEntryLabel(entry: HistoryEntry): string {
   if (entry.action === "note") return "Note";
   if (entry.action === "status_change") return "Status change";
-  if (entry.action === "routed_to_trap_team") return "Routed to trap";
+  if (entry.action === "follow_up_completed") return "Follow-up completed";
   return entry.action.replace(/_/g, " ");
 }
 
@@ -34,7 +34,7 @@ export function historyEntryClasses(entry: HistoryEntry): string {
   return cn(
     "rounded-md border px-3 py-2 text-sm leading-relaxed",
     entry.highlighted && "ring-2 ring-amber-400/80 shadow-sm",
-    entry.follow_up && "border-orange-400",
+    entry.follow_up && !entry.follow_up_completed && "border-orange-400",
     color === "default" && "bg-card",
     color === "amber" && "border-amber-300 bg-amber-50 text-amber-950",
     color === "blue" && "border-blue-300 bg-blue-50 text-blue-950",

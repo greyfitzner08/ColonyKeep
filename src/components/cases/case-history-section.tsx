@@ -16,14 +16,16 @@ import {
 import { staffNotesFromHistory } from "@/lib/cases/history-log";
 import { cn, formatDateTime } from "@/lib/utils";
 import type { HistoryEntry, HistoryNoteColor } from "@/lib/types";
-import { Flag, Highlighter, Plus } from "lucide-react";
+import { Flag, Highlighter, Plus, CheckCircle2 } from "lucide-react";
 
 interface CaseHistorySectionProps {
   entries: HistoryEntry[];
   canAddNote: boolean;
+  canResolveFollowUp?: boolean;
   authorName: string;
   authorEmail: string;
   saving?: boolean;
+  resolvingFollowUp?: boolean;
   saveError?: string | null;
   /** `notes` shows staff notes only; `all` shows the full case timeline. */
   mode?: "all" | "notes";
@@ -33,17 +35,21 @@ interface CaseHistorySectionProps {
     follow_up: boolean;
     text_color: HistoryNoteColor;
   }) => Promise<boolean>;
+  onResolveFollowUp?: (entry: HistoryEntry) => Promise<boolean>;
 }
 
 export function CaseHistorySection({
   entries,
   canAddNote,
+  canResolveFollowUp = false,
   authorName,
   authorEmail,
   saving = false,
+  resolvingFollowUp = false,
   saveError = null,
   mode = "all",
   onAddNote,
+  onResolveFollowUp,
 }: CaseHistorySectionProps) {
   const notesOnly = mode === "notes";
   const visibleEntries = notesOnly ? staffNotesFromHistory(entries) : entries;
@@ -224,15 +230,37 @@ export function CaseHistorySection({
                     </span>
                   )}
                   {entry.follow_up && (
-                    <Badge className="bg-orange-100 text-orange-900 hover:bg-orange-100 text-[10px] px-1.5 py-0">
-                      Follow-up
-                    </Badge>
+                    entry.follow_up_completed ? (
+                      <Badge className="bg-muted text-muted-foreground hover:bg-muted text-[10px] px-1.5 py-0">
+                        Follow-up complete
+                      </Badge>
+                    ) : (
+                      <Badge className="bg-orange-100 text-orange-900 hover:bg-orange-100 text-[10px] px-1.5 py-0">
+                        Follow-up
+                      </Badge>
+                    )
                   )}
                   {entry.highlighted && (
                     <Badge className="bg-amber-100 text-amber-900 hover:bg-amber-100 text-[10px] px-1.5 py-0">
                       Highlighted
                     </Badge>
                   )}
+                  {canResolveFollowUp &&
+                    entry.follow_up &&
+                    !entry.follow_up_completed &&
+                    onResolveFollowUp && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="ml-auto h-7 px-2 text-[11px]"
+                        disabled={resolvingFollowUp}
+                        onClick={() => void onResolveFollowUp(entry)}
+                      >
+                        <CheckCircle2 className="h-3 w-3 mr-1" />
+                        Mark complete
+                      </Button>
+                    )}
                 </div>
                 <p className="whitespace-pre-wrap text-sm leading-relaxed">
                   {historyEntryBody(entry)}

@@ -247,6 +247,8 @@ export interface HistoryEntry {
   details: string | null;
   highlighted?: boolean;
   follow_up?: boolean;
+  follow_up_completed?: boolean;
+  follow_up_completed_at?: string;
   text_color?: HistoryNoteColor;
 }
 

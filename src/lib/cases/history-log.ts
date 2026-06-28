@@ -35,6 +35,11 @@ export function normalizeHistoryEntry(raw: unknown): HistoryEntry {
     details: entry.details == null ? null : String(entry.details),
     highlighted: asBoolean(entry.highlighted),
     follow_up: asBoolean(entry.follow_up),
+    follow_up_completed: asBoolean(entry.follow_up_completed),
+    follow_up_completed_at:
+      entry.follow_up_completed_at == null || entry.follow_up_completed_at === ""
+        ? undefined
+        : String(entry.follow_up_completed_at),
     text_color: asNoteColor(entry.text_color),
   };
 }
@@ -56,7 +61,52 @@ export function staffNotesText(raw: unknown): string {
 }
 
 export function hasFollowUpNote(raw: unknown): boolean {
-  return staffNotesFromHistory(raw).some((entry) => entry.follow_up);
+  return activeFollowUpNotes(raw).length > 0;
+}
+
+export function activeFollowUpNotes(raw: unknown): HistoryEntry[] {
+  return staffNotesFromHistory(raw).filter(
+    (entry) => entry.follow_up && !entry.follow_up_completed
+  );
+}
+
+export function resolveFollowUpInHistory(
+  raw: unknown,
+  target?: { id?: string; timestamp?: string }
+): HistoryEntry[] {
+  const log = normalizeHistoryLog(raw);
+  const now = new Date().toISOString();
+
+  return log.map((entry) => {
+    if (!entry.follow_up || entry.follow_up_completed) {
+      return entry;
+    }
+
+    const matchesTarget = target
+      ? (target.id && entry.id === target.id) ||
+        (!target.id &&
+          target.timestamp &&
+          entry.timestamp === target.timestamp &&
+          entry.action === "note")
+      : true;
+
+    if (!matchesTarget) {
+      return entry;
+    }
+
+    return {
+      ...entry,
+      follow_up_completed: true,
+      follow_up_completed_at: now,
+    };
+  });
+}
+
+export function hasActiveFollowUpDueDate(followUpDueDate: string | null | undefined): boolean {
+  if (!followUpDueDate) return false;
+  const due = new Date(followUpDueDate);
+  if (Number.isNaN(due.getTime())) return false;
+  return due < new Date();
 }
 
 export function buildHistoryNoteEntry(input: {

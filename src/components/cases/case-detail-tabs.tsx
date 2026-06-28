@@ -17,6 +17,7 @@ import type {
   ClinicFix,
   UserRole,
   HistoryNoteColor,
+  HistoryEntry,
 } from "@/lib/types";
 import { CaseReporterSection } from "@/components/cases/case-colony-info-section";
 import { CaseColonyTab } from "@/components/cases/case-colony-tab";
@@ -63,6 +64,7 @@ export function CaseDetailTabs({
   const [savingFeeder, setSavingFeeder] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [savingHistory, setSavingHistory] = useState(false);
+  const [resolvingFollowUp, setResolvingFollowUp] = useState(false);
   const skipIntakeAutosaveRef = useRef(true);
   const savedIndicatorTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
@@ -262,6 +264,40 @@ export function CaseDetailTabs({
     return true;
   }
 
+  async function resolveFollowUp(options?: {
+    entry?: HistoryEntry;
+    resolveAll?: boolean;
+  }): Promise<boolean> {
+    setResolvingFollowUp(true);
+    setSaveError(null);
+
+    const response = await fetch("/api/help-requests/resolve-follow-up", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        help_request_id: hr.id,
+        resolve_all: options?.resolveAll ?? false,
+        entry_id: options?.entry?.id,
+        entry_timestamp: options?.entry?.timestamp,
+      }),
+    });
+    const result = await response.json().catch(() => null);
+    setResolvingFollowUp(false);
+
+    if (!response.ok) {
+      setSaveError(result?.error ?? "Unable to complete follow-up");
+      return false;
+    }
+
+    setHr({
+      ...hr,
+      history_log: normalizeHistoryLog(result.history_log),
+      follow_up_due_date: result.follow_up_due_date ?? null,
+    });
+    router.refresh();
+    return true;
+  }
+
   async function closeCase() {
     if (!showCloseCase) return;
     setIntakeSaveState("saving");
@@ -330,7 +366,11 @@ export function CaseDetailTabs({
           savingNote={savingHistory}
           noteSaveError={saveError}
           saveState={intakeSaveState}
+          resolvingFollowUp={resolvingFollowUp}
+          canResolveFollowUp={canAddHistoryNote}
           onAddNote={addHistoryNote}
+          onResolveFollowUp={(entry) => resolveFollowUp({ entry })}
+          onResolveAllFollowUps={() => resolveFollowUp({ resolveAll: true })}
           onChange={handleIntakeChange}
           onCloseCase={closeCase}
           canCloseCase={showCloseCase}
@@ -356,11 +396,14 @@ export function CaseDetailTabs({
         <CaseHistorySection
           entries={hr.history_log ?? []}
           canAddNote={canAddHistoryNote}
+          canResolveFollowUp={canAddHistoryNote}
           authorName={userName}
           authorEmail={userEmail}
           saving={savingHistory}
+          resolvingFollowUp={resolvingFollowUp}
           saveError={saveError}
           onAddNote={addHistoryNote}
+          onResolveFollowUp={(entry) => resolveFollowUp({ entry })}
         />
       </TabsContent>
     </Tabs>
