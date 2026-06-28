@@ -292,9 +292,7 @@ export function CaseDetailTabs({
       )}
       <TabsList className="flex h-auto w-full flex-wrap justify-start gap-1">
         <TabsTrigger value="reporter">Reporter</TabsTrigger>
-        <TabsTrigger value="colony">
-          Colony{cats.length > 0 ? ` (${cats.length} cats)` : ""}
-        </TabsTrigger>
+        <TabsTrigger value="colony">Colony</TabsTrigger>
         <TabsTrigger value="intake">Inquiry Team</TabsTrigger>
         <TabsTrigger value="appointments">Appointments ({appointments.length})</TabsTrigger>
         <TabsTrigger value="history">History</TabsTrigger>

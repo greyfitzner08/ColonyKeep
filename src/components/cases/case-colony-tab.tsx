@@ -55,24 +55,20 @@ export function CaseColonyTab({
         </dl>
       </CaseCollapsibleSection>
 
-      <CaseCollapsibleSection title="Cat counts" defaultOpen>
-        <CatCountSummaryDisplay counts={counts} pregnantCount={hr.pregnant_count} />
-        <p className="mt-3 text-sm text-muted-foreground">
-          Log clinic fixes on individual cats below. Cats sent to foster/facility are removed from
-          still-at-colony counts; fixed cats returned to the colony remain counted there.
-        </p>
-      </CaseCollapsibleSection>
-
-      <CaseFeederSection helpRequest={hr} saving={savingFeeder} onChange={onFeederChange} />
-
       <CaseCollapsibleSection
-        title={`Tracked cats${cats.length > 0 ? ` (${cats.length})` : ""}`}
+        title={`Cats at colony${cats.length > 0 ? ` (${cats.length})` : ""}`}
         defaultOpen
       >
+        <CatCountSummaryDisplay counts={counts} pregnantCount={hr.pregnant_count} />
+        <p className="mt-3 text-sm text-muted-foreground">
+          Cats sent to foster/facility are removed from still-at-colony counts; fixed cats returned
+          to the colony remain counted there.
+        </p>
+
         {cats.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No cats tracked yet.</p>
+          <p className="mt-4 text-sm text-muted-foreground">No individual cats tracked yet.</p>
         ) : (
-          <div className="space-y-4">
+          <div className="mt-4 space-y-4">
             {cats.map((cat) => (
               <TrackedCatCard
                 key={cat.id}
@@ -88,6 +84,8 @@ export function CaseColonyTab({
           </div>
         )}
       </CaseCollapsibleSection>
+
+      <CaseFeederSection helpRequest={hr} saving={savingFeeder} onChange={onFeederChange} />
 
       {orphanClinicFixes.length > 0 && (
         <CaseCollapsibleSection title="Other clinic fixes" defaultOpen>
