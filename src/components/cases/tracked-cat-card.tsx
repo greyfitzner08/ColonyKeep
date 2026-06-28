@@ -23,7 +23,6 @@ import { FemaleReproductiveStatusSelect } from "@/components/cases/female-reprod
 import { fosterFormFromCat, validateTrackedCatFosterForm } from "@/lib/cases/tracked-cat-foster";
 import {
   femaleReproductiveStatusLabel,
-  isFemaleGender,
   type FemaleReproductiveStatus,
 } from "@/lib/cases/female-reproductive-status";
 import { formatFosterFacilitySummary } from "@/lib/cases/foster-facility";
@@ -246,15 +245,16 @@ export function TrackedCatCard({
                 <SelectItem value="female">Female</SelectItem>
               </SelectContent>
             </Select>
+            {draft.gender === "female" && (
+              <FemaleReproductiveStatusSelect
+                id={`edit-cat-reproductive-status-${cat.id}`}
+                value={draft.femaleReproductiveStatus}
+                onChange={(femaleReproductiveStatus) =>
+                  setDraft({ ...draft, femaleReproductiveStatus })
+                }
+              />
+            )}
           </div>
-          {isFemaleGender(draft.gender) && (
-            <FemaleReproductiveStatusSelect
-              value={draft.femaleReproductiveStatus}
-              onChange={(femaleReproductiveStatus) =>
-                setDraft({ ...draft, femaleReproductiveStatus })
-              }
-            />
-          )}
           <div className="space-y-2">
             <Label>Colors / markings</Label>
             <Input

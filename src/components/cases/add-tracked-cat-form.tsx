@@ -17,10 +17,7 @@ import { CaseCollapsibleSection } from "@/components/cases/case-collapsible-sect
 import { ClinicFixFosterFields } from "@/components/cases/clinic-fix-foster-fields";
 import { FemaleReproductiveStatusSelect } from "@/components/cases/female-reproductive-status-select";
 import { hasFosterFormAnswer, validateTrackedCatFosterForm } from "@/lib/cases/tracked-cat-foster";
-import {
-  isFemaleGender,
-  type FemaleReproductiveStatus,
-} from "@/lib/cases/female-reproductive-status";
+import type { FemaleReproductiveStatus } from "@/lib/cases/female-reproductive-status";
 import type { FosterFacility } from "@/lib/cases/foster-facility";
 import type { Cat } from "@/lib/types";
 import { Plus } from "lucide-react";
@@ -161,15 +158,16 @@ export function AddTrackedCatForm({
               <SelectItem value="female">Female</SelectItem>
             </SelectContent>
           </Select>
+          {newCat.gender === "female" && (
+            <FemaleReproductiveStatusSelect
+              id="add-cat-reproductive-status"
+              value={newCat.femaleReproductiveStatus}
+              onChange={(femaleReproductiveStatus) =>
+                setNewCat({ ...newCat, femaleReproductiveStatus })
+              }
+            />
+          )}
         </div>
-        {isFemaleGender(newCat.gender) && (
-          <FemaleReproductiveStatusSelect
-            value={newCat.femaleReproductiveStatus}
-            onChange={(femaleReproductiveStatus) =>
-              setNewCat({ ...newCat, femaleReproductiveStatus })
-            }
-          />
-        )}
         <div className="space-y-2">
           <Label className="text-sm font-medium">Colors / Markings</Label>
           <Input
