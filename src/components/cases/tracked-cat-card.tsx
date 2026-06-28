@@ -45,7 +45,6 @@ type CatDraft = {
   clinic_id: string;
   clinic_name: string;
   medical_notes: string;
-  trapped_status: string;
   appointment_status: string;
   notes: string;
   age_category: "" | "adult" | "kitten";
@@ -65,7 +64,6 @@ function toDraft(cat: Cat): CatDraft {
     clinic_id: cat.clinic_id ?? "",
     clinic_name: cat.clinic_name ?? "",
     medical_notes: cat.medical_notes ?? "",
-    trapped_status: cat.trapped_status ?? "",
     appointment_status: cat.appointment_status ?? "",
     notes: cat.notes ?? "",
     age_category: cat.age_category ?? "",
@@ -146,7 +144,7 @@ export function TrackedCatCard({
 
   if (editing) {
     const clinicFixed = isTrackedCatClinicFixed({
-      trapped_status: draft.trapped_status,
+      trapped_status: cat.trapped_status,
       appointment_status: draft.appointment_status,
     });
 
@@ -228,14 +226,6 @@ export function TrackedCatCard({
                 ))}
               </SelectContent>
             </Select>
-          </div>
-          <div className="space-y-2">
-            <Label>Trapped status</Label>
-            <Input
-              value={draft.trapped_status}
-              onChange={(e) => setDraft({ ...draft, trapped_status: e.target.value })}
-              placeholder="e.g. trapped, scheduled"
-            />
           </div>
           <div className="space-y-2">
             <Label>Appointment status</Label>
@@ -340,9 +330,6 @@ export function TrackedCatCard({
           {fosterSummary && <InfoRow alwaysShow label="Foster / facility" value={fosterSummary} />}
         </div>
         <div className="flex flex-wrap gap-2 mt-4">
-          {cat.trapped_status && (
-            <Badge variant="secondary">Trapped: {cat.trapped_status}</Badge>
-          )}
           {cat.appointment_status && (
             <Badge variant="secondary">Appt: {cat.appointment_status}</Badge>
           )}

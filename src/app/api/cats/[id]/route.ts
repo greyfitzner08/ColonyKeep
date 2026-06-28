@@ -24,53 +24,65 @@ export async function PATCH(
 
   const trappedStatus = emptyOrNull(body?.trapped_status);
   const appointmentStatus = emptyOrNull(body?.appointment_status);
-  const clinicFixed = isTrackedCatClinicFixed({
-    trapped_status: trappedStatus,
-    appointment_status: appointmentStatus,
-  });
-
-  const ageCategory = body?.age_category as "adult" | "kitten" | "" | undefined;
-  if (clinicFixed && ageCategory !== "adult" && ageCategory !== "kitten") {
-    return NextResponse.json({ error: "Select adult or kitten." }, { status: 400 });
-  }
-
-  const wentToFoster = (body?.wentToFoster ?? "") as "" | "yes" | "no";
-  const fosterFacility = (body?.fosterFacility ?? "") as FosterFacility | "";
-  const fosterFacilityOther = (body?.fosterFacilityOther ?? "") as string;
-
-  const { error: fosterError, fields: fosterFields } = resolveTrackedCatFosterFields({
-    wentToFoster,
-    fosterFacility,
-    fosterFacilityOther,
-    clinicFixed,
-    requireFoster: clinicFixed,
-  });
-  if (fosterError) {
-    return NextResponse.json({ error: fosterError }, { status: 400 });
-  }
-
-  const updatePayload = {
-    name: emptyOrNull(body?.name),
-    gender: emptyOrNull(body?.gender),
-    colors: emptyOrNull(body?.colors),
-    breed: emptyOrNull(body?.breed),
-    microchip_id: emptyOrNull(body?.microchip_id),
-    clinic_id: emptyOrNull(body?.clinic_id),
-    clinic_name: emptyOrNull(body?.clinic_name),
-    medical_notes: emptyOrNull(body?.medical_notes),
-    trapped_status: trappedStatus,
-    appointment_status: appointmentStatus,
-    notes: emptyOrNull(body?.notes),
-    age_category: clinicFixed ? ageCategory : null,
-    ...(fosterFields ?? {}),
-  };
 
   try {
     const service = await createServiceClient();
-    const { data: existing } = await service.from("cats").select("help_request_id").eq("id", id).single();
+    const { data: existing } = await service
+      .from("cats")
+      .select("help_request_id, trapped_status, appointment_status")
+      .eq("id", id)
+      .single();
 
     if (!existing) {
       return NextResponse.json({ error: "Cat not found" }, { status: 404 });
+    }
+
+    const resolvedAppointmentStatus =
+      body?.appointment_status !== undefined ? appointmentStatus : existing.appointment_status;
+
+    const clinicFixed = isTrackedCatClinicFixed({
+      trapped_status:
+        body?.trapped_status !== undefined ? trappedStatus : existing.trapped_status,
+      appointment_status: resolvedAppointmentStatus,
+    });
+
+    const ageCategory = body?.age_category as "adult" | "kitten" | "" | undefined;
+    if (clinicFixed && ageCategory !== "adult" && ageCategory !== "kitten") {
+      return NextResponse.json({ error: "Select adult or kitten." }, { status: 400 });
+    }
+
+    const wentToFoster = (body?.wentToFoster ?? "") as "" | "yes" | "no";
+    const fosterFacility = (body?.fosterFacility ?? "") as FosterFacility | "";
+    const fosterFacilityOther = (body?.fosterFacilityOther ?? "") as string;
+
+    const { error: fosterError, fields: fosterFields } = resolveTrackedCatFosterFields({
+      wentToFoster,
+      fosterFacility,
+      fosterFacilityOther,
+      clinicFixed,
+      requireFoster: clinicFixed,
+    });
+    if (fosterError) {
+      return NextResponse.json({ error: fosterError }, { status: 400 });
+    }
+
+    const updatePayload: Record<string, unknown> = {
+      name: emptyOrNull(body?.name),
+      gender: emptyOrNull(body?.gender),
+      colors: emptyOrNull(body?.colors),
+      breed: emptyOrNull(body?.breed),
+      microchip_id: emptyOrNull(body?.microchip_id),
+      clinic_id: emptyOrNull(body?.clinic_id),
+      clinic_name: emptyOrNull(body?.clinic_name),
+      medical_notes: emptyOrNull(body?.medical_notes),
+      appointment_status: resolvedAppointmentStatus,
+      notes: emptyOrNull(body?.notes),
+      age_category: clinicFixed ? ageCategory : null,
+      ...(fosterFields ?? {}),
+    };
+
+    if (body?.trapped_status !== undefined) {
+      updatePayload.trapped_status = trappedStatus;
     }
 
     const { data: cat, error: updateError } = await service
