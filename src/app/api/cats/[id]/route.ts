@@ -62,13 +62,7 @@ export async function PATCH(
     appointment_status: appointmentStatus,
     notes: emptyOrNull(body?.notes),
     age_category: clinicFixed ? ageCategory : null,
-    ...(fosterFields ?? {
-      went_to_foster_facility: null,
-      foster_facility: null,
-      foster_facility_other: null,
-      return_status: null,
-      foster_program: null,
-    }),
+    ...(fosterFields ?? {}),
   };
 
   try {

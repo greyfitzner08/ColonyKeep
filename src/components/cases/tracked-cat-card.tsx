@@ -272,12 +272,26 @@ export function TrackedCatCard({
             <ClinicFixFosterFields
               variant="tracked-cat"
               wentToFoster={draft.wentToFoster}
-              onWentToFosterChange={(value) => setDraft({ ...draft, wentToFoster: value })}
+              onWentToFosterChange={(value) =>
+                setDraft((prev) => ({
+                  ...prev,
+                  wentToFoster: value,
+                  ...(value !== "yes"
+                    ? { fosterFacility: "", fosterFacilityOther: "" }
+                    : {}),
+                }))
+              }
               fosterFacility={draft.fosterFacility}
-              onFosterFacilityChange={(value) => setDraft({ ...draft, fosterFacility: value })}
+              onFosterFacilityChange={(value) =>
+                setDraft((prev) => ({
+                  ...prev,
+                  fosterFacility: value,
+                  ...(value !== "other" ? { fosterFacilityOther: "" } : {}),
+                }))
+              }
               fosterFacilityOther={draft.fosterFacilityOther}
               onFosterFacilityOtherChange={(value) =>
-                setDraft({ ...draft, fosterFacilityOther: value })
+                setDraft((prev) => ({ ...prev, fosterFacilityOther: value }))
               }
             />
           </div>
