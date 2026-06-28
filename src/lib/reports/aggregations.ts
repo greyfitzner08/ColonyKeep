@@ -1,4 +1,5 @@
 import { findTrapTeamForZip, normalizeZip } from "@/lib/cases/assign-team-by-zip";
+import { fosterFacilityLabel, type FosterFacility } from "@/lib/cases/foster-facility";
 import { CASE_STATUSES } from "@/lib/constants";
 import { sortTrapTeams } from "@/lib/trap-teams/sort-teams";
 import type { HelpRequestStatus } from "@/lib/types";
@@ -10,6 +11,22 @@ export interface ReportCat {
   clinic_name: string | null;
   trap_date: string | null;
   created_at: string;
+  age_category: "adult" | "kitten" | null;
+  went_to_foster_facility: boolean | null;
+  foster_facility: FosterFacility | null;
+  foster_facility_other: string | null;
+}
+
+export interface ReportClinicFix {
+  id: string;
+  help_request_id: string;
+  cat_id: string | null;
+  fix_date: string;
+  clinic_name: string | null;
+  age_category: "adult" | "kitten";
+  went_to_foster_facility: boolean;
+  foster_facility: FosterFacility | null;
+  foster_facility_other: string | null;
 }
 
 export interface ReportAppointment {
@@ -59,6 +76,8 @@ export type ReportType =
   | "cases_by_trapper"
   | "cases_by_team"
   | "cats_by_clinic"
+  | "cats_by_foster_facility"
+  | "foster_placements_detail"
   | "clinic_usage"
   | "case_status_summary"
   | "case_detail";
@@ -123,10 +142,13 @@ function catCount(hr: ReportHelpRequest): number {
 export function filterHelpRequests(
   requests: ReportHelpRequest[],
   filters: ReportFilters,
-  teams: ReportTrapTeam[]
+  teams: ReportTrapTeam[],
+  options?: { skipDateFilter?: boolean }
 ): ReportHelpRequest[] {
   return requests.filter((hr) => {
-    if (!inDateRange(hr.created_at, filters.dateFrom, filters.dateTo)) return false;
+    if (!options?.skipDateFilter && !inDateRange(hr.created_at, filters.dateFrom, filters.dateTo)) {
+      return false;
+    }
     if (filters.intakeOnly && hr.status !== "new_intake") return false;
     if (filters.zip && normalizeZip(hr.colony_zip) !== normalizeZip(filters.zip)) return false;
     if (filters.status && hr.status !== filters.status) return false;
@@ -197,6 +219,84 @@ function groupCount(
   return Array.from(map.values()).sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
 }
 
+function filterClinicFixes(
+  fixes: ReportClinicFix[],
+  filters: ReportFilters,
+  requestIds: Set<string>,
+  clinics: ReportClinic[]
+): ReportClinicFix[] {
+  const selectedClinicName = filters.clinicId
+    ? clinics.find((clinic) => clinic.id === filters.clinicId)?.name?.trim()
+    : null;
+
+  return fixes.filter((fix) => {
+    if (requestIds.size > 0 && !requestIds.has(fix.help_request_id)) return false;
+    if (!inDateRange(fix.fix_date, filters.dateFrom, filters.dateTo)) return false;
+    if (selectedClinicName && fix.clinic_name?.trim() !== selectedClinicName) return false;
+    return true;
+  });
+}
+
+interface FosterPlacement {
+  key: string;
+  helpRequestId: string;
+  catId: string | null;
+  facilityLabel: string;
+  ageCategory: string;
+  placementDate: string;
+  source: "clinic_fix" | "tracked_cat";
+}
+
+function fosterPlacementLabel(
+  facility: FosterFacility | null | undefined,
+  other: string | null | undefined
+): string {
+  return fosterFacilityLabel(facility, other) ?? "Unknown location";
+}
+
+function collectFosterPlacements(
+  clinicFixes: ReportClinicFix[],
+  cats: ReportCat[],
+  filters: ReportFilters,
+  requestIds: Set<string>,
+  clinics: ReportClinic[]
+): FosterPlacement[] {
+  const filteredFixes = filterClinicFixes(clinicFixes, filters, requestIds, clinics);
+  const filteredCats = filterCats(cats, filters, requestIds);
+  const placements: FosterPlacement[] = [];
+  const catIdsFromFixes = new Set<string>();
+
+  for (const fix of filteredFixes) {
+    if (!fix.went_to_foster_facility) continue;
+    if (fix.cat_id) catIdsFromFixes.add(fix.cat_id);
+    placements.push({
+      key: `fix:${fix.id}`,
+      helpRequestId: fix.help_request_id,
+      catId: fix.cat_id,
+      facilityLabel: fosterPlacementLabel(fix.foster_facility, fix.foster_facility_other),
+      ageCategory: fix.age_category,
+      placementDate: fix.fix_date,
+      source: "clinic_fix",
+    });
+  }
+
+  for (const cat of filteredCats) {
+    if (cat.went_to_foster_facility !== true) continue;
+    if (catIdsFromFixes.has(cat.id)) continue;
+    placements.push({
+      key: `cat:${cat.id}`,
+      helpRequestId: cat.help_request_id,
+      catId: cat.id,
+      facilityLabel: fosterPlacementLabel(cat.foster_facility, cat.foster_facility_other),
+      ageCategory: cat.age_category ?? "—",
+      placementDate: cat.trap_date ?? cat.created_at,
+      source: "tracked_cat",
+    });
+  }
+
+  return placements.sort((a, b) => b.placementDate.localeCompare(a.placementDate));
+}
+
 export function runReport(
   type: ReportType,
   filters: ReportFilters,
@@ -204,12 +304,24 @@ export function runReport(
   cats: ReportCat[],
   appointments: ReportAppointment[],
   teams: ReportTrapTeam[],
-  _clinics: ReportClinic[]
+  _clinics: ReportClinic[],
+  clinicFixes: ReportClinicFix[] = []
 ): ReportResult {
   const filtered = filterHelpRequests(helpRequests, filters, teams);
   const requestIds = new Set(filtered.map((hr) => hr.id));
+  const fosterRequestIds = new Set(
+    filterHelpRequests(helpRequests, filters, teams, { skipDateFilter: true }).map((hr) => hr.id)
+  );
   const filteredCats = filterCats(cats, filters, requestIds);
   const filteredAppointments = filterAppointments(appointments, filters, requestIds);
+  const fosterPlacements = collectFosterPlacements(
+    clinicFixes,
+    cats,
+    filters,
+    fosterRequestIds,
+    _clinics
+  );
+  const caseById = new Map(helpRequests.map((hr) => [hr.id, hr]));
 
   switch (type) {
     case "inquiries_by_zip": {
@@ -349,6 +461,69 @@ export function runReport(
         ],
         rows,
         totals: [{ label: "Cats", value: filteredCats.length }],
+      };
+    }
+
+    case "cats_by_foster_facility": {
+      const rows = groupCount(
+        fosterPlacements.map((placement) => ({
+          key: placement.facilityLabel.toLowerCase(),
+          label: placement.facilityLabel,
+          cats: 1,
+        }))
+      );
+      const adults = fosterPlacements.filter((p) => p.ageCategory === "adult").length;
+      const kittens = fosterPlacements.filter((p) => p.ageCategory === "kitten").length;
+      return {
+        title: "Cats sent to foster / facility",
+        description:
+          "Cats recorded as going to foster or a facility, grouped by destination. Includes clinic fixes and tracked cats not yet linked to a fix.",
+        columns: [
+          { key: "label", label: "Foster / facility" },
+          { key: "count", label: "Cats" },
+        ],
+        rows,
+        totals: [
+          { label: "Total sent to foster/facility", value: fosterPlacements.length },
+          { label: "Adults", value: adults },
+          { label: "Kittens", value: kittens },
+          { label: "Destinations", value: rows.length },
+        ],
+      };
+    }
+
+    case "foster_placements_detail": {
+      const rows: ReportRow[] = fosterPlacements.map((placement) => {
+        const hr = caseById.get(placement.helpRequestId);
+        const team = hr ? teamForRequest(hr, teams) : null;
+        return {
+          key: placement.key,
+          label: hr?.case_number ?? placement.helpRequestId,
+          sublabel: placement.facilityLabel,
+          count: 1,
+          extra: {
+            age: placement.ageCategory,
+            date: placement.placementDate.slice(0, 10),
+            zip: hr ? normalizeZip(hr.colony_zip) || "—" : "—",
+            team: team?.name ?? "—",
+            source: placement.source === "clinic_fix" ? "Clinic fix" : "Tracked cat",
+          },
+        };
+      });
+      return {
+        title: "Foster / facility placement detail",
+        description: "One row per cat sent to foster or a facility, matching current filters.",
+        columns: [
+          { key: "label", label: "Case #" },
+          { key: "sublabel", label: "Foster / facility" },
+          { key: "extra.age", label: "Age" },
+          { key: "extra.date", label: "Date" },
+          { key: "extra.zip", label: "ZIP" },
+          { key: "extra.team", label: "Team" },
+          { key: "extra.source", label: "Source" },
+        ],
+        rows,
+        totals: [{ label: "Cats sent to foster/facility", value: rows.length }],
       };
     }
 

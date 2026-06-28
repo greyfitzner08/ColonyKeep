@@ -21,6 +21,7 @@ import {
   type ReportAppointment,
   type ReportCat,
   type ReportClinic,
+  type ReportClinicFix,
   type ReportFilters,
   type ReportHelpRequest,
   type ReportTrapTeam,
@@ -58,6 +59,16 @@ const REPORT_TYPES: { value: ReportType; label: string; hint: string }[] = [
     hint: "Cats linked to each clinic in the filtered period.",
   },
   {
+    value: "cats_by_foster_facility",
+    label: "Foster / facility totals",
+    hint: "How many cats went to foster or a facility, grouped by destination.",
+  },
+  {
+    value: "foster_placements_detail",
+    label: "Foster / facility detail",
+    hint: "Row-level list of each cat sent to foster or a facility.",
+  },
+  {
     value: "clinic_usage",
     label: "Clinic appointments",
     hint: "Appointment counts per clinic in the filtered date range.",
@@ -86,6 +97,7 @@ interface NewsletterSignupRow {
 interface ReportsDashboardProps {
   helpRequests: ReportHelpRequest[];
   cats: ReportCat[];
+  clinicFixes: ReportClinicFix[];
   appointments: ReportAppointment[];
   teams: ReportTrapTeam[];
   clinics: ReportClinic[];
@@ -109,6 +121,7 @@ function cellValue(
 export function ReportsDashboard({
   helpRequests,
   cats,
+  clinicFixes,
   appointments,
   teams,
   clinics,
@@ -124,8 +137,18 @@ export function ReportsDashboard({
   );
 
   const result = useMemo(
-    () => runReport(reportType, filters, helpRequests, cats, appointments, teams, clinics),
-    [reportType, filters, helpRequests, cats, appointments, teams, clinics]
+    () =>
+      runReport(
+        reportType,
+        filters,
+        helpRequests,
+        cats,
+        appointments,
+        teams,
+        clinics,
+        clinicFixes
+      ),
+    [reportType, filters, helpRequests, cats, appointments, teams, clinics, clinicFixes]
   );
 
   const activeReport = REPORT_TYPES.find((entry) => entry.value === reportType);

@@ -6,6 +6,7 @@ import type {
   ReportAppointment,
   ReportCat,
   ReportClinic,
+  ReportClinicFix,
   ReportHelpRequest,
   ReportTrapTeam,
 } from "@/lib/reports/aggregations";
@@ -22,6 +23,7 @@ export default async function ReportsPage() {
   const [
     { data: helpRequests },
     { data: cats },
+    { data: clinicFixes },
     { data: appointments },
     { data: teams },
     { data: clinics },
@@ -32,7 +34,14 @@ export default async function ReportsPage() {
     }),
     supabase
       .from("cats")
-      .select("id, help_request_id, clinic_id, clinic_name, trap_date, created_at"),
+      .select(
+        "id, help_request_id, clinic_id, clinic_name, trap_date, created_at, age_category, went_to_foster_facility, foster_facility, foster_facility_other"
+      ),
+    supabase
+      .from("clinic_fixes")
+      .select(
+        "id, help_request_id, cat_id, fix_date, clinic_name, age_category, went_to_foster_facility, foster_facility, foster_facility_other"
+      ),
     supabase
       .from("appointments")
       .select("id, clinic_id, clinic_name, date, status, help_request_id"),
@@ -51,6 +60,7 @@ export default async function ReportsPage() {
     <ReportsDashboard
       helpRequests={(helpRequests ?? []) as ReportHelpRequest[]}
       cats={(cats ?? []) as ReportCat[]}
+      clinicFixes={(clinicFixes ?? []) as ReportClinicFix[]}
       appointments={(appointments ?? []) as ReportAppointment[]}
       teams={(teams ?? []) as ReportTrapTeam[]}
       clinics={(clinics ?? []) as ReportClinic[]}
