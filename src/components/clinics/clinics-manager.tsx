@@ -8,9 +8,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ServiceCatalogEditor } from "@/components/clinics/service-catalog-editor";
 import { ServiceCatalogDisplay } from "@/components/clinics/service-catalog-display";
+import { ClinicPackagesDisplay } from "@/components/clinics/clinic-packages-display";
 import {
   defaultIncludedCatalog,
   normalizeServiceCatalog,
@@ -111,6 +113,20 @@ export function ClinicsManager({ clinics: initial }: ClinicsManagerProps) {
     });
   }
 
+  function togglePackageService(index: number, serviceName: string, checked: boolean) {
+    const packages = [...form.packages];
+    const pkg = packages[index];
+    packages[index] = {
+      ...pkg,
+      services: checked
+        ? [...pkg.services, serviceName]
+        : pkg.services.filter((name) => name !== serviceName),
+    };
+    setForm({ ...form, packages });
+  }
+
+  const catalogForForm = normalizeServiceCatalog(form.service_catalog);
+
   function addPackage() {
     setForm({
       ...form,
@@ -145,6 +161,12 @@ export function ClinicsManager({ clinics: initial }: ClinicsManagerProps) {
               <p>{clinic.phone}</p>
               <p><strong>Days:</strong> {clinic.operating_days.join(", ") || "Not set"}</p>
               <p><strong>Slots/day:</strong> {clinic.slots_per_day}</p>
+              <ClinicPackagesDisplay
+                packages={clinic.packages ?? []}
+                catalog={clinic.service_catalog ?? []}
+                legacyIncluded={clinic.included_services}
+                legacyAddons={clinic.addon_services}
+              />
               <ServiceCatalogDisplay
                 catalog={clinic.service_catalog ?? []}
                 legacyIncluded={clinic.included_services}
@@ -223,20 +245,42 @@ export function ClinicsManager({ clinics: initial }: ClinicsManagerProps) {
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
-                  <Input
-                    placeholder="Services (comma-separated)"
-                    value={pkg.services.join(", ")}
-                    onChange={(e) => {
-                      const packages = [...form.packages];
-                      packages[index] = {
-                        ...pkg,
-                        services: e.target.value.split(",").map((s) => s.trim()).filter(Boolean),
-                      };
-                      setForm({ ...form, packages });
-                    }}
-                  />
+                  <div className="space-y-2">
+                    <Label className="text-sm font-normal text-muted-foreground">Services in package</Label>
+                    {catalogForForm.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">
+                        Add services to the catalog above first.
+                      </p>
+                    ) : (
+                      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                        {catalogForForm.map((service) => (
+                          <label
+                            key={service.name}
+                            className="flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2"
+                          >
+                            <Checkbox
+                              checked={pkg.services.includes(service.name)}
+                              onCheckedChange={(checked) =>
+                                togglePackageService(index, service.name, !!checked)
+                              }
+                            />
+                            <span className="min-w-0 flex-1 text-sm">{service.name}</span>
+                            <span className="shrink-0 text-xs text-muted-foreground">
+                              {service.included_in_base ? "Included" : formatCurrency(service.price)}
+                            </span>
+                          </label>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
               ))}
+              {form.packages.length > 0 && (
+                <ClinicPackagesDisplay
+                  packages={form.packages}
+                  catalog={form.service_catalog}
+                />
+              )}
             </div>
 
             <div className="space-y-2">
