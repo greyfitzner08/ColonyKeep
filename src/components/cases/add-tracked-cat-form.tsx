@@ -3,7 +3,13 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { CaseCollapsibleSection } from "@/components/cases/case-collapsible-section";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { TrackedCatIntakeSections } from "@/components/cases/tracked-cat-intake-sections";
 import { hasFosterFormAnswer, validateTrackedCatFosterForm } from "@/lib/cases/tracked-cat-foster";
 import { EMPTY_TRACKED_CAT_DETAILS, type TrackedCatDetails } from "@/lib/cases/tracked-cat-form";
@@ -11,17 +17,19 @@ import type { FosterFacility } from "@/lib/cases/foster-facility";
 import type { Cat } from "@/lib/types";
 import { Plus } from "lucide-react";
 
-interface AddTrackedCatFormProps {
+interface AddTrackedCatDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
   helpRequestId: string;
-  defaultOpen?: boolean;
   onAdded: (cat: Cat) => void;
 }
 
-export function AddTrackedCatForm({
+export function AddTrackedCatDialog({
+  open,
+  onOpenChange,
   helpRequestId,
-  defaultOpen = false,
   onAdded,
-}: AddTrackedCatFormProps) {
+}: AddTrackedCatDialogProps) {
   const router = useRouter();
   const [newCat, setNewCat] = useState<TrackedCatDetails>(EMPTY_TRACKED_CAT_DETAILS);
   const [fixedAtClinic, setFixedAtClinic] = useState(false);
@@ -40,6 +48,11 @@ export function AddTrackedCatForm({
     setFosterFacility("");
     setFosterFacilityOther("");
     setError(null);
+  }
+
+  function handleOpenChange(nextOpen: boolean) {
+    if (!nextOpen) resetForm();
+    onOpenChange(nextOpen);
   }
 
   async function addCat() {
@@ -99,6 +112,7 @@ export function AddTrackedCatForm({
       const shouldRefresh = fixedAtClinic || hasFosterFormAnswer(wentToFoster);
       onAdded(result.cat as Cat);
       resetForm();
+      onOpenChange(false);
       if (shouldRefresh) {
         router.refresh();
       }
@@ -106,37 +120,52 @@ export function AddTrackedCatForm({
   }
 
   return (
-    <CaseCollapsibleSection title="Add cat" defaultOpen={defaultOpen}>
-      <div className="space-y-4">
-        <TrackedCatIntakeSections
-        idPrefix="add-cat"
-        details={newCat}
-        onDetailsChange={setNewCat}
-        fixedAtClinic={fixedAtClinic}
-        onFixedAtClinicChange={(nextFixed) => {
-          setFixedAtClinic(nextFixed);
-          setError(null);
-        }}
-        ageCategory={ageCategory}
-        onAgeCategoryChange={setAgeCategory}
-        foster={{
-          wentToFoster,
-          fosterFacility,
-          fosterFacilityOther,
-        }}
-        onFosterChange={(foster) => {
-          setWentToFoster(foster.wentToFoster);
-          setFosterFacility(foster.fosterFacility);
-          setFosterFacilityOther(foster.fosterFacilityOther);
-        }}
-        />
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Add cat</DialogTitle>
+          <DialogDescription>
+            Track an individual cat at this colony — name, markings, clinic status, and foster plan.
+          </DialogDescription>
+        </DialogHeader>
 
-        {error && <p className="text-sm text-destructive">{error}</p>}
-        <Button onClick={addCat} disabled={adding}>
-          <Plus className="h-4 w-4 mr-2" />
-          {adding ? "Adding…" : "Add Cat"}
-        </Button>
-      </div>
-    </CaseCollapsibleSection>
+        <div className="space-y-4">
+          <TrackedCatIntakeSections
+            idPrefix="add-cat"
+            details={newCat}
+            onDetailsChange={setNewCat}
+            fixedAtClinic={fixedAtClinic}
+            onFixedAtClinicChange={(nextFixed) => {
+              setFixedAtClinic(nextFixed);
+              setError(null);
+            }}
+            ageCategory={ageCategory}
+            onAgeCategoryChange={setAgeCategory}
+            foster={{
+              wentToFoster,
+              fosterFacility,
+              fosterFacilityOther,
+            }}
+            onFosterChange={(foster) => {
+              setWentToFoster(foster.wentToFoster);
+              setFosterFacility(foster.fosterFacility);
+              setFosterFacilityOther(foster.fosterFacilityOther);
+            }}
+          />
+
+          {error && <p className="text-sm text-destructive">{error}</p>}
+        </div>
+
+        <div className="flex justify-end gap-2">
+          <Button type="button" variant="outline" onClick={() => handleOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button type="button" onClick={addCat} disabled={adding}>
+            <Plus className="h-4 w-4 mr-2" />
+            {adding ? "Adding…" : "Add cat"}
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }

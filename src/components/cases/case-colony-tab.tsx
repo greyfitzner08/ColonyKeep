@@ -1,15 +1,18 @@
 "use client";
 
+import { useState } from "react";
 import { CaseCollapsibleSection } from "@/components/cases/case-collapsible-section";
 import { CaseFeederSection } from "@/components/cases/case-feeder-section";
 import { CatCountSummaryDisplay } from "@/components/cases/cat-count-summary-display";
 import { InfoRow } from "@/components/cases/case-detail-fields";
-import { AddTrackedCatForm } from "@/components/cases/add-tracked-cat-form";
+import { AddTrackedCatDialog } from "@/components/cases/add-tracked-cat-form";
 import { ClinicFixSummary } from "@/components/cases/clinic-fix-summary";
 import { TrackedCatCard } from "@/components/cases/tracked-cat-card";
+import { Button } from "@/components/ui/button";
 import { formatSingleLineAddress } from "@/lib/cases/colony-notes";
 import { summarizeCatCounts } from "@/lib/cases/cat-counts";
 import type { Cat, ClinicFix, HelpRequest } from "@/lib/types";
+import { Plus } from "lucide-react";
 
 interface CaseColonyTabProps {
   helpRequest: HelpRequest;
@@ -34,6 +37,7 @@ export function CaseColonyTab({
   onCatAdded,
   onCatRemoved,
 }: CaseColonyTabProps) {
+  const [addCatOpen, setAddCatOpen] = useState(false);
   const colonyAddress = formatSingleLineAddress([
     hr.colony_address,
     hr.colony_city,
@@ -58,6 +62,12 @@ export function CaseColonyTab({
       <CaseCollapsibleSection
         title={`Cats at colony${cats.length > 0 ? ` (${cats.length})` : ""}`}
         defaultOpen
+        headerAction={
+          <Button size="sm" onClick={() => setAddCatOpen(true)}>
+            <Plus className="h-4 w-4 mr-1" />
+            Add cat
+          </Button>
+        }
       >
         <CatCountSummaryDisplay counts={counts} pregnantCount={hr.pregnant_count} />
         <p className="mt-3 text-sm text-muted-foreground">
@@ -67,7 +77,10 @@ export function CaseColonyTab({
         </p>
 
         {cats.length === 0 ? (
-          <p className="mt-4 text-sm text-muted-foreground">No individual cats tracked yet.</p>
+          <p className="mt-4 text-sm text-muted-foreground">
+            No individual cats tracked yet. Use <span className="font-medium">Add cat</span> to get
+            started.
+          </p>
         ) : (
           <div className="mt-4 space-y-4">
             {cats.map((cat) => (
@@ -86,6 +99,13 @@ export function CaseColonyTab({
         )}
       </CaseCollapsibleSection>
 
+      <AddTrackedCatDialog
+        open={addCatOpen}
+        onOpenChange={setAddCatOpen}
+        helpRequestId={hr.id}
+        onAdded={onCatAdded}
+      />
+
       <CaseFeederSection helpRequest={hr} saving={savingFeeder} onChange={onFeederChange} />
 
       {orphanClinicFixes.length > 0 && (
@@ -100,12 +120,6 @@ export function CaseColonyTab({
           </div>
         </CaseCollapsibleSection>
       )}
-
-      <AddTrackedCatForm
-        helpRequestId={hr.id}
-        defaultOpen={cats.length === 0}
-        onAdded={onCatAdded}
-      />
     </div>
   );
 }
