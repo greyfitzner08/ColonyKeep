@@ -450,10 +450,6 @@ export function CaseDetailTabs({
           helpRequest={hr}
           clinicFixes={clinicFixes}
           cats={cats}
-          onUpdated={(next) => {
-            setHr(next);
-            router.refresh();
-          }}
         />
 
         {cats.map((cat) => (

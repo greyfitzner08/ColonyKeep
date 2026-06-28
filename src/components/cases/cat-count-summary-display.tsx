@@ -121,8 +121,9 @@ export function CatCountSummaryDisplay({ counts, pregnantCount }: CatCountSummar
       </div>
 
       <p className="border-t px-4 py-2 text-xs text-muted-foreground">
-        Originally reported counts stay fixed. Cats sent to foster/facility are removed from
-        still-at-colony; fixed cats returned to the colony remain counted there.
+        Originally reported and suspected pregnant counts are set at intake and stay fixed. Cats
+        sent to foster/facility are removed from still-at-colony; fixed cats returned to the colony
+        remain counted there.
       </p>
 
       {pregnantCount !== undefined && pregnantCount > 0 && (
