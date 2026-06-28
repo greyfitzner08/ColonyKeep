@@ -12,6 +12,15 @@ import { formatDate } from "@/lib/utils";
 import type { VolunteerHours, Shift, Profile } from "@/lib/types";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 
+function defaultLogForm() {
+  return {
+    date: new Date().toISOString().split("T")[0],
+    hours: 1,
+    hour_type: "trapping",
+    notes: "",
+  };
+}
+
 interface MyImpactDashboardProps {
   hours: VolunteerHours[];
   shifts: Shift[];
@@ -21,12 +30,7 @@ interface MyImpactDashboardProps {
 
 export function MyImpactDashboard({ hours, shifts, casesWorked, profile }: MyImpactDashboardProps) {
   const router = useRouter();
-  const [logForm, setLogForm] = useState({
-    date: new Date().toISOString().split("T")[0],
-    hours: 1,
-    hour_type: "trapping",
-    notes: "",
-  });
+  const [logForm, setLogForm] = useState(defaultLogForm);
 
   const totalHours = hours.reduce((sum, h) => sum + Number(h.hours), 0);
 
@@ -43,12 +47,16 @@ export function MyImpactDashboard({ hours, shifts, casesWorked, profile }: MyImp
   async function logHours() {
     if (!profile) return;
     const supabase = createClient();
-    await supabase.from("volunteer_hours").insert({
+    const { error } = await supabase.from("volunteer_hours").insert({
       volunteer_email: profile.email,
       volunteer_name: profile.full_name ?? profile.email,
       team_id: profile.team_id,
       ...logForm,
     });
+
+    if (error) return;
+
+    setLogForm(defaultLogForm());
     router.refresh();
   }
 
