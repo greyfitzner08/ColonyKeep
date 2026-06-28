@@ -15,7 +15,6 @@ interface CaseColonyTabProps {
   helpRequest: HelpRequest;
   clinicFixes: ClinicFix[];
   cats: Cat[];
-  clinics: { id: string; name: string }[];
   savingFeeder?: boolean;
   canLogClinicFix: boolean;
   onFeederChange: (next: HelpRequest) => void;
@@ -28,7 +27,6 @@ export function CaseColonyTab({
   helpRequest: hr,
   clinicFixes,
   cats,
-  clinics,
   savingFeeder = false,
   canLogClinicFix,
   onFeederChange,
@@ -75,7 +73,6 @@ export function CaseColonyTab({
               <TrackedCatCard
                 key={cat.id}
                 cat={cat}
-                clinics={clinics}
                 helpRequestId={hr.id}
                 caseNumber={hr.case_number}
                 clinicFix={clinicFixByCatId.get(cat.id) ?? null}

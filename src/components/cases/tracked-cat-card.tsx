@@ -33,7 +33,6 @@ import { Pencil, Trash2, X, Check } from "lucide-react";
 
 interface TrackedCatCardProps {
   cat: Cat;
-  clinics: { id: string; name: string }[];
   helpRequestId: string;
   caseNumber: string;
   clinicFix?: ClinicFix | null;
@@ -47,13 +46,9 @@ type CatDraft = {
   gender: "" | "male" | "female";
   femaleReproductiveStatus: FemaleReproductiveStatus | "";
   colors: string;
-  breed: string;
   microchip_id: string;
-  clinic_id: string;
-  clinic_name: string;
   medical_notes: string;
-  appointment_status: string;
-  notes: string;
+  fixedAtClinic: boolean;
   age_category: "" | "adult" | "kitten";
   wentToFoster: "" | "yes" | "no";
   fosterFacility: FosterFacility | "";
@@ -77,13 +72,9 @@ function toDraft(cat: Cat): CatDraft {
     gender: normalizedGender,
     femaleReproductiveStatus: cat.female_reproductive_status ?? "",
     colors: cat.colors ?? "",
-    breed: cat.breed ?? "",
     microchip_id: cat.microchip_id ?? "",
-    clinic_id: cat.clinic_id ?? "",
-    clinic_name: cat.clinic_name ?? "",
     medical_notes: cat.medical_notes ?? "",
-    appointment_status: cat.appointment_status ?? "",
-    notes: cat.notes ?? "",
+    fixedAtClinic: isTrackedCatClinicFixed(cat),
     age_category: cat.age_category ?? "",
     ...foster,
   };
@@ -107,7 +98,6 @@ function fosterSummaryForCat(cat: Cat) {
 
 export function TrackedCatCard({
   cat,
-  clinics,
   helpRequestId,
   caseNumber,
   clinicFix = null,
@@ -138,10 +128,10 @@ export function TrackedCatCard({
   }
 
   async function saveCat() {
-    const clinicFixed = isTrackedCatClinicFixed({
-      trapped_status: cat.trapped_status,
-      appointment_status: draft.appointment_status,
-    });
+    if (draft.fixedAtClinic && draft.age_category !== "adult" && draft.age_category !== "kitten") {
+      setError("Select adult or kitten.");
+      return;
+    }
 
     const fosterError = validateTrackedCatFosterForm(
       {
@@ -149,7 +139,7 @@ export function TrackedCatCard({
         fosterFacility: draft.fosterFacility,
         fosterFacilityOther: draft.fosterFacilityOther,
       },
-      { required: clinicFixed }
+      { required: draft.fixedAtClinic }
     );
     if (fosterError) {
       setError(fosterError);
@@ -167,14 +157,10 @@ export function TrackedCatCard({
         gender: draft.gender,
         femaleReproductiveStatus: draft.femaleReproductiveStatus || undefined,
         colors: draft.colors,
-        breed: draft.breed,
         microchip_id: draft.microchip_id,
-        clinic_id: draft.clinic_id,
-        clinic_name: draft.clinic_name,
         medical_notes: draft.medical_notes,
-        appointment_status: draft.appointment_status,
-        notes: draft.notes,
-        age_category: draft.age_category,
+        fixedAtClinic: draft.fixedAtClinic,
+        ageCategory: draft.fixedAtClinic ? draft.age_category : undefined,
         wentToFoster: draft.wentToFoster,
         fosterFacility: draft.fosterFacility,
         fosterFacilityOther: draft.fosterFacilityOther,
@@ -223,11 +209,6 @@ export function TrackedCatCard({
   }
 
   if (editing) {
-    const clinicFixed = isTrackedCatClinicFixed({
-      trapped_status: cat.trapped_status,
-      appointment_status: draft.appointment_status,
-    });
-
     return (
       <Card>
         <CardHeader className="pb-3">
@@ -257,14 +238,15 @@ export function TrackedCatCard({
         </CardHeader>
         <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="space-y-2">
-            <Label>Name</Label>
+            <Label className="text-sm font-medium">Name</Label>
             <Input
+              className="text-base"
               value={draft.name}
               onChange={(e) => setDraft({ ...draft, name: e.target.value })}
             />
           </div>
           <div className="space-y-2">
-            <Label>Gender</Label>
+            <Label className="text-sm font-medium">Gender</Label>
             <Select
               value={draft.gender || undefined}
               onValueChange={(value) =>
@@ -276,7 +258,7 @@ export function TrackedCatCard({
                 })
               }
             >
-              <SelectTrigger>
+              <SelectTrigger className="text-base">
                 <SelectValue placeholder="Select gender" />
               </SelectTrigger>
               <SelectContent>
@@ -295,63 +277,58 @@ export function TrackedCatCard({
             )}
           </div>
           <div className="space-y-2">
-            <Label>Colors / markings</Label>
+            <Label className="text-sm font-medium">Colors / Markings</Label>
             <Input
+              className="text-base"
               value={draft.colors}
               onChange={(e) => setDraft({ ...draft, colors: e.target.value })}
             />
           </div>
           <div className="space-y-2">
-            <Label>Breed</Label>
+            <Label className="text-sm font-medium">Microchip ID #</Label>
             <Input
-              value={draft.breed}
-              onChange={(e) => setDraft({ ...draft, breed: e.target.value })}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label>Microchip ID</Label>
-            <Input
+              className="text-base"
               value={draft.microchip_id}
               onChange={(e) => setDraft({ ...draft, microchip_id: e.target.value })}
             />
           </div>
-          <div className="space-y-2">
-            <Label>Clinic</Label>
+          <div className="space-y-2 sm:col-span-2">
+            <Label className="text-sm font-medium">Medical Notes</Label>
+            <Textarea
+              className="text-base"
+              value={draft.medical_notes}
+              onChange={(e) => setDraft({ ...draft, medical_notes: e.target.value })}
+              rows={3}
+            />
+          </div>
+
+          <div className="space-y-2 sm:col-span-2">
+            <Label className="text-sm font-medium">Fixed at clinic?</Label>
             <Select
-              value={draft.clinic_id || "none"}
+              value={draft.fixedAtClinic ? "yes" : "no"}
               onValueChange={(value) => {
-                const clinic = clinics.find((entry) => entry.id === value);
+                const fixedAtClinic = value === "yes";
                 setDraft({
                   ...draft,
-                  clinic_id: value === "none" ? "" : value,
-                  clinic_name: clinic?.name ?? "",
+                  fixedAtClinic,
+                  age_category: fixedAtClinic ? draft.age_category : "",
                 });
+                setError(null);
               }}
             >
-              <SelectTrigger>
-                <SelectValue placeholder="Select clinic" />
+              <SelectTrigger className="text-base">
+                <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="none">Not yet assigned</SelectItem>
-                {clinics.map((clinic) => (
-                  <SelectItem key={clinic.id} value={clinic.id}>
-                    {clinic.name}
-                  </SelectItem>
-                ))}
+                <SelectItem value="no">Not yet — still at colony or in progress</SelectItem>
+                <SelectItem value="yes">Yes — already fixed at clinic</SelectItem>
               </SelectContent>
             </Select>
           </div>
-          <div className="space-y-2">
-            <Label>Appointment status</Label>
-            <Input
-              value={draft.appointment_status}
-              onChange={(e) => setDraft({ ...draft, appointment_status: e.target.value })}
-              placeholder="e.g. reserved, completed"
-            />
-          </div>
-          {clinicFixed && (
+
+          {draft.fixedAtClinic && (
             <div className="space-y-2">
-              <Label>Age at clinic</Label>
+              <Label className="text-sm font-medium">Age at clinic</Label>
               <Select
                 value={draft.age_category || "unset"}
                 onValueChange={(value) =>
@@ -361,7 +338,7 @@ export function TrackedCatCard({
                   })
                 }
               >
-                <SelectTrigger>
+                <SelectTrigger className="text-base">
                   <SelectValue placeholder="Select age" />
                 </SelectTrigger>
                 <SelectContent>
@@ -372,6 +349,7 @@ export function TrackedCatCard({
               </Select>
             </div>
           )}
+
           <div className="sm:col-span-2">
             <ClinicFixFosterFields
               variant="tracked-cat"
@@ -383,22 +361,7 @@ export function TrackedCatCard({
               onChange={(foster) => setDraft((prev) => ({ ...prev, ...foster }))}
             />
           </div>
-          <div className="space-y-2 sm:col-span-2">
-            <Label>Medical notes</Label>
-            <Textarea
-              value={draft.medical_notes}
-              onChange={(e) => setDraft({ ...draft, medical_notes: e.target.value })}
-              rows={3}
-            />
-          </div>
-          <div className="space-y-2 sm:col-span-2">
-            <Label>General notes</Label>
-            <Textarea
-              value={draft.notes}
-              onChange={(e) => setDraft({ ...draft, notes: e.target.value })}
-              rows={2}
-            />
-          </div>
+
           {error && <p className="text-sm text-destructive sm:col-span-2">{error}</p>}
         </CardContent>
       </Card>

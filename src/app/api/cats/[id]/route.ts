@@ -25,6 +25,9 @@ export async function PATCH(
 
   const trappedStatus = emptyOrNull(body?.trapped_status);
   const appointmentStatus = emptyOrNull(body?.appointment_status);
+  const fixedAtClinicProvided = body?.fixedAtClinic !== undefined;
+  const fixedAtClinic = body?.fixedAtClinic === true;
+  const ageCategory = (body?.ageCategory ?? body?.age_category) as "adult" | "kitten" | "" | undefined;
 
   try {
     const service = await createServiceClient();
@@ -41,15 +44,22 @@ export async function PATCH(
     const resolvedAppointmentStatus =
       body?.appointment_status !== undefined ? appointmentStatus : existing.appointment_status;
 
-    const clinicFixed = isTrackedCatClinicFixed({
-      trapped_status:
-        body?.trapped_status !== undefined ? trappedStatus : existing.trapped_status,
-      appointment_status: resolvedAppointmentStatus,
-    });
+    const clinicFixed = fixedAtClinicProvided
+      ? fixedAtClinic
+      : isTrackedCatClinicFixed({
+          trapped_status:
+            body?.trapped_status !== undefined ? trappedStatus : existing.trapped_status,
+          appointment_status: resolvedAppointmentStatus,
+        });
 
-    const ageCategory = body?.age_category as "adult" | "kitten" | "" | undefined;
-    if (clinicFixed && ageCategory !== "adult" && ageCategory !== "kitten") {
-      return NextResponse.json({ error: "Select adult or kitten." }, { status: 400 });
+    if (clinicFixed) {
+      const resolvedAgeCategory = fixedAtClinicProvided
+        ? ageCategory
+        : ((body?.age_category as "adult" | "kitten" | "" | undefined) ?? existing.age_category);
+
+      if (resolvedAgeCategory !== "adult" && resolvedAgeCategory !== "kitten") {
+        return NextResponse.json({ error: "Select adult or kitten." }, { status: 400 });
+      }
     }
 
     const wentToFoster = (body?.wentToFoster ?? "") as "" | "yes" | "no";
@@ -71,31 +81,50 @@ export async function PATCH(
       body?.gender !== undefined ? emptyOrNull(body?.gender) : undefined;
     const resolvedGender = gender !== undefined ? gender : existing.gender;
 
-    const updatePayload: Record<string, unknown> = {
-      name: emptyOrNull(body?.name),
-      ...(gender !== undefined ? { gender } : {}),
-      ...(body?.gender !== undefined || body?.femaleReproductiveStatus !== undefined
-        ? {
-            female_reproductive_status: resolveFemaleReproductiveStatusForSave(
-              resolvedGender,
-              body?.femaleReproductiveStatus
-            ),
-          }
-        : {}),
-      colors: emptyOrNull(body?.colors),
-      breed: emptyOrNull(body?.breed),
-      microchip_id: emptyOrNull(body?.microchip_id),
-      clinic_id: emptyOrNull(body?.clinic_id),
-      clinic_name: emptyOrNull(body?.clinic_name),
-      medical_notes: emptyOrNull(body?.medical_notes),
-      appointment_status: resolvedAppointmentStatus,
-      notes: emptyOrNull(body?.notes),
-      age_category: clinicFixed ? ageCategory : existing.age_category,
-      ...(fosterFields ?? {}),
-    };
+    const updatePayload: Record<string, unknown> = {};
 
-    if (body?.trapped_status !== undefined) {
-      updatePayload.trapped_status = trappedStatus;
+    if (body?.name !== undefined) updatePayload.name = emptyOrNull(body.name);
+    if (gender !== undefined) updatePayload.gender = gender;
+    if (body?.gender !== undefined || body?.femaleReproductiveStatus !== undefined) {
+      updatePayload.female_reproductive_status = resolveFemaleReproductiveStatusForSave(
+        resolvedGender,
+        body?.femaleReproductiveStatus
+      );
+    }
+    if (body?.colors !== undefined) updatePayload.colors = emptyOrNull(body.colors);
+    if (body?.breed !== undefined) updatePayload.breed = emptyOrNull(body.breed);
+    if (body?.microchip_id !== undefined) updatePayload.microchip_id = emptyOrNull(body.microchip_id);
+    if (body?.clinic_id !== undefined) updatePayload.clinic_id = emptyOrNull(body.clinic_id);
+    if (body?.clinic_name !== undefined) updatePayload.clinic_name = emptyOrNull(body.clinic_name);
+    if (body?.medical_notes !== undefined) {
+      updatePayload.medical_notes = emptyOrNull(body.medical_notes);
+    }
+    if (body?.appointment_status !== undefined) {
+      updatePayload.appointment_status = resolvedAppointmentStatus;
+    }
+    if (body?.notes !== undefined) updatePayload.notes = emptyOrNull(body.notes);
+
+    if (fixedAtClinicProvided) {
+      if (fixedAtClinic) {
+        updatePayload.trapped_status = "Trapped";
+        updatePayload.appointment_status = "Complete";
+        updatePayload.age_category = ageCategory;
+      } else {
+        updatePayload.trapped_status = null;
+        updatePayload.appointment_status = null;
+        updatePayload.age_category = null;
+      }
+    } else {
+      if (body?.trapped_status !== undefined) {
+        updatePayload.trapped_status = trappedStatus;
+      }
+      if (body?.age_category !== undefined) {
+        updatePayload.age_category = clinicFixed ? ageCategory : existing.age_category;
+      }
+    }
+
+    if (fosterFields) {
+      Object.assign(updatePayload, fosterFields);
     }
 
     const { data: cat, error: updateError } = await service

@@ -34,7 +34,6 @@ interface CaseDetailTabsProps {
   availableAppointments: Appointment[];
   clinicFixes: ClinicFix[];
   teams: { id: string; name: string; zip_codes: string[] }[];
-  clinics: { id: string; name: string }[];
   userRole: UserRole | null;
   canReviewMedical: boolean;
   canAddHistoryNote: boolean;
@@ -50,7 +49,6 @@ export function CaseDetailTabs({
   availableAppointments,
   clinicFixes,
   teams,
-  clinics,
   userRole,
   canReviewMedical,
   canAddHistoryNote,
@@ -311,7 +309,6 @@ export function CaseDetailTabs({
           helpRequest={hr}
           clinicFixes={clinicFixes}
           cats={cats}
-          clinics={clinics}
           savingFeeder={savingFeeder}
           canLogClinicFix={canLogClinicFix}
           onFeederChange={handleFeederChange}
