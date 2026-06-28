@@ -9,11 +9,12 @@ import {
   formatSingleLineAddress,
 } from "@/lib/cases/colony-notes";
 import { summarizeCatCounts } from "@/lib/cases/cat-counts";
-import type { ClinicFix, HelpRequest } from "@/lib/types";
+import type { Cat, ClinicFix, HelpRequest } from "@/lib/types";
 
 interface CaseColonyTabProps {
   helpRequest: HelpRequest;
   clinicFixes: ClinicFix[];
+  cats: Cat[];
   savingFeeder?: boolean;
   onChange: (next: HelpRequest) => void;
 }
@@ -21,6 +22,7 @@ interface CaseColonyTabProps {
 export function CaseColonyTab({
   helpRequest: hr,
   clinicFixes,
+  cats,
   savingFeeder = false,
   onChange,
 }: CaseColonyTabProps) {
@@ -32,7 +34,7 @@ export function CaseColonyTab({
     hr.colony_county,
   ]);
   const colonyNotes = displayColonyNotes(hr.intake_notes, hr);
-  const counts = summarizeCatCounts(hr, clinicFixes);
+  const counts = summarizeCatCounts(hr, clinicFixes, cats);
 
   return (
     <div className="space-y-4">
@@ -48,8 +50,8 @@ export function CaseColonyTab({
           pregnantCount={hr.pregnant_count}
         />
         <p className="mt-3 text-sm text-muted-foreground">
-          Log clinic fixes on the Tracked Cats tab. Originally reported counts are set at intake
-          and stay fixed as fixes are logged.
+          Log clinic fixes on the Tracked Cats tab. Cats sent to foster/facility are removed from
+          still-at-colony counts; fixed cats returned to the colony remain counted there.
         </p>
       </CaseCollapsibleSection>
 

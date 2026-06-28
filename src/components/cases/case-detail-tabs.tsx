@@ -418,6 +418,7 @@ export function CaseDetailTabs({
         <CaseColonyTab
           helpRequest={hr}
           clinicFixes={clinicFixes}
+          cats={cats}
           savingFeeder={savingFeeder}
           onChange={handleFeederChange}
         />
@@ -443,6 +444,7 @@ export function CaseDetailTabs({
         <ColonyCatSummaryEditor
           helpRequest={hr}
           clinicFixes={clinicFixes}
+          cats={cats}
           onUpdated={(next) => {
             setHr(next);
             router.refresh();

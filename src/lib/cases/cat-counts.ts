@@ -1,4 +1,4 @@
-import type { ClinicFix, HelpRequest } from "@/lib/types";
+import type { Cat, ClinicFix, HelpRequest } from "@/lib/types";
 
 export interface CatCountSummary {
   reportedAdults: number;
@@ -6,10 +6,16 @@ export interface CatCountSummary {
   fixedAdults: number;
   fixedKittens: number;
   fixedTotal: number;
+  fosterAdults: number;
+  fosterKittens: number;
+  fosterTotal: number;
   remainingAdults: number;
   remainingKittens: number;
   remainingTotal: number;
 }
+
+type FosterFix = Pick<ClinicFix, "age_category" | "went_to_foster_facility" | "cat_id">;
+type FosterCat = Pick<Cat, "id" | "age_category" | "went_to_foster_facility">;
 
 export function reportedAdults(hr: HelpRequest): number {
   return hr.reported_cats_over_8_weeks ?? hr.cats_over_8_weeks ?? 0;
@@ -17,6 +23,28 @@ export function reportedAdults(hr: HelpRequest): number {
 
 export function reportedKittens(hr: HelpRequest): number {
   return hr.reported_kittens_under_8_weeks ?? hr.kittens_under_8_weeks ?? 0;
+}
+
+function fosterCountsFromFixes(fixes: FosterFix[]) {
+  const fosterFixes = fixes.filter((fix) => fix.went_to_foster_facility);
+  return {
+    fosterAdults: fosterFixes.filter((fix) => fix.age_category === "adult").length,
+    fosterKittens: fosterFixes.filter((fix) => fix.age_category === "kitten").length,
+    fixCatIds: new Set(
+      fosterFixes.map((fix) => fix.cat_id).filter((id): id is string => Boolean(id))
+    ),
+  };
+}
+
+function fosterCountsFromTrackedCats(cats: FosterCat[], linkedCatIds: Set<string>) {
+  const fosterCats = cats.filter(
+    (cat) => cat.went_to_foster_facility === true && !linkedCatIds.has(cat.id)
+  );
+
+  return {
+    fosterAdults: fosterCats.filter((cat) => (cat.age_category ?? "adult") === "adult").length,
+    fosterKittens: fosterCats.filter((cat) => cat.age_category === "kitten").length,
+  };
 }
 
 export function summarizeCatCounts(
@@ -27,7 +55,8 @@ export function summarizeCatCounts(
     | "cats_over_8_weeks"
     | "kittens_under_8_weeks"
   >,
-  fixes: Pick<ClinicFix, "age_category">[] = []
+  fixes: FosterFix[] = [],
+  cats: FosterCat[] = []
 ): CatCountSummary {
   const fixedAdults = fixes.filter((fix) => fix.age_category === "adult").length;
   const fixedKittens = fixes.filter((fix) => fix.age_category === "kitten").length;
@@ -35,8 +64,15 @@ export function summarizeCatCounts(
     hr.reported_cats_over_8_weeks ?? (hr.cats_over_8_weeks ?? 0) + fixedAdults;
   const reportedKittensCount =
     hr.reported_kittens_under_8_weeks ?? (hr.kittens_under_8_weeks ?? 0) + fixedKittens;
-  const remainingAdults = Math.max(0, reportedAdultsCount - fixedAdults);
-  const remainingKittens = Math.max(0, reportedKittensCount - fixedKittens);
+
+  const fosterFromFixes = fosterCountsFromFixes(fixes);
+  const fosterFromCats = fosterCountsFromTrackedCats(cats, fosterFromFixes.fixCatIds);
+  const fosterAdults = fosterFromFixes.fosterAdults + fosterFromCats.fosterAdults;
+  const fosterKittens = fosterFromFixes.fosterKittens + fosterFromCats.fosterKittens;
+
+  // Cats sent to foster/facility are no longer at the colony; returned cats stay.
+  const remainingAdults = Math.max(0, reportedAdultsCount - fosterAdults);
+  const remainingKittens = Math.max(0, reportedKittensCount - fosterKittens);
 
   return {
     reportedAdults: reportedAdultsCount,
@@ -44,6 +80,9 @@ export function summarizeCatCounts(
     fixedAdults,
     fixedKittens,
     fixedTotal: fixedAdults + fixedKittens,
+    fosterAdults,
+    fosterKittens,
+    fosterTotal: fosterAdults + fosterKittens,
     remainingAdults,
     remainingKittens,
     remainingTotal: remainingAdults + remainingKittens,

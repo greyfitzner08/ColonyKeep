@@ -17,6 +17,8 @@ function CountCell({ value, className }: { value: number; className?: string }) 
 export function CatCountSummaryDisplay({ counts, pregnantCount }: CatCountSummaryDisplayProps) {
   const reportedTotal = counts.reportedAdults + counts.reportedKittens;
   const fixedPercent = reportedTotal > 0 ? Math.round((counts.fixedTotal / reportedTotal) * 100) : 0;
+  const atColonyPercent =
+    reportedTotal > 0 ? Math.round((counts.remainingTotal / reportedTotal) * 100) : 0;
 
   return (
     <div className="overflow-hidden rounded-lg border">
@@ -29,7 +31,13 @@ export function CatCountSummaryDisplay({ counts, pregnantCount }: CatCountSummar
         </p>
         <p className="mt-1 text-sm text-muted-foreground tabular-nums">
           {counts.remainingTotal} still at the colony
-          {reportedTotal > 0 ? ` (${100 - fixedPercent}% remaining)` : ""}
+          {reportedTotal > 0 ? ` (${atColonyPercent}% of reported)` : ""}
+          {counts.fosterTotal > 0 && (
+            <>
+              {" · "}
+              {counts.fosterTotal} sent to foster/facility
+            </>
+          )}
         </p>
         {reportedTotal > 0 && (
           <div
@@ -81,6 +89,25 @@ export function CatCountSummaryDisplay({ counts, pregnantCount }: CatCountSummar
               <CountCell value={counts.fixedKittens} className="text-primary" />
               <CountCell value={counts.fixedTotal} className="font-medium text-primary" />
             </tr>
+            {counts.fosterTotal > 0 && (
+              <tr className="border-b bg-amber-50 dark:bg-amber-950/20">
+                <th className="px-4 py-2.5 text-left font-medium text-amber-800 dark:text-amber-200" scope="row">
+                  Sent to foster/facility
+                </th>
+                <CountCell
+                  value={counts.fosterAdults}
+                  className="text-amber-800 dark:text-amber-200"
+                />
+                <CountCell
+                  value={counts.fosterKittens}
+                  className="text-amber-800 dark:text-amber-200"
+                />
+                <CountCell
+                  value={counts.fosterTotal}
+                  className="font-medium text-amber-800 dark:text-amber-200"
+                />
+              </tr>
+            )}
             <tr>
               <th className="px-4 py-2.5 text-left font-medium" scope="row">
                 Still at colony
@@ -94,8 +121,8 @@ export function CatCountSummaryDisplay({ counts, pregnantCount }: CatCountSummar
       </div>
 
       <p className="border-t px-4 py-2 text-xs text-muted-foreground">
-        Originally reported counts stay fixed. Fixed and still-at-colony update when clinic results
-        are logged.
+        Originally reported counts stay fixed. Cats sent to foster/facility are removed from
+        still-at-colony; fixed cats returned to the colony remain counted there.
       </p>
 
       {pregnantCount !== undefined && pregnantCount > 0 && (

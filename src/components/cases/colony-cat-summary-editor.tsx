@@ -8,17 +8,19 @@ import { Label } from "@/components/ui/label";
 import { createClient } from "@/lib/supabase/client";
 import { useDebouncedCallback } from "@/lib/hooks/use-debounced-callback";
 import { summarizeCatCounts } from "@/lib/cases/cat-counts";
-import type { ClinicFix, HelpRequest } from "@/lib/types";
+import type { Cat, ClinicFix, HelpRequest } from "@/lib/types";
 
 interface ColonyCatSummaryEditorProps {
   helpRequest: HelpRequest;
   clinicFixes: ClinicFix[];
+  cats: Cat[];
   onUpdated: (next: HelpRequest) => void;
 }
 
 export function ColonyCatSummaryEditor({
   helpRequest,
   clinicFixes,
+  cats,
   onUpdated,
 }: ColonyCatSummaryEditorProps) {
   const [pregnant, setPregnant] = useState(helpRequest.pregnant_count);
@@ -35,7 +37,7 @@ export function ColonyCatSummaryEditor({
     return () => clearTimeout(timer);
   }, [helpRequest]);
 
-  const counts = summarizeCatCounts(helpRequest, clinicFixes);
+  const counts = summarizeCatCounts(helpRequest, clinicFixes, cats);
 
   async function savePregnantCount(nextPregnant: number) {
     setSaveState("saving");

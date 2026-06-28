@@ -44,20 +44,29 @@ export async function updateHelpRequestCatCounts(
 
   const { data: fixes, error: fixesError } = await service
     .from("clinic_fixes")
-    .select("age_category")
+    .select("age_category, went_to_foster_facility, cat_id")
     .eq("help_request_id", helpRequestId);
 
   if (fixesError) {
     throw new Error(fixesError.message);
   }
 
-  const counts = summarizeCatCounts(helpRequest, fixes ?? []);
+  const { data: cats, error: catsError } = await service
+    .from("cats")
+    .select("id, age_category, went_to_foster_facility")
+    .eq("help_request_id", helpRequestId);
+
+  if (catsError) {
+    throw new Error(catsError.message);
+  }
+
+  const counts = summarizeCatCounts(helpRequest, fixes ?? [], cats ?? []);
   const reportedAdultsValue =
     helpRequest.reported_cats_over_8_weeks ??
-    counts.remainingAdults + counts.fixedAdults;
+    counts.remainingAdults + counts.fosterAdults;
   const reportedKittensValue =
     helpRequest.reported_kittens_under_8_weeks ??
-    counts.remainingKittens + counts.fixedKittens;
+    counts.remainingKittens + counts.fosterKittens;
 
   const { error: updateError } = await service
     .from("help_requests")

@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireCaseWorker } from "@/lib/api/auth";
 import { resolveTrackedCatFosterFields } from "@/lib/cases/tracked-cat-foster";
-import { syncTrackedCatFixesForCase } from "@/lib/cases/tracked-cat-fix";
+import {
+  syncTrackedCatFixesForCase,
+  updateHelpRequestCatCounts,
+} from "@/lib/cases/tracked-cat-fix";
 import { createServiceClient } from "@/lib/supabase/server";
 import type { FosterFacility } from "@/lib/cases/foster-facility";
 
@@ -67,6 +70,8 @@ export async function POST(request: NextRequest) {
 
     if (fixedAtClinic) {
       await syncTrackedCatFixesForCase(service, helpRequestId);
+    } else if (fosterFields?.went_to_foster_facility) {
+      await updateHelpRequestCatCounts(service, helpRequestId);
     }
 
     return NextResponse.json({ cat });
