@@ -1,4 +1,8 @@
 import {
+  clinicFixLoggedByForDisplay,
+  clinicFixNotesForDisplay,
+} from "@/lib/cases/tracked-cat-fix";
+import {
   clinicResultAgeLabel,
   clinicResultGenderLabel,
 } from "@/lib/appointments/clinic-result";
@@ -7,6 +11,9 @@ import { formatDate } from "@/lib/utils";
 import type { ClinicFix } from "@/lib/types";
 
 export function ClinicFixSummary({ fix }: { fix: ClinicFix }) {
+  const loggedBy = clinicFixLoggedByForDisplay(fix);
+  const notes = clinicFixNotesForDisplay(fix);
+
   return (
     <div className="rounded-md border bg-muted/20 px-3 py-2 text-sm">
       <p className="font-medium">
@@ -16,7 +23,7 @@ export function ClinicFixSummary({ fix }: { fix: ClinicFix }) {
       <p className="text-muted-foreground">
         {fix.clinic_name ? `${fix.clinic_name} · ` : ""}
         {formatDate(fix.fix_date)}
-        {fix.logged_by_name ? ` · ${fix.logged_by_name}` : ""}
+        {loggedBy ? ` · ${loggedBy}` : ""}
       </p>
       <p className="text-muted-foreground">
         {formatFosterFacilitySummary(
@@ -25,7 +32,7 @@ export function ClinicFixSummary({ fix }: { fix: ClinicFix }) {
           fix.foster_facility_other
         )}
       </p>
-      {fix.notes && <p className="mt-1 whitespace-pre-wrap">{fix.notes}</p>}
+      {notes && <p className="mt-1 whitespace-pre-wrap">{notes}</p>}
     </div>
   );
 }

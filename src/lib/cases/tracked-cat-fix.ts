@@ -4,6 +4,30 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Cat } from "@/lib/types";
 
 export const TRACKED_CAT_SYNC_ACTOR = "tracked-cat-sync";
+export const TRACKED_CAT_SYNC_NOTE = "Synced from tracked cat status";
+
+export function isAutoSyncedClinicFix(
+  fix: Pick<{ logged_by: string | null }, "logged_by">
+): boolean {
+  return fix.logged_by === TRACKED_CAT_SYNC_ACTOR;
+}
+
+export function clinicFixNotesForDisplay(
+  fix: Pick<{ logged_by: string | null; notes: string | null }, "logged_by" | "notes">
+): string | null {
+  if (!fix.notes?.trim()) return null;
+  if (isAutoSyncedClinicFix(fix) && fix.notes.trim() === TRACKED_CAT_SYNC_NOTE) {
+    return null;
+  }
+  return fix.notes;
+}
+
+export function clinicFixLoggedByForDisplay(
+  fix: Pick<{ logged_by: string | null; logged_by_name: string | null }, "logged_by" | "logged_by_name">
+): string | null {
+  if (isAutoSyncedClinicFix(fix)) return null;
+  return fix.logged_by_name;
+}
 
 const FIXED_APPOINTMENT_STATUSES = new Set(["complete", "completed"]);
 const FIXED_TRAPPED_STATUSES = new Set(["fixed", "trapped"]);
@@ -162,8 +186,7 @@ export async function syncTrackedCatFixesForCase(
           clinic_name: cat.clinic_name,
           fix_date: fixDateFromCat(cat),
           logged_by: TRACKED_CAT_SYNC_ACTOR,
-          logged_by_name: "Tracked cat",
-          notes: "Synced from tracked cat status",
+          notes: null,
           ...fosterFieldsFromCat(cat),
         })
         .select("id, cat_id, appointment_id, logged_by")
