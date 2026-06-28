@@ -491,12 +491,20 @@ export function CaseDetailTabs({
             </div>
             <div className="space-y-2">
               <Label className="text-sm font-medium">Gender</Label>
-              <Input
-                className="text-base"
-                placeholder="Male / Female"
-                value={newCat.gender}
-                onChange={(e) => setNewCat({ ...newCat, gender: e.target.value })}
-              />
+              <Select
+                value={newCat.gender || undefined}
+                onValueChange={(value) =>
+                  setNewCat({ ...newCat, gender: value as "male" | "female" })
+                }
+              >
+                <SelectTrigger className="text-base">
+                  <SelectValue placeholder="Select gender" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="male">Male</SelectItem>
+                  <SelectItem value="female">Female</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
               <Label className="text-sm font-medium">Colors / Markings</Label>
