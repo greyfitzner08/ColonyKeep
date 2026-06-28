@@ -24,10 +24,12 @@ import type {
   HelpRequest,
   Cat,
   Appointment,
+  ClinicFix,
   FollowUpEntry,
   UserRole,
   HistoryNoteColor,
 } from "@/lib/types";
+import { CaseClinicFixesSection } from "@/components/cases/case-clinic-fixes-section";
 import { CaseReporterSection } from "@/components/cases/case-colony-info-section";
 import { CaseColonyTab } from "@/components/cases/case-colony-tab";
 import { CaseIntakeSection } from "@/components/cases/case-intake-section";
@@ -43,11 +45,13 @@ interface CaseDetailTabsProps {
   cats: Cat[];
   appointments: Appointment[];
   availableAppointments: Appointment[];
+  clinicFixes: ClinicFix[];
   teams: { id: string; name: string; zip_codes: string[] }[];
   clinics: { id: string; name: string }[];
   userRole: UserRole | null;
   canReviewMedical: boolean;
   canAddHistoryNote: boolean;
+  canLogClinicFix: boolean;
   userName: string;
   userEmail: string;
 }
@@ -65,11 +69,13 @@ export function CaseDetailTabs({
   cats: initialCats,
   appointments,
   availableAppointments,
+  clinicFixes,
   teams,
   clinics,
   userRole,
   canReviewMedical,
   canAddHistoryNote,
+  canLogClinicFix,
   userName,
   userEmail,
 }: CaseDetailTabsProps) {
@@ -291,6 +297,7 @@ export function CaseDetailTabs({
       <TabsContent value="colony" className="mt-4">
         <CaseColonyTab
           helpRequest={hr}
+          clinicFixes={clinicFixes}
           savingFeeder={savingFeeder}
           onChange={setHr}
           onSaveFeeder={saveFeederInfo}
@@ -317,10 +324,17 @@ export function CaseDetailTabs({
       <TabsContent value="cats" className="space-y-4 mt-4">
         <ColonyCatSummaryEditor
           helpRequest={hr}
+          clinicFixes={clinicFixes}
           onUpdated={(next) => {
             setHr(next);
             router.refresh();
           }}
+        />
+
+        <CaseClinicFixesSection
+          helpRequest={hr}
+          clinicFixes={clinicFixes}
+          canLog={canLogClinicFix}
         />
 
         {cats.map((cat) => (

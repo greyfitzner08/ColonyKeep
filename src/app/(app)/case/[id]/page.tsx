@@ -10,10 +10,10 @@ import { AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { canAddCaseHistoryNote } from "@/lib/cases/case-permissions";
 import { normalizeHistoryLog } from "@/lib/cases/history-log";
-import { isCaseWorker } from "@/lib/permissions";
+import { isCaseWorker, canManageAppointments } from "@/lib/permissions";
 import { CaseClaimActions } from "@/components/cases/case-claim-actions";
 import { CaseRouteToTrapAction } from "@/components/cases/case-route-to-trap-action";
-import type { HelpRequest, Cat, Appointment } from "@/lib/types";
+import type { HelpRequest, Cat, Appointment, ClinicFix } from "@/lib/types";
 
 interface CasePageProps {
   params: Promise<{ id: string }>;
@@ -32,7 +32,7 @@ export default async function CasePage({ params }: CasePageProps) {
 
   if (!helpRequest) notFound();
 
-  const [{ data: cats }, { data: appointments }, { data: availableAppointments }, { data: teams }, { data: clinics }] =
+  const [{ data: cats }, { data: appointments }, { data: availableAppointments }, { data: clinicFixes }, { data: teams }, { data: clinics }] =
     await Promise.all([
       supabase.from("cats").select("*").eq("help_request_id", id),
       supabase.from("appointments").select("*").eq("help_request_id", id),
@@ -42,6 +42,11 @@ export default async function CasePage({ params }: CasePageProps) {
         .eq("status", "available")
         .gte("date", new Date().toISOString().split("T")[0])
         .order("date"),
+      supabase
+        .from("clinic_fixes")
+        .select("*")
+        .eq("help_request_id", id)
+        .order("fix_date", { ascending: false }),
       supabase.from("trap_teams").select("id, name, zip_codes").eq("is_active", true),
       supabase.from("clinics").select("id, name").eq("is_active", true),
     ]);
@@ -99,11 +104,13 @@ export default async function CasePage({ params }: CasePageProps) {
         cats={(cats ?? []) as Cat[]}
         appointments={(appointments ?? []) as Appointment[]}
         availableAppointments={(availableAppointments ?? []) as Appointment[]}
+        clinicFixes={(clinicFixes ?? []) as ClinicFix[]}
         teams={teams ?? []}
         clinics={clinics ?? []}
         userRole={profile?.role ?? null}
         canReviewMedical={profile?.role === "admin" || profile?.role === "inquiry_team"}
         canAddHistoryNote={canAddCaseHistoryNote(profile)}
+        canLogClinicFix={canManageAppointments(profile)}
         userName={profile?.full_name ?? profile?.email ?? "Team member"}
         userEmail={profile?.email ?? ""}
       />

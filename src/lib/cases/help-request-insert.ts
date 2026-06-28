@@ -21,6 +21,8 @@ export const HELP_REQUEST_INSERT_COLUMNS = new Set([
   "colony_lng",
   "kittens_under_8_weeks",
   "cats_over_8_weeks",
+  "reported_kittens_under_8_weeks",
+  "reported_cats_over_8_weeks",
   "pregnant_count",
   "feeding_cats",
   "feeder_if_not",

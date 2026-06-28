@@ -7,7 +7,8 @@ import {
   displayColonyNotes,
   formatSingleLineAddress,
 } from "@/lib/cases/colony-notes";
-import type { HelpRequest } from "@/lib/types";
+import { summarizeCatCounts } from "@/lib/cases/cat-counts";
+import type { ClinicFix, HelpRequest } from "@/lib/types";
 
 function StatPill({ label, value }: { label: string; value: number }) {
   return (
@@ -20,6 +21,7 @@ function StatPill({ label, value }: { label: string; value: number }) {
 
 interface CaseColonyTabProps {
   helpRequest: HelpRequest;
+  clinicFixes: ClinicFix[];
   savingFeeder?: boolean;
   onChange: (next: HelpRequest) => void;
   onSaveFeeder: () => void;
@@ -27,6 +29,7 @@ interface CaseColonyTabProps {
 
 export function CaseColonyTab({
   helpRequest: hr,
+  clinicFixes,
   savingFeeder = false,
   onChange,
   onSaveFeeder,
@@ -39,7 +42,7 @@ export function CaseColonyTab({
     hr.colony_county,
   ]);
   const colonyNotes = displayColonyNotes(hr.intake_notes, hr);
-  const totalCats = hr.cats_over_8_weeks + hr.kittens_under_8_weeks;
+  const counts = summarizeCatCounts(hr, clinicFixes);
 
   return (
     <div className="space-y-4">
@@ -50,14 +53,17 @@ export function CaseColonyTab({
       </CaseCollapsibleSection>
 
       <CaseCollapsibleSection title="Cat counts" defaultOpen>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <StatPill label="Adults (8+ wks)" value={hr.cats_over_8_weeks} />
-          <StatPill label="Kittens under 8 wks" value={hr.kittens_under_8_weeks} />
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+          <StatPill label="Reported adults" value={counts.reportedAdults} />
+          <StatPill label="Reported kittens" value={counts.reportedKittens} />
+          <StatPill label="Fixed" value={counts.fixedTotal} />
+          <StatPill label="Remaining adults" value={counts.remainingAdults} />
+          <StatPill label="Remaining kittens" value={counts.remainingKittens} />
           <StatPill label="Suspected pregnant" value={hr.pregnant_count} />
-          <StatPill label="Total" value={totalCats} />
         </div>
         <p className="mt-3 text-sm text-muted-foreground">
-          Edit counts on the Tracked Cats tab.
+          Log clinic fixes on the Tracked Cats tab. Edit originally reported counts there if intake
+          numbers need correction.
         </p>
       </CaseCollapsibleSection>
 

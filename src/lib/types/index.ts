@@ -154,6 +154,8 @@ export interface HelpRequest {
   colony_lng: number | null;
   kittens_under_8_weeks: number;
   cats_over_8_weeks: number;
+  reported_kittens_under_8_weeks: number | null;
+  reported_cats_over_8_weeks: number | null;
   can_help: boolean;
   has_traps: boolean;
   can_transport: boolean;
@@ -311,6 +313,20 @@ export interface Appointment {
   clinic_result_logged_by_name: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface ClinicFix {
+  id: string;
+  help_request_id: string;
+  appointment_id: string | null;
+  age_category: "adult" | "kitten";
+  gender: "male" | "female";
+  clinic_name: string | null;
+  fix_date: string;
+  logged_by: string | null;
+  logged_by_name: string | null;
+  notes: string | null;
+  created_at: string;
 }
 
 export interface Cat {

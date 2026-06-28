@@ -135,7 +135,8 @@ export function LogClinicResultDialog({ appointment, onOpenChange }: LogClinicRe
           </div>
 
           <p className="text-sm text-muted-foreground">
-            This will subtract one cat from the case colony counts and add a note to the case history.
+            This records one fixed cat, keeps the originally reported colony size, and updates
+            remaining counts on the case.
           </p>
 
           {error && <p className="text-sm text-destructive">{error}</p>}

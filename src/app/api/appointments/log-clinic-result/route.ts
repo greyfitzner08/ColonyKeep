@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAppointmentManager } from "@/lib/api/auth";
-import { formatClinicResultSummary, isClinicResultDue } from "@/lib/appointments/clinic-result";
-import { normalizeHistoryLog } from "@/lib/cases/history-log";
+import { isClinicResultDue } from "@/lib/appointments/clinic-result";
+import { recordClinicFix } from "@/lib/cases/record-clinic-fix";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
-import type { HistoryEntry } from "@/lib/types";
 
 export async function POST(request: NextRequest) {
   const { profile, response } = await requireAppointmentManager();
@@ -65,80 +64,52 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const summary = formatClinicResultSummary({ ageCategory, gender });
+  if (!appointment.help_request_id) {
+    return NextResponse.json({ error: "Appointment is not linked to a case" }, { status: 400 });
+  }
+
   const loggedAt = new Date().toISOString();
   const actorName = profile!.full_name ?? user.email!;
 
-  const { error: appointmentError } = await service
-    .from("appointments")
-    .update({
-      clinic_result_logged_at: loggedAt,
-      clinic_result_age_category: ageCategory,
-      clinic_result_gender: gender,
-      clinic_result_logged_by: user.email,
-      clinic_result_logged_by_name: actorName,
-      cat_gender: gender,
-    })
-    .eq("id", appointmentId);
+  try {
+    const { summary } = await recordClinicFix(service, {
+      helpRequestId: appointment.help_request_id,
+      appointmentId: appointment.id,
+      ageCategory,
+      gender,
+      clinicName: appointment.clinic_name,
+      fixDate: appointment.date,
+      actorEmail: user.email!,
+      actorName,
+    });
 
-  if (appointmentError) {
-    return NextResponse.json({ error: appointmentError.message }, { status: 400 });
-  }
-
-  if (appointment.help_request_id) {
-    const { data: helpRequest } = await service
-      .from("help_requests")
-      .select(
-        "id, cats_over_8_weeks, kittens_under_8_weeks, outcome_tnvr_count, history_log, case_number"
-      )
-      .eq("id", appointment.help_request_id)
-      .single();
-
-    if (helpRequest) {
-      const adults =
-        ageCategory === "adult"
-          ? Math.max(0, (helpRequest.cats_over_8_weeks ?? 0) - 1)
-          : helpRequest.cats_over_8_weeks ?? 0;
-      const kittens =
-        ageCategory === "kitten"
-          ? Math.max(0, (helpRequest.kittens_under_8_weeks ?? 0) - 1)
-          : helpRequest.kittens_under_8_weeks ?? 0;
-
-      const historyEntry: HistoryEntry = {
-        timestamp: loggedAt,
-        action: "clinic_result",
-        actor_email: user.email ?? null,
-        actor_name: actorName,
-        details: `${summary} (${appointment.clinic_name}, ${appointment.date})`,
-        highlighted: true,
-        text_color: "green",
-      };
-
-      const historyLog = [...normalizeHistoryLog(helpRequest.history_log), historyEntry];
-
-      await service
-        .from("help_requests")
-        .update({
-          cats_over_8_weeks: adults,
-          kittens_under_8_weeks: kittens,
-          outcome_tnvr_count: (helpRequest.outcome_tnvr_count ?? 0) + 1,
-          history_log: historyLog,
-        })
-        .eq("id", helpRequest.id);
-    }
-  }
-
-  if (appointment.cat_id) {
     await service
-      .from("cats")
+      .from("appointments")
       .update({
-        gender,
-        trapped_status: "fixed",
-        return_status: "returned",
-        appointment_status: "completed",
+        clinic_result_logged_at: loggedAt,
+        clinic_result_age_category: ageCategory,
+        clinic_result_gender: gender,
+        clinic_result_logged_by: user.email,
+        clinic_result_logged_by_name: actorName,
+        cat_gender: gender,
       })
-      .eq("id", appointment.cat_id);
-  }
+      .eq("id", appointmentId);
 
-  return NextResponse.json({ success: true, summary });
+    if (appointment.cat_id) {
+      await service
+        .from("cats")
+        .update({
+          gender,
+          trapped_status: "fixed",
+          return_status: "returned",
+          appointment_status: "completed",
+        })
+        .eq("id", appointment.cat_id);
+    }
+
+    return NextResponse.json({ success: true, summary });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unable to log clinic results";
+    return NextResponse.json({ error: message }, { status: 400 });
+  }
 }

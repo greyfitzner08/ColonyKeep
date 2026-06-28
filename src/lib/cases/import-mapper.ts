@@ -322,6 +322,8 @@ export function mapImportRowToHelpRequest(
     colony_zip: colonyZip,
     kittens_under_8_weeks: parseInteger(row.kittens_under_8_weeks),
     cats_over_8_weeks: parseInteger(row.cats_over_8_weeks),
+    reported_kittens_under_8_weeks: parseInteger(row.kittens_under_8_weeks),
+    reported_cats_over_8_weeks: parseInteger(row.cats_over_8_weeks),
     pregnant_count: parseInteger(row.pregnant_count),
     feeding_cats: feedingCats,
     feeder_if_not: row.feeder_if_not ?? null,
