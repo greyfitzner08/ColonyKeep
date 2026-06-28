@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -38,7 +38,10 @@ import { CaseCollapsibleSection } from "@/components/cases/case-collapsible-sect
 import { CaseAppointmentsSection } from "@/components/appointments/case-appointments-section";
 import { TrackedCatCard } from "@/components/cases/tracked-cat-card";
 import { ColonyCatSummaryEditor } from "@/components/cases/colony-cat-summary-editor";
+import { useDebouncedCallback } from "@/lib/hooks/use-debounced-callback";
 import { Plus } from "lucide-react";
+
+type SaveState = "idle" | "saving" | "saved" | "error";
 
 interface CaseDetailTabsProps {
   helpRequest: HelpRequest;
@@ -82,21 +85,45 @@ export function CaseDetailTabs({
   const router = useRouter();
   const [hr, setHr] = useState(initial);
   const [cats, setCats] = useState(initialCats);
-  const [saving, setSaving] = useState(false);
+  const [intakeSaveState, setIntakeSaveState] = useState<SaveState>("idle");
   const [newCat, setNewCat] = useState(EMPTY_CAT);
   const [followUpNote, setFollowUpNote] = useState("");
   const [savingFeeder, setSavingFeeder] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [savingHistory, setSavingHistory] = useState(false);
+  const skipIntakeAutosaveRef = useRef(true);
+  const savedIndicatorTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const showCloseCase = canCloseCase(userRole);
 
   useEffect(() => {
+    skipIntakeAutosaveRef.current = true;
     setHr({
       ...initial,
       history_log: normalizeHistoryLog(initial.history_log),
     });
+    const timer = setTimeout(() => {
+      skipIntakeAutosaveRef.current = false;
+    }, 0);
+    return () => clearTimeout(timer);
   }, [initial]);
+
+  useEffect(
+    () => () => {
+      if (savedIndicatorTimeoutRef.current) {
+        clearTimeout(savedIndicatorTimeoutRef.current);
+      }
+    },
+    []
+  );
+
+  function markIntakeSaved() {
+    setIntakeSaveState("saved");
+    if (savedIndicatorTimeoutRef.current) {
+      clearTimeout(savedIndicatorTimeoutRef.current);
+    }
+    savedIndicatorTimeoutRef.current = setTimeout(() => setIntakeSaveState("idle"), 2000);
+  }
 
   function withTeamAssignment(next: HelpRequest): HelpRequest {
     const match = findTrapTeamForZip(next.colony_zip, teams);
@@ -108,25 +135,32 @@ export function CaseDetailTabs({
     };
   }
 
-  async function persistCase(next: HelpRequest, medicalFlags = next.medical_flags ?? []) {
+  async function persistCase(
+    next: HelpRequest,
+    medicalFlags = next.medical_flags ?? [],
+    options?: { includeStatus?: boolean }
+  ) {
     const supabase = createClient();
     const payload = withTeamAssignment({ ...next, medical_flags: medicalFlags });
+    const includeStatus = options?.includeStatus ?? userRole !== "inquiry_team";
 
-    const { error } = await supabase
-      .from("help_requests")
-      .update({
-        status: payload.status,
-        follow_up_due_date: payload.follow_up_due_date,
-        assigned_team_id: payload.assigned_team_id,
-        assigned_team_name: payload.assigned_team_name,
-        assigned_team: payload.assigned_team_name,
-        additional_notes: payload.additional_notes,
-        closure_notes: payload.closure_notes,
-        outcome: payload.outcome,
-        resolution: payload.resolution,
-        medical_flags: payload.medical_flags,
-      })
-      .eq("id", hr.id);
+    const update: Record<string, unknown> = {
+      follow_up_due_date: payload.follow_up_due_date,
+      assigned_team_id: payload.assigned_team_id,
+      assigned_team_name: payload.assigned_team_name,
+      assigned_team: payload.assigned_team_name,
+      additional_notes: payload.additional_notes,
+      closure_notes: payload.closure_notes,
+      outcome: payload.outcome,
+      resolution: payload.resolution,
+      medical_flags: payload.medical_flags,
+    };
+
+    if (includeStatus) {
+      update.status = payload.status;
+    }
+
+    const { error } = await supabase.from("help_requests").update(update).eq("id", hr.id);
 
     if (error) {
       setSaveError(error.message);
@@ -139,11 +173,11 @@ export function CaseDetailTabs({
     return true;
   }
 
-  async function saveFeederInfo() {
+  async function saveFeederInfo(next: HelpRequest) {
     setSavingFeeder(true);
     setSaveError(null);
     const supabase = createClient();
-    let payload = await geocodeFeederIfNeeded(hr);
+    const payload = await geocodeFeederIfNeeded(next);
 
     const { error } = await supabase
       .from("help_requests")
@@ -165,17 +199,38 @@ export function CaseDetailTabs({
     router.refresh();
   }
 
-  async function saveIntake() {
-    setSaving(true);
+  const debouncedSaveFeeder = useDebouncedCallback((next: HelpRequest) => {
+    void saveFeederInfo(next);
+  }, 800);
+
+  const debouncedSaveIntake = useDebouncedCallback(async (next: HelpRequest) => {
+    setIntakeSaveState("saving");
     setSaveError(null);
     const medicalFlags = mergeMedicalFlags(
-      hr.medical_flags ?? [],
-      detectMedicalKeywords(`${hr.intake_notes ?? ""}\n${hr.additional_notes ?? ""}`)
+      next.medical_flags ?? [],
+      detectMedicalKeywords(`${next.intake_notes ?? ""}\n${next.additional_notes ?? ""}`)
     );
-    const ok = await persistCase(hr, medicalFlags);
-    setSaving(false);
-    if (!ok) return;
-  }
+    const ok = await persistCase(next, medicalFlags);
+    setIntakeSaveState(ok ? "saved" : "error");
+    if (ok) markIntakeSaved();
+  }, 800);
+
+  const handleIntakeChange = useCallback(
+    (next: HelpRequest) => {
+      setHr(next);
+      if (skipIntakeAutosaveRef.current) return;
+      debouncedSaveIntake(next);
+    },
+    [debouncedSaveIntake]
+  );
+
+  const handleFeederChange = useCallback(
+    (next: HelpRequest) => {
+      setHr(next);
+      debouncedSaveFeeder(next);
+    },
+    [debouncedSaveFeeder]
+  );
 
   async function addFollowUp() {
     if (!followUpNote.trim()) return;
@@ -260,6 +315,13 @@ export function CaseDetailTabs({
 
   async function closeCase() {
     if (!showCloseCase) return;
+    setIntakeSaveState("saving");
+    const medicalFlags = mergeMedicalFlags(
+      hr.medical_flags ?? [],
+      detectMedicalKeywords(`${hr.intake_notes ?? ""}\n${hr.additional_notes ?? ""}`)
+    );
+    await persistCase(hr, medicalFlags, { includeStatus: userRole !== "inquiry_team" });
+
     const supabase = createClient();
     await supabase
       .from("help_requests")
@@ -299,8 +361,7 @@ export function CaseDetailTabs({
           helpRequest={hr}
           clinicFixes={clinicFixes}
           savingFeeder={savingFeeder}
-          onChange={setHr}
-          onSaveFeeder={saveFeederInfo}
+          onChange={handleFeederChange}
         />
       </TabsContent>
 
@@ -310,12 +371,11 @@ export function CaseDetailTabs({
           teams={teams}
           userRole={userRole}
           canReviewMedical={canReviewMedical}
-          saving={saving}
+          saveState={intakeSaveState}
           followUpNote={followUpNote}
           onFollowUpNoteChange={setFollowUpNote}
           onAddFollowUp={addFollowUp}
-          onChange={setHr}
-          onSave={saveIntake}
+          onChange={handleIntakeChange}
           onCloseCase={closeCase}
           canCloseCase={showCloseCase}
         />

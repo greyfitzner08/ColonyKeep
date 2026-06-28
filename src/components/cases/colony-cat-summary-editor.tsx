@@ -1,12 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { CaseCollapsibleSection } from "@/components/cases/case-collapsible-section";
 import { CatCountSummaryDisplay } from "@/components/cases/cat-count-summary-display";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { createClient } from "@/lib/supabase/client";
+import { useDebouncedCallback } from "@/lib/hooks/use-debounced-callback";
 import { reportedAdults, reportedKittens, summarizeCatCounts } from "@/lib/cases/cat-counts";
 import type { ClinicFix, HelpRequest } from "@/lib/types";
 
@@ -24,8 +24,20 @@ export function ColonyCatSummaryEditor({
   const [adults, setAdults] = useState(reportedAdults(helpRequest));
   const [kittens, setKittens] = useState(reportedKittens(helpRequest));
   const [pregnant, setPregnant] = useState(helpRequest.pregnant_count);
-  const [saving, setSaving] = useState(false);
+  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [error, setError] = useState<string | null>(null);
+  const skipAutosaveRef = useRef(true);
+
+  useEffect(() => {
+    skipAutosaveRef.current = true;
+    setAdults(reportedAdults(helpRequest));
+    setKittens(reportedKittens(helpRequest));
+    setPregnant(helpRequest.pregnant_count);
+    const timer = setTimeout(() => {
+      skipAutosaveRef.current = false;
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [helpRequest]);
 
   const counts = summarizeCatCounts(
     {
@@ -36,44 +48,65 @@ export function ColonyCatSummaryEditor({
     clinicFixes
   );
 
-  const dirty =
-    adults !== reportedAdults(helpRequest) ||
-    kittens !== reportedKittens(helpRequest) ||
-    pregnant !== helpRequest.pregnant_count;
+  async function saveCounts(
+    nextAdults: number,
+    nextKittens: number,
+    nextPregnant: number
+  ) {
+    const nextCounts = summarizeCatCounts(
+      {
+        ...helpRequest,
+        reported_cats_over_8_weeks: nextAdults,
+        reported_kittens_under_8_weeks: nextKittens,
+      },
+      clinicFixes
+    );
 
-  async function saveCounts() {
-    setSaving(true);
+    setSaveState("saving");
     setError(null);
     const supabase = createClient();
     const { error: updateError } = await supabase
       .from("help_requests")
       .update({
-        reported_cats_over_8_weeks: adults,
-        reported_kittens_under_8_weeks: kittens,
-        cats_over_8_weeks: counts.remainingAdults,
-        kittens_under_8_weeks: counts.remainingKittens,
-        cats_remaining: counts.remainingTotal,
-        pregnant_count: pregnant,
+        reported_cats_over_8_weeks: nextAdults,
+        reported_kittens_under_8_weeks: nextKittens,
+        cats_over_8_weeks: nextCounts.remainingAdults,
+        kittens_under_8_weeks: nextCounts.remainingKittens,
+        cats_remaining: nextCounts.remainingTotal,
+        pregnant_count: nextPregnant,
       })
       .eq("id", helpRequest.id);
 
-    setSaving(false);
-
     if (updateError) {
+      setSaveState("error");
       setError(updateError.message);
       return;
     }
 
     onUpdated({
       ...helpRequest,
-      reported_cats_over_8_weeks: adults,
-      reported_kittens_under_8_weeks: kittens,
-      cats_over_8_weeks: counts.remainingAdults,
-      kittens_under_8_weeks: counts.remainingKittens,
-      cats_remaining: counts.remainingTotal,
-      pregnant_count: pregnant,
-      outcome_tnvr_count: counts.fixedTotal,
+      reported_cats_over_8_weeks: nextAdults,
+      reported_kittens_under_8_weeks: nextKittens,
+      cats_over_8_weeks: nextCounts.remainingAdults,
+      kittens_under_8_weeks: nextCounts.remainingKittens,
+      cats_remaining: nextCounts.remainingTotal,
+      pregnant_count: nextPregnant,
+      outcome_tnvr_count: nextCounts.fixedTotal,
     });
+    setSaveState("saved");
+    setTimeout(() => setSaveState("idle"), 2000);
+  }
+
+  const debouncedSave = useDebouncedCallback(
+    (nextAdults: number, nextKittens: number, nextPregnant: number) => {
+      void saveCounts(nextAdults, nextKittens, nextPregnant);
+    },
+    800
+  );
+
+  function queueSave(nextAdults: number, nextKittens: number, nextPregnant: number) {
+    if (skipAutosaveRef.current) return;
+    debouncedSave(nextAdults, nextKittens, nextPregnant);
   }
 
   return (
@@ -88,7 +121,11 @@ export function ColonyCatSummaryEditor({
               type="number"
               min={counts.fixedAdults}
               value={adults}
-              onChange={(e) => setAdults(Math.max(counts.fixedAdults, parseInt(e.target.value, 10) || 0))}
+              onChange={(e) => {
+                const value = Math.max(counts.fixedAdults, parseInt(e.target.value, 10) || 0);
+                setAdults(value);
+                queueSave(value, kittens, pregnant);
+              }}
             />
           </div>
           <div className="space-y-2">
@@ -97,7 +134,11 @@ export function ColonyCatSummaryEditor({
               type="number"
               min={counts.fixedKittens}
               value={kittens}
-              onChange={(e) => setKittens(Math.max(counts.fixedKittens, parseInt(e.target.value, 10) || 0))}
+              onChange={(e) => {
+                const value = Math.max(counts.fixedKittens, parseInt(e.target.value, 10) || 0);
+                setKittens(value);
+                queueSave(adults, value, pregnant);
+              }}
             />
           </div>
           <div className="space-y-2">
@@ -106,15 +147,22 @@ export function ColonyCatSummaryEditor({
               type="number"
               min={0}
               value={pregnant}
-              onChange={(e) => setPregnant(Math.max(0, parseInt(e.target.value, 10) || 0))}
+              onChange={(e) => {
+                const value = Math.max(0, parseInt(e.target.value, 10) || 0);
+                setPregnant(value);
+                queueSave(adults, kittens, value);
+              }}
             />
           </div>
         </div>
 
+        {saveState === "saving" && (
+          <p className="text-xs text-muted-foreground">Saving cat counts…</p>
+        )}
+        {saveState === "saved" && (
+          <p className="text-xs text-muted-foreground">Cat counts saved</p>
+        )}
         {error && <p className="text-sm text-destructive">{error}</p>}
-        <Button onClick={saveCounts} disabled={saving || !dirty}>
-          {saving ? "Saving…" : "Save reported counts"}
-        </Button>
       </div>
     </CaseCollapsibleSection>
   );

@@ -16,7 +16,6 @@ interface CaseColonyTabProps {
   clinicFixes: ClinicFix[];
   savingFeeder?: boolean;
   onChange: (next: HelpRequest) => void;
-  onSaveFeeder: () => void;
 }
 
 export function CaseColonyTab({
@@ -24,7 +23,6 @@ export function CaseColonyTab({
   clinicFixes,
   savingFeeder = false,
   onChange,
-  onSaveFeeder,
 }: CaseColonyTabProps) {
   const colonyAddress = formatSingleLineAddress([
     hr.colony_address,
@@ -72,7 +70,6 @@ export function CaseColonyTab({
         helpRequest={hr}
         saving={savingFeeder}
         onChange={onChange}
-        onSave={onSaveFeeder}
       />
     </div>
   );

@@ -81,6 +81,26 @@ export function getStatusLabel(status: HelpRequestStatus, context: "trap" | "def
   return CASE_STATUSES.find((entry) => entry.value === status)?.label ?? status.replace(/_/g, " ");
 }
 
+/** Simplified status labels for inquiry team — status is set by actions, not a dropdown. */
+export function getInquiryTeamStatusLabel(
+  hr: Pick<HelpRequest, "status" | "claimed_by_email">
+): string {
+  if (hr.status === "routed_to_trap_team") return "Routed to trap team";
+  if (hr.status === "needs_more_info") return "Needs more info";
+  if (hr.claimed_by_email || hr.status === "under_review") return "Claimed";
+  if (hr.status === "new_intake") return "New intake";
+  return getStatusLabel(hr.status);
+}
+
+export function inquiryTeamManagesStatus(status: HelpRequestStatus) {
+  return (
+    status === "new_intake" ||
+    status === "under_review" ||
+    status === "needs_more_info" ||
+    status === "routed_to_trap_team"
+  );
+}
+
 export function getStatusOptionsForRole(role: UserRole | null | undefined) {
   if (role === "inquiry_team") {
     return filterStatusOptions(INTAKE_EDITABLE_STATUSES);

@@ -1,5 +1,6 @@
 "use client";
 
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -8,25 +9,40 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { CaseCollapsibleSection } from "@/components/cases/case-collapsible-section";
 import { InfoRow } from "@/components/cases/case-detail-fields";
 import { MedicalReviewActions } from "@/components/cases/medical-review-actions";
-import { getStatusOptionsForRole } from "@/lib/cases/statuses";
+import { getInquiryTeamStatusLabel, getStatusOptionsForRole } from "@/lib/cases/statuses";
+import { STATUS_COLORS } from "@/lib/constants";
 import { sortTrapTeams } from "@/lib/trap-teams/sort-teams";
-import { formatDateTime } from "@/lib/utils";
+import { formatDateTime, cn } from "@/lib/utils";
 import type { HelpRequest, HelpRequestStatus, UserRole, FollowUpEntry } from "@/lib/types";
 import { Trash2 } from "lucide-react";
+
+type SaveState = "idle" | "saving" | "saved" | "error";
 
 interface CaseIntakeSectionProps {
   helpRequest: HelpRequest;
   teams: { id: string; name: string; zip_codes: string[] }[];
   userRole: UserRole | null;
   canReviewMedical: boolean;
-  saving: boolean;
+  saveState?: SaveState;
   followUpNote: string;
   onFollowUpNoteChange: (value: string) => void;
   onAddFollowUp: () => void;
   onChange: (next: HelpRequest) => void;
-  onSave: () => void;
   onCloseCase: () => void;
   canCloseCase: boolean;
+}
+
+function SaveIndicator({ state }: { state: SaveState }) {
+  if (state === "idle") {
+    return <p className="text-xs text-muted-foreground">Changes save automatically</p>;
+  }
+  if (state === "saving") {
+    return <p className="text-xs text-muted-foreground">Saving…</p>;
+  }
+  if (state === "saved") {
+    return <p className="text-xs text-muted-foreground">Saved</p>;
+  }
+  return <p className="text-xs text-destructive">Save failed — try editing again</p>;
 }
 
 export function CaseIntakeSection({
@@ -34,15 +50,15 @@ export function CaseIntakeSection({
   teams,
   userRole,
   canReviewMedical,
-  saving,
+  saveState = "idle",
   followUpNote,
   onFollowUpNoteChange,
   onAddFollowUp,
   onChange,
-  onSave,
   onCloseCase,
   canCloseCase,
 }: CaseIntakeSectionProps) {
+  const isInquiryTeam = userRole === "inquiry_team";
   const statusOptions = getStatusOptionsForRole(userRole);
   const hasOutcomes =
     hr.outcome ||
@@ -55,13 +71,8 @@ export function CaseIntakeSection({
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-muted/30 px-4 py-3">
-        <p className="text-sm text-muted-foreground">
-          Save changes to case management, follow-up, and intake notes.
-        </p>
-        <Button onClick={onSave} disabled={saving}>
-          {saving ? "Saving…" : "Save changes"}
-        </Button>
+      <div className="flex flex-wrap items-center justify-end gap-3 rounded-lg border bg-muted/30 px-4 py-2">
+        <SaveIndicator state={saveState} />
       </div>
 
       {canReviewMedical && (
@@ -73,24 +84,38 @@ export function CaseIntakeSection({
       <CaseCollapsibleSection title="Case management" defaultOpen>
         <div className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label>Status</Label>
-              <Select
-                value={hr.status}
-                onValueChange={(v) => onChange({ ...hr, status: v as HelpRequestStatus })}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {statusOptions.map((s) => (
-                    <SelectItem key={s.value} value={s.value}>
-                      {s.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {isInquiryTeam ? (
+              <div className="space-y-2">
+                <Label>Status</Label>
+                <div className="flex h-10 items-center">
+                  <Badge className={cn("text-sm", STATUS_COLORS[hr.status])}>
+                    {getInquiryTeamStatusLabel(hr)}
+                  </Badge>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Updated when you claim, mark needs more info, or route to trap team.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <Label>Status</Label>
+                <Select
+                  value={hr.status}
+                  onValueChange={(v) => onChange({ ...hr, status: v as HelpRequestStatus })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {statusOptions.map((s) => (
+                      <SelectItem key={s.value} value={s.value}>
+                        {s.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             <div className="space-y-2">
               <Label>Trap team</Label>
               <Select
@@ -223,7 +248,7 @@ export function CaseIntakeSection({
                 </SelectContent>
               </Select>
             </div>
-            <Button onClick={onCloseCase} variant="destructive" disabled={saving}>
+            <Button onClick={onCloseCase} variant="destructive" disabled={saveState === "saving"}>
               <Trash2 className="h-4 w-4 mr-2" />
               Close case
             </Button>
