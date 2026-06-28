@@ -44,6 +44,17 @@ export function normalizeHistoryLog(raw: unknown): HistoryEntry[] {
   return raw.map(normalizeHistoryEntry);
 }
 
+export function staffNotesFromHistory(raw: unknown): HistoryEntry[] {
+  return normalizeHistoryLog(raw).filter((entry) => entry.action === "note");
+}
+
+export function staffNotesText(raw: unknown): string {
+  return staffNotesFromHistory(raw)
+    .map((entry) => entry.details?.trim() ?? "")
+    .filter(Boolean)
+    .join("\n");
+}
+
 export function buildHistoryNoteEntry(input: {
   text: string;
   highlighted: boolean;

@@ -18,14 +18,13 @@ import { createClient } from "@/lib/supabase/client";
 import { findTrapTeamForZip } from "@/lib/cases/assign-team-by-zip";
 import { detectMedicalKeywords, mergeMedicalFlags } from "@/lib/medical-flags";
 import { canCloseCase } from "@/lib/cases/case-permissions";
-import { normalizeHistoryLog } from "@/lib/cases/history-log";
+import { normalizeHistoryLog, staffNotesText } from "@/lib/cases/history-log";
 import { feederPayload, geocodeFeederIfNeeded } from "@/lib/cases/feeder-fields";
 import type {
   HelpRequest,
   Cat,
   Appointment,
   ClinicFix,
-  FollowUpEntry,
   UserRole,
   HistoryNoteColor,
 } from "@/lib/types";
@@ -97,7 +96,6 @@ export function CaseDetailTabs({
   const [newCatFosterFacilityOther, setNewCatFosterFacilityOther] = useState("");
   const [addingCat, setAddingCat] = useState(false);
   const [addCatError, setAddCatError] = useState<string | null>(null);
-  const [followUpNote, setFollowUpNote] = useState("");
   const [savingFeeder, setSavingFeeder] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [savingHistory, setSavingHistory] = useState(false);
@@ -164,7 +162,6 @@ export function CaseDetailTabs({
       assigned_team_id: payload.assigned_team_id,
       assigned_team_name: payload.assigned_team_name,
       assigned_team: payload.assigned_team_name,
-      additional_notes: payload.additional_notes,
       closure_notes: payload.closure_notes,
       outcome: payload.outcome,
       resolution: payload.resolution,
@@ -223,7 +220,7 @@ export function CaseDetailTabs({
     setSaveError(null);
     const medicalFlags = mergeMedicalFlags(
       next.medical_flags ?? [],
-      detectMedicalKeywords(`${next.intake_notes ?? ""}\n${next.additional_notes ?? ""}`)
+      detectMedicalKeywords(`${next.intake_notes ?? ""}\n${staffNotesText(next.history_log)}`)
     );
     const ok = await persistCase(next, medicalFlags);
     setIntakeSaveState(ok ? "saved" : "error");
@@ -246,23 +243,6 @@ export function CaseDetailTabs({
     },
     [debouncedSaveFeeder]
   );
-
-  async function addFollowUp() {
-    if (!followUpNote.trim()) return;
-    const supabase = createClient();
-    const entry: FollowUpEntry = {
-      id: crypto.randomUUID(),
-      timestamp: new Date().toISOString(),
-      author_email: "",
-      author_name: "Current User",
-      notes: followUpNote,
-      outcome: null,
-    };
-    const log = [...(hr.follow_up_log ?? []), entry];
-    await supabase.from("help_requests").update({ follow_up_log: log }).eq("id", hr.id);
-    setHr({ ...hr, follow_up_log: log });
-    setFollowUpNote("");
-  }
 
   function resetNewCatForm() {
     setNewCat(EMPTY_CAT);
@@ -381,7 +361,7 @@ export function CaseDetailTabs({
     setIntakeSaveState("saving");
     const medicalFlags = mergeMedicalFlags(
       hr.medical_flags ?? [],
-      detectMedicalKeywords(`${hr.intake_notes ?? ""}\n${hr.additional_notes ?? ""}`)
+      detectMedicalKeywords(`${hr.intake_notes ?? ""}\n${staffNotesText(hr.history_log)}`)
     );
     await persistCase(hr, medicalFlags, { includeStatus: userRole !== "inquiry_team" });
 
@@ -435,10 +415,13 @@ export function CaseDetailTabs({
           teams={teams}
           userRole={userRole}
           canReviewMedical={canReviewMedical}
+          canAddNote={canAddHistoryNote}
+          noteAuthorName={userName}
+          noteAuthorEmail={userEmail}
+          savingNote={savingHistory}
+          noteSaveError={saveError}
           saveState={intakeSaveState}
-          followUpNote={followUpNote}
-          onFollowUpNoteChange={setFollowUpNote}
-          onAddFollowUp={addFollowUp}
+          onAddNote={addHistoryNote}
           onChange={handleIntakeChange}
           onCloseCase={closeCase}
           canCloseCase={showCloseCase}

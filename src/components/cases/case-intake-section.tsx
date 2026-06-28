@@ -7,13 +7,15 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CaseCollapsibleSection } from "@/components/cases/case-collapsible-section";
+import { CaseHistorySection } from "@/components/cases/case-history-section";
 import { InfoRow } from "@/components/cases/case-detail-fields";
 import { MedicalReviewActions } from "@/components/cases/medical-review-actions";
+import { displayColonyNotes } from "@/lib/cases/colony-notes";
 import { getInquiryTeamStatusLabel, getStatusOptionsForRole } from "@/lib/cases/statuses";
 import { STATUS_COLORS } from "@/lib/constants";
 import { sortTrapTeams } from "@/lib/trap-teams/sort-teams";
 import { formatDateTime, cn } from "@/lib/utils";
-import type { HelpRequest, HelpRequestStatus, UserRole, FollowUpEntry } from "@/lib/types";
+import type { HelpRequest, HelpRequestStatus, HistoryNoteColor, UserRole } from "@/lib/types";
 import { Trash2 } from "lucide-react";
 
 type SaveState = "idle" | "saving" | "saved" | "error";
@@ -23,10 +25,18 @@ interface CaseIntakeSectionProps {
   teams: { id: string; name: string; zip_codes: string[] }[];
   userRole: UserRole | null;
   canReviewMedical: boolean;
+  canAddNote: boolean;
+  noteAuthorName: string;
+  noteAuthorEmail: string;
+  savingNote?: boolean;
+  noteSaveError?: string | null;
   saveState?: SaveState;
-  followUpNote: string;
-  onFollowUpNoteChange: (value: string) => void;
-  onAddFollowUp: () => void;
+  onAddNote: (note: {
+    text: string;
+    highlighted: boolean;
+    follow_up: boolean;
+    text_color: HistoryNoteColor;
+  }) => Promise<boolean>;
   onChange: (next: HelpRequest) => void;
   onCloseCase: () => void;
   canCloseCase: boolean;
@@ -50,16 +60,20 @@ export function CaseIntakeSection({
   teams,
   userRole,
   canReviewMedical,
+  canAddNote,
+  noteAuthorName,
+  noteAuthorEmail,
+  savingNote = false,
+  noteSaveError = null,
   saveState = "idle",
-  followUpNote,
-  onFollowUpNoteChange,
-  onAddFollowUp,
+  onAddNote,
   onChange,
   onCloseCase,
   canCloseCase,
 }: CaseIntakeSectionProps) {
   const isInquiryTeam = userRole === "inquiry_team";
   const statusOptions = getStatusOptionsForRole(userRole);
+  const reporterNotes = displayColonyNotes(hr.intake_notes, hr);
   const hasOutcomes =
     hr.outcome ||
     hr.resolution ||
@@ -83,7 +97,7 @@ export function CaseIntakeSection({
 
       <CaseCollapsibleSection title="Case management" defaultOpen>
         <div className="space-y-4">
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {isInquiryTeam ? (
               <div className="space-y-2">
                 <Label>Status</Label>
@@ -143,6 +157,14 @@ export function CaseIntakeSection({
                 </SelectContent>
               </Select>
             </div>
+            <div className="space-y-2">
+              <Label>Follow-up due</Label>
+              <Input
+                type="date"
+                value={hr.follow_up_due_date ?? ""}
+                onChange={(e) => onChange({ ...hr, follow_up_due_date: e.target.value || null })}
+              />
+            </div>
           </div>
           <dl>
             <InfoRow label="Case #" value={hr.case_number} alwaysShow />
@@ -155,65 +177,22 @@ export function CaseIntakeSection({
         </div>
       </CaseCollapsibleSection>
 
-      <CaseCollapsibleSection title="Follow-up" defaultOpen={false}>
-        <div className="space-y-4">
-          <div className="space-y-2 max-w-xs">
-            <Label>Due date</Label>
-            <Input
-              type="date"
-              value={hr.follow_up_due_date ?? ""}
-              onChange={(e) => onChange({ ...hr, follow_up_due_date: e.target.value || null })}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label>Log a call or contact</Label>
-            <Textarea
-              value={followUpNote}
-              onChange={(e) => onFollowUpNoteChange(e.target.value)}
-              rows={3}
-              placeholder="What happened on this follow-up?"
-            />
-            <Button type="button" variant="outline" size="sm" onClick={onAddFollowUp}>
-              Add entry
-            </Button>
-          </div>
-          {(hr.follow_up_log ?? []).length > 0 && (
-            <div className="space-y-2 pt-2">
-              {(hr.follow_up_log ?? []).slice().reverse().map((entry: FollowUpEntry) => (
-                <div key={entry.id} className="rounded-md border p-3">
-                  <p className="text-sm text-muted-foreground">
-                    {formatDateTime(entry.timestamp)} · {entry.author_name}
-                  </p>
-                  <p className="mt-1 whitespace-pre-wrap">{entry.notes}</p>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </CaseCollapsibleSection>
+      {reporterNotes && (
+        <CaseCollapsibleSection title="Reporter notes at intake" defaultOpen={false}>
+          <p className="whitespace-pre-wrap text-sm text-muted-foreground">{reporterNotes}</p>
+        </CaseCollapsibleSection>
+      )}
 
-      <CaseCollapsibleSection title="Intake notes" defaultOpen={false}>
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <Label>Staff notes</Label>
-            <Textarea
-              value={hr.additional_notes ?? ""}
-              onChange={(e) => onChange({ ...hr, additional_notes: e.target.value })}
-              rows={4}
-              placeholder="Notes from intake calls and review…"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label>Closure notes</Label>
-            <Textarea
-              value={hr.closure_notes ?? ""}
-              onChange={(e) => onChange({ ...hr, closure_notes: e.target.value })}
-              rows={3}
-              placeholder="Recorded when closing the case…"
-            />
-          </div>
-        </div>
-      </CaseCollapsibleSection>
+      <CaseHistorySection
+        entries={hr.history_log ?? []}
+        canAddNote={canAddNote}
+        authorName={noteAuthorName}
+        authorEmail={noteAuthorEmail}
+        saving={savingNote}
+        saveError={noteSaveError}
+        mode="notes"
+        onAddNote={onAddNote}
+      />
 
       {hasOutcomes && (
         <CaseCollapsibleSection title="Outcomes" defaultOpen={false}>
@@ -247,6 +226,15 @@ export function CaseIntakeSection({
                   <SelectItem value="duplicate">Duplicate</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Closure notes</Label>
+              <Textarea
+                value={hr.closure_notes ?? ""}
+                onChange={(e) => onChange({ ...hr, closure_notes: e.target.value })}
+                rows={3}
+                placeholder="Recorded when closing the case…"
+              />
             </div>
             <Button onClick={onCloseCase} variant="destructive" disabled={saveState === "saving"}>
               <Trash2 className="h-4 w-4 mr-2" />

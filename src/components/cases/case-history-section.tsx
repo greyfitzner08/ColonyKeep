@@ -13,6 +13,7 @@ import {
   historyEntryLabel,
   historyNotePreviewEntry,
 } from "@/lib/cases/history-note-styles";
+import { staffNotesFromHistory } from "@/lib/cases/history-log";
 import { cn, formatDateTime } from "@/lib/utils";
 import type { HistoryEntry, HistoryNoteColor } from "@/lib/types";
 import { Flag, Highlighter, Plus } from "lucide-react";
@@ -24,6 +25,8 @@ interface CaseHistorySectionProps {
   authorEmail: string;
   saving?: boolean;
   saveError?: string | null;
+  /** `notes` shows staff notes only; `all` shows the full case timeline. */
+  mode?: "all" | "notes";
   onAddNote: (note: {
     text: string;
     highlighted: boolean;
@@ -39,14 +42,17 @@ export function CaseHistorySection({
   authorEmail,
   saving = false,
   saveError = null,
+  mode = "all",
   onAddNote,
 }: CaseHistorySectionProps) {
+  const notesOnly = mode === "notes";
+  const visibleEntries = notesOnly ? staffNotesFromHistory(entries) : entries;
   const [noteText, setNoteText] = useState("");
   const [highlighted, setHighlighted] = useState(false);
   const [followUp, setFollowUp] = useState(false);
   const [textColor, setTextColor] = useState<HistoryNoteColor>("default");
 
-  const sortedEntries = [...entries].sort(
+  const sortedEntries = [...visibleEntries].sort(
     (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
   );
 
@@ -83,7 +89,11 @@ export function CaseHistorySection({
               onChange={(e) => setNoteText(e.target.value)}
               rows={2}
               className="min-h-[4.5rem] resize-y border-0 bg-transparent shadow-none focus-visible:ring-0 rounded-none text-sm"
-              placeholder="Add a note — call, visit, trap update…"
+              placeholder={
+                notesOnly
+                  ? "Log a call, email, or inquiry update… Tag as follow-up when someone still needs contact."
+                  : "Add a note — call, visit, trap update…"
+              }
               onKeyDown={(e) => {
                 if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
                   e.preventDefault();
@@ -180,12 +190,20 @@ export function CaseHistorySection({
       )}
 
       <CaseCollapsibleSection
-        title="Timeline"
-        description={`${sortedEntries.length} entr${sortedEntries.length === 1 ? "y" : "ies"}`}
+        title={notesOnly ? "Case notes" : "Timeline"}
+        description={
+          notesOnly
+            ? "Intake calls, inquiry updates, and follow-ups in one place."
+            : `${sortedEntries.length} entr${sortedEntries.length === 1 ? "y" : "ies"}`
+        }
         defaultOpen
       >
         {sortedEntries.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No history entries yet.</p>
+          <p className="text-sm text-muted-foreground">
+            {notesOnly
+              ? "No notes yet. Add intake calls, inquiry updates, and follow-ups below."
+              : "No history entries yet."}
+          </p>
         ) : (
           <div className="space-y-2">
             {sortedEntries.map((entry, index) => (
