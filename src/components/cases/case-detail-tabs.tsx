@@ -29,7 +29,7 @@ import type {
   UserRole,
   HistoryNoteColor,
 } from "@/lib/types";
-import { CaseClinicFixesSection } from "@/components/cases/case-clinic-fixes-section";
+import { ClinicFixSummary } from "@/components/cases/clinic-fix-summary";
 import { CaseReporterSection } from "@/components/cases/case-colony-info-section";
 import { CaseColonyTab } from "@/components/cases/case-colony-tab";
 import { CaseIntakeSection } from "@/components/cases/case-intake-section";
@@ -105,6 +105,11 @@ export function CaseDetailTabs({
   const savedIndicatorTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const showCloseCase = canCloseCase(userRole);
+
+  const clinicFixByCatId = new Map(
+    clinicFixes.flatMap((fix) => (fix.cat_id ? [[fix.cat_id, fix] as const] : []))
+  );
+  const orphanClinicFixes = clinicFixes.filter((fix) => !fix.cat_id);
 
   useEffect(() => {
     skipIntakeAutosaveRef.current = true;
@@ -451,20 +456,31 @@ export function CaseDetailTabs({
           }}
         />
 
-        <CaseClinicFixesSection
-          helpRequest={hr}
-          clinicFixes={clinicFixes}
-          canLog={canLogClinicFix}
-        />
-
         {cats.map((cat) => (
           <TrackedCatCard
             key={cat.id}
             cat={cat}
             clinics={clinics}
+            helpRequestId={hr.id}
+            caseNumber={hr.case_number}
+            clinicFix={clinicFixByCatId.get(cat.id) ?? null}
+            canLogClinicFix={canLogClinicFix}
             onUpdated={updateCat}
           />
         ))}
+
+        {orphanClinicFixes.length > 0 && (
+          <CaseCollapsibleSection title="Other clinic fixes" defaultOpen>
+            <p className="mb-3 text-sm text-muted-foreground">
+              Walk-in fixes logged before these cats were tracked individually.
+            </p>
+            <div className="space-y-2">
+              {orphanClinicFixes.map((fix) => (
+                <ClinicFixSummary key={fix.id} fix={fix} />
+              ))}
+            </div>
+          </CaseCollapsibleSection>
+        )}
 
         <CaseCollapsibleSection title="Add tracked cat" defaultOpen={cats.length === 0}>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

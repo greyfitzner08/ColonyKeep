@@ -15,18 +15,24 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { isTrackedCatClinicFixed } from "@/lib/cases/tracked-cat-fix";
+import { isTrackedCatClinicFixed, parseTrackedCatGender } from "@/lib/cases/tracked-cat-fix";
 import { ClinicFixFosterFields } from "@/components/cases/clinic-fix-foster-fields";
+import { ClinicFixSummary } from "@/components/cases/clinic-fix-summary";
+import { LogClinicFixDialog } from "@/components/cases/log-clinic-fix-dialog";
 import { fosterFormFromCat } from "@/lib/cases/tracked-cat-foster";
 import { formatFosterFacilitySummary } from "@/lib/cases/foster-facility";
 import { InfoRow } from "@/components/cases/case-detail-fields";
-import type { Cat } from "@/lib/types";
+import type { Cat, ClinicFix } from "@/lib/types";
 import type { FosterFacility } from "@/lib/cases/foster-facility";
 import { Pencil, X, Check } from "lucide-react";
 
 interface TrackedCatCardProps {
   cat: Cat;
   clinics: { id: string; name: string }[];
+  helpRequestId: string;
+  caseNumber: string;
+  clinicFix?: ClinicFix | null;
+  canLogClinicFix: boolean;
   onUpdated: (cat: Cat) => void;
 }
 
@@ -83,13 +89,23 @@ function fosterSummaryForCat(cat: Cat) {
   return null;
 }
 
-export function TrackedCatCard({ cat, clinics, onUpdated }: TrackedCatCardProps) {
+export function TrackedCatCard({
+  cat,
+  clinics,
+  helpRequestId,
+  caseNumber,
+  clinicFix = null,
+  canLogClinicFix,
+  onUpdated,
+}: TrackedCatCardProps) {
   const router = useRouter();
   const [editing, setEditing] = useState(false);
+  const [logFixOpen, setLogFixOpen] = useState(false);
   const [draft, setDraft] = useState<CatDraft>(() => toDraft(cat));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fosterSummary = fosterSummaryForCat(cat);
+  const defaultGender = parseTrackedCatGender(cat.gender);
 
   function startEditing() {
     setDraft(toDraft(cat));
@@ -317,6 +333,27 @@ export function TrackedCatCard({ cat, clinics, onUpdated }: TrackedCatCardProps)
             <Badge variant="secondary">Appt: {cat.appointment_status}</Badge>
           )}
         </div>
+
+        <div className="mt-4 space-y-3 border-t pt-4">
+          {clinicFix ? (
+            <ClinicFixSummary fix={clinicFix} />
+          ) : canLogClinicFix ? (
+            <Button size="sm" onClick={() => setLogFixOpen(true)}>
+              Log clinic fix
+            </Button>
+          ) : null}
+        </div>
+
+        <LogClinicFixDialog
+          open={logFixOpen}
+          onOpenChange={setLogFixOpen}
+          helpRequestId={helpRequestId}
+          caseNumber={caseNumber}
+          catId={cat.id}
+          catName={cat.name}
+          defaultClinicName={cat.clinic_name}
+          defaultGender={defaultGender}
+        />
       </CardContent>
     </Card>
   );
