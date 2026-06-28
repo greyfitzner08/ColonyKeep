@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireCaseWorker } from "@/lib/api/auth";
 import { isTrackedCatClinicFixed } from "@/lib/cases/tracked-cat-fix";
 import { resolveTrackedCatFosterFields } from "@/lib/cases/tracked-cat-foster";
-import { syncTrackedCatFixesForCase } from "@/lib/cases/tracked-cat-fix";
+import { syncTrackedCatFixesForCase, updateHelpRequestCatCounts } from "@/lib/cases/tracked-cat-fix";
 import { createServiceClient } from "@/lib/supabase/server";
 import type { FosterFacility } from "@/lib/cases/foster-facility";
 import { resolveFemaleReproductiveStatusForSave } from "@/lib/cases/female-reproductive-status";
@@ -117,6 +117,42 @@ export async function PATCH(
     return NextResponse.json({ cat });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to save tracked cat";
+    return NextResponse.json({ error: message }, { status: 400 });
+  }
+}
+
+export async function DELETE(
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { response } = await requireCaseWorker();
+  if (response) return response;
+
+  const { id } = await params;
+
+  try {
+    const service = await createServiceClient();
+    const { data: existing } = await service
+      .from("cats")
+      .select("help_request_id")
+      .eq("id", id)
+      .single();
+
+    if (!existing) {
+      return NextResponse.json({ error: "Cat not found" }, { status: 404 });
+    }
+
+    const { error: deleteError } = await service.from("cats").delete().eq("id", id);
+
+    if (deleteError) {
+      return NextResponse.json({ error: deleteError.message }, { status: 400 });
+    }
+
+    await updateHelpRequestCatCounts(service, existing.help_request_id);
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unable to remove tracked cat";
     return NextResponse.json({ error: message }, { status: 400 });
   }
 }

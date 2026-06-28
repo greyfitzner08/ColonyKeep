@@ -29,7 +29,7 @@ import { formatFosterFacilitySummary } from "@/lib/cases/foster-facility";
 import { InfoRow } from "@/components/cases/case-detail-fields";
 import type { Cat, ClinicFix } from "@/lib/types";
 import type { FosterFacility } from "@/lib/cases/foster-facility";
-import { Pencil, X, Check } from "lucide-react";
+import { Pencil, Trash2, X, Check } from "lucide-react";
 
 interface TrackedCatCardProps {
   cat: Cat;
@@ -39,6 +39,7 @@ interface TrackedCatCardProps {
   clinicFix?: ClinicFix | null;
   canLogClinicFix: boolean;
   onUpdated: (cat: Cat) => void;
+  onRemoved: (catId: string) => void;
 }
 
 type CatDraft = {
@@ -112,12 +113,14 @@ export function TrackedCatCard({
   clinicFix = null,
   canLogClinicFix,
   onUpdated,
+  onRemoved,
 }: TrackedCatCardProps) {
   const router = useRouter();
   const [editing, setEditing] = useState(false);
   const [logFixOpen, setLogFixOpen] = useState(false);
   const [draft, setDraft] = useState<CatDraft>(() => toDraft(cat));
   const [saving, setSaving] = useState(false);
+  const [removing, setRemoving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fosterSummary = fosterSummaryForCat(cat);
   const defaultGender = parseTrackedCatGender(cat.gender);
@@ -193,6 +196,32 @@ export function TrackedCatCard({
     }
   }
 
+  async function removeCat() {
+    const label = cat.name?.trim() || "this cat";
+    if (
+      !window.confirm(
+        `Remove ${label} from this case? Clinic fixes linked to this cat will stay on the case without a cat link.`
+      )
+    ) {
+      return;
+    }
+
+    setRemoving(true);
+    setError(null);
+
+    const response = await fetch(`/api/cats/${cat.id}`, { method: "DELETE" });
+    const result = await response.json().catch(() => null);
+    setRemoving(false);
+
+    if (!response.ok) {
+      setError(result?.error ?? "Unable to remove cat");
+      return;
+    }
+
+    onRemoved(cat.id);
+    router.refresh();
+  }
+
   if (editing) {
     const clinicFixed = isTrackedCatClinicFixed({
       trapped_status: cat.trapped_status,
@@ -205,7 +234,17 @@ export function TrackedCatCard({
           <div className="flex items-center justify-between gap-2">
             <CardTitle className="text-lg">Edit tracked cat</CardTitle>
             <div className="flex gap-2">
-              <Button size="sm" variant="outline" onClick={cancelEditing} disabled={saving}>
+              <Button
+                size="sm"
+                variant="outline"
+                className="text-destructive hover:text-destructive"
+                onClick={removeCat}
+                disabled={saving || removing}
+              >
+                <Trash2 className="h-4 w-4 mr-1" />
+                {removing ? "Removing…" : "Remove"}
+              </Button>
+              <Button size="sm" variant="outline" onClick={cancelEditing} disabled={saving || removing}>
                 <X className="h-4 w-4 mr-1" />
                 Cancel
               </Button>
@@ -381,11 +420,24 @@ export function TrackedCatCard({
               </p>
             )}
           </div>
-          <Button size="sm" variant="outline" onClick={startEditing}>
-            <Pencil className="h-4 w-4 mr-1" />
-            Edit
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              className="text-destructive hover:text-destructive"
+              onClick={removeCat}
+              disabled={removing || saving}
+            >
+              <Trash2 className="h-4 w-4 mr-1" />
+              {removing ? "Removing…" : "Remove"}
+            </Button>
+            <Button size="sm" variant="outline" onClick={startEditing} disabled={removing}>
+              <Pencil className="h-4 w-4 mr-1" />
+              Edit
+            </Button>
+          </div>
         </div>
+        {error && <p className="text-sm text-destructive mt-3">{error}</p>}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
           <InfoRow alwaysShow label="Microchip ID" value={cat.microchip_id} />
           <InfoRow alwaysShow label="Clinic" value={cat.clinic_name} />

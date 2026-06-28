@@ -21,6 +21,7 @@ interface CaseColonyTabProps {
   onFeederChange: (next: HelpRequest) => void;
   onCatUpdated: (cat: Cat) => void;
   onCatAdded: (cat: Cat) => void;
+  onCatRemoved: (catId: string) => void;
 }
 
 export function CaseColonyTab({
@@ -33,6 +34,7 @@ export function CaseColonyTab({
   onFeederChange,
   onCatUpdated,
   onCatAdded,
+  onCatRemoved,
 }: CaseColonyTabProps) {
   const colonyAddress = formatSingleLineAddress([
     hr.colony_address,
@@ -79,6 +81,7 @@ export function CaseColonyTab({
                 clinicFix={clinicFixByCatId.get(cat.id) ?? null}
                 canLogClinicFix={canLogClinicFix}
                 onUpdated={onCatUpdated}
+                onRemoved={onCatRemoved}
               />
             ))}
           </div>

@@ -221,6 +221,10 @@ export function CaseDetailTabs({
     setCats((current) => [...current, cat]);
   }
 
+  function removeCat(catId: string) {
+    setCats((current) => current.filter((cat) => cat.id !== catId));
+  }
+
   function updateCat(updated: Cat) {
     setCats((current) => current.map((cat) => (cat.id === updated.id ? updated : cat)));
     router.refresh();
@@ -313,6 +317,7 @@ export function CaseDetailTabs({
           onFeederChange={handleFeederChange}
           onCatUpdated={updateCat}
           onCatAdded={addCat}
+          onCatRemoved={removeCat}
         />
       </TabsContent>
 
