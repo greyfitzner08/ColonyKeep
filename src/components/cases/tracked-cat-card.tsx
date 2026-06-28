@@ -29,8 +29,8 @@ import { formatFosterFacilitySummary } from "@/lib/cases/foster-facility";
 import { InfoRow } from "@/components/cases/case-detail-fields";
 import type { Cat, ClinicFix } from "@/lib/types";
 import type { FosterFacility } from "@/lib/cases/foster-facility";
-import { formatDate } from "@/lib/utils";
-import { Pencil, Trash2, X, Check } from "lucide-react";
+import { formatDate, cn } from "@/lib/utils";
+import { ChevronDown, Pencil, Trash2, X, Check } from "lucide-react";
 
 interface TrackedCatCardProps {
   cat: Cat;
@@ -117,10 +117,18 @@ function clinicLineForCat(cat: Cat, clinicFix: ClinicFix | null) {
 function catSubtitle(cat: Cat) {
   const parts = [
     cat.colors?.trim(),
-    cat.gender?.trim(),
     femaleReproductiveStatusLabel(cat.female_reproductive_status),
   ].filter(Boolean);
   return parts.length > 0 ? parts.join(" · ") : null;
+}
+
+function genderLabelForCat(cat: Cat) {
+  const gender = cat.gender?.trim();
+  if (!gender) return "Unknown gender";
+  const lower = gender.toLowerCase();
+  if (lower === "male" || lower.startsWith("m")) return "Male";
+  if (lower === "female" || lower.startsWith("f")) return "Female";
+  return gender;
 }
 
 export function TrackedCatCard({
@@ -133,6 +141,7 @@ export function TrackedCatCard({
   onRemoved,
 }: TrackedCatCardProps) {
   const router = useRouter();
+  const [expanded, setExpanded] = useState(false);
   const [editing, setEditing] = useState(false);
   const [logFixOpen, setLogFixOpen] = useState(false);
   const [draft, setDraft] = useState<CatDraft>(() => toDraft(cat));
@@ -149,6 +158,7 @@ export function TrackedCatCard({
   function startEditing() {
     setDraft(toDraft(cat));
     setError(null);
+    setExpanded(true);
     setEditing(true);
   }
 
@@ -401,73 +411,97 @@ export function TrackedCatCard({
 
   return (
     <Card>
-      <CardContent className="pt-5 pb-5">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0 flex-1 space-y-1">
-            <div className="flex flex-wrap items-center gap-2">
-              <h3 className="text-lg font-semibold leading-tight">
-                {cat.name || "Unnamed cat"}
-              </h3>
-              <Badge
-                variant={isFixed ? "default" : "secondary"}
-                className={isFixed ? "bg-emerald-600 hover:bg-emerald-600/90" : undefined}
-              >
-                {isFixed ? "Fixed at clinic" : "In progress"}
-              </Badge>
-            </div>
-            {subtitle && <p className="text-sm text-muted-foreground">{subtitle}</p>}
-          </div>
-          <div className="flex shrink-0 gap-2">
-            <Button
-              size="sm"
-              variant="outline"
-              className="text-destructive hover:text-destructive"
-              onClick={removeCat}
-              disabled={removing || saving}
-            >
-              <Trash2 className="h-4 w-4 mr-1" />
-              {removing ? "Removing…" : "Remove"}
-            </Button>
-            <Button size="sm" variant="outline" onClick={startEditing} disabled={removing}>
-              <Pencil className="h-4 w-4 mr-1" />
-              Edit
-            </Button>
-          </div>
-        </div>
-
-        {error && <p className="text-sm text-destructive mt-3">{error}</p>}
-
-        {(ageLabel || cat.microchip_id || clinicLine || fosterSummary || cat.medical_notes || cat.notes) && (
-          <dl className="mt-4 rounded-lg border bg-muted/20 px-3">
-            {isFixed && ageLabel && <InfoRow label="Age at clinic" value={ageLabel} />}
-            <InfoRow label="Microchip ID" value={cat.microchip_id} />
-            <InfoRow label="Clinic" value={clinicLine} />
-            <InfoRow label="After clinic" value={fosterSummary} />
-            <InfoRow label="Medical notes" value={cat.medical_notes} />
-            <InfoRow label="Notes" value={cat.notes} />
-          </dl>
-        )}
-
-        {!isFixed && canLogClinicFix && (
-          <div className="mt-4">
-            <Button size="sm" onClick={() => setLogFixOpen(true)}>
-              Log clinic fix
-            </Button>
-          </div>
-        )}
-
-        <LogClinicFixDialog
-          open={logFixOpen}
-          onOpenChange={setLogFixOpen}
-          helpRequestId={helpRequestId}
-          caseNumber={caseNumber}
-          catId={cat.id}
-          cat={cat}
-          catName={cat.name}
-          defaultClinicName={cat.clinic_name}
-          defaultGender={defaultGender}
+      <button
+        type="button"
+        className="flex w-full items-center gap-3 px-5 py-4 text-left transition-colors hover:bg-muted/40"
+        onClick={() => setExpanded((value) => !value)}
+        aria-expanded={expanded}
+      >
+        <ChevronDown
+          className={cn(
+            "h-5 w-5 shrink-0 text-muted-foreground transition-transform",
+            expanded && "rotate-180"
+          )}
         />
-      </CardContent>
+        <div className="min-w-0 flex-1">
+          <span className="text-lg font-semibold leading-tight">
+            {cat.name || "Unnamed cat"}
+          </span>
+        </div>
+        <span className="shrink-0 text-sm text-muted-foreground">{genderLabelForCat(cat)}</span>
+      </button>
+
+      {expanded && (
+        <CardContent className="pt-0 pb-5">
+          <div className="flex items-start justify-between gap-3 border-t pt-4">
+            <div className="min-w-0 flex-1 space-y-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge
+                  variant={isFixed ? "default" : "secondary"}
+                  className={isFixed ? "bg-emerald-600 hover:bg-emerald-600/90" : undefined}
+                >
+                  {isFixed ? "Fixed at clinic" : "In progress"}
+                </Badge>
+              </div>
+              {subtitle && <p className="text-sm text-muted-foreground">{subtitle}</p>}
+            </div>
+            <div className="flex shrink-0 gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                className="text-destructive hover:text-destructive"
+                onClick={removeCat}
+                disabled={removing || saving}
+              >
+                <Trash2 className="h-4 w-4 mr-1" />
+                {removing ? "Removing…" : "Remove"}
+              </Button>
+              <Button size="sm" variant="outline" onClick={startEditing} disabled={removing}>
+                <Pencil className="h-4 w-4 mr-1" />
+                Edit
+              </Button>
+            </div>
+          </div>
+
+          {error && <p className="text-sm text-destructive mt-3">{error}</p>}
+
+          {(ageLabel ||
+            cat.microchip_id ||
+            clinicLine ||
+            fosterSummary ||
+            cat.medical_notes ||
+            cat.notes) && (
+            <dl className="mt-4 rounded-lg border bg-muted/20 px-3">
+              {isFixed && ageLabel && <InfoRow label="Age at clinic" value={ageLabel} />}
+              <InfoRow label="Microchip ID" value={cat.microchip_id} />
+              <InfoRow label="Clinic" value={clinicLine} />
+              <InfoRow label="After clinic" value={fosterSummary} />
+              <InfoRow label="Medical notes" value={cat.medical_notes} />
+              <InfoRow label="Notes" value={cat.notes} />
+            </dl>
+          )}
+
+          {!isFixed && canLogClinicFix && (
+            <div className="mt-4">
+              <Button size="sm" onClick={() => setLogFixOpen(true)}>
+                Log clinic fix
+              </Button>
+            </div>
+          )}
+        </CardContent>
+      )}
+
+      <LogClinicFixDialog
+        open={logFixOpen}
+        onOpenChange={setLogFixOpen}
+        helpRequestId={helpRequestId}
+        caseNumber={caseNumber}
+        catId={cat.id}
+        cat={cat}
+        catName={cat.name}
+        defaultClinicName={cat.clinic_name}
+        defaultGender={defaultGender}
+      />
     </Card>
   );
 }
