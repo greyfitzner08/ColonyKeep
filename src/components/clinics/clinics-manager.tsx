@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ClinicPartnersTable } from "@/components/clinics/clinic-partners-table";
-import { ClinicPackageItemsEditor } from "@/components/clinics/clinic-package-items-editor";
+import { ClinicPackageServicesEditor } from "@/components/clinics/clinic-package-services-editor";
 import { ServiceCatalogEditor } from "@/components/clinics/service-catalog-editor";
 import { ClinicPackagesDisplay } from "@/components/clinics/clinic-packages-display";
 import {
@@ -111,13 +111,12 @@ export function ClinicsManager({ clinics: initial }: ClinicsManagerProps) {
     });
   }
 
-  function updatePackageItems(index: number, services: string[]) {
+  function updatePackageServices(index: number, services: string[]) {
     const packages = [...form.packages];
     packages[index] = { ...packages[index], services };
     setForm({ ...form, packages });
   }
 
-  const catalogForForm = normalizeServiceCatalog(form.service_catalog);
   const usesPackagePricing = hasVisibleClinicPackages(form.packages);
 
   function addPackage() {
@@ -156,17 +155,14 @@ export function ClinicsManager({ clinics: initial }: ClinicsManagerProps) {
             </div>
             <div className="space-y-2"><Label>Slots per Day</Label><Input type="number" value={form.slots_per_day} onChange={(e) => setForm({ ...form, slots_per_day: parseInt(e.target.value) || 0 })} /></div>
 
-            <ServiceCatalogEditor
-              value={form.service_catalog}
-              onChange={(service_catalog) => setForm({ ...form, service_catalog })}
-              packageMode={usesPackagePricing}
-            />
-
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <Label>Packages</Label>
                 <Button type="button" variant="outline" size="sm" onClick={addPackage}>Add package</Button>
               </div>
+              <p className="text-sm text-muted-foreground">
+                Each package has a price and any services you choose — they do not need to match the add-on catalog below.
+              </p>
               {form.packages.map((pkg, index) => (
                 <div key={index} className="rounded border p-3 space-y-2">
                   <div className="flex gap-2">
@@ -200,11 +196,9 @@ export function ClinicsManager({ clinics: initial }: ClinicsManagerProps) {
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
-                  <ClinicPackageItemsEditor
-                    items={pkg.services}
-                    catalog={catalogForForm}
-                    showCatalogPrices={!usesPackagePricing}
-                    onChange={(services) => updatePackageItems(index, services)}
+                  <ClinicPackageServicesEditor
+                    services={pkg.services}
+                    onChange={(services) => updatePackageServices(index, services)}
                   />
                 </div>
               ))}
@@ -212,6 +206,12 @@ export function ClinicsManager({ clinics: initial }: ClinicsManagerProps) {
                 <ClinicPackagesDisplay packages={form.packages} />
               )}
             </div>
+
+            <ServiceCatalogEditor
+              value={form.service_catalog}
+              onChange={(service_catalog) => setForm({ ...form, service_catalog })}
+              packageMode={usesPackagePricing}
+            />
 
             <div className="space-y-2">
               <Label>Check-in details</Label>
