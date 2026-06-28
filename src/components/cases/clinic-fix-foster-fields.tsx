@@ -24,6 +24,8 @@ interface ClinicFixFosterFieldsProps {
   onFosterFacilityChange: (value: FosterFacility | "") => void;
   fosterFacilityOther: string;
   onFosterFacilityOtherChange: (value: string) => void;
+  /** Use tracked-cat copy when the cat may not be fixed yet. */
+  variant?: "clinic-fix" | "tracked-cat";
 }
 
 export function ClinicFixFosterFields({
@@ -33,11 +35,18 @@ export function ClinicFixFosterFields({
   onFosterFacilityChange,
   fosterFacilityOther,
   onFosterFacilityOtherChange,
+  variant = "clinic-fix",
 }: ClinicFixFosterFieldsProps) {
+  const isTrackedCat = variant === "tracked-cat";
+
   return (
     <div className="space-y-4">
       <div className="space-y-2">
-        <Label>Did this cat go into foster or a facility?</Label>
+        <Label>
+          {isTrackedCat
+            ? "Will this cat go to foster or a facility?"
+            : "Did this cat go into foster or a facility?"}
+        </Label>
         <Select
           value={wentToFoster || "unset"}
           onValueChange={(value) => {
@@ -54,8 +63,12 @@ export function ClinicFixFosterFields({
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="unset">Select…</SelectItem>
-            <SelectItem value="no">No — returned to colony</SelectItem>
-            <SelectItem value="yes">Yes — went to foster/facility</SelectItem>
+            <SelectItem value="no">
+              {isTrackedCat ? "No — expected to return to colony" : "No — returned to colony"}
+            </SelectItem>
+            <SelectItem value="yes">
+              {isTrackedCat ? "Yes — going to foster/facility" : "Yes — went to foster/facility"}
+            </SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -63,7 +76,7 @@ export function ClinicFixFosterFields({
       {wentToFoster === "yes" && (
         <>
           <div className="space-y-2">
-            <Label>Where did the cat go?</Label>
+            <Label>{isTrackedCat ? "Where will the cat go?" : "Where did the cat go?"}</Label>
             <Select
               value={fosterFacility || "unset"}
               onValueChange={(value) => {

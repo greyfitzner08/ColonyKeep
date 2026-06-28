@@ -15,21 +15,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { createClient } from "@/lib/supabase/client";
 import { isTrackedCatClinicFixed } from "@/lib/cases/tracked-cat-fix";
-import {
-  ClinicFixFosterFields,
-  fosterFormToPayload,
-} from "@/components/cases/clinic-fix-foster-fields";
-import {
-  fosterFormFromCat,
-  hasFosterFormAnswer,
-  trackedCatReturnFields,
-  validateTrackedCatFosterForm,
-} from "@/lib/cases/tracked-cat-foster";
-import type { FosterFacility } from "@/lib/cases/foster-facility";
+import { ClinicFixFosterFields } from "@/components/cases/clinic-fix-foster-fields";
+import { fosterFormFromCat } from "@/lib/cases/tracked-cat-foster";
+import { formatFosterFacilitySummary } from "@/lib/cases/foster-facility";
 import { InfoRow } from "@/components/cases/case-detail-fields";
 import type { Cat } from "@/lib/types";
+import type { FosterFacility } from "@/lib/cases/foster-facility";
 import { Pencil, X, Check } from "lucide-react";
 
 interface TrackedCatCardProps {
@@ -49,7 +41,6 @@ type CatDraft = {
   medical_notes: string;
   trapped_status: string;
   appointment_status: string;
-  return_status: string;
   notes: string;
   age_category: "" | "adult" | "kitten";
   wentToFoster: "" | "yes" | "no";
@@ -70,16 +61,26 @@ function toDraft(cat: Cat): CatDraft {
     medical_notes: cat.medical_notes ?? "",
     trapped_status: cat.trapped_status ?? "",
     appointment_status: cat.appointment_status ?? "",
-    return_status: cat.return_status ?? "",
     notes: cat.notes ?? "",
     age_category: cat.age_category ?? "",
     ...foster,
   };
 }
 
-function emptyOrNull(value: string) {
-  const trimmed = value.trim();
-  return trimmed.length > 0 ? trimmed : null;
+function fosterSummaryForCat(cat: Cat) {
+  if (cat.went_to_foster_facility === true || cat.went_to_foster_facility === false) {
+    return formatFosterFacilitySummary(
+      cat.went_to_foster_facility,
+      cat.foster_facility,
+      cat.foster_facility_other
+    );
+  }
+
+  if (cat.return_status?.trim().toLowerCase().includes("foster")) {
+    return cat.foster_program ? `Planned: ${cat.foster_program}` : "Planned foster/facility";
+  }
+
+  return null;
 }
 
 export function TrackedCatCard({ cat, clinics, onUpdated }: TrackedCatCardProps) {
@@ -88,6 +89,7 @@ export function TrackedCatCard({ cat, clinics, onUpdated }: TrackedCatCardProps)
   const [draft, setDraft] = useState<CatDraft>(() => toDraft(cat));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const fosterSummary = fosterSummaryForCat(cat);
 
   function startEditing() {
     setDraft(toDraft(cat));
@@ -102,104 +104,36 @@ export function TrackedCatCard({ cat, clinics, onUpdated }: TrackedCatCardProps)
   }
 
   async function saveCat() {
+    setSaving(true);
+    setError(null);
+
+    const response = await fetch(`/api/cats/${cat.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(draft),
+    });
+
+    const result = await response.json().catch(() => null);
+    setSaving(false);
+
+    if (!response.ok) {
+      setError(result?.error ?? "Unable to save cat");
+      return;
+    }
+
+    if (result?.cat) {
+      onUpdated(result.cat as Cat);
+      setEditing(false);
+      router.refresh();
+    }
+  }
+
+  if (editing) {
     const clinicFixed = isTrackedCatClinicFixed({
       trapped_status: draft.trapped_status,
       appointment_status: draft.appointment_status,
     });
 
-    if (clinicFixed && !draft.age_category) {
-      setError("Select adult or kitten.");
-      return;
-    }
-
-    const fosterError = validateTrackedCatFosterForm(
-      {
-        wentToFoster: draft.wentToFoster,
-        fosterFacility: draft.fosterFacility,
-        fosterFacilityOther: draft.fosterFacilityOther,
-      },
-      { required: clinicFixed }
-    );
-    if (fosterError) {
-      setError(fosterError);
-      return;
-    }
-
-    setSaving(true);
-    setError(null);
-    const supabase = createClient();
-
-    const fosterPayload = hasFosterFormAnswer(draft.wentToFoster)
-      ? fosterFormToPayload({
-          wentToFoster: draft.wentToFoster,
-          fosterFacility: draft.fosterFacility,
-          fosterFacilityOther: draft.fosterFacilityOther,
-        })
-      : null;
-
-    const returnFields = fosterPayload
-      ? trackedCatReturnFields({
-          wentToFosterFacility: fosterPayload.wentToFosterFacility,
-          fosterFacility: fosterPayload.fosterFacility as FosterFacility | null,
-          fosterFacilityOther: fosterPayload.fosterFacilityOther,
-        })
-      : null;
-
-    const payload = {
-      name: emptyOrNull(draft.name),
-      gender: emptyOrNull(draft.gender),
-      colors: emptyOrNull(draft.colors),
-      breed: emptyOrNull(draft.breed),
-      microchip_id: emptyOrNull(draft.microchip_id),
-      clinic_id: emptyOrNull(draft.clinic_id),
-      clinic_name: emptyOrNull(draft.clinic_name),
-      medical_notes: emptyOrNull(draft.medical_notes),
-      trapped_status: emptyOrNull(draft.trapped_status),
-      appointment_status: emptyOrNull(draft.appointment_status),
-      notes: emptyOrNull(draft.notes),
-      age_category: clinicFixed ? draft.age_category : null,
-      return_status: returnFields?.return_status ?? emptyOrNull(draft.return_status),
-      foster_program: returnFields?.foster_program ?? null,
-      went_to_foster_facility: returnFields?.went_to_foster_facility ?? null,
-      foster_facility: returnFields?.foster_facility ?? null,
-      foster_facility_other: returnFields?.foster_facility_other ?? null,
-    };
-
-    const { data, error: updateError } = await supabase
-      .from("cats")
-      .update(payload)
-      .eq("id", cat.id)
-      .select()
-      .single();
-
-    setSaving(false);
-
-    if (updateError || !data) {
-      setError(updateError?.message ?? "Unable to save cat");
-      return;
-    }
-
-    const syncResponse = await fetch("/api/cats/sync-counts", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ helpRequestId: cat.help_request_id }),
-    });
-
-    if (!syncResponse.ok) {
-      const syncResult = await syncResponse.json().catch(() => null);
-      setError(syncResult?.error ?? "Cat saved but colony counts could not be updated");
-      onUpdated(data as Cat);
-      setEditing(false);
-      router.refresh();
-      return;
-    }
-
-    onUpdated(data as Cat);
-    setEditing(false);
-    router.refresh();
-  }
-
-  if (editing) {
     return (
       <Card>
         <CardHeader className="pb-3">
@@ -295,7 +229,7 @@ export function TrackedCatCard({ cat, clinics, onUpdated }: TrackedCatCardProps)
               placeholder="e.g. reserved, completed"
             />
           </div>
-          {isTrackedCatClinicFixed(draft) && (
+          {clinicFixed && (
             <div className="space-y-2">
               <Label>Age at clinic</Label>
               <Select
@@ -320,6 +254,7 @@ export function TrackedCatCard({ cat, clinics, onUpdated }: TrackedCatCardProps)
           )}
           <div className="sm:col-span-2">
             <ClinicFixFosterFields
+              variant="tracked-cat"
               wentToFoster={draft.wentToFoster}
               onWentToFosterChange={(value) => setDraft({ ...draft, wentToFoster: value })}
               fosterFacility={draft.fosterFacility}
@@ -372,6 +307,7 @@ export function TrackedCatCard({ cat, clinics, onUpdated }: TrackedCatCardProps)
           <InfoRow alwaysShow label="Clinic" value={cat.clinic_name} />
           <InfoRow alwaysShow label="Medical notes" value={cat.medical_notes} />
           <InfoRow alwaysShow label="Notes" value={cat.notes} />
+          {fosterSummary && <InfoRow alwaysShow label="Foster / facility" value={fosterSummary} />}
         </div>
         <div className="flex flex-wrap gap-2 mt-4">
           {cat.trapped_status && (
@@ -379,9 +315,6 @@ export function TrackedCatCard({ cat, clinics, onUpdated }: TrackedCatCardProps)
           )}
           {cat.appointment_status && (
             <Badge variant="secondary">Appt: {cat.appointment_status}</Badge>
-          )}
-          {cat.return_status && (
-            <Badge variant="secondary">Return: {cat.return_status}</Badge>
           )}
         </div>
       </CardContent>

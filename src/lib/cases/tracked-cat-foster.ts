@@ -1,6 +1,7 @@
 import {
   fosterFacilityLabel,
   normalizeFosterFacilityInput,
+  validateFosterFacilityInput,
   type FosterFacility,
 } from "@/lib/cases/foster-facility";
 import type { Cat } from "@/lib/types";
@@ -52,7 +53,8 @@ export function fosterFormToPayload(input: {
 }) {
   return {
     wentToFosterFacility: input.wentToFoster === "yes",
-    fosterFacility: input.wentToFoster === "yes" ? input.fosterFacility : null,
+    fosterFacility:
+      input.wentToFoster === "yes" && input.fosterFacility ? input.fosterFacility : null,
     fosterFacilityOther:
       input.wentToFoster === "yes" && input.fosterFacility === "other"
         ? input.fosterFacilityOther.trim()
@@ -148,19 +150,79 @@ export function fosterFormFromCat(
   };
 }
 
-export function trackedCatReturnFields(input: {
-  wentToFosterFacility: boolean;
-  fosterFacility?: FosterFacility | null;
-  fosterFacilityOther?: string | null;
-}) {
+export function trackedCatReturnFields(
+  input: {
+    wentToFosterFacility: boolean;
+    fosterFacility?: FosterFacility | null;
+    fosterFacilityOther?: string | null;
+  },
+  options?: { clinicFixed?: boolean }
+) {
   const fosterFields = normalizeFosterFacilityInput(input);
   const label = input.wentToFosterFacility
     ? fosterFacilityLabel(input.fosterFacility, input.fosterFacilityOther)
     : null;
 
+  let return_status: string | null = null;
+  if (input.wentToFosterFacility) {
+    return_status = "Foster";
+  } else if (options?.clinicFixed) {
+    return_status = "Returned";
+  }
+
   return {
     ...fosterFields,
-    return_status: input.wentToFosterFacility ? "Foster" : "Returned",
+    return_status,
     foster_program: label,
+  };
+}
+
+export function resolveTrackedCatFosterFields(input: {
+  wentToFoster: "" | "yes" | "no";
+  fosterFacility: FosterFacility | "";
+  fosterFacilityOther: string;
+  clinicFixed: boolean;
+  requireFoster: boolean;
+}): { error?: string; fields?: ReturnType<typeof trackedCatReturnFields> | null } {
+  const fosterError = validateTrackedCatFosterForm(
+    {
+      wentToFoster: input.wentToFoster,
+      fosterFacility: input.fosterFacility,
+      fosterFacilityOther: input.fosterFacilityOther,
+    },
+    { required: input.requireFoster }
+  );
+  if (fosterError) {
+    return { error: fosterError };
+  }
+
+  if (!hasFosterFormAnswer(input.wentToFoster)) {
+    return { fields: null };
+  }
+
+  const fosterPayload = fosterFormToPayload({
+    wentToFoster: input.wentToFoster,
+    fosterFacility: input.fosterFacility,
+    fosterFacilityOther: input.fosterFacilityOther,
+  });
+
+  const validationError = validateFosterFacilityInput({
+    wentToFosterFacility: fosterPayload.wentToFosterFacility,
+    fosterFacility: fosterPayload.fosterFacility,
+    fosterFacilityOther: fosterPayload.fosterFacilityOther,
+  });
+  if (validationError) {
+    return { error: validationError };
+  }
+
+  return {
+    fields: trackedCatReturnFields(
+      {
+        wentToFosterFacility: fosterPayload.wentToFosterFacility,
+        fosterFacility: fosterPayload.fosterFacility as FosterFacility | null,
+        fosterFacilityOther: fosterPayload.fosterFacilityOther,
+      },
+      { clinicFixed: input.clinicFixed }
+    ),
   };
 }

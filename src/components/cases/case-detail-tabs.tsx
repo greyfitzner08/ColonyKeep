@@ -39,7 +39,7 @@ import { CaseAppointmentsSection } from "@/components/appointments/case-appointm
 import { TrackedCatCard } from "@/components/cases/tracked-cat-card";
 import { ColonyCatSummaryEditor } from "@/components/cases/colony-cat-summary-editor";
 import { ClinicFixFosterFields } from "@/components/cases/clinic-fix-foster-fields";
-import { validateTrackedCatFosterForm } from "@/lib/cases/tracked-cat-foster";
+import { hasFosterFormAnswer, validateTrackedCatFosterForm } from "@/lib/cases/tracked-cat-foster";
 import type { FosterFacility } from "@/lib/cases/foster-facility";
 import { useDebouncedCallback } from "@/lib/hooks/use-debounced-callback";
 import { Plus } from "lucide-react";
@@ -303,9 +303,13 @@ export function CaseDetailTabs({
         medical_notes: newCat.medical_notes,
         fixedAtClinic: newCatFixedAtClinic,
         ageCategory: newCatFixedAtClinic ? newCatAgeCategory : undefined,
-        wentToFoster: newCatWentToFoster || undefined,
-        fosterFacility: newCatFosterFacility || undefined,
-        fosterFacilityOther: newCatFosterFacilityOther || undefined,
+        ...(hasFosterFormAnswer(newCatWentToFoster)
+          ? {
+              wentToFoster: newCatWentToFoster,
+              fosterFacility: newCatFosterFacility,
+              fosterFacilityOther: newCatFosterFacilityOther,
+            }
+          : {}),
       }),
     });
 
@@ -319,9 +323,10 @@ export function CaseDetailTabs({
 
     if (result?.cat) {
       const wasFixedAtClinic = newCatFixedAtClinic;
+      const hadFosterSelection = hasFosterFormAnswer(newCatWentToFoster);
       setCats([...cats, result.cat as Cat]);
       resetNewCatForm();
-      if (wasFixedAtClinic) {
+      if (wasFixedAtClinic || hadFosterSelection) {
         router.refresh();
       }
     }
@@ -553,6 +558,7 @@ export function CaseDetailTabs({
 
             <div className="sm:col-span-2">
               <ClinicFixFosterFields
+                variant="tracked-cat"
                 wentToFoster={newCatWentToFoster}
                 onWentToFosterChange={setNewCatWentToFoster}
                 fosterFacility={newCatFosterFacility}

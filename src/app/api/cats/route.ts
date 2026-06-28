@@ -1,12 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireCaseWorker } from "@/lib/api/auth";
-import {
-  fosterFormToPayload,
-  hasFosterFormAnswer,
-  trackedCatReturnFields,
-  validateTrackedCatFosterForm,
-} from "@/lib/cases/tracked-cat-foster";
-import { validateFosterFacilityInput } from "@/lib/cases/foster-facility";
+import { resolveTrackedCatFosterFields } from "@/lib/cases/tracked-cat-foster";
 import { syncTrackedCatFixesForCase } from "@/lib/cases/tracked-cat-fix";
 import { createServiceClient } from "@/lib/supabase/server";
 import type { FosterFacility } from "@/lib/cases/foster-facility";
@@ -32,36 +26,16 @@ export async function POST(request: NextRequest) {
   const fosterFacility = (body?.fosterFacility ?? "") as FosterFacility | "";
   const fosterFacilityOther = (body?.fosterFacilityOther ?? "") as string;
 
-  const fosterError = validateTrackedCatFosterForm(
-    { wentToFoster, fosterFacility, fosterFacilityOther },
-    { required: fixedAtClinic }
-  );
+  const { error: fosterError, fields: fosterFields } = resolveTrackedCatFosterFields({
+    wentToFoster,
+    fosterFacility,
+    fosterFacilityOther,
+    clinicFixed: fixedAtClinic,
+    requireFoster: fixedAtClinic,
+  });
   if (fosterError) {
     return NextResponse.json({ error: fosterError }, { status: 400 });
   }
-
-  const fosterPayload = hasFosterFormAnswer(wentToFoster)
-    ? fosterFormToPayload({ wentToFoster, fosterFacility, fosterFacilityOther })
-    : null;
-
-  if (fosterPayload) {
-    const validationError = validateFosterFacilityInput({
-      wentToFosterFacility: fosterPayload.wentToFosterFacility,
-      fosterFacility: fosterPayload.fosterFacility,
-      fosterFacilityOther: fosterPayload.fosterFacilityOther,
-    });
-    if (validationError) {
-      return NextResponse.json({ error: validationError }, { status: 400 });
-    }
-  }
-
-  const returnFields = fosterPayload
-    ? trackedCatReturnFields({
-        wentToFosterFacility: fosterPayload.wentToFosterFacility,
-        fosterFacility: fosterPayload.fosterFacility as FosterFacility | null,
-        fosterFacilityOther: fosterPayload.fosterFacilityOther,
-      })
-    : null;
 
   try {
     const service = await createServiceClient();
@@ -74,7 +48,7 @@ export async function POST(request: NextRequest) {
         colors: body?.colors?.trim() || null,
         microchip_id: body?.microchip_id?.trim() || null,
         medical_notes: body?.medical_notes?.trim() || null,
-        ...(returnFields ?? {}),
+        ...(fosterFields ?? {}),
         ...(fixedAtClinic && {
           trapped_status: "Trapped",
           appointment_status: "Complete",
