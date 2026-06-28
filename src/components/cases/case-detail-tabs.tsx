@@ -473,10 +473,10 @@ export function CaseDetailTabs({
         <CaseCollapsibleSection title="Add tracked cat" defaultOpen={cats.length === 0}>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label className="text-sm font-medium">Name / Description</Label>
+              <Label className="text-sm font-medium">Name</Label>
               <Input
                 className="text-base"
-                placeholder="e.g. Orange tabby male"
+                placeholder="e.g. Marmalade"
                 value={newCat.name}
                 onChange={(e) => setNewCat({ ...newCat, name: e.target.value })}
               />
