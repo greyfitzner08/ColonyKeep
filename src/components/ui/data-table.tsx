@@ -13,6 +13,8 @@ export interface DataTableColumn<T> {
   minWidth?: number;
   headerClassName?: string;
   cellClassName?: string;
+  /** Allow cell text to wrap when using content-based column sizing. */
+  wrap?: boolean;
   render: (row: T) => ReactNode;
 }
 
@@ -28,6 +30,8 @@ export interface DataTableProps<T> {
   minTableWidth?: number;
   /** When true, cell content is clipped to column width. Default false shows full content with wrapping. */
   clipCellContent?: boolean;
+  /** `content` sizes columns to fit cell data; `fixed` uses resizable pixel widths. */
+  columnSizing?: "fixed" | "content";
 }
 
 export function DataTable<T>({
@@ -41,7 +45,9 @@ export function DataTable<T>({
   tableClassName,
   minTableWidth,
   clipCellContent = false,
+  columnSizing = "content",
 }: DataTableProps<T>) {
+  const isFixedSizing = columnSizing === "fixed";
   const columnDefinitions = useMemo(
     () =>
       columns.map((column) => ({
@@ -72,12 +78,13 @@ export function DataTable<T>({
   } | null>(null);
 
   const totalTableWidth = useMemo(() => {
+    if (!isFixedSizing) return minTableWidth ?? 0;
     const calculated = orderedColumns.reduce(
       (sum, column) => sum + (columnWidths[column.id] ?? column.defaultWidth ?? 160),
       0
     );
     return Math.max(minTableWidth ?? 0, calculated);
-  }, [columnWidths, minTableWidth, orderedColumns]);
+  }, [columnWidths, isFixedSizing, minTableWidth, orderedColumns]);
 
   const startResize = useCallback(
     (event: React.PointerEvent<HTMLDivElement>, columnId: string) => {
@@ -126,18 +133,31 @@ export function DataTable<T>({
   return (
     <div className={cn("overflow-x-auto rounded-lg border", className)}>
       <table
-        className={cn("text-sm", tableClassName)}
-        style={{
-          tableLayout: "fixed",
-          width: totalTableWidth,
-          minWidth: totalTableWidth,
-        }}
+        className={cn("text-sm", isFixedSizing ? undefined : "w-full", tableClassName)}
+        style={
+          isFixedSizing
+            ? {
+                tableLayout: "fixed",
+                width: totalTableWidth,
+                minWidth: totalTableWidth,
+              }
+            : {
+                tableLayout: "auto",
+                width: "100%",
+                minWidth: minTableWidth,
+              }
+        }
       >
-        <colgroup>
-          {orderedColumns.map((column) => (
-            <col key={column.id} style={{ width: columnWidths[column.id] ?? column.defaultWidth ?? 160 }} />
-          ))}
-        </colgroup>
+        {isFixedSizing && (
+          <colgroup>
+            {orderedColumns.map((column) => (
+              <col
+                key={column.id}
+                style={{ width: columnWidths[column.id] ?? column.defaultWidth ?? 160 }}
+              />
+            ))}
+          </colgroup>
+        )}
         <thead className="bg-muted/50 text-left">
           <tr>
             {orderedColumns.map((column) => {
@@ -170,13 +190,19 @@ export function DataTable<T>({
                   }}
                   className={cn(
                     "relative px-3 py-3 font-medium align-middle",
-                    clipCellContent && "max-w-0 overflow-hidden",
+                    !isFixedSizing && "whitespace-nowrap",
+                    clipCellContent && isFixedSizing && "max-w-0 overflow-hidden",
                     draggingColumnId === column.id && "opacity-50",
                     isDropTarget && "bg-primary/10 ring-1 ring-inset ring-primary/30",
                     column.headerClassName
                   )}
                 >
-                  <div className={cn("flex min-w-0 items-center gap-1 pr-4", !clipCellContent && "pr-0")}>
+                  <div
+                    className={cn(
+                      "flex min-w-0 items-center gap-1",
+                      isFixedSizing && clipCellContent ? "pr-4" : "pr-0"
+                    )}
+                  >
                     <span
                       draggable
                       onDragStart={(event) => {
@@ -195,17 +221,24 @@ export function DataTable<T>({
                     >
                       <GripVertical className="h-3.5 w-3.5 text-muted-foreground/50" />
                     </span>
-                    <div className={cn("min-w-0 flex-1", clipCellContent ? "truncate" : "whitespace-normal")}>
+                    <div
+                      className={cn(
+                        "min-w-0 flex-1",
+                        clipCellContent && isFixedSizing ? "truncate" : "whitespace-normal"
+                      )}
+                    >
                       {column.header ?? column.label}
                     </div>
                   </div>
-                  <div
-                    role="separator"
-                    aria-orientation="vertical"
-                    aria-label={`Resize ${String(column.label)} column`}
-                    className="absolute right-0 top-0 z-10 h-full w-3 cursor-col-resize touch-none hover:bg-primary/30"
-                    onPointerDown={(event) => startResize(event, column.id)}
-                  />
+                  {isFixedSizing && (
+                    <div
+                      role="separator"
+                      aria-orientation="vertical"
+                      aria-label={`Resize ${String(column.label)} column`}
+                      className="absolute right-0 top-0 z-10 h-full w-3 cursor-col-resize touch-none hover:bg-primary/30"
+                      onPointerDown={(event) => startResize(event, column.id)}
+                    />
+                  )}
                 </th>
               );
             })}
@@ -222,14 +255,19 @@ export function DataTable<T>({
                   key={column.id}
                   className={cn(
                     "px-3 py-3 align-top",
-                    clipCellContent && "max-w-0 overflow-hidden",
+                    !isFixedSizing && !column.wrap && "whitespace-nowrap",
+                    clipCellContent && isFixedSizing && "max-w-0 overflow-hidden",
                     column.cellClassName
                   )}
                 >
                   <div
                     className={cn(
                       "min-w-0",
-                      clipCellContent ? "overflow-hidden" : "whitespace-normal break-words"
+                      clipCellContent && isFixedSizing
+                        ? "overflow-hidden"
+                        : column.wrap
+                          ? "whitespace-normal break-words"
+                          : "whitespace-nowrap"
                     )}
                   >
                     {column.render(row)}

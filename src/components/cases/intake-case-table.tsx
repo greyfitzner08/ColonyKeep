@@ -44,8 +44,6 @@ export function IntakeCaseTable({
       {
         id: "case_number",
         label: "Case #",
-        defaultWidth: 180,
-        minWidth: 130,
         render: (helpRequest) => {
           const medical = hasActiveMedicalFlag(
             helpRequest.medical_flags ?? [],
@@ -53,10 +51,10 @@ export function IntakeCaseTable({
             helpRequest.medical_flag_forced
           );
           return (
-            <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+            <div className="flex items-center gap-1.5">
               <Link
                 href={`/case/${helpRequest.id}`}
-                className="shrink-0 font-medium text-primary hover:underline"
+                className="font-medium text-primary hover:underline"
               >
                 {helpRequest.case_number}
               </Link>
@@ -73,10 +71,8 @@ export function IntakeCaseTable({
       {
         id: "status",
         label: "Status",
-        defaultWidth: 170,
-        minWidth: 110,
         render: (helpRequest) => (
-          <Badge className={cn("max-w-full truncate text-xs", STATUS_COLORS[helpRequest.status])}>
+          <Badge className={cn("text-xs whitespace-nowrap", STATUS_COLORS[helpRequest.status])}>
             {getStatusLabel(helpRequest.status, statusLabelContext)}
           </Badge>
         ),
@@ -84,7 +80,7 @@ export function IntakeCaseTable({
       {
         id: "location",
         label: "Location",
-        defaultWidth: 180,
+        wrap: true,
         render: (helpRequest) => (
           <span className="text-muted-foreground">
             {helpRequest.colony_city}, {helpRequest.colony_county} {helpRequest.colony_zip}
@@ -94,15 +90,12 @@ export function IntakeCaseTable({
       {
         id: "cats",
         label: "Cats",
-        defaultWidth: 72,
-        minWidth: 56,
         render: (helpRequest) =>
           helpRequest.kittens_under_8_weeks + helpRequest.cats_over_8_weeks,
       },
       {
         id: "team",
         label: "Team",
-        defaultWidth: 130,
         render: (helpRequest) => (
           <span className="text-muted-foreground">{helpRequest.assigned_team_name ?? "—"}</span>
         ),
@@ -110,7 +103,7 @@ export function IntakeCaseTable({
       {
         id: "working",
         label: "Working",
-        defaultWidth: 150,
+        wrap: true,
         render: (helpRequest) =>
           helpRequest.claimed_by_name ??
           helpRequest.claimed_by_email ??
@@ -120,18 +113,13 @@ export function IntakeCaseTable({
       {
         id: "submitted",
         label: "Submitted",
-        defaultWidth: 160,
         render: (helpRequest) => (
-          <span className="whitespace-nowrap text-muted-foreground">
-            {formatDateTime(helpRequest.created_at)}
-          </span>
+          <span className="text-muted-foreground">{formatDateTime(helpRequest.created_at)}</span>
         ),
       },
       {
         id: "actions",
         label: "Actions",
-        defaultWidth: 180,
-        minWidth: 120,
         render: (helpRequest) => {
           const isMine = helpRequest.claimed_by_email === userEmail;
           const isUnclaimed = !helpRequest.claimed_by_email;
