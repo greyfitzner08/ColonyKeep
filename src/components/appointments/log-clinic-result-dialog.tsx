@@ -10,26 +10,15 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { formatDate } from "@/lib/utils";
-import {
-  ClinicFixFosterFields,
-  fosterFormToPayload,
-  validateClinicFixFosterForm,
-} from "@/components/cases/clinic-fix-foster-fields";
-import { TrackedCatDetailsFields } from "@/components/cases/tracked-cat-details-fields";
+import { TrackedCatIntakeSections } from "@/components/cases/tracked-cat-intake-sections";
+import { fosterFormToPayload, validateClinicFixFosterForm } from "@/components/cases/clinic-fix-foster-fields";
 import {
   EMPTY_TRACKED_CAT_DETAILS,
   type TrackedCatDetails,
 } from "@/lib/cases/tracked-cat-form";
 import type { FosterFacility } from "@/lib/cases/foster-facility";
+import type { FosterFormFields } from "@/components/cases/clinic-fix-foster-fields";
 
 export interface ClinicResultAppointment {
   id: string;
@@ -42,6 +31,8 @@ export interface ClinicResultAppointment {
   case_number: string | null;
   help_request_id: string | null;
   defaultDetails?: Partial<TrackedCatDetails>;
+  defaultAgeCategory?: "" | "adult" | "kitten";
+  defaultFoster?: FosterFormFields;
 }
 
 function defaultDetailsForAppointment(
@@ -86,14 +77,26 @@ export function LogClinicResultDialog({ appointment, onOpenChange }: LogClinicRe
   useEffect(() => {
     if (!appointment) return;
     setDetails(defaultDetailsForAppointment(appointment));
+    setAgeCategory(appointment.defaultAgeCategory ?? "");
+    setWentToFoster(appointment.defaultFoster?.wentToFoster ?? "");
+    setFosterFacility(appointment.defaultFoster?.fosterFacility ?? "");
+    setFosterFacilityOther(appointment.defaultFoster?.fosterFacilityOther ?? "");
   }, [appointment]);
 
   function resetForm() {
-    setDetails(appointment ? defaultDetailsForAppointment(appointment) : EMPTY_TRACKED_CAT_DETAILS);
-    setAgeCategory("");
-    setWentToFoster("");
-    setFosterFacility("");
-    setFosterFacilityOther("");
+    if (appointment) {
+      setDetails(defaultDetailsForAppointment(appointment));
+      setAgeCategory(appointment.defaultAgeCategory ?? "");
+      setWentToFoster(appointment.defaultFoster?.wentToFoster ?? "");
+      setFosterFacility(appointment.defaultFoster?.fosterFacility ?? "");
+      setFosterFacilityOther(appointment.defaultFoster?.fosterFacilityOther ?? "");
+    } else {
+      setDetails(EMPTY_TRACKED_CAT_DETAILS);
+      setAgeCategory("");
+      setWentToFoster("");
+      setFosterFacility("");
+      setFosterFacilityOther("");
+    }
     setError(null);
   }
 
@@ -160,7 +163,7 @@ export function LogClinicResultDialog({ appointment, onOpenChange }: LogClinicRe
         onOpenChange(open);
       }}
     >
-      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Log clinic results</DialogTitle>
           <DialogDescription>
@@ -176,39 +179,20 @@ export function LogClinicResultDialog({ appointment, onOpenChange }: LogClinicRe
         </DialogHeader>
 
         <div className="space-y-4">
-          <TrackedCatDetailsFields
+          <TrackedCatIntakeSections
             idPrefix="clinic-result"
-            value={details}
-            onChange={setDetails}
-          />
-
-          <div className="space-y-2">
-            <Label className="text-sm font-medium">Age at clinic</Label>
-            <Select
-              value={ageCategory || "unset"}
-              onValueChange={(value) =>
-                setAgeCategory(value === "unset" ? "" : (value as "adult" | "kitten"))
-              }
-            >
-              <SelectTrigger className="text-base">
-                <SelectValue placeholder="Select age" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="unset">Select age</SelectItem>
-                <SelectItem value="adult">Adult (8+ weeks)</SelectItem>
-                <SelectItem value="kitten">Kitten (&lt;8 weeks)</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <ClinicFixFosterFields
-            variant="tracked-cat"
-            value={{
+            details={details}
+            onDetailsChange={setDetails}
+            fixedAtClinic
+            showFixedAtClinicToggle={false}
+            ageCategory={ageCategory}
+            onAgeCategoryChange={setAgeCategory}
+            foster={{
               wentToFoster,
               fosterFacility,
               fosterFacilityOther,
             }}
-            onChange={(foster) => {
+            onFosterChange={(foster) => {
               setWentToFoster(foster.wentToFoster);
               setFosterFacility(foster.fosterFacility);
               setFosterFacilityOther(foster.fosterFacilityOther);

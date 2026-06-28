@@ -35,8 +35,8 @@ export function PendingClinicResultsBanner({ appointments }: PendingClinicResult
                   : `${appointments.length} appointments need clinic results`}
               </p>
               <p className="text-sm text-orange-800/90 dark:text-orange-200/90">
-                The day after a reserved appointment, record whether the cat was male or female so
-                colony counts stay accurate.
+                The day after a reserved appointment, record the same cat details as when adding a
+                tracked cat — name, gender, colors, microchip, medical notes, age, and foster plan.
               </p>
             </div>
           </div>

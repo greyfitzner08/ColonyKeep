@@ -20,6 +20,8 @@ import {
 } from "@/lib/appointments/clinic-result";
 import { formatDate, cn } from "@/lib/utils";
 import type { Appointment, Cat } from "@/lib/types";
+import { trackedCatDetailsFromCat } from "@/lib/cases/tracked-cat-form";
+import { fosterFormFromCat } from "@/lib/cases/tracked-cat-foster";
 import { Calendar, Plus } from "lucide-react";
 import type { HelpRequestOption } from "@/lib/cases/help-request-options";
 
@@ -128,19 +130,10 @@ export function CaseAppointmentsSection({
                           case_number: helpRequest.case_number,
                           help_request_id: helpRequest.id,
                           defaultDetails: linkedCat
-                            ? {
-                                name: linkedCat.name ?? "",
-                                gender:
-                                  linkedCat.gender === "male" || linkedCat.gender === "female"
-                                    ? linkedCat.gender
-                                    : "",
-                                femaleReproductiveStatus:
-                                  linkedCat.female_reproductive_status ?? "",
-                                colors: linkedCat.colors ?? "",
-                                microchip_id: linkedCat.microchip_id ?? "",
-                                medical_notes: linkedCat.medical_notes ?? "",
-                              }
+                            ? trackedCatDetailsFromCat(linkedCat)
                             : undefined,
+                          defaultAgeCategory: linkedCat?.age_category ?? undefined,
+                          defaultFoster: linkedCat ? fosterFormFromCat(linkedCat) : undefined,
                         });
                       }}
                     >

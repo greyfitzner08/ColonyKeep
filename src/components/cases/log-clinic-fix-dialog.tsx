@@ -12,24 +12,17 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { TrackedCatIntakeSections } from "@/components/cases/tracked-cat-intake-sections";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  ClinicFixFosterFields,
   fosterFormToPayload,
   validateClinicFixFosterForm,
 } from "@/components/cases/clinic-fix-foster-fields";
-import { TrackedCatDetailsFields } from "@/components/cases/tracked-cat-details-fields";
 import {
   EMPTY_TRACKED_CAT_DETAILS,
   trackedCatDetailsFromCat,
   type TrackedCatDetails,
 } from "@/lib/cases/tracked-cat-form";
+import { fosterFormFromCat } from "@/lib/cases/tracked-cat-foster";
 import type { FosterFacility } from "@/lib/cases/foster-facility";
 import type { Cat } from "@/lib/types";
 
@@ -72,6 +65,10 @@ export function LogClinicFixDialog({
     if (cat) {
       setDetails(trackedCatDetailsFromCat(cat));
       setAgeCategory(cat.age_category ?? "");
+      const foster = fosterFormFromCat(cat);
+      setWentToFoster(foster.wentToFoster);
+      setFosterFacility(foster.fosterFacility);
+      setFosterFacilityOther(foster.fosterFacilityOther);
     } else {
       setDetails({
         ...EMPTY_TRACKED_CAT_DETAILS,
@@ -79,6 +76,9 @@ export function LogClinicFixDialog({
         gender: defaultGender,
       });
       setAgeCategory("");
+      setWentToFoster("");
+      setFosterFacility("");
+      setFosterFacilityOther("");
     }
     setClinicName(defaultClinicName?.trim() ?? "");
   }, [open, cat, catName, defaultClinicName, defaultGender]);
@@ -87,6 +87,10 @@ export function LogClinicFixDialog({
     if (cat) {
       setDetails(trackedCatDetailsFromCat(cat));
       setAgeCategory(cat.age_category ?? "");
+      const foster = fosterFormFromCat(cat);
+      setWentToFoster(foster.wentToFoster);
+      setFosterFacility(foster.fosterFacility);
+      setFosterFacilityOther(foster.fosterFacilityOther);
     } else {
       setDetails({
         ...EMPTY_TRACKED_CAT_DETAILS,
@@ -94,12 +98,12 @@ export function LogClinicFixDialog({
         gender: defaultGender,
       });
       setAgeCategory("");
+      setWentToFoster("");
+      setFosterFacility("");
+      setFosterFacilityOther("");
     }
     setClinicName(defaultClinicName?.trim() ?? "");
     setFixDate(new Date().toISOString().split("T")[0]);
-    setWentToFoster("");
-    setFosterFacility("");
-    setFosterFacilityOther("");
     setError(null);
   }
 
@@ -168,7 +172,7 @@ export function LogClinicFixDialog({
         onOpenChange(nextOpen);
       }}
     >
-      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Log clinic fix</DialogTitle>
           <DialogDescription>
@@ -178,10 +182,24 @@ export function LogClinicFixDialog({
         </DialogHeader>
 
         <div className="space-y-4">
-          <TrackedCatDetailsFields
+          <TrackedCatIntakeSections
             idPrefix="clinic-fix"
-            value={details}
-            onChange={setDetails}
+            details={details}
+            onDetailsChange={setDetails}
+            fixedAtClinic
+            showFixedAtClinicToggle={false}
+            ageCategory={ageCategory}
+            onAgeCategoryChange={setAgeCategory}
+            foster={{
+              wentToFoster,
+              fosterFacility,
+              fosterFacilityOther,
+            }}
+            onFosterChange={(foster) => {
+              setWentToFoster(foster.wentToFoster);
+              setFosterFacility(foster.fosterFacility);
+              setFosterFacilityOther(foster.fosterFacilityOther);
+            }}
           />
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -204,39 +222,6 @@ export function LogClinicFixDialog({
               />
             </div>
           </div>
-
-          <div className="space-y-2">
-            <Label className="text-sm font-medium">Age at clinic</Label>
-            <Select
-              value={ageCategory || "unset"}
-              onValueChange={(value) =>
-                setAgeCategory(value === "unset" ? "" : (value as "adult" | "kitten"))
-              }
-            >
-              <SelectTrigger className="text-base">
-                <SelectValue placeholder="Select age" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="unset">Select age</SelectItem>
-                <SelectItem value="adult">Adult (8+ weeks)</SelectItem>
-                <SelectItem value="kitten">Kitten (&lt;8 weeks)</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <ClinicFixFosterFields
-            variant="tracked-cat"
-            value={{
-              wentToFoster,
-              fosterFacility,
-              fosterFacilityOther,
-            }}
-            onChange={(foster) => {
-              setWentToFoster(foster.wentToFoster);
-              setFosterFacility(foster.fosterFacility);
-              setFosterFacilityOther(foster.fosterFacilityOther);
-            }}
-          />
 
           {error && <p className="text-sm text-destructive">{error}</p>}
         </div>

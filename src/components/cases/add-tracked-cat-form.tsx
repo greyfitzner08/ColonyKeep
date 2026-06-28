@@ -3,17 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { CaseCollapsibleSection } from "@/components/cases/case-collapsible-section";
-import { ClinicFixFosterFields } from "@/components/cases/clinic-fix-foster-fields";
-import { TrackedCatDetailsFields } from "@/components/cases/tracked-cat-details-fields";
+import { TrackedCatIntakeSections } from "@/components/cases/tracked-cat-intake-sections";
 import { hasFosterFormAnswer, validateTrackedCatFosterForm } from "@/lib/cases/tracked-cat-foster";
 import { EMPTY_TRACKED_CAT_DETAILS, type TrackedCatDetails } from "@/lib/cases/tracked-cat-form";
 import type { FosterFacility } from "@/lib/cases/foster-facility";
@@ -117,66 +108,28 @@ export function AddTrackedCatForm({
   return (
     <CaseCollapsibleSection title="Add cat" defaultOpen={defaultOpen}>
       <div className="space-y-4">
-        <TrackedCatDetailsFields idPrefix="add-cat" value={newCat} onChange={setNewCat} />
-
-        <div className="space-y-2">
-          <Label className="text-sm font-medium">Fixed at clinic?</Label>
-          <Select
-            value={fixedAtClinic ? "yes" : "no"}
-            onValueChange={(value) => {
-              setFixedAtClinic(value === "yes");
-              if (value !== "yes") {
-                setAgeCategory("");
-              }
-              setError(null);
-            }}
-          >
-            <SelectTrigger className="text-base">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="no">Not yet — still at colony or in progress</SelectItem>
-              <SelectItem value="yes">Yes — already fixed at clinic</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        {fixedAtClinic && (
-          <div className="space-y-2 max-w-sm">
-            <Label className="text-sm font-medium">Age at clinic</Label>
-            <Select
-              value={ageCategory || "unset"}
-              onValueChange={(value) =>
-                setAgeCategory(value === "unset" ? "" : (value as "adult" | "kitten"))
-              }
-            >
-              <SelectTrigger className="text-base">
-                <SelectValue placeholder="Select age" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="unset">Select age</SelectItem>
-                <SelectItem value="adult">Adult (8+ weeks)</SelectItem>
-                <SelectItem value="kitten">Kitten (&lt;8 weeks)</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        )}
-
-        <div className="sm:col-span-2">
-          <ClinicFixFosterFields
-            variant="tracked-cat"
-            value={{
-              wentToFoster,
-              fosterFacility,
-              fosterFacilityOther,
-            }}
-            onChange={(foster) => {
-              setWentToFoster(foster.wentToFoster);
-              setFosterFacility(foster.fosterFacility);
-              setFosterFacilityOther(foster.fosterFacilityOther);
-            }}
-          />
-        </div>
+        <TrackedCatIntakeSections
+        idPrefix="add-cat"
+        details={newCat}
+        onDetailsChange={setNewCat}
+        fixedAtClinic={fixedAtClinic}
+        onFixedAtClinicChange={(nextFixed) => {
+          setFixedAtClinic(nextFixed);
+          setError(null);
+        }}
+        ageCategory={ageCategory}
+        onAgeCategoryChange={setAgeCategory}
+        foster={{
+          wentToFoster,
+          fosterFacility,
+          fosterFacilityOther,
+        }}
+        onFosterChange={(foster) => {
+          setWentToFoster(foster.wentToFoster);
+          setFosterFacility(foster.fosterFacility);
+          setFosterFacilityOther(foster.fosterFacilityOther);
+        }}
+        />
 
         {error && <p className="text-sm text-destructive">{error}</p>}
         <Button onClick={addCat} disabled={adding}>
