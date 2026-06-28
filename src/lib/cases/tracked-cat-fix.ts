@@ -87,19 +87,19 @@ export async function updateHelpRequestCatCounts(
   const counts = summarizeCatCounts(helpRequest, fixes ?? [], cats ?? []);
   const reportedAdultsValue =
     helpRequest.reported_cats_over_8_weeks ??
-    counts.remainingAdults + counts.fosterAdults;
+    counts.unfixedAdults + counts.fixedAdults;
   const reportedKittensValue =
     helpRequest.reported_kittens_under_8_weeks ??
-    counts.remainingKittens + counts.fosterKittens;
+    counts.unfixedKittens + counts.fixedKittens;
 
   const { error: updateError } = await service
     .from("help_requests")
     .update({
       reported_cats_over_8_weeks: reportedAdultsValue,
       reported_kittens_under_8_weeks: reportedKittensValue,
-      cats_over_8_weeks: counts.remainingAdults,
-      kittens_under_8_weeks: counts.remainingKittens,
-      cats_remaining: counts.remainingTotal,
+      cats_over_8_weeks: counts.unfixedAdults,
+      kittens_under_8_weeks: counts.unfixedKittens,
+      cats_remaining: counts.unfixedTotal,
       outcome_tnvr_count: counts.fixedTotal,
     })
     .eq("id", helpRequestId);

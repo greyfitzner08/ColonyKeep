@@ -9,9 +9,10 @@ export interface CatCountSummary {
   fosterAdults: number;
   fosterKittens: number;
   fosterTotal: number;
-  remainingAdults: number;
-  remainingKittens: number;
-  remainingTotal: number;
+  /** Cats not yet fixed at clinic (reported minus fixed). */
+  unfixedAdults: number;
+  unfixedKittens: number;
+  unfixedTotal: number;
 }
 
 type FosterFix = Pick<ClinicFix, "age_category" | "went_to_foster_facility" | "cat_id">;
@@ -70,9 +71,8 @@ export function summarizeCatCounts(
   const fosterAdults = fosterFromFixes.fosterAdults + fosterFromCats.fosterAdults;
   const fosterKittens = fosterFromFixes.fosterKittens + fosterFromCats.fosterKittens;
 
-  // Cats sent to foster/facility are no longer at the colony; returned cats stay.
-  const remainingAdults = Math.max(0, reportedAdultsCount - fosterAdults);
-  const remainingKittens = Math.max(0, reportedKittensCount - fosterKittens);
+  const unfixedAdults = Math.max(0, reportedAdultsCount - fixedAdults);
+  const unfixedKittens = Math.max(0, reportedKittensCount - fixedKittens);
 
   return {
     reportedAdults: reportedAdultsCount,
@@ -83,9 +83,9 @@ export function summarizeCatCounts(
     fosterAdults,
     fosterKittens,
     fosterTotal: fosterAdults + fosterKittens,
-    remainingAdults,
-    remainingKittens,
-    remainingTotal: remainingAdults + remainingKittens,
+    unfixedAdults,
+    unfixedKittens,
+    unfixedTotal: unfixedAdults + unfixedKittens,
   };
 }
 

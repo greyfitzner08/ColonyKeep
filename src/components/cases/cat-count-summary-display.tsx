@@ -17,8 +17,8 @@ function CountCell({ value, className }: { value: number; className?: string }) 
 export function CatCountSummaryDisplay({ counts, pregnantCount }: CatCountSummaryDisplayProps) {
   const reportedTotal = counts.reportedAdults + counts.reportedKittens;
   const fixedPercent = reportedTotal > 0 ? Math.round((counts.fixedTotal / reportedTotal) * 100) : 0;
-  const atColonyPercent =
-    reportedTotal > 0 ? Math.round((counts.remainingTotal / reportedTotal) * 100) : 0;
+  const unfixedPercent =
+    reportedTotal > 0 ? Math.round((counts.unfixedTotal / reportedTotal) * 100) : 0;
 
   return (
     <div className="overflow-hidden rounded-lg border">
@@ -30,8 +30,8 @@ export function CatCountSummaryDisplay({ counts, pregnantCount }: CatCountSummar
           <span className="text-muted-foreground"> originally reported cats have been fixed</span>
         </p>
         <p className="mt-1 text-sm text-muted-foreground tabular-nums">
-          {counts.remainingTotal} still at the colony
-          {reportedTotal > 0 ? ` (${atColonyPercent}% of reported)` : ""}
+          {counts.unfixedTotal} still need fixing
+          {reportedTotal > 0 ? ` (${unfixedPercent}% of reported)` : ""}
           {counts.fosterTotal > 0 && (
             <>
               {" · "}
@@ -110,20 +110,20 @@ export function CatCountSummaryDisplay({ counts, pregnantCount }: CatCountSummar
             )}
             <tr>
               <th className="px-4 py-2.5 text-left font-medium" scope="row">
-                Still at colony
+                Still need fixing
               </th>
-              <CountCell value={counts.remainingAdults} />
-              <CountCell value={counts.remainingKittens} />
-              <CountCell value={counts.remainingTotal} className="font-medium" />
+              <CountCell value={counts.unfixedAdults} />
+              <CountCell value={counts.unfixedKittens} />
+              <CountCell value={counts.unfixedTotal} className="font-medium" />
             </tr>
           </tbody>
         </table>
       </div>
 
       <p className="border-t px-4 py-2 text-xs text-muted-foreground">
-        Originally reported and suspected pregnant counts are set at intake and stay fixed. Cats
-        sent to foster/facility are removed from still-at-colony; fixed cats returned to the colony
-        remain counted there.
+        Originally reported and suspected pregnant counts are set at intake and stay fixed. Fixed
+        cats — whether returned to the colony or sent to foster/facility — no longer count toward
+        still need fixing.
       </p>
 
       {pregnantCount !== undefined && pregnantCount > 0 && (

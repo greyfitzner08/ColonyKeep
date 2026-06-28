@@ -66,8 +66,9 @@ export function CaseCard({ helpRequest: hr, claim }: CaseCardProps) {
           <div className="flex items-center gap-1 text-muted-foreground">
             <Cat className="h-3.5 w-3.5 shrink-0" />
             <span>
-              {totalCats} remaining ({hr.kittens_under_8_weeks} kittens, {hr.cats_over_8_weeks}{" "}
-              adults)
+              {totalCats} still need fixing ({hr.kittens_under_8_weeks} kitten
+              {hr.kittens_under_8_weeks !== 1 ? "s" : ""}, {hr.cats_over_8_weeks} adult
+              {hr.cats_over_8_weeks !== 1 ? "s" : ""})
             </span>
           </div>
           {hr.claimed_by_name && (
