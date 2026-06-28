@@ -26,6 +26,8 @@ export interface DataTableProps<T> {
   className?: string;
   tableClassName?: string;
   minTableWidth?: number;
+  /** When true, cell content is clipped to column width. Default false shows full content with wrapping. */
+  clipCellContent?: boolean;
 }
 
 export function DataTable<T>({
@@ -38,6 +40,7 @@ export function DataTable<T>({
   className,
   tableClassName,
   minTableWidth,
+  clipCellContent = false,
 }: DataTableProps<T>) {
   const columnDefinitions = useMemo(
     () =>
@@ -166,13 +169,14 @@ export function DataTable<T>({
                     setDropTargetColumnId(null);
                   }}
                   className={cn(
-                    "relative max-w-0 overflow-hidden px-3 py-3 font-medium align-middle",
+                    "relative px-3 py-3 font-medium align-middle",
+                    clipCellContent && "max-w-0 overflow-hidden",
                     draggingColumnId === column.id && "opacity-50",
                     isDropTarget && "bg-primary/10 ring-1 ring-inset ring-primary/30",
                     column.headerClassName
                   )}
                 >
-                  <div className="flex min-w-0 items-center gap-1 pr-4">
+                  <div className={cn("flex min-w-0 items-center gap-1 pr-4", !clipCellContent && "pr-0")}>
                     <span
                       draggable
                       onDragStart={(event) => {
@@ -191,7 +195,7 @@ export function DataTable<T>({
                     >
                       <GripVertical className="h-3.5 w-3.5 text-muted-foreground/50" />
                     </span>
-                    <div className="min-w-0 flex-1 truncate">
+                    <div className={cn("min-w-0 flex-1", clipCellContent ? "truncate" : "whitespace-normal")}>
                       {column.header ?? column.label}
                     </div>
                   </div>
@@ -216,9 +220,20 @@ export function DataTable<T>({
               {orderedColumns.map((column) => (
                 <td
                   key={column.id}
-                  className={cn("max-w-0 overflow-hidden px-3 py-3 align-top", column.cellClassName)}
+                  className={cn(
+                    "px-3 py-3 align-top",
+                    clipCellContent && "max-w-0 overflow-hidden",
+                    column.cellClassName
+                  )}
                 >
-                  <div className="min-w-0 overflow-hidden">{column.render(row)}</div>
+                  <div
+                    className={cn(
+                      "min-w-0",
+                      clipCellContent ? "overflow-hidden" : "whitespace-normal break-words"
+                    )}
+                  >
+                    {column.render(row)}
+                  </div>
                 </td>
               ))}
             </tr>

@@ -1,30 +1,14 @@
-import { createClient, createServiceClient } from "@/lib/supabase/server";
-import { hasSupabaseAdminConfig } from "@/lib/supabase/env";
-import { HotspotsMap } from "@/components/maps/hotspots-map";
-import {
-  loadHotspotFeeders,
-  loadHotspotHelpRequests,
-  loadHotspotVolunteers,
-} from "@/lib/hotspots/load-hotspots-data";
+import { HotspotsShell } from "@/components/maps/hotspots-shell";
+import { getCachedHotspotsData } from "@/lib/hotspots/cached-loaders";
+
+export const revalidate = 300;
 
 export default async function HotspotsPage() {
-  const supabase = await createClient();
-  const [{ helpRequests, error }, { feeders, error: feederError }] = await Promise.all([
-    loadHotspotHelpRequests(supabase),
-    loadHotspotFeeders(supabase),
-  ]);
+  const { helpRequests, feeders, volunteers, error } = await getCachedHotspotsData();
 
   if (error) {
     throw new Error(`Unable to load colony hotspots: ${error}`);
   }
-
-  if (feederError) {
-    throw new Error(`Unable to load colony feeders: ${feederError}`);
-  }
-
-  const volunteers = hasSupabaseAdminConfig()
-    ? await loadHotspotVolunteers(await createServiceClient())
-    : [];
 
   const coloniesMapped = helpRequests.filter((hr) => hr.colony_lat && hr.colony_lng).length;
 
@@ -38,7 +22,11 @@ export default async function HotspotsPage() {
           {feeders.length > 0 && ` · ${feeders.length} feeder${feeders.length === 1 ? "" : "s"} mapped`}
         </p>
       </div>
-      <HotspotsMap helpRequests={helpRequests} volunteers={volunteers} feeders={feeders} />
+      <HotspotsShell
+        helpRequests={helpRequests}
+        feeders={feeders}
+        initialVolunteers={volunteers}
+      />
     </div>
   );
 }

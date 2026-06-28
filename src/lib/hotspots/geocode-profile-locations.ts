@@ -46,6 +46,56 @@ function isVisibleOnHotspotsMap(profile: ProfileMapRow) {
   return profile.show_on_hotspots_map !== false;
 }
 
+export async function loadHotspotVolunteersWithCoordsOnly(
+  service: SupabaseClient
+): Promise<HotspotMapVolunteer[]> {
+  const rows = await fetchHotspotProfileRows(service);
+  const volunteers: HotspotMapVolunteer[] = [];
+
+  for (const profile of rows) {
+    if (!isVisibleOnHotspotsMap(profile) || !hasMappableAddress(profile)) continue;
+    if (profile.home_lat == null || profile.home_lng == null) continue;
+
+    volunteers.push({
+      id: profile.id,
+      full_name: profile.full_name,
+      email: profile.email,
+      role: profile.role,
+      volunteer_roles: profile.volunteer_roles ?? [],
+      home_lat: profile.home_lat,
+      home_lng: profile.home_lng,
+    });
+  }
+
+  return volunteers.sort((a, b) =>
+    (a.full_name ?? a.email).localeCompare(b.full_name ?? b.email, undefined, {
+      sensitivity: "base",
+    })
+  );
+}
+
+async function fetchHotspotProfileRows(service: SupabaseClient): Promise<ProfileMapRow[]> {
+  const extendedResult = await service
+    .from("profiles")
+    .select(PROFILE_MAP_FIELDS)
+    .in("role", MAP_PROFILE_ROLES)
+    .or("home_street.not.is.null,home_lat.not.is.null");
+
+  if (isMissingColumnError(extendedResult.error?.message)) {
+    const legacyResult = await service
+      .from("profiles")
+      .select(PROFILE_MAP_FIELDS_LEGACY)
+      .in("role", MAP_PROFILE_ROLES)
+      .not("home_street", "is", null);
+
+    if (legacyResult.error) return [];
+    return (legacyResult.data ?? []) as ProfileMapRow[];
+  }
+
+  if (extendedResult.error) return [];
+  return (extendedResult.data ?? []) as ProfileMapRow[];
+}
+
 export async function loadHotspotVolunteers(
   service: SupabaseClient,
   options?: { geocodeLimit?: number }
@@ -73,6 +123,10 @@ export async function loadHotspotVolunteers(
   } else {
     if (extendedResult.error) return [];
     rows = (extendedResult.data ?? []) as ProfileMapRow[];
+  }
+
+  if (geocodeLimit <= 0) {
+    return loadHotspotVolunteersWithCoordsOnly(service);
   }
 
   const volunteers: HotspotMapVolunteer[] = [];

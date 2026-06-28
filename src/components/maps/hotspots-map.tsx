@@ -91,6 +91,7 @@ interface HotspotsMapProps {
   volunteers: HotspotMapVolunteer[];
   feeders: MapFeeder[];
   defaultLayers?: Partial<Record<MapLayer, boolean>>;
+  volunteersLoading?: boolean;
 }
 
 export function HotspotsMap({
@@ -98,6 +99,7 @@ export function HotspotsMap({
   volunteers,
   feeders,
   defaultLayers,
+  volunteersLoading = false,
 }: HotspotsMapProps) {
   const [mounted, setMounted] = useState(false);
   const [layers, setLayers] = useState<Record<MapLayer, boolean>>({
@@ -187,6 +189,7 @@ export function HotspotsMap({
             />
             Volunteers & team ({filteredVolunteers.length}
             {layers.volunteers && selectedVolunteerRoles.length > 0 ? ` of ${volunteers.length}` : ""})
+            {volunteersLoading && layers.volunteers ? " · loading…" : ""}
           </label>
           <label className="flex items-center gap-2 text-sm cursor-pointer">
             <Checkbox
@@ -202,6 +205,7 @@ export function HotspotsMap({
         </div>
         <p className="text-xs text-muted-foreground sm:text-right">
           {visibleCount} location{visibleCount === 1 ? "" : "s"} on map
+          {volunteersLoading ? " · loading volunteer locations in background" : ""}
         </p>
       </div>
 
