@@ -5,7 +5,7 @@ import {
   validateFosterFacilityInput,
   type FosterFacility,
 } from "@/lib/cases/foster-facility";
-import { summarizeCatCounts } from "@/lib/cases/cat-counts";
+import { updateHelpRequestCatCounts } from "@/lib/cases/tracked-cat-fix";
 import { normalizeHistoryLog } from "@/lib/cases/history-log";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { HistoryEntry } from "@/lib/types";
@@ -13,6 +13,7 @@ import type { HistoryEntry } from "@/lib/types";
 export interface RecordClinicFixInput {
   helpRequestId: string;
   appointmentId?: string | null;
+  catId?: string | null;
   ageCategory: "adult" | "kitten";
   gender: "male" | "female";
   clinicName?: string | null;
@@ -79,6 +80,7 @@ export async function recordClinicFix(
     .insert({
       help_request_id: input.helpRequestId,
       appointment_id: input.appointmentId ?? null,
+      cat_id: input.catId ?? null,
       age_category: input.ageCategory,
       gender: input.gender,
       clinic_name: input.clinicName ?? null,
@@ -95,18 +97,6 @@ export async function recordClinicFix(
     throw new Error(insertError?.message ?? "Unable to record clinic fix");
   }
 
-  const { data: fixes } = await service
-    .from("clinic_fixes")
-    .select("age_category")
-    .eq("help_request_id", input.helpRequestId);
-
-  const counts = summarizeCatCounts(helpRequest, fixes ?? []);
-  const reportedAdultsValue =
-    helpRequest.reported_cats_over_8_weeks ??
-    counts.remainingAdults + counts.fixedAdults;
-  const reportedKittensValue =
-    helpRequest.reported_kittens_under_8_weeks ??
-    counts.remainingKittens + counts.fixedKittens;
   const clinicLabel = input.clinicName ? ` (${input.clinicName}, ${fixDate})` : ` (${fixDate})`;
   const fosterSummary = formatFosterFacilitySummary(
     fosterFields.went_to_foster_facility,
@@ -129,12 +119,6 @@ export async function recordClinicFix(
   const { error: updateError } = await service
     .from("help_requests")
     .update({
-      reported_cats_over_8_weeks: reportedAdultsValue,
-      reported_kittens_under_8_weeks: reportedKittensValue,
-      cats_over_8_weeks: counts.remainingAdults,
-      kittens_under_8_weeks: counts.remainingKittens,
-      cats_remaining: counts.remainingTotal,
-      outcome_tnvr_count: counts.fixedTotal,
       history_log: historyLog,
     })
     .eq("id", input.helpRequestId);
@@ -142,6 +126,8 @@ export async function recordClinicFix(
   if (updateError) {
     throw new Error(updateError.message);
   }
+
+  await updateHelpRequestCatCounts(service, input.helpRequestId);
 
   return { summary, fixId: fix.id };
 }

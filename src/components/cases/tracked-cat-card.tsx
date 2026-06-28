@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -63,6 +64,7 @@ function emptyOrNull(value: string) {
 }
 
 export function TrackedCatCard({ cat, clinics, onUpdated }: TrackedCatCardProps) {
+  const router = useRouter();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState<CatDraft>(() => toDraft(cat));
   const [saving, setSaving] = useState(false);
@@ -113,8 +115,24 @@ export function TrackedCatCard({ cat, clinics, onUpdated }: TrackedCatCardProps)
       return;
     }
 
+    const syncResponse = await fetch("/api/cats/sync-counts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ helpRequestId: cat.help_request_id }),
+    });
+
+    if (!syncResponse.ok) {
+      const syncResult = await syncResponse.json().catch(() => null);
+      setError(syncResult?.error ?? "Cat saved but colony counts could not be updated");
+      onUpdated(data as Cat);
+      setEditing(false);
+      router.refresh();
+      return;
+    }
+
     onUpdated(data as Cat);
     setEditing(false);
+    router.refresh();
   }
 
   if (editing) {

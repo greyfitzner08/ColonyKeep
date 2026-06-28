@@ -93,6 +93,7 @@ export async function POST(request: NextRequest) {
     const { summary } = await recordClinicFix(service, {
       helpRequestId: appointment.help_request_id,
       appointmentId: appointment.id,
+      catId: appointment.cat_id,
       ageCategory,
       gender,
       clinicName: appointment.clinic_name,
