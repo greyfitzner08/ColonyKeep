@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { STATUS_COLORS } from "@/lib/constants";
 import { getStatusLabel } from "@/lib/cases/statuses";
 import { hasActiveMedicalFlag } from "@/lib/medical-flags";
+import { CaseFollowUpIndicator } from "@/components/cases/case-follow-up-indicator";
 import type { HelpRequest } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -41,6 +42,7 @@ export function CaseCard({ helpRequest: hr, claim }: CaseCardProps) {
           <div className="flex items-start justify-between gap-2">
             <CardTitle className="text-base font-semibold">{hr.case_number}</CardTitle>
             <div className="flex items-center gap-1">
+              <CaseFollowUpIndicator helpRequest={hr} />
               {medical && (
                 <Badge variant="destructive" className="gap-1">
                   <AlertTriangle className="h-3 w-3" />

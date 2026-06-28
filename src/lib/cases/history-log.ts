@@ -55,6 +55,10 @@ export function staffNotesText(raw: unknown): string {
     .join("\n");
 }
 
+export function hasFollowUpNote(raw: unknown): boolean {
+  return staffNotesFromHistory(raw).some((entry) => entry.follow_up);
+}
+
 export function buildHistoryNoteEntry(input: {
   text: string;
   highlighted: boolean;

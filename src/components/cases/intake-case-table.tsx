@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import { STATUS_COLORS } from "@/lib/constants";
 import { hasActiveMedicalFlag } from "@/lib/medical-flags";
+import { CaseFollowUpIndicator } from "@/components/cases/case-follow-up-indicator";
 import { getStatusLabel } from "@/lib/cases/statuses";
 import { formatDateTime } from "@/lib/utils";
 import { postCaseClaim } from "@/lib/cases/case-claim-api";
@@ -58,6 +59,7 @@ export function IntakeCaseTable({
               >
                 {helpRequest.case_number}
               </Link>
+              <CaseFollowUpIndicator helpRequest={helpRequest} />
               {medical && (
                 <Badge variant="destructive" className="gap-1 text-xs whitespace-nowrap">
                   <AlertTriangle className="h-3 w-3" />
