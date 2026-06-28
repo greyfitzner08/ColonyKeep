@@ -48,8 +48,8 @@ export function CaseColonyTab({
           pregnantCount={hr.pregnant_count}
         />
         <p className="mt-3 text-sm text-muted-foreground">
-          Log clinic fixes on the Tracked Cats tab. Edit originally reported counts there if intake
-          numbers need correction.
+          Log clinic fixes on the Tracked Cats tab. Originally reported counts are set at intake
+          and stay fixed as fixes are logged.
         </p>
       </CaseCollapsibleSection>
 
