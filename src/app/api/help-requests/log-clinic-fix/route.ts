@@ -4,6 +4,7 @@ import { recordClinicFix } from "@/lib/cases/record-clinic-fix";
 import type { RecordClinicFixInput } from "@/lib/cases/record-clinic-fix";
 import { saveTrackedCatFromClinicLog } from "@/lib/cases/save-tracked-cat-from-clinic-log";
 import { parseFemaleReproductiveStatus, type TrackedCatDetails } from "@/lib/cases/tracked-cat-form";
+import { isAutoSyncedClinicFix } from "@/lib/cases/tracked-cat-fix";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 
 function readCatDetails(body: Record<string, unknown>): TrackedCatDetails {
@@ -75,11 +76,11 @@ export async function POST(request: NextRequest) {
   if (catId) {
     const { data: existingFix } = await service
       .from("clinic_fixes")
-      .select("id")
+      .select("id, logged_by")
       .eq("cat_id", catId)
       .maybeSingle();
 
-    if (existingFix) {
+    if (existingFix && !isAutoSyncedClinicFix(existingFix)) {
       return NextResponse.json({ error: "Clinic fix already logged for this cat" }, { status: 400 });
     }
   }
@@ -99,6 +100,7 @@ export async function POST(request: NextRequest) {
       wentToFosterFacility,
       fosterFacility: (fosterFacility as RecordClinicFixInput["fosterFacility"]) ?? null,
       fosterFacilityOther: fosterFacilityOther?.trim() || null,
+      skipFixSync: true,
     });
 
     const { summary } = await recordClinicFix(service, {

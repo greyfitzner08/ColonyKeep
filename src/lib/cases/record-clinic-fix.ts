@@ -5,6 +5,7 @@ import {
   validateFosterFacilityInput,
   type FosterFacility,
 } from "@/lib/cases/foster-facility";
+import { isAutoSyncedClinicFix } from "@/lib/cases/tracked-cat-fix";
 import { updateHelpRequestCatCounts } from "@/lib/cases/tracked-cat-fix";
 import { normalizeHistoryLog } from "@/lib/cases/history-log";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -45,12 +46,22 @@ export async function recordClinicFix(
   if (input.appointmentId) {
     const { data: existingFix } = await service
       .from("clinic_fixes")
-      .select("id")
+      .select("id, logged_by")
       .eq("appointment_id", input.appointmentId)
       .maybeSingle();
 
-    if (existingFix) {
+    if (existingFix && !isAutoSyncedClinicFix(existingFix)) {
       throw new Error("Clinic results already logged for this appointment");
+    }
+  } else if (input.catId) {
+    const { data: existingFix } = await service
+      .from("clinic_fixes")
+      .select("id, logged_by")
+      .eq("cat_id", input.catId)
+      .maybeSingle();
+
+    if (existingFix && !isAutoSyncedClinicFix(existingFix)) {
+      throw new Error("Clinic fix already logged for this cat");
     }
   }
 
@@ -75,26 +86,95 @@ export async function recordClinicFix(
     gender: input.gender,
   });
 
-  const { data: fix, error: insertError } = await service
-    .from("clinic_fixes")
-    .insert({
-      help_request_id: input.helpRequestId,
-      appointment_id: input.appointmentId ?? null,
-      cat_id: input.catId ?? null,
-      age_category: input.ageCategory,
-      gender: input.gender,
-      clinic_name: input.clinicName ?? null,
-      fix_date: fixDate,
-      logged_by: input.actorEmail,
-      logged_by_name: input.actorName,
-      notes: input.notes ?? null,
-      ...fosterFields,
-    })
-    .select("id")
-    .single();
+  const fixPayload: Record<string, unknown> = {
+    help_request_id: input.helpRequestId,
+    appointment_id: input.appointmentId ?? null,
+    cat_id: input.catId ?? null,
+    age_category: input.ageCategory,
+    gender: input.gender,
+    clinic_name: input.clinicName ?? null,
+    fix_date: fixDate,
+    logged_by: input.actorEmail,
+    logged_by_name: input.actorName,
+    notes: input.notes ?? null,
+    ...fosterFields,
+  };
 
-  if (insertError || !fix) {
-    throw new Error(insertError?.message ?? "Unable to record clinic fix");
+  let fixId: string;
+
+  if (input.appointmentId) {
+    const { data: existingFix } = await service
+      .from("clinic_fixes")
+      .select("id, logged_by")
+      .eq("appointment_id", input.appointmentId)
+      .maybeSingle();
+
+    if (existingFix && isAutoSyncedClinicFix(existingFix)) {
+      const { data: updated, error: updateError } = await service
+        .from("clinic_fixes")
+        .update(fixPayload)
+        .eq("id", existingFix.id)
+        .select("id")
+        .single();
+
+      if (updateError || !updated) {
+        throw new Error(updateError?.message ?? "Unable to record clinic fix");
+      }
+      fixId = updated.id as string;
+    } else {
+      const { data: fix, error: insertError } = await service
+        .from("clinic_fixes")
+        .insert(fixPayload)
+        .select("id")
+        .single();
+
+      if (insertError || !fix) {
+        throw new Error(insertError?.message ?? "Unable to record clinic fix");
+      }
+      fixId = fix.id as string;
+    }
+  } else if (input.catId) {
+    const { data: existingFix } = await service
+      .from("clinic_fixes")
+      .select("id, logged_by")
+      .eq("cat_id", input.catId)
+      .maybeSingle();
+
+    if (existingFix && isAutoSyncedClinicFix(existingFix)) {
+      const { data: updated, error: updateError } = await service
+        .from("clinic_fixes")
+        .update(fixPayload)
+        .eq("id", existingFix.id)
+        .select("id")
+        .single();
+
+      if (updateError || !updated) {
+        throw new Error(updateError?.message ?? "Unable to record clinic fix");
+      }
+      fixId = updated.id as string;
+    } else {
+      const { data: fix, error: insertError } = await service
+        .from("clinic_fixes")
+        .insert(fixPayload)
+        .select("id")
+        .single();
+
+      if (insertError || !fix) {
+        throw new Error(insertError?.message ?? "Unable to record clinic fix");
+      }
+      fixId = fix.id as string;
+    }
+  } else {
+    const { data: fix, error: insertError } = await service
+      .from("clinic_fixes")
+      .insert(fixPayload)
+      .select("id")
+      .single();
+
+    if (insertError || !fix) {
+      throw new Error(insertError?.message ?? "Unable to record clinic fix");
+    }
+    fixId = fix.id as string;
   }
 
   const clinicLabel = input.clinicName ? ` (${input.clinicName}, ${fixDate})` : ` (${fixDate})`;
@@ -129,5 +209,5 @@ export async function recordClinicFix(
 
   await updateHelpRequestCatCounts(service, input.helpRequestId);
 
-  return { summary, fixId: fix.id };
+  return { summary, fixId };
 }

@@ -15,6 +15,8 @@ interface SaveTrackedCatFromClinicLogInput {
   wentToFosterFacility: boolean;
   fosterFacility?: FosterFacility | null;
   fosterFacilityOther?: string | null;
+  /** Skip auto-sync of clinic_fixes when the caller records the fix explicitly. */
+  skipFixSync?: boolean;
 }
 
 export async function saveTrackedCatFromClinicLog(
@@ -44,7 +46,9 @@ export async function saveTrackedCatFromClinicLog(
   if (input.catId) {
     const { error } = await service.from("cats").update(catPayload).eq("id", input.catId);
     if (error) throw new Error(error.message);
-    await syncTrackedCatFixesForCase(service, input.helpRequestId);
+    if (!input.skipFixSync) {
+      await syncTrackedCatFixesForCase(service, input.helpRequestId);
+    }
     return input.catId;
   }
 
@@ -62,6 +66,8 @@ export async function saveTrackedCatFromClinicLog(
     throw new Error(insertError?.message ?? "Unable to save tracked cat");
   }
 
-  await syncTrackedCatFixesForCase(service, input.helpRequestId);
+  if (!input.skipFixSync) {
+    await syncTrackedCatFixesForCase(service, input.helpRequestId);
+  }
   return created.id as string;
 }
