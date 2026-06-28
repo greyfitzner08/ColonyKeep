@@ -21,6 +21,10 @@ import { CountySelect } from "@/components/forms/county-select";
 import { INTAKE_COMMUNICATIONS_NOTICE } from "@/lib/constants";
 import { resolveCountyFromAutocomplete } from "@/lib/counties";
 import type { CommunityIntakeSubmission } from "@/lib/cases/public-intake";
+import {
+  buildFeederFieldsFromIntake,
+  reporterIsColonyFeeder,
+} from "@/lib/cases/public-intake";
 
 const STEPS = [
   {
@@ -220,6 +224,35 @@ export function ColonyIntakeForm() {
     }
   }
 
+  function intakeFormForSubmission(current = form) {
+    return colonySameAsHome ? copyHomeAddressToColony(current) : current;
+  }
+
+  function handleRelationshipChange(value: string) {
+    setForm((prev) => {
+      const next = { ...prev, relationship_to_cats: value };
+      if (/\bfeeder\b/i.test(value)) {
+        next.feeding_cats = "Yes";
+        next.feeder_if_not = "";
+      }
+      if (colonySameAsHome) {
+        return copyHomeAddressToColony(next);
+      }
+      return next;
+    });
+  }
+
+  function handleFeedingCatsChange(value: string) {
+    setForm((prev) => ({
+      ...prev,
+      feeding_cats: value,
+      feeder_if_not: value === "Yes" ? "" : prev.feeder_if_not,
+    }));
+  }
+
+  const showFeederPreview = reporterIsColonyFeeder(form);
+  const feederPreview = showFeederPreview ? buildFeederFieldsFromIntake(intakeFormForSubmission()) : null;
+
   function canAdvanceFromStep(currentStep: number) {
     if (currentStep === 0) {
       return Boolean(
@@ -251,7 +284,7 @@ export function ColonyIntakeForm() {
 
     try {
       const submission = {
-        ...(colonySameAsHome ? copyHomeAddressToColony(form) : form),
+        ...intakeFormForSubmission(),
         consent_communications: true,
       };
       const response = await fetch("/api/help-requests/create", {
@@ -429,7 +462,7 @@ export function ColonyIntakeForm() {
                   <Label>Your relationship to the cats</Label>
                   <Input
                     value={form.relationship_to_cats}
-                    onChange={(e) => update("relationship_to_cats", e.target.value)}
+                    onChange={(e) => handleRelationshipChange(e.target.value)}
                     placeholder="e.g. Feeder, property owner, neighbor"
                   />
                 </div>
@@ -637,9 +670,34 @@ export function ColonyIntakeForm() {
                   <YesNoSelect
                     id="feeding_cats"
                     value={form.feeding_cats}
-                    onChange={(value) => update("feeding_cats", value)}
+                    onChange={handleFeedingCatsChange}
                   />
                 </div>
+                {showFeederPreview && feederPreview && (
+                  <div className="rounded-md border bg-muted/30 p-3 text-sm space-y-1">
+                    <p className="font-medium">Colony feeder (for our map)</p>
+                    <p className="text-muted-foreground">
+                      We&apos;ll save this from your contact info — no need to enter it again.
+                    </p>
+                    <p>{feederPreview.feeder_name}</p>
+                    <p>
+                      {[feederPreview.feeder_phone, feederPreview.feeder_email]
+                        .filter(Boolean)
+                        .join(" · ")}
+                    </p>
+                    <p>
+                      {[
+                        feederPreview.feeder_street,
+                        feederPreview.feeder_city,
+                        feederPreview.feeder_state,
+                        feederPreview.feeder_zip,
+                      ]
+                        .filter(Boolean)
+                        .join(", ")}
+                      {feederPreview.feeder_county ? ` (${feederPreview.feeder_county} County)` : ""}
+                    </p>
+                  </div>
+                )}
                 {form.feeding_cats === "No" && (
                   <div className="space-y-2">
                     <Label>If you are not feeding, who is?</Label>

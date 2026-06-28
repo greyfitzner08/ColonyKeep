@@ -10,7 +10,7 @@ import {
 import { applyTrapTeamAssignment } from "@/lib/cases/assign-team-by-zip";
 import { mapCommunityIntakeToHelpRequest } from "@/lib/cases/public-intake";
 import { sanitizeHelpRequestRecord } from "@/lib/cases/help-request-insert";
-import { geocodeAddress } from "@/lib/geocode";
+import { geocodeAddress, geocodeStreetAddress } from "@/lib/geocode";
 
 async function getWriteClient(): Promise<SupabaseClient | null> {
   if (hasSupabaseAdminConfig()) {
@@ -97,6 +97,24 @@ export async function POST(request: NextRequest) {
         }
       } catch (geocodeError) {
         console.warn("help-requests/create geocode skipped:", geocodeError);
+      }
+    }
+
+    if (record.feeder_street && !record.feeder_lat) {
+      try {
+        const coords = await geocodeStreetAddress({
+          street: String(record.feeder_street ?? ""),
+          city: String(record.feeder_city ?? ""),
+          state: String(record.feeder_state ?? ""),
+          zip: String(record.feeder_zip ?? ""),
+          county: String(record.feeder_county ?? ""),
+        });
+        if (coords) {
+          record.feeder_lat = coords.lat;
+          record.feeder_lng = coords.lng;
+        }
+      } catch (geocodeError) {
+        console.warn("help-requests/create feeder geocode skipped:", geocodeError);
       }
     }
 
