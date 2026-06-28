@@ -17,8 +17,8 @@ import {
 } from "@/components/ui/select";
 import { isTrackedCatClinicFixed, parseTrackedCatGender } from "@/lib/cases/tracked-cat-fix";
 import { ClinicFixFosterFields } from "@/components/cases/clinic-fix-foster-fields";
-import { ClinicFixSummary } from "@/components/cases/clinic-fix-summary";
 import { LogClinicFixDialog } from "@/components/cases/log-clinic-fix-dialog";
+import { clinicResultAgeLabel } from "@/lib/appointments/clinic-result";
 import { FemaleReproductiveStatusSelect } from "@/components/cases/female-reproductive-status-select";
 import { fosterFormFromCat, validateTrackedCatFosterForm } from "@/lib/cases/tracked-cat-foster";
 import {
@@ -29,6 +29,7 @@ import { formatFosterFacilitySummary } from "@/lib/cases/foster-facility";
 import { InfoRow } from "@/components/cases/case-detail-fields";
 import type { Cat, ClinicFix } from "@/lib/types";
 import type { FosterFacility } from "@/lib/cases/foster-facility";
+import { formatDate } from "@/lib/utils";
 import { Pencil, Trash2, X, Check } from "lucide-react";
 
 interface TrackedCatCardProps {
@@ -96,6 +97,32 @@ function fosterSummaryForCat(cat: Cat) {
   return null;
 }
 
+function ageLabelForCat(cat: Cat) {
+  if (cat.age_category === "adult" || cat.age_category === "kitten") {
+    return clinicResultAgeLabel(cat.age_category);
+  }
+  return null;
+}
+
+function clinicLineForCat(cat: Cat, clinicFix: ClinicFix | null) {
+  const clinic = cat.clinic_name?.trim() || clinicFix?.clinic_name?.trim() || null;
+  const date = clinicFix?.fix_date ?? cat.return_date ?? cat.trap_date ?? null;
+
+  if (clinic && date) return `${clinic} · ${formatDate(date)}`;
+  if (clinic) return clinic;
+  if (date) return formatDate(date);
+  return null;
+}
+
+function catSubtitle(cat: Cat) {
+  const parts = [
+    cat.colors?.trim(),
+    cat.gender?.trim(),
+    femaleReproductiveStatusLabel(cat.female_reproductive_status),
+  ].filter(Boolean);
+  return parts.length > 0 ? parts.join(" · ") : null;
+}
+
 export function TrackedCatCard({
   cat,
   helpRequestId,
@@ -114,6 +141,10 @@ export function TrackedCatCard({
   const [error, setError] = useState<string | null>(null);
   const fosterSummary = fosterSummaryForCat(cat);
   const defaultGender = parseTrackedCatGender(cat.gender);
+  const isFixed = isTrackedCatClinicFixed(cat) || Boolean(clinicFix);
+  const ageLabel = ageLabelForCat(cat);
+  const clinicLine = clinicLineForCat(cat, clinicFix);
+  const subtitle = catSubtitle(cat);
 
   function startEditing() {
     setDraft(toDraft(cat));
@@ -370,20 +401,23 @@ export function TrackedCatCard({
 
   return (
     <Card>
-      <CardContent className="pt-6">
+      <CardContent className="pt-5 pb-5">
         <div className="flex items-start justify-between gap-3">
-          <div>
-            <p className="text-lg font-semibold">{cat.name || "Unnamed cat"}</p>
-            <p className="text-base text-muted-foreground mt-1">
-              {[cat.colors, cat.gender, cat.breed].filter(Boolean).join(" · ") || "—"}
-            </p>
-            {femaleReproductiveStatusLabel(cat.female_reproductive_status) && (
-              <p className="text-sm text-muted-foreground mt-1">
-                {femaleReproductiveStatusLabel(cat.female_reproductive_status)}
-              </p>
-            )}
+          <div className="min-w-0 flex-1 space-y-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <h3 className="text-lg font-semibold leading-tight">
+                {cat.name || "Unnamed cat"}
+              </h3>
+              <Badge
+                variant={isFixed ? "default" : "secondary"}
+                className={isFixed ? "bg-emerald-600 hover:bg-emerald-600/90" : undefined}
+              >
+                {isFixed ? "Fixed at clinic" : "In progress"}
+              </Badge>
+            </div>
+            {subtitle && <p className="text-sm text-muted-foreground">{subtitle}</p>}
           </div>
-          <div className="flex gap-2">
+          <div className="flex shrink-0 gap-2">
             <Button
               size="sm"
               variant="outline"
@@ -400,29 +434,27 @@ export function TrackedCatCard({
             </Button>
           </div>
         </div>
-        {error && <p className="text-sm text-destructive mt-3">{error}</p>}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
-          <InfoRow alwaysShow label="Microchip ID" value={cat.microchip_id} />
-          <InfoRow alwaysShow label="Clinic" value={cat.clinic_name} />
-          <InfoRow alwaysShow label="Medical notes" value={cat.medical_notes} />
-          <InfoRow alwaysShow label="Notes" value={cat.notes} />
-          {fosterSummary && <InfoRow alwaysShow label="Foster / facility" value={fosterSummary} />}
-        </div>
-        <div className="flex flex-wrap gap-2 mt-4">
-          {cat.appointment_status && (
-            <Badge variant="secondary">Appt: {cat.appointment_status}</Badge>
-          )}
-        </div>
 
-        <div className="mt-4 space-y-3 border-t pt-4">
-          {clinicFix ? (
-            <ClinicFixSummary fix={clinicFix} />
-          ) : canLogClinicFix ? (
+        {error && <p className="text-sm text-destructive mt-3">{error}</p>}
+
+        {(ageLabel || cat.microchip_id || clinicLine || fosterSummary || cat.medical_notes || cat.notes) && (
+          <dl className="mt-4 rounded-lg border bg-muted/20 px-3">
+            {isFixed && ageLabel && <InfoRow label="Age at clinic" value={ageLabel} />}
+            <InfoRow label="Microchip ID" value={cat.microchip_id} />
+            <InfoRow label="Clinic" value={clinicLine} />
+            <InfoRow label="After clinic" value={fosterSummary} />
+            <InfoRow label="Medical notes" value={cat.medical_notes} />
+            <InfoRow label="Notes" value={cat.notes} />
+          </dl>
+        )}
+
+        {!isFixed && canLogClinicFix && (
+          <div className="mt-4">
             <Button size="sm" onClick={() => setLogFixOpen(true)}>
               Log clinic fix
             </Button>
-          ) : null}
-        </div>
+          </div>
+        )}
 
         <LogClinicFixDialog
           open={logFixOpen}
