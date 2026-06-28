@@ -314,7 +314,7 @@ export function runReport(
         })
       );
       const completed = filtered.filter((hr) =>
-        ["completed", "closed", "checked_in", "cat_trapped", "transported"].includes(hr.status)
+        ["completed", "closed", "appointment_reserved", "claimed"].includes(hr.status)
       );
       return {
         title: "Cases by trap team",

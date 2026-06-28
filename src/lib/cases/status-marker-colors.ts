@@ -10,9 +10,9 @@ export const STATUS_MARKER_COLORS: Record<HelpRequestStatus, string> = {
   claimed: "#c026d3",
   appointment_needed: "#db2777",
   appointment_reserved: "#0891b2",
-  cat_trapped: "#0d9488",
-  transported: "#1d4ed8",
-  checked_in: "#65a30d",
+  cat_trapped: "#0891b2",
+  transported: "#0891b2",
+  checked_in: "#0891b2",
   completed: "#15803d",
   closed: "#64748b",
 };

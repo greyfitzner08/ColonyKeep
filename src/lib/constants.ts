@@ -14,9 +14,6 @@ export const CASE_STATUSES: { value: HelpRequestStatus; label: string }[] = [
   { value: "claimed", label: "Claimed" },
   { value: "appointment_needed", label: "Appointment Needed" },
   { value: "appointment_reserved", label: "Appointment Reserved" },
-  { value: "cat_trapped", label: "Cat Trapped" },
-  { value: "transported", label: "Transported" },
-  { value: "checked_in", label: "Checked In" },
   { value: "completed", label: "Completed" },
   { value: "closed", label: "Closed" },
 ];
@@ -198,9 +195,9 @@ export const STATUS_COLORS: Record<HelpRequestStatus, string> = {
   claimed: "bg-indigo-100 text-indigo-800",
   appointment_needed: "bg-pink-100 text-pink-800",
   appointment_reserved: "bg-cyan-100 text-cyan-800",
-  cat_trapped: "bg-teal-100 text-teal-800",
-  transported: "bg-sky-100 text-sky-800",
-  checked_in: "bg-lime-100 text-lime-800",
+  cat_trapped: "bg-cyan-100 text-cyan-800",
+  transported: "bg-cyan-100 text-cyan-800",
+  checked_in: "bg-cyan-100 text-cyan-800",
   completed: "bg-green-100 text-green-800",
   closed: "bg-gray-100 text-gray-800",
 };

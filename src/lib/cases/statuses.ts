@@ -34,12 +34,18 @@ export const TRAP_KANBAN_STATUSES: HelpRequestStatus[] = [
   "appointment_reserved",
 ];
 
-/** Statuses trap team may set on a case (includes post-appointment workflow). */
-export const TRAP_QUEUE_STATUSES: HelpRequestStatus[] = [
-  ...TRAP_KANBAN_STATUSES,
+/** No longer used as case statuses — kept for legacy reads until migrated. */
+export const DEPRECATED_HELP_REQUEST_STATUSES: HelpRequestStatus[] = [
   "cat_trapped",
   "transported",
   "checked_in",
+];
+
+/** Statuses trap team may set on a case. */
+export const TRAP_EDITABLE_STATUSES: HelpRequestStatus[] = [
+  ...TRAP_KANBAN_STATUSES,
+  "completed",
+  "closed",
 ];
 
 const TRAP_STATUS_LABEL_OVERRIDES: Partial<Record<HelpRequestStatus, string>> = {
@@ -102,13 +108,17 @@ export function inquiryTeamManagesStatus(status: HelpRequestStatus) {
 }
 
 export function getStatusOptionsForRole(role: UserRole | null | undefined) {
+  const deprecated = new Set(DEPRECATED_HELP_REQUEST_STATUSES);
+
   if (role === "inquiry_team") {
     return filterStatusOptions(INTAKE_EDITABLE_STATUSES);
   }
   if (role === "trap_team_lead" || role === "volunteer") {
-    return filterStatusOptions([...TRAP_QUEUE_STATUSES, "completed", "closed"]);
+    return filterStatusOptions(TRAP_EDITABLE_STATUSES);
   }
-  return CASE_STATUSES;
+  return CASE_STATUSES.filter(
+    (entry) => !deprecated.has(entry.value)
+  );
 }
 
 function filterStatusOptions(statuses: HelpRequestStatus[]) {
