@@ -41,3 +41,10 @@ export function canUnreserveAppointment(
   if (appointment.clinic_result_logged_at) return false;
   return appointment.status === "reserved" || appointment.status === "confirmed_transport";
 }
+
+/** Logged appointments show outcome text instead of a status badge. */
+export function shouldShowAppointmentStatusBadge(
+  appointment: Pick<Appointment, "clinic_result_logged_at">
+): boolean {
+  return !appointment.clinic_result_logged_at;
+}

@@ -18,7 +18,7 @@ import { Input } from "@/components/ui/input";
 import { ClaimAppointmentDialog } from "@/components/appointments/claim-appointment-dialog";
 import { AppointmentDetailDialog } from "@/components/appointments/appointment-detail-dialog";
 import { APPOINTMENT_STATUS_COLORS } from "@/lib/constants";
-import { canUnreserveAppointment } from "@/lib/appointments/clinic-result";
+import { canUnreserveAppointment, shouldShowAppointmentStatusBadge } from "@/lib/appointments/clinic-result";
 import { formatDate, cn } from "@/lib/utils";
 import type { Appointment, Clinic, Cat } from "@/lib/types";
 import type { HelpRequestOption } from "@/lib/cases/help-request-options";
@@ -145,9 +145,11 @@ export function AppointmentsCalendar({
               {appt.help_request_id && <p className="text-xs text-primary">Linked to case</p>}
             </div>
             <div className="flex flex-col items-end gap-1">
-              <Badge className={cn("text-xs", APPOINTMENT_STATUS_COLORS[appt.status])}>
-                {appt.status}
-              </Badge>
+              {shouldShowAppointmentStatusBadge(appt) && (
+                <Badge className={cn("text-xs", APPOINTMENT_STATUS_COLORS[appt.status])}>
+                  {appt.status}
+                </Badge>
+              )}
               {canUnreserveAppointment(appt) && (
                 <Button
                   variant="outline"

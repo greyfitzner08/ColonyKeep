@@ -86,6 +86,7 @@ export async function POST(request: NextRequest) {
     await service
       .from("appointments")
       .update({
+        status: "completed",
         clinic_result_logged_at: loggedAt,
         clinic_result_age_category: ageCategory,
         clinic_result_gender: gender,

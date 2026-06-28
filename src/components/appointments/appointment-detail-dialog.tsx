@@ -10,7 +10,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { APPOINTMENT_STATUS_COLORS } from "@/lib/constants";
-import { canUnreserveAppointment } from "@/lib/appointments/clinic-result";
+import { canUnreserveAppointment, shouldShowAppointmentStatusBadge } from "@/lib/appointments/clinic-result";
 import { formatDate, cn } from "@/lib/utils";
 import type { Appointment } from "@/lib/types";
 
@@ -37,9 +37,11 @@ export function AppointmentDetailDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 flex-wrap">
             {appointment.clinic_name}
-            <Badge className={cn("text-xs", APPOINTMENT_STATUS_COLORS[appointment.status])}>
-              {appointment.status.replace(/_/g, " ")}
-            </Badge>
+            {shouldShowAppointmentStatusBadge(appointment) && (
+              <Badge className={cn("text-xs", APPOINTMENT_STATUS_COLORS[appointment.status])}>
+                {appointment.status.replace(/_/g, " ")}
+              </Badge>
+            )}
           </DialogTitle>
         </DialogHeader>
         <div className="space-y-4 text-sm">

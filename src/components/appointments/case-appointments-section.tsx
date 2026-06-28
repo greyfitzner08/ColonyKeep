@@ -16,6 +16,7 @@ import {
   clinicResultGenderLabel,
   canUnreserveAppointment,
   isClinicResultDue,
+  shouldShowAppointmentStatusBadge,
 } from "@/lib/appointments/clinic-result";
 import { formatDate, cn } from "@/lib/utils";
 import type { Appointment, Cat } from "@/lib/types";
@@ -103,9 +104,11 @@ export function CaseAppointmentsSection({
                     )}
                 </div>
                 <div className="flex flex-col items-end gap-2">
-                  <Badge className={cn("text-sm", APPOINTMENT_STATUS_COLORS[appt.status])}>
-                    {appt.status}
-                  </Badge>
+                  {shouldShowAppointmentStatusBadge(appt) && (
+                    <Badge className={cn("text-sm", APPOINTMENT_STATUS_COLORS[appt.status])}>
+                      {appt.status}
+                    </Badge>
+                  )}
                   {canLogResults(appt) && (
                     <Button
                       size="sm"
