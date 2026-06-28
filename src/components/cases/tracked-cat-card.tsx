@@ -27,6 +27,16 @@ import {
 } from "@/lib/cases/female-reproductive-status";
 import { formatFosterFacilitySummary } from "@/lib/cases/foster-facility";
 import { InfoRow } from "@/components/cases/case-detail-fields";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import type { Cat, ClinicFix } from "@/lib/types";
 import type { FosterFacility } from "@/lib/cases/foster-facility";
 import { formatDate, cn } from "@/lib/utils";
@@ -147,7 +157,9 @@ export function TrackedCatCard({
   const [draft, setDraft] = useState<CatDraft>(() => toDraft(cat));
   const [saving, setSaving] = useState(false);
   const [removing, setRemoving] = useState(false);
+  const [removeDialogOpen, setRemoveDialogOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const catDisplayName = cat.name?.trim() || "Unnamed cat";
   const fosterSummary = fosterSummaryForCat(cat);
   const defaultGender = parseTrackedCatGender(cat.gender);
   const isFixed = isTrackedCatClinicFixed(cat) || Boolean(clinicFix);
@@ -223,16 +235,7 @@ export function TrackedCatCard({
     }
   }
 
-  async function removeCat() {
-    const label = cat.name?.trim() || "this cat";
-    if (
-      !window.confirm(
-        `Remove ${label} from this case? Clinic fixes linked to this cat will stay on the case without a cat link.`
-      )
-    ) {
-      return;
-    }
-
+  async function confirmRemoveCat() {
     setRemoving(true);
     setError(null);
 
@@ -246,8 +249,36 @@ export function TrackedCatCard({
     }
 
     onRemoved(cat.id);
+    setRemoveDialogOpen(false);
     router.refresh();
   }
+
+  const removeCatDialog = (
+    <AlertDialog open={removeDialogOpen} onOpenChange={setRemoveDialogOpen}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Remove {catDisplayName}?</AlertDialogTitle>
+          <AlertDialogDescription>
+            This will remove {catDisplayName} from case {caseNumber}. Clinic fixes linked to this
+            cat will stay on the case without a cat link.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={removing}>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            disabled={removing}
+            onClick={(event) => {
+              event.preventDefault();
+              void confirmRemoveCat();
+            }}
+          >
+            {removing ? "Removing…" : "Remove cat"}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
 
   if (editing) {
     return (
@@ -260,11 +291,11 @@ export function TrackedCatCard({
                 size="sm"
                 variant="outline"
                 className="text-destructive hover:text-destructive"
-                onClick={removeCat}
+                onClick={() => setRemoveDialogOpen(true)}
                 disabled={saving || removing}
               >
                 <Trash2 className="h-4 w-4 mr-1" />
-                {removing ? "Removing…" : "Remove"}
+                Remove
               </Button>
               <Button size="sm" variant="outline" onClick={cancelEditing} disabled={saving || removing}>
                 <X className="h-4 w-4 mr-1" />
@@ -405,6 +436,7 @@ export function TrackedCatCard({
 
           {error && <p className="text-sm text-destructive sm:col-span-2">{error}</p>}
         </CardContent>
+        {removeCatDialog}
       </Card>
     );
   }
@@ -450,11 +482,11 @@ export function TrackedCatCard({
                 size="sm"
                 variant="outline"
                 className="text-destructive hover:text-destructive"
-                onClick={removeCat}
+                onClick={() => setRemoveDialogOpen(true)}
                 disabled={removing || saving}
               >
                 <Trash2 className="h-4 w-4 mr-1" />
-                {removing ? "Removing…" : "Remove"}
+                Remove
               </Button>
               <Button size="sm" variant="outline" onClick={startEditing} disabled={removing}>
                 <Pencil className="h-4 w-4 mr-1" />
@@ -502,6 +534,7 @@ export function TrackedCatCard({
         defaultClinicName={cat.clinic_name}
         defaultGender={defaultGender}
       />
+      {removeCatDialog}
     </Card>
   );
 }
