@@ -62,6 +62,12 @@ export function canManageClinicEvents(profile: Profile | null): boolean {
   return canManageClinics(profile);
 }
 
+export function canManageCommunityPartners(profile: Profile | null): boolean {
+  if (!profile?.role) return false;
+  if (profile.role === "admin" || profile.role === "inquiry_team") return true;
+  return hasVolunteerRole(profile, ["community_outreach", "grant_writing", "social_media"]);
+}
+
 function hasTnvrVolunteerInterest(profile: Profile): boolean {
   return hasVolunteerRole(profile, TNVR_ROLES);
 }
@@ -146,6 +152,7 @@ export function getProfilePermissions(profile: Profile | null): ProfilePermissio
         "/admin",
         "/resources",
         "/equipment",
+        "/community-partners",
       ],
       canEditCases: true,
       canViewIntakeQueue: true,
@@ -191,6 +198,10 @@ export function getProfilePermissions(profile: Profile | null): ProfilePermissio
     routes.add("/equipment");
   }
 
+  if (canManageCommunityPartners(profile)) {
+    routes.add("/community-partners");
+  }
+
   if (!caseWorker) {
     routes.add("/"); // dashboard with community stats
   }
@@ -225,6 +236,10 @@ export function canAccessRoute(profile: Profile | null, pathname: string): boole
 
   if (pathname === "/team-directory" || pathname.startsWith("/team-directory/")) {
     return canViewVolunteerDirectory(profile);
+  }
+
+  if (pathname === "/community-partners" || pathname.startsWith("/community-partners/")) {
+    return canManageCommunityPartners(profile);
   }
 
   const permissions = getProfilePermissions(profile);

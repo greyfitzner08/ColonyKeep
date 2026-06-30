@@ -4,6 +4,7 @@ import {
   canClaimShifts,
   canManageAppointments,
   canManageClinics,
+  canManageCommunityPartners,
   canManageTrapEquipment,
   isCaseWorker,
 } from "@/lib/permissions";
@@ -106,6 +107,20 @@ export async function requireClinicManager() {
   if (response) return { profile, response };
 
   if (!canManageClinics(profile)) {
+    return {
+      profile: null,
+      response: NextResponse.json({ error: "Forbidden" }, { status: 403 }),
+    };
+  }
+
+  return { profile, response: null };
+}
+
+export async function requireCommunityPartnerManager() {
+  const { profile, response } = await getAuthenticatedProfile();
+  if (response) return { profile, response };
+
+  if (!canManageCommunityPartners(profile)) {
     return {
       profile: null,
       response: NextResponse.json({ error: "Forbidden" }, { status: 403 }),

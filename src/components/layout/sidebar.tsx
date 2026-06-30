@@ -17,6 +17,7 @@ import {
   Settings,
   Heart,
   Stethoscope,
+  Handshake,
   Menu,
   X,
   Cat,
@@ -99,6 +100,7 @@ const NAV_GROUPS: NavGroup[] = [
     id: "admin",
     label: "Administration",
     items: [
+      { href: "/community-partners", label: "Community Partners", icon: Handshake },
       { href: "/volunteers", label: "Volunteers", icon: Users },
       { href: "/reports", label: "Reports", icon: BarChart3 },
       { href: "/admin", label: "Admin", icon: Settings },

@@ -528,6 +528,43 @@ export interface LibraryDocument {
   updated_at: string;
 }
 
+export type CommunityPartnerOrganizationType =
+  | "local_business"
+  | "rescue"
+  | "grantor"
+  | "sponsor"
+  | "municipal"
+  | "media"
+  | "other";
+
+export type CommunityPartnerStatus =
+  | "active"
+  | "prospect"
+  | "past"
+  | "do_not_contact";
+
+export interface CommunityPartner {
+  id: string;
+  name: string;
+  organization_type: CommunityPartnerOrganizationType;
+  website: string | null;
+  address: string | null;
+  city: string | null;
+  state: string | null;
+  zip: string | null;
+  phone: string | null;
+  email: string | null;
+  contact_name: string | null;
+  contact_title: string | null;
+  contact_email: string | null;
+  contact_phone: string | null;
+  notes: string | null;
+  partnership_status: CommunityPartnerStatus;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface VolunteerRoleRequest {
   id: string;
   profile_id: string | null;
