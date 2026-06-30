@@ -2,6 +2,7 @@ import {
   organizationTypeLabel,
   partnershipStatusLabel,
 } from "@/lib/community-partners/constants";
+import { primaryPartnerContact, sortPartnerContacts } from "@/lib/community-partners/contacts";
 import { downloadCsv } from "@/lib/reports/export-csv";
 import type { CommunityPartner } from "@/lib/types";
 
@@ -20,7 +21,9 @@ export const COMMUNITY_PARTNER_EXPORT_HEADERS = [
   "Contact Title",
   "Contact Email",
   "Contact Phone",
-  "Notes",
+  "Contact Notes",
+  "Primary Contact",
+  "Organization Notes",
   "Active",
 ] as const;
 
@@ -28,7 +31,7 @@ function escapeCsv(value: string): string {
   return `"${value.replace(/"/g, '""')}"`;
 }
 
-function partnerRow(partner: CommunityPartner): string[] {
+function partnerOrgCells(partner: CommunityPartner): string[] {
   return [
     partner.name,
     organizationTypeLabel(partner.organization_type),
@@ -40,19 +43,36 @@ function partnerRow(partner: CommunityPartner): string[] {
     partner.zip ?? "",
     partner.phone ?? "",
     partner.email ?? "",
-    partner.contact_name ?? "",
-    partner.contact_title ?? "",
-    partner.contact_email ?? "",
-    partner.contact_phone ?? "",
-    partner.notes ?? "",
-    partner.is_active ? "Yes" : "No",
   ];
+}
+
+function exportRowsForPartner(partner: CommunityPartner): string[][] {
+  const contacts = sortPartnerContacts(partner.contacts ?? []);
+  const orgCells = partnerOrgCells(partner);
+  const tail = [partner.notes ?? "", partner.is_active ? "Yes" : "No"];
+
+  if (contacts.length === 0) {
+    return [[...orgCells, "", "", "", "", "", "No", ...tail]];
+  }
+
+  return contacts.map((contact) => [
+    ...orgCells,
+    contact.name ?? "",
+    contact.title ?? "",
+    contact.email ?? "",
+    contact.phone ?? "",
+    contact.notes ?? "",
+    contact.is_primary ? "Yes" : "No",
+    ...tail,
+  ]);
 }
 
 export function partnersToCsv(partners: CommunityPartner[]): string {
   const lines = [
     COMMUNITY_PARTNER_EXPORT_HEADERS.map(escapeCsv).join(","),
-    ...partners.map((partner) => partnerRow(partner).map(escapeCsv).join(",")),
+    ...partners.flatMap((partner) =>
+      exportRowsForPartner(partner).map((row) => row.map(escapeCsv).join(","))
+    ),
   ];
   return lines.join("\n");
 }
@@ -60,8 +80,11 @@ export function partnersToCsv(partners: CommunityPartner[]): string {
 export function collectPartnerEmails(partners: CommunityPartner[]): string[] {
   const emails = new Set<string>();
   for (const partner of partners) {
-    for (const value of [partner.contact_email, partner.email]) {
-      const email = value?.trim().toLowerCase();
+    if (partner.email?.trim()) {
+      emails.add(partner.email.trim().toLowerCase());
+    }
+    for (const contact of partner.contacts ?? []) {
+      const email = contact.email?.trim().toLowerCase();
       if (email) emails.add(email);
     }
   }
@@ -69,18 +92,24 @@ export function collectPartnerEmails(partners: CommunityPartner[]): string[] {
 }
 
 export function partnersToEmailCsv(partners: CommunityPartner[]): string {
-  const rows: string[] = ['"Organization Name","Email","Source"'];
+  const rows: string[] = ['"Organization Name","Contact Name","Email","Source"'];
   for (const partner of partners) {
     const name = partner.name;
-    if (partner.contact_email?.trim()) {
+    for (const contact of sortPartnerContacts(partner.contacts ?? [])) {
+      if (!contact.email?.trim()) continue;
       rows.push(
-        [name, partner.contact_email.trim(), "Contact"].map(escapeCsv).join(",")
+        [name, contact.name ?? "", contact.email.trim(), "Contact"]
+          .map(escapeCsv)
+          .join(",")
       );
     }
     if (partner.email?.trim()) {
       const orgEmail = partner.email.trim();
-      if (orgEmail.toLowerCase() !== partner.contact_email?.trim().toLowerCase()) {
-        rows.push([name, orgEmail, "Organization"].map(escapeCsv).join(","));
+      const alreadyListed = (partner.contacts ?? []).some(
+        (contact) => contact.email?.trim().toLowerCase() === orgEmail.toLowerCase()
+      );
+      if (!alreadyListed) {
+        rows.push([name, "", orgEmail, "Organization"].map(escapeCsv).join(","));
       }
     }
   }
@@ -99,3 +128,5 @@ export function exportPartnerEmailsPlain(partners: CommunityPartner[]) {
   const content = collectPartnerEmails(partners).join("\n");
   downloadCsv("community-partner-emails.txt", content);
 }
+
+export { primaryPartnerContact };

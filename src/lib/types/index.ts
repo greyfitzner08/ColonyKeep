@@ -543,6 +543,20 @@ export type CommunityPartnerStatus =
   | "past"
   | "do_not_contact";
 
+export interface CommunityPartnerContact {
+  id: string;
+  partner_id: string;
+  name: string | null;
+  title: string | null;
+  email: string | null;
+  phone: string | null;
+  notes: string | null;
+  is_primary: boolean;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface CommunityPartner {
   id: string;
   name: string;
@@ -554,15 +568,12 @@ export interface CommunityPartner {
   zip: string | null;
   phone: string | null;
   email: string | null;
-  contact_name: string | null;
-  contact_title: string | null;
-  contact_email: string | null;
-  contact_phone: string | null;
   notes: string | null;
   partnership_status: CommunityPartnerStatus;
   is_active: boolean;
   created_at: string;
   updated_at: string;
+  contacts?: CommunityPartnerContact[];
 }
 
 export interface VolunteerRoleRequest {

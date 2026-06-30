@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Download, Mail, Pencil, Plus, Search, Trash2 } from "lucide-react";
 import { CommunityPartnerImporter } from "@/components/community-partners/partner-importer";
+import { PartnerContactsEditor } from "@/components/community-partners/partner-contacts-editor";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -35,6 +36,13 @@ import {
   partnershipStatusLabel,
 } from "@/lib/community-partners/constants";
 import {
+  contactsFromPartner,
+  emptyPartnerContactInput,
+  primaryPartnerContact,
+  sortPartnerContacts,
+  type PartnerContactInput,
+} from "@/lib/community-partners/contacts";
+import {
   exportPartnerEmailsCsv,
   exportPartnerEmailsPlain,
   exportPartnersCsv,
@@ -50,9 +58,25 @@ interface CommunityPartnersManagerProps {
   partners: CommunityPartner[];
 }
 
-const emptyPartner = {
+type PartnerForm = {
+  name: string;
+  organization_type: CommunityPartnerOrganizationType;
+  website: string;
+  address: string;
+  city: string;
+  state: string;
+  zip: string;
+  phone: string;
+  email: string;
+  notes: string;
+  partnership_status: CommunityPartnerStatus;
+  is_active: boolean;
+  contacts: PartnerContactInput[];
+};
+
+const emptyPartner = (): PartnerForm => ({
   name: "",
-  organization_type: "other" as CommunityPartnerOrganizationType,
+  organization_type: "other",
   website: "",
   address: "",
   city: "",
@@ -60,16 +84,21 @@ const emptyPartner = {
   zip: "",
   phone: "",
   email: "",
-  contact_name: "",
-  contact_title: "",
-  contact_email: "",
-  contact_phone: "",
   notes: "",
-  partnership_status: "active" as CommunityPartnerStatus,
+  partnership_status: "active",
   is_active: true,
-};
+  contacts: [emptyPartnerContactInput()],
+});
 
 function matchesSearch(partner: CommunityPartner, query: string): boolean {
+  const contactFields = (partner.contacts ?? []).flatMap((contact) => [
+    contact.name,
+    contact.title,
+    contact.email,
+    contact.phone,
+    contact.notes,
+  ]);
+
   const haystack = [
     partner.name,
     partner.organization_type,
@@ -82,11 +111,8 @@ function matchesSearch(partner: CommunityPartner, query: string): boolean {
     partner.zip,
     partner.phone,
     partner.email,
-    partner.contact_name,
-    partner.contact_title,
-    partner.contact_email,
-    partner.contact_phone,
     partner.notes,
+    ...contactFields,
   ]
     .filter(Boolean)
     .join(" ")
@@ -107,7 +133,7 @@ export function CommunityPartnersManager({ partners: initial }: CommunityPartner
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<CommunityPartner | null>(null);
-  const [form, setForm] = useState(emptyPartner);
+  const [form, setForm] = useState<PartnerForm>(emptyPartner());
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<CommunityPartner | null>(null);
@@ -124,7 +150,7 @@ export function CommunityPartnersManager({ partners: initial }: CommunityPartner
 
   function openNew() {
     setEditing(null);
-    setForm(emptyPartner);
+    setForm(emptyPartner());
     setSaveError(null);
     setDialogOpen(true);
   }
@@ -141,13 +167,10 @@ export function CommunityPartnersManager({ partners: initial }: CommunityPartner
       zip: partner.zip ?? "",
       phone: partner.phone ?? "",
       email: partner.email ?? "",
-      contact_name: partner.contact_name ?? "",
-      contact_title: partner.contact_title ?? "",
-      contact_email: partner.contact_email ?? "",
-      contact_phone: partner.contact_phone ?? "",
       notes: partner.notes ?? "",
       partnership_status: partner.partnership_status,
       is_active: partner.is_active,
+      contacts: contactsFromPartner(partner),
     });
     setSaveError(null);
     setDialogOpen(true);
@@ -214,35 +237,48 @@ export function CommunityPartnersManager({ partners: initial }: CommunityPartner
       },
       {
         id: "contact",
-        label: "Primary contact",
-        defaultWidth: 200,
+        label: "Contacts",
+        defaultWidth: 220,
         wrap: true,
-        render: (partner) =>
-          partner.contact_name || partner.contact_email ? (
-            <div className="text-sm">
-              {partner.contact_name && <p className="font-medium">{partner.contact_name}</p>}
-              {partner.contact_title && (
-                <p className="text-muted-foreground">{partner.contact_title}</p>
+        render: (partner) => {
+          const contacts = sortPartnerContacts(partner.contacts ?? []);
+          const primary = primaryPartnerContact(partner);
+
+          if (contacts.length === 0) {
+            return "—";
+          }
+
+          return (
+            <div className="space-y-2 text-sm">
+              {primary && (
+                <div>
+                  <p className="font-medium">
+                    {primary.name || "Primary contact"}
+                    {primary.is_primary && contacts.length > 1 ? (
+                      <span className="ml-1 text-xs font-normal text-muted-foreground">(primary)</span>
+                    ) : null}
+                  </p>
+                  {primary.title && <p className="text-muted-foreground">{primary.title}</p>}
+                  {primary.email && (
+                    <a href={`mailto:${primary.email}`} className="text-primary hover:underline">
+                      {primary.email}
+                    </a>
+                  )}
+                </div>
               )}
-              {partner.contact_email && (
-                <a
-                  href={`mailto:${partner.contact_email}`}
-                  className="text-primary hover:underline"
-                >
-                  {partner.contact_email}
-                </a>
+              {contacts.length > 1 && (
+                <p className="text-xs text-muted-foreground">+{contacts.length - 1} more contact(s)</p>
               )}
             </div>
-          ) : (
-            "—"
-          ),
+          );
+        },
       },
       {
         id: "phones",
         label: "Phone",
         defaultWidth: 130,
         render: (partner) => {
-          const phone = partner.contact_phone || partner.phone;
+          const phone = primaryPartnerContact(partner)?.phone || partner.phone;
           return phone ? (
             <a href={`tel:${phone}`} className="whitespace-nowrap text-primary hover:underline">
               {phone}
@@ -470,44 +506,14 @@ export function CommunityPartnersManager({ partners: initial }: CommunityPartner
                 />
               </div>
             </div>
-            <div className="rounded-lg border bg-muted/30 p-4 space-y-4">
-              <p className="text-sm font-medium">Primary contact</p>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <Label>Contact name</Label>
-                  <Input
-                    value={form.contact_name}
-                    onChange={(event) => setForm({ ...form, contact_name: event.target.value })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Title / role</Label>
-                  <Input
-                    value={form.contact_title}
-                    onChange={(event) => setForm({ ...form, contact_title: event.target.value })}
-                  />
-                </div>
-              </div>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <Label>Contact email</Label>
-                  <Input
-                    type="email"
-                    value={form.contact_email}
-                    onChange={(event) => setForm({ ...form, contact_email: event.target.value })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Contact phone</Label>
-                  <Input
-                    value={form.contact_phone}
-                    onChange={(event) => setForm({ ...form, contact_phone: event.target.value })}
-                  />
-                </div>
-              </div>
-            </div>
+
+            <PartnerContactsEditor
+              contacts={form.contacts}
+              onChange={(contacts) => setForm({ ...form, contacts })}
+            />
+
             <div className="space-y-2">
-              <Label>Notes</Label>
+              <Label>Organization notes</Label>
               <Textarea
                 value={form.notes}
                 onChange={(event) => setForm({ ...form, notes: event.target.value })}
@@ -529,7 +535,7 @@ export function CommunityPartnersManager({ partners: initial }: CommunityPartner
             <AlertDialogTitle>Remove community partner?</AlertDialogTitle>
             <AlertDialogDescription>
               {deleteTarget
-                ? `This will permanently remove ${deleteTarget.name} and its contact information from the directory.`
+                ? `This will permanently remove ${deleteTarget.name} and all of its contacts from the directory.`
                 : "This action cannot be undone."}
             </AlertDialogDescription>
           </AlertDialogHeader>

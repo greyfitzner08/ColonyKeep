@@ -41,10 +41,12 @@ export function CommunityPartnerImporter() {
         .map((entry: { row: number; error: string }) => `Row ${entry.row}: ${entry.error}`)
         .join("; ");
       setError(
-        `Imported ${result.imported} partner(s) with ${result.errors.length} error(s). ${details}`
+        `Imported ${result.imported} organization(s) and ${result.imported_contacts ?? 0} contact(s) with ${result.errors.length} error(s). ${details}`
       );
     } else {
-      setMessage(`Imported ${result.imported} community partner(s).`);
+      setMessage(
+        `Imported ${result.imported} organization(s) and ${result.imported_contacts ?? 0} contact(s). Repeat the same organization name on additional rows to add more contacts.`
+      );
     }
 
     router.refresh();
@@ -81,8 +83,9 @@ export function CommunityPartnerImporter() {
       <CardHeader>
         <CardTitle className="text-base">Import Partners</CardTitle>
         <CardDescription>
-          Upload a CSV with organization and contact details. Organization Type accepts values like
-          Local Business, Rescue / Sanctuary, Grantor / Funder, Sponsor, Municipal / Government,
+          Upload a CSV with organization and contact details. Use the same organization name on
+          multiple rows to import several contacts for one partner. Organization Type accepts values
+          like Local Business, Rescue / Sanctuary, Grantor / Funder, Sponsor, Municipal / Government,
           Media, or Other. Download the template for all {COMMUNITY_PARTNER_IMPORT_HEADERS.length}{" "}
           columns.
         </CardDescription>

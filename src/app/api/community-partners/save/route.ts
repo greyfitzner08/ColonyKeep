@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireCommunityPartnerManager } from "@/lib/api/auth";
+import {
+  normalizeContactInputs,
+  type PartnerContactInput,
+} from "@/lib/community-partners/contacts";
+import { syncCommunityPartnerContacts } from "@/lib/community-partners/sync-contacts";
 import { createServiceClient } from "@/lib/supabase/server";
 
 export async function POST(request: NextRequest) {
@@ -19,10 +24,6 @@ export async function POST(request: NextRequest) {
     zip: body.zip?.trim() || null,
     phone: body.phone?.trim() || null,
     email: body.email?.trim() || null,
-    contact_name: body.contact_name?.trim() || null,
-    contact_title: body.contact_title?.trim() || null,
-    contact_email: body.contact_email?.trim() || null,
-    contact_phone: body.contact_phone?.trim() || null,
     notes: body.notes?.trim() || null,
     partnership_status: body.partnership_status ?? "active",
     is_active: body.is_active ?? true,
@@ -31,6 +32,10 @@ export async function POST(request: NextRequest) {
   if (!payload.name) {
     return NextResponse.json({ error: "Organization name is required" }, { status: 400 });
   }
+
+  const contacts = normalizeContactInputs(
+    (Array.isArray(body.contacts) ? body.contacts : []) as PartnerContactInput[]
+  );
 
   const query = body.id
     ? service.from("community_partners").update(payload).eq("id", body.id)
@@ -42,5 +47,29 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 400 });
   }
 
-  return NextResponse.json({ partner: data });
+  try {
+    await syncCommunityPartnerContacts(service, data.id, contacts);
+  } catch (syncError) {
+    return NextResponse.json(
+      { error: syncError instanceof Error ? syncError.message : "Unable to save contacts" },
+      { status: 400 }
+    );
+  }
+
+  const { data: partner, error: loadError } = await service
+    .from("community_partners")
+    .select("*, community_partner_contacts(*)")
+    .eq("id", data.id)
+    .single();
+
+  if (loadError) {
+    return NextResponse.json({ partner: data });
+  }
+
+  return NextResponse.json({
+    partner: {
+      ...partner,
+      contacts: partner.community_partner_contacts ?? [],
+    },
+  });
 }
