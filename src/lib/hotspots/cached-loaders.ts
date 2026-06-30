@@ -1,6 +1,6 @@
 import { unstable_cache } from "next/cache";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { createClient, createServiceClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin-client";
 import { hasSupabaseAdminConfig } from "@/lib/supabase/env";
 import {
   loadHotspotFeeders,
@@ -32,18 +32,14 @@ async function loadHotspotsPayload(supabase: SupabaseClient): Promise<CachedHots
     return { helpRequests, feeders: [], volunteers: [], error: feederError };
   }
 
-  let volunteers: HotspotMapVolunteer[] = [];
-  if (hasSupabaseAdminConfig()) {
-    const service = await createServiceClient();
-    volunteers = await loadHotspotVolunteersWithCoordsOnly(service);
-  }
+  const volunteers = await loadHotspotVolunteersWithCoordsOnly(supabase);
 
   return { helpRequests, feeders, volunteers, error: null };
 }
 
-/** Cached loader — must not call cookies()/headers(); uses service role only. */
+/** Cached loader — must not import cookie-based Supabase clients. */
 async function fetchHotspotsPayloadWithServiceRole(): Promise<CachedHotspotsPayload> {
-  const service = await createServiceClient();
+  const service = createAdminClient();
   return loadHotspotsPayload(service);
 }
 
@@ -54,10 +50,14 @@ export const getCachedHotspotsData = unstable_cache(
 );
 
 export async function getHotspotsData(): Promise<CachedHotspotsPayload> {
-  if (hasSupabaseAdminConfig()) {
-    return getCachedHotspotsData();
+  if (!hasSupabaseAdminConfig()) {
+    return {
+      helpRequests: [],
+      feeders: [],
+      volunteers: [],
+      error: "Hotspots map requires server admin configuration.",
+    };
   }
 
-  const supabase = await createClient();
-  return loadHotspotsPayload(supabase);
+  return getCachedHotspotsData();
 }
