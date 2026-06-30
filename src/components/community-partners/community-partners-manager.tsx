@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Download, Mail, Pencil, Plus, Search, Trash2 } from "lucide-react";
+import { Download, Eye, Mail, Pencil, Plus, Search, Trash2 } from "lucide-react";
 import { CommunityPartnerImporter } from "@/components/community-partners/partner-importer";
 import { PartnerContactsEditor } from "@/components/community-partners/partner-contacts-editor";
 import {
@@ -127,6 +127,137 @@ function partnerAddress(partner: CommunityPartner): string {
   );
 }
 
+function DetailBlock({
+  label,
+  value,
+}: {
+  label: string;
+  value: string | null | undefined;
+}) {
+  if (!value?.trim()) return null;
+  return (
+    <div>
+      <p className="font-medium">{label}</p>
+      <p className="text-muted-foreground whitespace-pre-wrap">{value.trim()}</p>
+    </div>
+  );
+}
+
+function PartnerDetailView({
+  partner,
+  onEdit,
+}: {
+  partner: CommunityPartner;
+  onEdit: () => void;
+}) {
+  const contacts = sortPartnerContacts(partner.contacts ?? []);
+
+  return (
+    <div className="space-y-4 text-sm">
+      <div className="flex flex-wrap items-center gap-2">
+        <Badge
+          variant={
+            partner.partnership_status === "do_not_contact"
+              ? "destructive"
+              : partner.partnership_status === "active"
+                ? "default"
+                : "secondary"
+          }
+        >
+          {partnershipStatusLabel(partner.partnership_status)}
+        </Badge>
+        <Badge variant="outline">{organizationTypeLabel(partner.organization_type)}</Badge>
+        {!partner.is_active && <Badge variant="secondary">Inactive</Badge>}
+      </div>
+
+      <div className="space-y-3">
+        {formatSingleLineAddress([partner.address, partner.city, partner.state, partner.zip]) && (
+          <DetailBlock
+            label="Address"
+            value={formatSingleLineAddress([
+              partner.address,
+              partner.city,
+              partner.state,
+              partner.zip,
+            ])}
+          />
+        )}
+        {partner.website?.trim() && (
+          <div>
+            <p className="font-medium">Website</p>
+            <a
+              href={partner.website}
+              target="_blank"
+              rel="noreferrer"
+              className="text-primary hover:underline break-all"
+            >
+              {partner.website}
+            </a>
+          </div>
+        )}
+        {partner.phone?.trim() && (
+          <div>
+            <p className="font-medium">Organization phone</p>
+            <a href={`tel:${partner.phone}`} className="text-primary hover:underline">
+              {partner.phone}
+            </a>
+          </div>
+        )}
+        {partner.email?.trim() && (
+          <div>
+            <p className="font-medium">Organization email</p>
+            <a href={`mailto:${partner.email}`} className="text-primary hover:underline break-all">
+              {partner.email}
+            </a>
+          </div>
+        )}
+        <DetailBlock label="Organization notes" value={partner.notes} />
+      </div>
+
+      <div className="space-y-3">
+        <p className="font-medium">Contacts</p>
+        {contacts.length === 0 ? (
+          <p className="text-muted-foreground">No contacts on file.</p>
+        ) : (
+          contacts.map((contact) => (
+            <div key={contact.id} className="rounded-lg border bg-muted/30 p-3 space-y-1.5">
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="font-medium">{contact.name?.trim() || "Unnamed contact"}</p>
+                {contact.is_primary && contacts.length > 1 ? (
+                  <Badge variant="secondary" className="text-xs font-normal">
+                    Primary
+                  </Badge>
+                ) : null}
+              </div>
+              {contact.title?.trim() && (
+                <p className="text-muted-foreground">{contact.title.trim()}</p>
+              )}
+              {contact.email?.trim() && (
+                <a href={`mailto:${contact.email}`} className="block text-primary hover:underline break-all">
+                  {contact.email.trim()}
+                </a>
+              )}
+              {contact.phone?.trim() && (
+                <a href={`tel:${contact.phone}`} className="block text-primary hover:underline">
+                  {contact.phone.trim()}
+                </a>
+              )}
+              {contact.notes?.trim() && (
+                <p className="text-muted-foreground whitespace-pre-wrap pt-1">{contact.notes.trim()}</p>
+              )}
+            </div>
+          ))
+        )}
+      </div>
+
+      <Button type="button" variant="outline" className="w-full" onClick={onEdit}>
+        <Pencil className="mr-2 h-4 w-4" />
+        Edit partner
+      </Button>
+    </div>
+  );
+}
+
 export function CommunityPartnersManager({ partners: initial }: CommunityPartnersManagerProps) {
   const router = useRouter();
   const [search, setSearch] = useState("");
@@ -138,6 +269,7 @@ export function CommunityPartnersManager({ partners: initial }: CommunityPartner
   const [saving, setSaving] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<CommunityPartner | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [viewingPartner, setViewingPartner] = useState<CommunityPartner | null>(null);
 
   const filtered = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -309,10 +441,25 @@ export function CommunityPartnersManager({ partners: initial }: CommunityPartner
       {
         id: "actions",
         label: "",
-        defaultWidth: 90,
+        defaultWidth: 120,
         render: (partner) => (
           <div className="flex gap-1">
-            <Button type="button" variant="ghost" size="icon" onClick={() => openEdit(partner)}>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={() => setViewingPartner(partner)}
+              aria-label={`View ${partner.name}`}
+            >
+              <Eye className="h-4 w-4" />
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={() => openEdit(partner)}
+              aria-label={`Edit ${partner.name}`}
+            >
               <Pencil className="h-4 w-4" />
             </Button>
             <Button
@@ -320,6 +467,7 @@ export function CommunityPartnersManager({ partners: initial }: CommunityPartner
               variant="ghost"
               size="icon"
               onClick={() => setDeleteTarget(partner)}
+              aria-label={`Remove ${partner.name}`}
             >
               <Trash2 className="h-4 w-4" />
             </Button>
@@ -389,6 +537,26 @@ export function CommunityPartnersManager({ partners: initial }: CommunityPartner
       />
 
       <CommunityPartnerImporter />
+
+      <Dialog open={viewingPartner != null} onOpenChange={(open) => !open && setViewingPartner(null)}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          {viewingPartner && (
+            <>
+              <DialogHeader>
+                <DialogTitle>{viewingPartner.name}</DialogTitle>
+              </DialogHeader>
+              <PartnerDetailView
+                partner={viewingPartner}
+                onEdit={() => {
+                  const partner = viewingPartner;
+                  setViewingPartner(null);
+                  openEdit(partner);
+                }}
+              />
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
