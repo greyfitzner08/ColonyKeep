@@ -77,56 +77,8 @@ export function partnersToCsv(partners: CommunityPartner[]): string {
   return lines.join("\n");
 }
 
-export function collectPartnerEmails(partners: CommunityPartner[]): string[] {
-  const emails = new Set<string>();
-  for (const partner of partners) {
-    if (partner.email?.trim()) {
-      emails.add(partner.email.trim().toLowerCase());
-    }
-    for (const contact of partner.contacts ?? []) {
-      const email = contact.email?.trim().toLowerCase();
-      if (email) emails.add(email);
-    }
-  }
-  return Array.from(emails).sort((a, b) => a.localeCompare(b));
-}
-
-export function partnersToEmailCsv(partners: CommunityPartner[]): string {
-  const rows: string[] = ['"Organization Name","Contact Name","Email","Source"'];
-  for (const partner of partners) {
-    const name = partner.name;
-    for (const contact of sortPartnerContacts(partner.contacts ?? [])) {
-      if (!contact.email?.trim()) continue;
-      rows.push(
-        [name, contact.name ?? "", contact.email.trim(), "Contact"]
-          .map(escapeCsv)
-          .join(",")
-      );
-    }
-    if (partner.email?.trim()) {
-      const orgEmail = partner.email.trim();
-      const alreadyListed = (partner.contacts ?? []).some(
-        (contact) => contact.email?.trim().toLowerCase() === orgEmail.toLowerCase()
-      );
-      if (!alreadyListed) {
-        rows.push([name, "", orgEmail, "Organization"].map(escapeCsv).join(","));
-      }
-    }
-  }
-  return rows.join("\n");
-}
-
 export function exportPartnersCsv(partners: CommunityPartner[]) {
   downloadCsv("community-partners.csv", partnersToCsv(partners));
-}
-
-export function exportPartnerEmailsCsv(partners: CommunityPartner[]) {
-  downloadCsv("community-partner-emails.csv", partnersToEmailCsv(partners));
-}
-
-export function exportPartnerEmailsPlain(partners: CommunityPartner[]) {
-  const content = collectPartnerEmails(partners).join("\n");
-  downloadCsv("community-partner-emails.txt", content);
 }
 
 export { primaryPartnerContact };

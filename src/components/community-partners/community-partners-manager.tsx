@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Download, Eye, Mail, Pencil, Plus, Search, Trash2 } from "lucide-react";
+import { Download, Eye, Pencil, Plus, Search, Trash2 } from "lucide-react";
 import { CommunityPartnerImporter } from "@/components/community-partners/partner-importer";
 import { PartnerContactsEditor } from "@/components/community-partners/partner-contacts-editor";
 import {
@@ -42,11 +42,7 @@ import {
   sortPartnerContacts,
   type PartnerContactInput,
 } from "@/lib/community-partners/contacts";
-import {
-  exportPartnerEmailsCsv,
-  exportPartnerEmailsPlain,
-  exportPartnersCsv,
-} from "@/lib/community-partners/export-csv";
+import { exportPartnersCsv } from "@/lib/community-partners/export-csv";
 import { formatSingleLineAddress } from "@/lib/cases/colony-notes";
 import type {
   CommunityPartner,
@@ -508,13 +504,6 @@ export function CommunityPartnersManager({ partners: initial }: CommunityPartner
           <Button variant="outline" size="sm" onClick={() => exportPartnersCsv(filtered)}>
             <Download className="mr-2 h-4 w-4" />
             Export CSV
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => exportPartnerEmailsCsv(filtered)}>
-            <Mail className="mr-2 h-4 w-4" />
-            Export emails
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => exportPartnerEmailsPlain(filtered)}>
-            Copy list (.txt)
           </Button>
           <Button onClick={openNew}>
             <Plus className="mr-2 h-4 w-4" />
