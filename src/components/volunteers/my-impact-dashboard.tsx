@@ -126,14 +126,33 @@ export function MyImpactDashboard({ hours, shifts, casesWorked, profile }: MyImp
       <Card>
         <CardHeader><CardTitle>Recent Hours</CardTitle></CardHeader>
         <CardContent>
-          <div className="space-y-2">
-            {hours.slice(0, 10).map((h) => (
-              <div key={h.id} className="flex justify-between text-sm border-b pb-2">
-                <span>{formatDate(h.date)} · {h.hour_type}</span>
-                <span className="font-medium">{h.hours} hrs</span>
-              </div>
-            ))}
-          </div>
+          {hours.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No hours logged yet.</p>
+          ) : (
+            <div className="space-y-3">
+              {hours.slice(0, 20).map((entry) => (
+                <div key={entry.id} className="border-b pb-3 last:border-b-0 last:pb-0">
+                  <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 text-sm">
+                    <span>
+                      {formatDate(entry.date)} ·{" "}
+                      <span className="capitalize">{entry.hour_type.replace(/_/g, " ")}</span>
+                    </span>
+                    <span className="font-medium shrink-0">{entry.hours} hrs</span>
+                  </div>
+                  {entry.notes?.trim() ? (
+                    <p className="mt-1.5 text-sm text-muted-foreground whitespace-pre-wrap">
+                      {entry.notes.trim()}
+                    </p>
+                  ) : null}
+                </div>
+              ))}
+              {hours.length > 20 && (
+                <p className="text-xs text-muted-foreground pt-1">
+                  Showing your 20 most recent entries.
+                </p>
+              )}
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
