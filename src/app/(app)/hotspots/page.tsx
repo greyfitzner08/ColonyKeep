@@ -1,10 +1,10 @@
 import { HotspotsShell } from "@/components/maps/hotspots-shell";
-import { getCachedHotspotsData } from "@/lib/hotspots/cached-loaders";
+import { getHotspotsData } from "@/lib/hotspots/cached-loaders";
 
 export const revalidate = 300;
 
 export default async function HotspotsPage() {
-  const { helpRequests, feeders, volunteers, error } = await getCachedHotspotsData();
+  const { helpRequests, feeders, volunteers, error } = await getHotspotsData();
 
   if (error) {
     throw new Error(`Unable to load colony hotspots: ${error}`);

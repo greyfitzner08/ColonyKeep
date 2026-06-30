@@ -1,4 +1,5 @@
 import { unstable_cache } from "next/cache";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { hasSupabaseAdminConfig } from "@/lib/supabase/env";
 import {
@@ -17,8 +18,7 @@ export interface CachedHotspotsPayload {
   error: string | null;
 }
 
-async function fetchHotspotsPayload(): Promise<CachedHotspotsPayload> {
-  const supabase = await createClient();
+async function loadHotspotsPayload(supabase: SupabaseClient): Promise<CachedHotspotsPayload> {
   const [{ helpRequests, error }, { feeders, error: feederError }] = await Promise.all([
     loadHotspotHelpRequests(supabase),
     loadHotspotFeeders(supabase),
@@ -41,8 +41,23 @@ async function fetchHotspotsPayload(): Promise<CachedHotspotsPayload> {
   return { helpRequests, feeders, volunteers, error: null };
 }
 
+/** Cached loader — must not call cookies()/headers(); uses service role only. */
+async function fetchHotspotsPayloadWithServiceRole(): Promise<CachedHotspotsPayload> {
+  const service = await createServiceClient();
+  return loadHotspotsPayload(service);
+}
+
 export const getCachedHotspotsData = unstable_cache(
-  fetchHotspotsPayload,
+  fetchHotspotsPayloadWithServiceRole,
   ["hotspots-map-data"],
   { revalidate: 300, tags: ["hotspots"] }
 );
+
+export async function getHotspotsData(): Promise<CachedHotspotsPayload> {
+  if (hasSupabaseAdminConfig()) {
+    return getCachedHotspotsData();
+  }
+
+  const supabase = await createClient();
+  return loadHotspotsPayload(supabase);
+}
