@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/select";
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import { AdminUserEditDialog } from "@/components/admin/admin-user-edit-dialog";
+import { AdminUserRemoveDialog } from "@/components/admin/admin-user-remove-dialog";
 import { ROLE_PERMISSIONS, isKnownUserRole } from "@/lib/constants";
 import {
   getApplicationByEmail,
@@ -25,7 +26,7 @@ import type {
   TrapTeam,
   VolunteerApplication,
 } from "@/lib/types";
-import { Pencil, Search } from "lucide-react";
+import { Pencil, Search, Trash2 } from "lucide-react";
 
 interface AdminUsersManagerProps {
   users: Profile[];
@@ -45,6 +46,7 @@ export function AdminUsersManager({
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState<string>("all");
   const [editingUser, setEditingUser] = useState<Profile | null>(null);
+  const [removingUser, setRemovingUser] = useState<Profile | null>(null);
   const [userError, setUserError] = useState<string | null>(null);
 
   const roleCatalog = useMemo(
@@ -151,23 +153,40 @@ export function AdminUsersManager({
       {
         id: "actions",
         label: "Actions",
-        defaultWidth: 100,
-        minWidth: 88,
+        defaultWidth: 180,
+        minWidth: 160,
         headerClassName: "text-right",
         cellClassName: "text-right",
         render: (user) => (
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            onClick={() => {
-              setUserError(null);
-              setEditingUser(user);
-            }}
-          >
-            <Pencil className="mr-1.5 h-3.5 w-3.5" />
-            Edit
-          </Button>
+          <div className="flex justify-end gap-2">
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                setUserError(null);
+                setEditingUser(user);
+              }}
+            >
+              <Pencil className="mr-1.5 h-3.5 w-3.5" />
+              Edit
+            </Button>
+            {user.role !== "admin" ? (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="text-destructive hover:text-destructive"
+                onClick={() => {
+                  setUserError(null);
+                  setRemovingUser(user);
+                }}
+              >
+                <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+                Remove
+              </Button>
+            ) : null}
+          </div>
         ),
       },
     ];
@@ -229,6 +248,14 @@ export function AdminUsersManager({
             ? eligibleVolunteers.some((entry) => entry.profile.id === editingUser.id)
             : false
         }
+        onError={setUserError}
+      />
+
+      <AdminUserRemoveDialog
+        user={removingUser}
+        users={users}
+        open={removingUser != null}
+        onOpenChange={(open) => !open && setRemovingUser(null)}
         onError={setUserError}
       />
     </div>
