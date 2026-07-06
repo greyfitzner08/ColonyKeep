@@ -243,6 +243,7 @@ export function AdminUsersManager({
         rows={filteredUsers}
         getRowKey={(user) => user.id}
         emptyMessage="No users match your search."
+        enableSearch={false}
       />
 
       <AdminUserEditDialog

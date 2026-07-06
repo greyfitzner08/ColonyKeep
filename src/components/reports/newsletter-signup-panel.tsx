@@ -142,6 +142,7 @@ export function NewsletterSignupPanel({ signups }: { signups: NewsletterSignupRo
         id: "contact",
         label: "Contact",
         defaultWidth: 260,
+        sortValue: (row) => `${row.contact_name ?? ""} ${row.contact_email}`,
         render: (row) => (
           <div className="min-w-0">
             <p className="truncate font-medium">{row.contact_name || "Unknown"}</p>
@@ -153,6 +154,7 @@ export function NewsletterSignupPanel({ signups }: { signups: NewsletterSignupRo
         id: "case",
         label: "Case",
         defaultWidth: 120,
+        sortValue: (row) => row.case_number ?? "",
         render: (row) =>
           row.case_number ? (
             <Link href={`/case/${row.id}`} className="text-primary hover:underline">
@@ -166,6 +168,7 @@ export function NewsletterSignupPanel({ signups }: { signups: NewsletterSignupRo
         id: "date",
         label: showAdded ? "Added" : "Signed up",
         defaultWidth: 160,
+        sortValue: (row) => (showAdded ? row.newsletter_list_added_at : row.created_at) ?? "",
         render: (row) => (
           <span className="text-xs text-muted-foreground">
             {formatDateTime(showAdded ? row.newsletter_list_added_at! : row.created_at)}

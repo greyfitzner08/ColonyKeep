@@ -213,6 +213,7 @@ export function TrapTeamsManager({ teams, users, applications }: TrapTeamsManage
         rows={sortTrapTeams(teams)}
         getRowKey={(team) => team.id}
         emptyMessage="No trap teams configured yet."
+        searchPlaceholder="Search trap teams…"
       />
 
       {teamError && !teamDialog && <p className="text-sm text-destructive">{teamError}</p>}

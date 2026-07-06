@@ -119,6 +119,7 @@ export function HotspotsColoniesTable({ helpRequests }: HotspotsColoniesTablePro
       getRowKey={(hr) => hr.id}
       emptyMessage="No colony hotspots to show."
       minTableWidth={1180}
+      searchPlaceholder="Search colonies…"
     />
   );
 }

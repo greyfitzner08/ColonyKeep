@@ -413,6 +413,10 @@ export function ReportsDashboard({
             columns={reportTableColumns}
             rows={result.rows}
             getRowKey={(row) => row.key}
+            getSearchText={(row) =>
+              result.columns.map((column) => String(cellValue(row, column.key) ?? "")).join(" ")
+            }
+            searchPlaceholder="Search report…"
             emptyMessage="No rows match the current filters."
           />
         </CardContent>

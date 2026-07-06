@@ -24,3 +24,13 @@ export function compareSortValues(
 
   return direction === "asc" ? result : -result;
 }
+
+export function buildDataTableSearchText<T>(
+  row: T,
+  columns: Array<{ sortValue?: (row: T) => string | number | null | undefined }>
+): string {
+  return columns
+    .map((column) => column.sortValue?.(row))
+    .filter((value) => value != null && String(value).trim() !== "")
+    .join(" ");
+}

@@ -232,6 +232,7 @@ export function ClinicPartnersTable({ clinics, onEdit }: ClinicPartnersTableProp
           getRowKey={(clinic) => clinic.id}
           emptyMessage="No clinic partners match your search."
           minTableWidth={980}
+          enableSearch={false}
         />
       </div>
 

@@ -276,6 +276,7 @@ export function RoleDescriptionsManager({
         id: "requirements",
         label: "Requirements",
         defaultWidth: 240,
+        sortValue: (role) => (role.requirements ?? []).join(", "),
         render: (role) => {
           const roleRequirements = role.requirements ?? [];
           if (roleRequirements.length === 0) {
@@ -383,6 +384,7 @@ export function RoleDescriptionsManager({
         rows={allRoles}
         getRowKey={(role) => role.role_id}
         emptyMessage="No volunteer roles configured."
+        searchPlaceholder="Search roles…"
       />
 
       <Dialog open={editorMode != null} onOpenChange={(open) => !open && closeDialog()}>

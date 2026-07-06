@@ -832,6 +832,7 @@ export function TrapEquipmentManager({
               getRowClassName={(item) => (savingRowId === item.id ? "opacity-70" : undefined)}
               emptyMessage="No equipment matches your filters."
               minTableWidth={1050}
+              enableSearch={false}
             />
           )}
         </div>

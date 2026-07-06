@@ -525,6 +525,7 @@ export function CommunityPartnersManager({ partners: initial }: CommunityPartner
         getRowKey={(partner) => partner.id}
         emptyMessage="No community partners match your search."
         minTableWidth={980}
+        enableSearch={false}
       />
 
       <CommunityPartnerImporter />

@@ -1374,6 +1374,18 @@ export function VolunteersManager({
           columns={applicationTableColumns}
           rows={filtered}
           getRowKey={(app) => app.id}
+          getSearchText={(app) =>
+            [
+              app.full_name,
+              app.email,
+              app.phone,
+              app.status,
+              ...(app.roles_requested ?? []),
+            ]
+              .filter(Boolean)
+              .join(" ")
+          }
+          searchPlaceholder="Search applicants…"
           getRowClassName={(app) => {
             const context = getApplicationReviewContext(
               app,

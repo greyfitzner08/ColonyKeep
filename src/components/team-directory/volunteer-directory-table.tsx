@@ -258,6 +258,7 @@ export function VolunteerDirectoryTable({ entries, teams }: VolunteerDirectoryTa
         getRowKey={(entry) => entry.id}
         emptyMessage="No team members match your filters."
         minTableWidth={820}
+        enableSearch={false}
       />
     </div>
   );

@@ -180,6 +180,7 @@ export function IntakeCaseTable({
       rows={cases}
       getRowKey={(helpRequest) => helpRequest.id}
       emptyMessage="No cases match your filters."
+      searchPlaceholder="Search cases…"
     />
   );
 }
