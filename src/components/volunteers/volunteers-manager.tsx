@@ -136,7 +136,13 @@ export function VolunteersManager({
   roleDescriptions = [],
 }: VolunteersManagerProps) {
   const router = useRouter();
-  const [reviewingApplication, setReviewingApplication] = useState<VolunteerApplication | null>(null);
+  const [reviewingApplicationId, setReviewingApplicationId] = useState<string | null>(null);
+  const [applicationPatches, setApplicationPatches] = useState<
+    Record<string, Partial<VolunteerApplication>>
+  >({});
+  const [roleRequestPatches, setRoleRequestPatches] = useState<
+    Record<string, Partial<VolunteerRoleRequest>>
+  >({});
   const [filter, setFilter] = useState<ApplicationStatusFilter>("needs_attention");
   const [viewMode, setViewMode] = useState<ApplicationViewMode>("cards");
   const [interestFilter, setInterestFilter] = useState("all");
@@ -157,11 +163,34 @@ export function VolunteersManager({
 
   const roleCatalog = useMemo(() => roleDescriptions, [roleDescriptions]);
 
+  const mergedApplications = useMemo(
+    () =>
+      applications.map((application) => ({
+        ...application,
+        ...applicationPatches[application.id],
+      })),
+    [applications, applicationPatches]
+  );
+
+  const mergedRoleRequests = useMemo(
+    () =>
+      roleRequests.map((request) => ({
+        ...request,
+        ...roleRequestPatches[request.id],
+      })),
+    [roleRequests, roleRequestPatches]
+  );
+
+  const reviewingApplication = useMemo(
+    () => mergedApplications.find((application) => application.id === reviewingApplicationId) ?? null,
+    [mergedApplications, reviewingApplicationId]
+  );
+
   const profilesList = useMemo(() => Object.values(profilesByEmail), [profilesByEmail]);
 
   const teamEligibleProfiles = useMemo(
-    () => getTeamEligibleVolunteers(applications, profilesList),
-    [applications, profilesList]
+    () => getTeamEligibleVolunteers(mergedApplications, profilesList),
+    [mergedApplications, profilesList]
   );
 
   const applicationRoleOptions = useMemo(
@@ -177,7 +206,7 @@ export function VolunteersManager({
     return getApplicationReviewContext(
       application,
       profilesByEmail,
-      roleRequests,
+      mergedRoleRequests,
       roleCatalog,
       profilesList
     );
@@ -210,7 +239,7 @@ export function VolunteersManager({
   function toggleApprovalRole(appId: string, role: VolunteerRole) {
     setApprovalRoleEdits((current) => {
       const existing = current[appId];
-      const base = existing ?? applications.find((entry) => entry.id === appId)?.roles_requested ?? [];
+      const base = existing ?? mergedApplications.find((entry) => entry.id === appId)?.roles_requested ?? [];
       const next = base.includes(role)
         ? base.filter((entry) => entry !== role)
         : [...base, role];
@@ -256,25 +285,17 @@ export function VolunteersManager({
 
   const reviewingContext = useMemo(
     () => (reviewingApplication ? getReviewContext(reviewingApplication) : null),
-    [reviewingApplication, profilesByEmail, roleRequests, roleCatalog, profilesList]
+    [reviewingApplication, profilesByEmail, mergedRoleRequests, roleCatalog, profilesList]
   );
 
   useEffect(() => {
-    if (!reviewingApplication) return;
-    const refreshed = applications.find((entry) => entry.id === reviewingApplication.id);
-    if (refreshed && refreshed !== reviewingApplication) {
-      setReviewingApplication(refreshed);
-    }
-  }, [applications, reviewingApplication]);
-
-  useEffect(() => {
     if (!pendingReviewId) return;
-    const app = applications.find((entry) => entry.id === pendingReviewId);
+    const app = mergedApplications.find((entry) => entry.id === pendingReviewId);
     if (app) {
-      setReviewingApplication(app);
+      setReviewingApplicationId(app.id);
       setPendingReviewId(null);
     }
-  }, [applications, pendingReviewId]);
+  }, [mergedApplications, pendingReviewId]);
 
   useEffect(() => {
     const profile = reviewingContext?.linkedProfile;
@@ -289,13 +310,18 @@ export function VolunteersManager({
 
   const attentionCount = useMemo(
     () =>
-      countApplicationsNeedingAttention(applications, profilesByEmail, roleRequests, roleCatalog),
-    [applications, profilesByEmail, roleRequests, roleCatalog]
+      countApplicationsNeedingAttention(
+        mergedApplications,
+        profilesByEmail,
+        mergedRoleRequests,
+        roleCatalog
+      ),
+    [mergedApplications, profilesByEmail, mergedRoleRequests, roleCatalog]
   );
 
   const filtered = useMemo(() => {
-    let results = applications.filter((application) =>
-      applicationMatchesFilter(application, filter, profilesByEmail, roleRequests, roleCatalog)
+    let results = mergedApplications.filter((application) =>
+      applicationMatchesFilter(application, filter, profilesByEmail, mergedRoleRequests, roleCatalog)
     );
 
     if (interestFilter !== "all") {
@@ -307,12 +333,12 @@ export function VolunteersManager({
 
     return [...results].sort((a, b) => {
       const priorityDiff =
-        attentionPriority(a, profilesByEmail, roleRequests, roleCatalog) -
-        attentionPriority(b, profilesByEmail, roleRequests, roleCatalog);
+        attentionPriority(a, profilesByEmail, mergedRoleRequests, roleCatalog) -
+        attentionPriority(b, profilesByEmail, mergedRoleRequests, roleCatalog);
       if (priorityDiff !== 0) return priorityDiff;
       return a.full_name.localeCompare(b.full_name, undefined, { sensitivity: "base" });
     });
-  }, [applications, filter, interestFilter, profilesByEmail, roleRequests, roleCatalog]);
+  }, [mergedApplications, filter, interestFilter, profilesByEmail, mergedRoleRequests, roleCatalog]);
 
   function notesForApp(app: VolunteerApplication) {
     return actionNotes[app.id] ?? app.admin_notes ?? "";
@@ -550,7 +576,7 @@ export function VolunteersManager({
       } else {
         clearActionError();
       }
-      setReviewingApplication(null);
+      setReviewingApplicationId(null);
       router.refresh();
       return;
     }
@@ -574,13 +600,13 @@ export function VolunteersManager({
         return;
       }
       clearActionError();
-      setReviewingApplication(null);
+      setReviewingApplicationId(null);
       router.refresh();
       return;
     }
 
     await handleAction(app.id, "approve", undefined, email, approvalRolesForApp(app));
-    setReviewingApplication(null);
+    setReviewingApplicationId(null);
   }
 
   async function handleRejectApplication(
@@ -607,7 +633,7 @@ export function VolunteersManager({
         return;
       }
       clearActionError();
-      setReviewingApplication(null);
+      setReviewingApplicationId(null);
       router.refresh();
       return;
     }
@@ -631,13 +657,13 @@ export function VolunteersManager({
         return;
       }
       clearActionError();
-      setReviewingApplication(null);
+      setReviewingApplicationId(null);
       router.refresh();
       return;
     }
 
     await handleAction(app.id, "reject", notesForApp(app));
-    setReviewingApplication(null);
+    setReviewingApplicationId(null);
   }
 
   async function handleGrantAdditionalRoles(
@@ -762,7 +788,24 @@ export function VolunteersManager({
       showActionError(getApiErrorMessage(result, "Unable to update application"));
       return;
     }
-    router.refresh();
+
+    if (primaryRoleRequest) {
+      setRoleRequestPatches((current) => ({
+        ...current,
+        [primaryRoleRequest.id]: {
+          ...current[primaryRoleRequest.id],
+          [field]: value,
+        },
+      }));
+    } else {
+      setApplicationPatches((current) => ({
+        ...current,
+        [applicationId]: {
+          ...current[applicationId],
+          [field]: value,
+        },
+      }));
+    }
   }
 
   async function resetTemporaryPassword(applicationId: string, name: string) {
@@ -814,7 +857,7 @@ export function VolunteersManager({
       showActionError(getApiErrorMessage(result, "Unable to delete application"));
       return;
     }
-    if (reviewingApplication?.id === id) setReviewingApplication(null);
+    if (reviewingApplicationId === id) setReviewingApplicationId(null);
     router.refresh();
   }
 
@@ -1245,7 +1288,15 @@ export function VolunteersManager({
               applicationId={app.id}
               certificateUrl={certificateUrl}
               certificateUploaded={certificateUploaded}
-              onUpdated={() => router.refresh()}
+              onUpdated={() => {
+                setApplicationPatches((current) => ({
+                  ...current,
+                  [app.id]: {
+                    ...current[app.id],
+                    tnvr_certificate_uploaded: true,
+                  },
+                }));
+              }}
             />
           )}
         </div>
@@ -1569,7 +1620,7 @@ export function VolunteersManager({
               type="button"
               size="sm"
               variant="outline"
-              onClick={() => setReviewingApplication(app)}
+              onClick={() => setReviewingApplicationId(app.id)}
             >
               Review
             </Button>
@@ -1715,7 +1766,7 @@ export function VolunteersManager({
                         type="button"
                         size="sm"
                         variant="outline"
-                        onClick={() => setReviewingApplication(app)}
+                        onClick={() => setReviewingApplicationId(app.id)}
                       >
                         Review
                       </Button>
@@ -1725,7 +1776,7 @@ export function VolunteersManager({
                       type="button"
                       size="sm"
                       variant="outline"
-                      onClick={() => setReviewingApplication(app)}
+                      onClick={() => setReviewingApplicationId(app.id)}
                     >
                       Review
                     </Button>
@@ -1764,13 +1815,15 @@ export function VolunteersManager({
       )}
 
       <Dialog
-        open={reviewingApplication != null}
+        open={reviewingApplicationId != null}
         onOpenChange={(open) => {
           if (!open) {
-            setReviewingApplication(null);
+            setReviewingApplicationId(null);
             setReviewTeamId("none");
             setAdditionalRoleEdits({});
             setContactEdits({});
+            setApplicationPatches({});
+            setRoleRequestPatches({});
           }
         }}
       >
@@ -1797,7 +1850,7 @@ export function VolunteersManager({
                   <Button
                     type="button"
                     variant="outline"
-                    onClick={() => setReviewingApplication(null)}
+                    onClick={() => setReviewingApplicationId(null)}
                   >
                     Close
                   </Button>
