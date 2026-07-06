@@ -35,7 +35,7 @@ import {
   volunteerRoleLabel,
 } from "@/lib/volunteers/role-catalog";
 import { volunteerRequirementSource } from "@/lib/volunteers/requirement-source";
-import { canAssignVolunteerToTeam } from "@/lib/volunteers/eligibility";
+import { canAssignVolunteerToTeam, getTeamEligibleVolunteers } from "@/lib/volunteers/eligibility";
 import {
   applicationMatchesFilter,
   attentionPriority,
@@ -59,6 +59,7 @@ import type {
 } from "@/lib/types";
 import { ApplicationCertificatePanel } from "@/components/volunteers/application-certificate-panel";
 import { VolunteerAddDialog } from "@/components/volunteers/volunteer-add-dialog";
+import { AdminUserEditDialog } from "@/components/admin/admin-user-edit-dialog";
 import {
   Check,
   X,
@@ -68,6 +69,7 @@ import {
   KeyRound,
   LayoutGrid,
   Table2,
+  Pencil,
 } from "lucide-react";
 
 interface VolunteersManagerProps {
@@ -141,8 +143,17 @@ export function VolunteersManager({
   const [nameEdits, setNameEdits] = useState<Record<string, string>>({});
   const [savingEmailId, setSavingEmailId] = useState<string | null>(null);
   const [resettingPasswordId, setResettingPasswordId] = useState<string | null>(null);
+  const [editingProfile, setEditingProfile] = useState<Profile | null>(null);
+  const [editingApplication, setEditingApplication] = useState<VolunteerApplication | null>(null);
 
   const roleCatalog = useMemo(() => roleDescriptions, [roleDescriptions]);
+
+  const profilesList = useMemo(() => Object.values(profilesByEmail), [profilesByEmail]);
+
+  const teamEligibleProfiles = useMemo(
+    () => getTeamEligibleVolunteers(applications, profilesList),
+    [applications, profilesList]
+  );
 
   const applicationRoleOptions = useMemo(
     () => signupVolunteerRoleOptions(roleCatalog),
@@ -249,6 +260,17 @@ export function VolunteersManager({
 
   function clearActionError() {
     setActionError(null);
+  }
+
+  function openProfileEditor(application: VolunteerApplication, profile: Profile) {
+    clearActionError();
+    setEditingProfile(profile);
+    setEditingApplication(application);
+  }
+
+  function closeProfileEditor() {
+    setEditingProfile(null);
+    setEditingApplication(null);
   }
 
   async function handleAction(
@@ -1048,6 +1070,23 @@ export function VolunteersManager({
           </div>
         )}
 
+        {app.status === "approved" && linkedProfile && (
+          <div className="rounded-md border p-3 space-y-2">
+            <p className="text-sm font-medium">Volunteer profile</p>
+            <p className="text-sm text-muted-foreground">
+              Edit contact info, birthday, volunteer roles, platform role, and trap team.
+            </p>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => openProfileEditor(app, linkedProfile)}
+            >
+              <Pencil className="h-4 w-4 mr-1" />
+              Edit volunteer profile
+            </Button>
+          </div>
+        )}
+
         {app.status === "approved" && (
           <div className="rounded-md border bg-muted/30 p-3 space-y-2">
             <p className="text-sm font-medium">Volunteer login</p>
@@ -1272,11 +1311,34 @@ export function VolunteersManager({
         minWidth: 96,
         headerClassName: "text-right",
         cellClassName: "text-right",
-        render: (app) => (
-          <Button type="button" size="sm" variant="outline" onClick={() => setReviewingApplication(app)}>
-            Review
-          </Button>
-        ),
+        render: (app) => {
+          const context = getApplicationReviewContext(
+            app,
+            profilesByEmail,
+            roleRequests,
+            roleCatalog
+          );
+          return (
+            <div className="flex justify-end gap-1">
+              {app.status === "approved" && context.linkedProfile && (
+                <Button
+                  type="button"
+                  size="icon"
+                  variant="ghost"
+                  className="h-8 w-8"
+                  onClick={() => openProfileEditor(app, context.linkedProfile!)}
+                  aria-label={`Edit ${app.full_name}`}
+                  title="Edit volunteer profile"
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                </Button>
+              )}
+              <Button type="button" size="sm" variant="outline" onClick={() => setReviewingApplication(app)}>
+                Review
+              </Button>
+            </div>
+          );
+        },
       },
     ];
   }, [profilesByEmail, roleCatalog, roleRequests]);
@@ -1424,14 +1486,29 @@ export function VolunteersManager({
                       </Button>
                     </div>
                   ) : (
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      onClick={() => setReviewingApplication(app)}
-                    >
-                      Review
-                    </Button>
+                    <div className="flex flex-col items-end gap-2">
+                      {app.status === "approved" && context.linkedProfile && (
+                        <Button
+                          type="button"
+                          size="icon"
+                          variant="outline"
+                          className="h-8 w-8"
+                          onClick={() => openProfileEditor(app, context.linkedProfile!)}
+                          aria-label={`Edit ${app.full_name}`}
+                          title="Edit volunteer profile"
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setReviewingApplication(app)}
+                      >
+                        Review
+                      </Button>
+                    </div>
                   )}
                 </div>
               </div>
@@ -1497,6 +1574,21 @@ export function VolunteersManager({
           )}
         </DialogContent>
       </Dialog>
+
+      <AdminUserEditDialog
+        user={editingProfile}
+        open={editingProfile != null}
+        onOpenChange={(open) => !open && closeProfileEditor()}
+        teams={teams}
+        roleCatalog={roleCatalog}
+        application={editingApplication ?? undefined}
+        teamEligible={
+          editingProfile
+            ? teamEligibleProfiles.some((entry) => entry.profile.id === editingProfile.id)
+            : false
+        }
+        onError={setActionError}
+      />
     </div>
   );
 }

@@ -24,9 +24,7 @@ export default async function VolunteersPage({ searchParams }: VolunteersPagePro
     supabase.from("volunteer_role_requests").select("*").order("created_at", { ascending: false }),
     supabase
       .from("profiles")
-      .select(
-        "email, volunteer_roles, role, full_name, must_change_password, tnvr_certificate_uploaded, tnvr_certificate_url"
-      ),
+      .select("*"),
     fetchVolunteerRoleCatalogInputs(supabase),
   ]);
 
