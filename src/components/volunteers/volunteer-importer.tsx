@@ -15,8 +15,10 @@ import type {
 } from "@/lib/volunteers/import-duplicate";
 import type { VolunteerImportRoleResolution } from "@/lib/volunteers/import-role-matcher";
 import type { VolunteerImportMappingPreview } from "@/lib/volunteers/import-mapping";
+import { VolunteerAddDialog } from "@/components/volunteers/volunteer-add-dialog";
 import { VolunteerImportDuplicateDialog } from "@/components/volunteers/volunteer-import-duplicate-dialog";
 import { VolunteerImportMappingDialog } from "@/components/volunteers/volunteer-import-mapping-dialog";
+import type { RoleDescription, VolunteerRole } from "@/lib/types";
 import { Upload } from "lucide-react";
 
 type ImportResolutions = {
@@ -29,7 +31,15 @@ const EMPTY_RESOLUTIONS: ImportResolutions = {
   columnResolutions: {},
 };
 
-export function VolunteerImporter() {
+interface VolunteerImporterProps {
+  roleDescriptions?: RoleDescription[];
+  disabledRoleIds?: VolunteerRole[];
+}
+
+export function VolunteerImporter({
+  roleDescriptions = [],
+  disabledRoleIds = [],
+}: VolunteerImporterProps) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const [importing, setImporting] = useState(false);
@@ -191,9 +201,10 @@ export function VolunteerImporter() {
     <>
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Import Volunteers</CardTitle>
+          <CardTitle className="text-base">Volunteer applications</CardTitle>
           <CardDescription>
-            Admin only. Upload volunteer applications as CSV. Unrecognized roles and extra columns
+            Admin only. Add one volunteer manually or upload applications as CSV. Unrecognized roles
+            and extra columns
             can be mapped before import. Duplicate emails are flagged so you can keep the current
             record, replace it, or merge fields. Roles Requested should match labels from Admin →
             Volunteer Roles (comma-separated), including custom or renamed roles. Legacy names like
@@ -204,6 +215,10 @@ export function VolunteerImporter() {
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-wrap items-center gap-3">
+          <VolunteerAddDialog
+            roleDescriptions={roleDescriptions}
+            disabledRoleIds={disabledRoleIds}
+          />
           <input
             ref={inputRef}
             type="file"

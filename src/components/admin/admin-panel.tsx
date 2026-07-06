@@ -55,7 +55,10 @@ export function AdminPanel({
       </TabsContent>
 
       <TabsContent value="imports" className="mt-4 space-y-4">
-        <VolunteerImporter />
+        <VolunteerImporter
+          roleDescriptions={roleDescriptions}
+          disabledRoleIds={disabledRoleIds}
+        />
       </TabsContent>
     </Tabs>
   );
