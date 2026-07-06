@@ -628,6 +628,8 @@ export interface RoleDescription {
   role_id: VolunteerRole;
   label: string;
   description: string;
+  /** When false, the role is hidden from the volunteer signup form. */
+  is_signup_active: boolean;
   /** Training/requirement fields required before this volunteer role can be approved. */
   requirements: string[];
   created_at: string;

@@ -117,6 +117,7 @@ function stepPillClass(category: StepCategory, index: number, currentStep: numbe
 
 export interface VolunteerSignupWizardProps {
   variant: "page" | "gate";
+  signupRoleCatalog?: RoleDescription[];
   profile?: Pick<
     Profile,
     | "id"
@@ -134,7 +135,12 @@ export interface VolunteerSignupWizardProps {
   onSubmitted?: () => void;
 }
 
-export function VolunteerSignupWizard({ variant, profile, onSubmitted }: VolunteerSignupWizardProps) {
+export function VolunteerSignupWizard({
+  variant,
+  signupRoleCatalog,
+  profile,
+  onSubmitted,
+}: VolunteerSignupWizardProps) {
   const [step, setStep] = useState(0);
   const [roleDescriptions, setRoleDescriptions] = useState<RoleDescription[]>([]);
   const [submitting, setSubmitting] = useState(false);
@@ -170,12 +176,20 @@ export function VolunteerSignupWizard({ variant, profile, onSubmitted }: Volunte
   });
 
   const roleCatalog = useMemo(() => roleDescriptions, [roleDescriptions]);
-  const signupRoles = signupVolunteerRoleOptions(roleCatalog);
+  const signupRoles = useMemo(
+    () => signupRoleCatalog ?? signupVolunteerRoleOptions(roleCatalog),
+    [signupRoleCatalog, roleCatalog]
+  );
   const visibleRoleDescriptions = filterSignupRoleDescriptions(signupRoles, form.birthday);
   const needsTnvrCert = form.roles_requested.some((role) => TNVR_ROLES.includes(role));
   const isMinor = isMinorVolunteer(form.birthday);
 
   useEffect(() => {
+    if (signupRoleCatalog) {
+      setRoleDescriptions(signupRoleCatalog);
+      return;
+    }
+
     const supabase = createClient();
     Promise.all([
       supabase.from("role_descriptions").select("*"),
@@ -188,7 +202,7 @@ export function VolunteerSignupWizard({ variant, profile, onSubmitted }: Volunte
         );
       }
     });
-  }, []);
+  }, [signupRoleCatalog]);
 
   function toggleRole(role: VolunteerRole) {
     if (!isRoleAllowedOnSignup(role, form.birthday)) return;

@@ -4,13 +4,17 @@ import { useRouter } from "next/navigation";
 import { ClipboardList } from "lucide-react";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { VolunteerSignupWizard } from "@/components/volunteers/volunteer-signup-wizard";
-import type { Profile } from "@/lib/types";
+import type { Profile, RoleDescription } from "@/lib/types";
 
 interface VolunteerApplicationGateProps {
   profile: Profile;
+  signupRoleCatalog: RoleDescription[];
 }
 
-export function VolunteerApplicationGate({ profile }: VolunteerApplicationGateProps) {
+export function VolunteerApplicationGate({
+  profile,
+  signupRoleCatalog,
+}: VolunteerApplicationGateProps) {
   const router = useRouter();
 
   return (
@@ -31,6 +35,7 @@ export function VolunteerApplicationGate({ profile }: VolunteerApplicationGatePr
         <VolunteerSignupWizard
           variant="gate"
           profile={profile}
+          signupRoleCatalog={signupRoleCatalog}
           onSubmitted={() => router.refresh()}
         />
       </div>

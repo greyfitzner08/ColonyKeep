@@ -8,7 +8,7 @@ import { AppShellFrame } from "@/components/layout/app-shell-frame";
 import { isKnownUserRole } from "@/lib/constants";
 import { hasSupabaseServerConfig } from "@/lib/supabase/env";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
-import { resolveVolunteerRoleCatalog } from "@/lib/volunteers/role-catalog";
+import { fetchVolunteerRoleCatalogInputs } from "@/lib/volunteers/load-role-catalog";
 import {
   isApplicationPendingReview,
   requiresVolunteerApplication,
@@ -26,17 +26,19 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
   const isActualAdmin = profile?.role === "admin";
 
   let roleDescriptions: RoleDescription[] = [];
+  let signupRoleCatalog: RoleDescription[] = [];
+  const supabase = await createClient();
+
   if (isActualAdmin) {
-    const supabase = await createClient();
-    const { data } = await supabase.from("role_descriptions").select("*").order("label");
-    roleDescriptions = resolveVolunteerRoleCatalog((data as RoleDescription[] | null) ?? []);
+    const { catalog, signupCatalog } = await fetchVolunteerRoleCatalogInputs(supabase);
+    roleDescriptions = catalog;
+    signupRoleCatalog = signupCatalog;
   }
 
   const previewLabel = previewKey ? rolePreviewLabel(previewKey, roleDescriptions) : null;
 
   let application: VolunteerApplication | null = null;
   if (!isActualAdmin && profile?.email) {
-    const supabase = await createClient();
     const { data } = await supabase
       .from("volunteer_applications")
       .select("*")
@@ -48,7 +50,16 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
   }
 
   if (!isActualAdmin && effectiveProfile && requiresVolunteerApplication(effectiveProfile, application)) {
-    return <VolunteerApplicationGate profile={effectiveProfile} />;
+    if (signupRoleCatalog.length === 0) {
+      const { signupCatalog } = await fetchVolunteerRoleCatalogInputs(supabase);
+      signupRoleCatalog = signupCatalog;
+    }
+    return (
+      <VolunteerApplicationGate
+        profile={effectiveProfile}
+        signupRoleCatalog={signupRoleCatalog}
+      />
+    );
   }
 
   if (!isActualAdmin && effectiveProfile && isApplicationPendingReview(effectiveProfile, application)) {

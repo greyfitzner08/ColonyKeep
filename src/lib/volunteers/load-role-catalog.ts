@@ -1,6 +1,9 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { RoleDescription, VolunteerRole } from "@/lib/types";
-import { resolveVolunteerRoleCatalog } from "@/lib/volunteers/role-catalog";
+import {
+  resolveVolunteerRoleCatalog,
+  signupVolunteerRoleOptions,
+} from "@/lib/volunteers/role-catalog";
 
 export async function fetchDisabledVolunteerRoleIds(
   supabase: SupabaseClient
@@ -16,10 +19,12 @@ export async function fetchVolunteerRoleCatalogInputs(supabase: SupabaseClient) 
   ]);
 
   const descriptions = (roleDescriptions ?? []) as RoleDescription[];
+  const catalog = resolveVolunteerRoleCatalog(descriptions, disabledRoleIds);
 
   return {
     roleDescriptions: descriptions,
     disabledRoleIds,
-    catalog: resolveVolunteerRoleCatalog(descriptions, disabledRoleIds),
+    catalog,
+    signupCatalog: signupVolunteerRoleOptions(catalog),
   };
 }

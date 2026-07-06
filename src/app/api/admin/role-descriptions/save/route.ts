@@ -21,6 +21,8 @@ export async function POST(request: NextRequest) {
   const label = typeof body.label === "string" ? body.label.trim() : "";
   const description = typeof body.description === "string" ? body.description.trim() : "";
   const requirements = parseRequirements(body.requirements);
+  const isSignupActive =
+    typeof body.is_signup_active === "boolean" ? body.is_signup_active : true;
   const invalidRequirement = requirements.find(
     (entry) => !isKnownRequirementField(entry) && entry.length > 80
   );
@@ -40,7 +42,7 @@ export async function POST(request: NextRequest) {
   }
 
   const service = await createServiceClient();
-  const payload = { label, description, requirements };
+  const payload = { label, description, requirements, is_signup_active: isSignupActive };
 
   async function clearDisabledRole(roleId: string) {
     await service.from("disabled_volunteer_roles").delete().eq("role_id", roleId);

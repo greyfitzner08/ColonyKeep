@@ -10,6 +10,7 @@ const DEFAULT_ROLE_DESCRIPTIONS: RoleDescription[] = VOLUNTEER_ROLES.map((role) 
   role_id: role.value,
   label: role.label,
   description: `Support the TNVR mission as a ${role.label.toLowerCase()}.`,
+  is_signup_active: true,
   requirements:
     VOLUNTEER_ROLE_REQUIREMENTS.find((entry) => entry.role === role.value)?.requires.map(String) ??
     [],
@@ -35,10 +36,12 @@ export function resolveVolunteerRoleCatalog(
       ? {
           ...existing,
           ...entry,
+          is_signup_active: entry.is_signup_active ?? existing.is_signup_active ?? true,
           requirements: entry.requirements ?? existing.requirements ?? [],
         }
       : {
           ...entry,
+          is_signup_active: entry.is_signup_active ?? true,
           requirements: entry.requirements ?? [],
         });
   }
@@ -59,7 +62,11 @@ export function resolveVolunteerRoleCatalog(
 
 /** Roles shown on the volunteer signup form (includes Other; excludes admin-only labels). */
 export function signupVolunteerRoleOptions(catalog: RoleDescription[]): RoleDescription[] {
-  return catalog.filter((entry) => !ADMIN_ONLY_VOLUNTEER_ROLES.includes(entry.role_id));
+  return catalog.filter(
+    (entry) =>
+      entry.is_signup_active !== false &&
+      !ADMIN_ONLY_VOLUNTEER_ROLES.includes(entry.role_id)
+  );
 }
 
 /** Canonical volunteer role list for signup, application approval, and admin role descriptions. */
