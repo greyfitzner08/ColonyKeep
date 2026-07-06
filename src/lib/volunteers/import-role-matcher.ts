@@ -1,5 +1,11 @@
 import { VOLUNTEER_ROLES } from "@/lib/constants";
 import type { RoleDescription, VolunteerRole } from "@/lib/types";
+import { normalizeRoleId } from "@/lib/volunteers/role-id";
+
+export type VolunteerImportRoleResolution =
+  | { action: "map"; roleId: VolunteerRole }
+  | { action: "create"; label: string; description?: string; roleId?: string }
+  | { action: "skip" };
 
 const LEGACY_ROLE_ALIASES: Record<string, VolunteerRole> = {
   clinic_coordination: "colony_support",
@@ -38,7 +44,8 @@ export type VolunteerImportRoleMatcher = {
 };
 
 export function createVolunteerImportRoleMatcher(
-  catalog: RoleDescription[]
+  catalog: RoleDescription[],
+  roleResolutions: Record<string, VolunteerImportRoleResolution> = {}
 ): VolunteerImportRoleMatcher {
   const lookup = new Map<string, VolunteerRole>();
 
@@ -62,6 +69,16 @@ export function createVolunteerImportRoleMatcher(
     register(alias, roleId);
   }
 
+  for (const [token, resolution] of Object.entries(roleResolutions)) {
+    if (resolution.action === "map") {
+      register(token, resolution.roleId);
+      continue;
+    }
+    if (resolution.action === "create") {
+      register(token, normalizeRoleId(resolution.roleId || resolution.label) as VolunteerRole);
+    }
+  }
+
   return {
     resolve(token: string) {
       return lookup.get(normalizeVolunteerImportRoleToken(token)) ?? null;
@@ -79,7 +96,8 @@ export function tokenizeVolunteerImportRoles(value: string): string[] {
 
 export function parseVolunteerImportRoles(
   value: string | undefined,
-  matcher: VolunteerImportRoleMatcher
+  matcher: VolunteerImportRoleMatcher,
+  roleResolutions: Record<string, VolunteerImportRoleResolution> = {}
 ): { roles: VolunteerRole[]; unrecognized: string[] } {
   if (!value?.trim()) {
     return { roles: [], unrecognized: [] };
@@ -89,6 +107,24 @@ export function parseVolunteerImportRoles(
   const unrecognized: string[] = [];
 
   for (const token of tokenizeVolunteerImportRoles(value)) {
+    const key = normalizeVolunteerImportRoleToken(token);
+    const resolution = roleResolutions[key];
+
+    if (resolution?.action === "skip") {
+      continue;
+    }
+
+    if (resolution?.action === "map") {
+      roles.push(resolution.roleId);
+      continue;
+    }
+
+    if (resolution?.action === "create") {
+      const roleId = normalizeRoleId(resolution.roleId || resolution.label) as VolunteerRole;
+      roles.push(roleId);
+      continue;
+    }
+
     const role = matcher.resolve(token);
     if (role) {
       roles.push(role);

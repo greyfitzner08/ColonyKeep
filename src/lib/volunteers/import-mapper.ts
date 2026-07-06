@@ -4,6 +4,7 @@ import {
   parseVolunteerImportRoles,
   volunteerImportRoleError,
   type VolunteerImportRoleMatcher,
+  type VolunteerImportRoleResolution,
 } from "@/lib/volunteers/import-role-matcher";
 
 export const VOLUNTEER_IMPORT_HEADERS = [
@@ -22,8 +23,43 @@ export const VOLUNTEER_IMPORT_HEADERS = [
   "Admin Notes",
 ] as const;
 
+export type VolunteerImportFieldKey =
+  | "full_name"
+  | "email"
+  | "phone"
+  | "birthday"
+  | "roles_requested"
+  | "why_volunteer"
+  | "prior_experience"
+  | "how_heard"
+  | "liability_waiver_signed"
+  | "policy_signed"
+  | "tnvr_certificate_uploaded"
+  | "application_status"
+  | "admin_notes";
+
+export type VolunteerImportColumnResolution =
+  | { action: "map"; field: VolunteerImportFieldKey }
+  | { action: "append_admin_notes" }
+  | { action: "ignore" };
+
+export const IMPORT_FIELD_OPTIONS: Array<{ key: VolunteerImportFieldKey; label: string }> = [
+  { key: "full_name", label: "Full Name" },
+  { key: "email", label: "Email" },
+  { key: "phone", label: "Phone" },
+  { key: "birthday", label: "Birthday" },
+  { key: "roles_requested", label: "Roles Requested" },
+  { key: "why_volunteer", label: "Why Volunteer" },
+  { key: "prior_experience", label: "Prior Experience" },
+  { key: "how_heard", label: "How Heard" },
+  { key: "liability_waiver_signed", label: "Liability Waiver Signed" },
+  { key: "policy_signed", label: "Policy Acknowledgement" },
+  { key: "tnvr_certificate_uploaded", label: "TNVR Certificate Uploaded" },
+  { key: "application_status", label: "Application Status" },
+  { key: "admin_notes", label: "Admin Notes" },
+];
+
 const HEADER_ALIASES: Record<string, string> = {
-  full_name: "full_name",
   name: "full_name",
   first_name: "first_name",
   last_name: "last_name",
@@ -71,16 +107,35 @@ function normalizeHeader(header: string): string {
 }
 
 export function normalizeVolunteerImportRow(
-  raw: Record<string, unknown>
+  raw: Record<string, unknown>,
+  columnResolutions: Record<string, VolunteerImportColumnResolution> = {}
 ): Record<string, string> {
   const normalized: Record<string, string> = {};
 
   for (const [header, value] of Object.entries(raw)) {
-    const key = HEADER_ALIASES[normalizeHeader(header)];
-    if (!key) continue;
     const text = String(value ?? "").trim();
     if (!text) continue;
-    normalized[key] = text;
+
+    const resolution = columnResolutions[header];
+    if (resolution) {
+      if (resolution.action === "ignore") continue;
+      if (resolution.action === "append_admin_notes") {
+        const note = `${header}: ${text}`;
+        normalized.admin_notes = normalized.admin_notes
+          ? `${normalized.admin_notes}\n${note}`
+          : note;
+        continue;
+      }
+      if (resolution.action === "map") {
+        const field = resolution.field;
+        normalized[field] = normalized[field] ? `${normalized[field]}\n${text}` : text;
+        continue;
+      }
+    }
+
+    const key = HEADER_ALIASES[normalizeHeader(header)];
+    if (!key) continue;
+    normalized[key] = normalized[key] ? `${normalized[key]}\n${text}` : text;
   }
 
   if (!normalized.full_name && (normalized.first_name || normalized.last_name)) {
@@ -113,17 +168,23 @@ function parseStatus(value: string | undefined): VolunteerApplicationStatus {
 
 export function mapVolunteerImportRow(
   raw: Record<string, unknown>,
-  roleMatcher: VolunteerImportRoleMatcher = createVolunteerImportRoleMatcher([])
+  roleMatcher: VolunteerImportRoleMatcher = createVolunteerImportRoleMatcher([]),
+  roleResolutions: Record<string, VolunteerImportRoleResolution> = {},
+  columnResolutions: Record<string, VolunteerImportColumnResolution> = {}
 ): {
   error?: string;
   record?: Record<string, unknown>;
 } {
-  const row = normalizeVolunteerImportRow(raw);
+  const row = normalizeVolunteerImportRow(raw, columnResolutions);
   const email = row.email?.toLowerCase();
   const fullName = row.full_name?.trim();
   const phone = row.phone?.trim();
   const birthday = row.birthday?.trim();
-  const { roles, unrecognized } = parseVolunteerImportRoles(row.roles_requested, roleMatcher);
+  const { roles, unrecognized } = parseVolunteerImportRoles(
+    row.roles_requested,
+    roleMatcher,
+    roleResolutions
+  );
 
   if (!email) {
     return { error: "Email is required." };

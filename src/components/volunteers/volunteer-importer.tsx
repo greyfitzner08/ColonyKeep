@@ -7,13 +7,27 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import {
   buildVolunteerImportTemplateCsv,
   VOLUNTEER_IMPORT_HEADERS,
+  type VolunteerImportColumnResolution,
 } from "@/lib/volunteers/import-mapper";
 import type {
   VolunteerImportDuplicateAction,
   VolunteerImportPreview,
 } from "@/lib/volunteers/import-duplicate";
+import type { VolunteerImportRoleResolution } from "@/lib/volunteers/import-role-matcher";
+import type { VolunteerImportMappingPreview } from "@/lib/volunteers/import-mapping";
 import { VolunteerImportDuplicateDialog } from "@/components/volunteers/volunteer-import-duplicate-dialog";
+import { VolunteerImportMappingDialog } from "@/components/volunteers/volunteer-import-mapping-dialog";
 import { Upload } from "lucide-react";
+
+type ImportResolutions = {
+  roleResolutions: Record<string, VolunteerImportRoleResolution>;
+  columnResolutions: Record<string, VolunteerImportColumnResolution>;
+};
+
+const EMPTY_RESOLUTIONS: ImportResolutions = {
+  roleResolutions: {},
+  columnResolutions: {},
+};
 
 export function VolunteerImporter() {
   const router = useRouter();
@@ -23,9 +37,13 @@ export function VolunteerImporter() {
   const [error, setError] = useState<string | null>(null);
   const [csvText, setCsvText] = useState<string | null>(null);
   const [preview, setPreview] = useState<VolunteerImportPreview | null>(null);
+  const [mapping, setMapping] = useState<VolunteerImportMappingPreview | null>(null);
+  const [importResolutions, setImportResolutions] =
+    useState<ImportResolutions>(EMPTY_RESOLUTIONS);
   const [readyCount, setReadyCount] = useState(0);
   const [errorCount, setErrorCount] = useState(0);
   const [duplicateDialogOpen, setDuplicateDialogOpen] = useState(false);
+  const [mappingDialogOpen, setMappingDialogOpen] = useState(false);
 
   function formatImportResult(result: {
     imported: number;
@@ -47,7 +65,8 @@ export function VolunteerImporter() {
 
   async function commitImport(
     text: string,
-    resolutions: Record<string, VolunteerImportDuplicateAction> = {}
+    resolutions: Record<string, VolunteerImportDuplicateAction> = {},
+    mappingResolutions: ImportResolutions = importResolutions
   ) {
     setImporting(true);
     setMessage(null);
@@ -56,25 +75,40 @@ export function VolunteerImporter() {
     const response = await fetch("/api/volunteers/import", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ csvText: text, resolutions }),
+      body: JSON.stringify({
+        csvText: text,
+        resolutions,
+        roleResolutions: mappingResolutions.roleResolutions,
+        columnResolutions: mappingResolutions.columnResolutions,
+      }),
     });
     const result = await response.json().catch(() => null);
     setImporting(false);
 
     if (!response.ok) {
+      if (result?.needsMappingResolution) {
+        setMapping(result.mapping ?? null);
+        setMappingDialogOpen(true);
+      }
       setError(result?.error ?? "Import failed");
       return false;
     }
 
     formatImportResult(result);
     setDuplicateDialogOpen(false);
+    setMappingDialogOpen(false);
     setCsvText(null);
     setPreview(null);
+    setMapping(null);
+    setImportResolutions(EMPTY_RESOLUTIONS);
     router.refresh();
     return true;
   }
 
-  async function previewImport(text: string) {
+  async function previewImport(
+    text: string,
+    mappingResolutions: ImportResolutions = EMPTY_RESOLUTIONS
+  ) {
     setImporting(true);
     setMessage(null);
     setError(null);
@@ -82,7 +116,11 @@ export function VolunteerImporter() {
     const response = await fetch("/api/volunteers/import/preview", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ csvText: text }),
+      body: JSON.stringify({
+        csvText: text,
+        roleResolutions: mappingResolutions.roleResolutions,
+        columnResolutions: mappingResolutions.columnResolutions,
+      }),
     });
     const result = await response.json().catch(() => null);
     setImporting(false);
@@ -93,16 +131,23 @@ export function VolunteerImporter() {
     }
 
     setCsvText(text);
+    setImportResolutions(mappingResolutions);
     setPreview(result.preview as VolunteerImportPreview);
+    setMapping(result.mapping as VolunteerImportMappingPreview);
     setReadyCount(result.readyCount ?? 0);
     setErrorCount(result.errorCount ?? 0);
+
+    if (result.needsMappingResolution) {
+      setMappingDialogOpen(true);
+      return;
+    }
 
     if ((result.duplicateCount ?? 0) > 0) {
       setDuplicateDialogOpen(true);
       return;
     }
 
-    await commitImport(text);
+    await commitImport(text, {}, mappingResolutions);
   }
 
   async function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
@@ -119,11 +164,17 @@ export function VolunteerImporter() {
     event.target.value = "";
   }
 
+  async function handleConfirmMapping(resolutions: ImportResolutions) {
+    if (!csvText) return;
+    setMappingDialogOpen(false);
+    await previewImport(csvText, resolutions);
+  }
+
   async function handleConfirmDuplicates(
     resolutions: Record<string, VolunteerImportDuplicateAction>
   ) {
     if (!csvText) return;
-    await commitImport(csvText, resolutions);
+    await commitImport(csvText, resolutions, importResolutions);
   }
 
   function downloadTemplate() {
@@ -142,13 +193,13 @@ export function VolunteerImporter() {
         <CardHeader>
           <CardTitle className="text-base">Import Volunteers</CardTitle>
           <CardDescription>
-            Admin only. Upload volunteer applications as CSV. Duplicate emails are flagged so you
-            can keep the current record, replace it, or merge fields. Roles Requested should
-            match labels from Admin → Volunteer Roles (comma-separated), including custom or
-            renamed roles. Legacy names like Clinic Coordination still work. Birthday and phone
-            columns are optional when blank. Imported volunteers must still open and accept the liability waiver and policy on first login, even if the
-            CSV marks them signed. Roles Requested should use role labels like &quot;Trapper&quot; or
-            &quot;Trap Loaner&quot;, separated by commas. Download the template for all{" "}
+            Admin only. Upload volunteer applications as CSV. Unrecognized roles and extra columns
+            can be mapped before import. Duplicate emails are flagged so you can keep the current
+            record, replace it, or merge fields. Roles Requested should match labels from Admin →
+            Volunteer Roles (comma-separated), including custom or renamed roles. Legacy names like
+            Clinic Coordination still work. Birthday and phone columns are optional when blank.
+            Imported volunteers must still open and accept the liability waiver and policy on first
+            login, even if the CSV marks them signed. Download the template for all{" "}
             {VOLUNTEER_IMPORT_HEADERS.length} columns.
           </CardDescription>
         </CardHeader>
@@ -176,6 +227,14 @@ export function VolunteerImporter() {
           {error && <p className="text-sm text-destructive w-full">{error}</p>}
         </CardContent>
       </Card>
+
+      <VolunteerImportMappingDialog
+        open={mappingDialogOpen}
+        onOpenChange={setMappingDialogOpen}
+        mapping={mapping}
+        importing={importing}
+        onConfirm={handleConfirmMapping}
+      />
 
       <VolunteerImportDuplicateDialog
         open={duplicateDialogOpen}

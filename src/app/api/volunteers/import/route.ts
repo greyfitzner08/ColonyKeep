@@ -7,6 +7,13 @@ import {
   type VolunteerImportExistingSummary,
 } from "@/lib/volunteers/import-duplicate";
 import { parseVolunteerImportCsvWithCatalog } from "@/lib/volunteers/import-csv";
+import {
+  buildVolunteerImportMappingPreview,
+  mappingIssuesRemain,
+  materializeVolunteerImportRoleResolutions,
+  parseVolunteerImportColumnResolutions,
+  parseVolunteerImportRoleResolutions,
+} from "@/lib/volunteers/import-mapping";
 import { createServiceClient } from "@/lib/supabase/server";
 
 const DUPLICATE_ACTIONS = new Set<VolunteerImportDuplicateAction>([
@@ -36,12 +43,42 @@ export async function POST(request: NextRequest) {
   const body = await request.json();
   const csvText = typeof body.csvText === "string" ? body.csvText : "";
   const resolutions = parseResolutions(body.resolutions);
+  let roleResolutions = parseVolunteerImportRoleResolutions(body.roleResolutions);
+  const columnResolutions = parseVolunteerImportColumnResolutions(body.columnResolutions);
 
   const service = await createServiceClient();
-  const { parsedRows } = await parseVolunteerImportCsvWithCatalog(service, csvText);
+
+  const materialized = await materializeVolunteerImportRoleResolutions(service, roleResolutions);
+  if (materialized.errors.length > 0) {
+    return NextResponse.json({ error: materialized.errors.join("; ") }, { status: 400 });
+  }
+  roleResolutions = materialized.resolutions;
+
+  const { catalog, parsedRows } = await parseVolunteerImportCsvWithCatalog(service, csvText, {
+    roleResolutions,
+    columnResolutions,
+  });
 
   if (!parsedRows.length) {
     return NextResponse.json({ error: "No rows to import" }, { status: 400 });
+  }
+
+  const mapping = buildVolunteerImportMappingPreview(
+    csvText,
+    catalog,
+    columnResolutions,
+    roleResolutions
+  );
+
+  if (mappingIssuesRemain(mapping)) {
+    return NextResponse.json(
+      {
+        error: "Unmapped CSV values require resolution before import.",
+        needsMappingResolution: true,
+        mapping,
+      },
+      { status: 409 }
+    );
   }
 
   const emails = Array.from(

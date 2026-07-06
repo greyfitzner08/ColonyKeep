@@ -1,6 +1,10 @@
 import { parseCsv } from "@/lib/csv";
 import { mapVolunteerImportRow } from "@/lib/volunteers/import-mapper";
-import type { VolunteerImportRoleMatcher } from "@/lib/volunteers/import-role-matcher";
+import type {
+  VolunteerImportRoleMatcher,
+  VolunteerImportRoleResolution,
+} from "@/lib/volunteers/import-role-matcher";
+import type { VolunteerImportColumnResolution } from "@/lib/volunteers/import-mapper";
 import { mergeVolunteerRoles } from "@/lib/volunteers/role-expansion";
 import type { VolunteerApplicationStatus, VolunteerRole } from "@/lib/types";
 
@@ -160,11 +164,18 @@ export function foldImportRows(
 
 export function parseVolunteerImportCsv(
   csvText: string,
-  roleMatcher?: VolunteerImportRoleMatcher
+  roleMatcher?: VolunteerImportRoleMatcher,
+  roleResolutions: Record<string, VolunteerImportRoleResolution> = {},
+  columnResolutions: Record<string, VolunteerImportColumnResolution> = {}
 ): VolunteerImportParsedRow[] {
   const rows = parseCsv(csvText.replace(/^\uFEFF/, "").trim());
   return rows.map((raw, index) => {
-    const mapped = mapVolunteerImportRow(raw, roleMatcher);
+    const mapped = mapVolunteerImportRow(
+      raw,
+      roleMatcher,
+      roleResolutions,
+      columnResolutions
+    );
     if (mapped.error || !mapped.record) {
       return { row: index + 2, error: mapped.error ?? "Invalid row" };
     }

@@ -5,6 +5,12 @@ import {
   type VolunteerImportExistingSummary,
 } from "@/lib/volunteers/import-duplicate";
 import { parseVolunteerImportCsvWithCatalog } from "@/lib/volunteers/import-csv";
+import {
+  buildVolunteerImportMappingPreview,
+  mappingIssuesRemain,
+  parseVolunteerImportColumnResolutions,
+  parseVolunteerImportRoleResolutions,
+} from "@/lib/volunteers/import-mapping";
 import { createServiceClient } from "@/lib/supabase/server";
 
 export async function POST(request: NextRequest) {
@@ -13,13 +19,25 @@ export async function POST(request: NextRequest) {
 
   const body = await request.json();
   const csvText = typeof body.csvText === "string" ? body.csvText : "";
+  const roleResolutions = parseVolunteerImportRoleResolutions(body.roleResolutions);
+  const columnResolutions = parseVolunteerImportColumnResolutions(body.columnResolutions);
 
   const service = await createServiceClient();
-  const { parsedRows } = await parseVolunteerImportCsvWithCatalog(service, csvText);
+  const { catalog, parsedRows } = await parseVolunteerImportCsvWithCatalog(service, csvText, {
+    roleResolutions,
+    columnResolutions,
+  });
 
   if (!parsedRows.length) {
     return NextResponse.json({ error: "No rows to import" }, { status: 400 });
   }
+
+  const mapping = buildVolunteerImportMappingPreview(
+    csvText,
+    catalog,
+    columnResolutions,
+    roleResolutions
+  );
 
   const emails = Array.from(
     new Set(
@@ -50,6 +68,8 @@ export async function POST(request: NextRequest) {
   const preview = buildVolunteerImportPreview(parsedRows, existingByEmail);
 
   return NextResponse.json({
+    mapping,
+    needsMappingResolution: mappingIssuesRemain(mapping),
     preview,
     totalRows: parsedRows.length,
     readyCount: preview.uniqueRows.length,
