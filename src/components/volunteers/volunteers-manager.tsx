@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -57,6 +57,7 @@ import type {
   Profile,
   RoleDescription,
 } from "@/lib/types";
+import { ApplicationCertificatePanel } from "@/components/volunteers/application-certificate-panel";
 import {
   Check,
   X,
@@ -104,6 +105,20 @@ function requirementFieldsForRoles(
   const fields = new Set<RequirementField>();
   for (const role of roles) {
     for (const field of requirementsForRole(role, catalog)) {
+      fields.add(field);
+    }
+  }
+  return Array.from(fields);
+}
+
+function requirementFieldsForReview(
+  roles: VolunteerRole[],
+  catalog: RoleDescription[],
+  options: { assigningTrapTeam: boolean }
+): RequirementField[] {
+  const fields = new Set(requirementFieldsForRoles(roles, catalog));
+  if (options.assigningTrapTeam || rolesNeedingTnvrCert(roles)) {
+    for (const field of TEAM_ASSIGNMENT_REQUIREMENT_FIELDS) {
       fields.add(field);
     }
   }
@@ -191,6 +206,14 @@ export function VolunteersManager({
         : null,
     [reviewingApplication, profilesByEmail, roleRequests, roleCatalog]
   );
+
+  useEffect(() => {
+    if (!reviewingApplication) return;
+    const refreshed = applications.find((entry) => entry.id === reviewingApplication.id);
+    if (refreshed && refreshed !== reviewingApplication) {
+      setReviewingApplication(refreshed);
+    }
+  }, [applications, reviewingApplication]);
 
   const attentionCount = useMemo(
     () =>
@@ -529,10 +552,19 @@ export function VolunteersManager({
       ? context.rolesReady
       : approvalRolesReady(app, context, selectedApprovalRoles);
     const requirementSource = requirementSourceForApplication(app, context);
-    const relevantRequirementFields = requirementFieldsForRoles(selectedApprovalRoles, roleCatalog);
+    const assigningTrapTeam = approveTeam !== "none";
+    const relevantRequirementFields = requirementFieldsForReview(selectedApprovalRoles, roleCatalog, {
+      assigningTrapTeam,
+    });
     const selectableApprovalRoles = filterSignupRoleDescriptions(applicationRoleOptions, app.birthday);
     const teamAssignReady =
       approveTeam === "none" || canAssignVolunteerToTeam(requirementSource);
+    const certificateUrl =
+      app.tnvr_certificate_url ?? linkedProfile?.tnvr_certificate_url ?? null;
+    const certificateUploaded = Boolean(requirementSource.tnvr_certificate_uploaded);
+    const showCertificatePanel =
+      canReview &&
+      (assigningTrapTeam || rolesNeedingTnvrCert(selectedApprovalRoles) || Boolean(certificateUrl));
 
     return (
       <div className="space-y-4">
@@ -662,7 +694,7 @@ export function VolunteersManager({
           </div>
         )}
 
-        <div className="space-y-2">
+        <div className="space-y-3">
           <Label className="text-sm font-medium">Training & Requirements</Label>
           <div className="flex flex-wrap gap-4">
             {ADMIN_CHECKBOX_FIELDS.filter(({ key }) => relevantRequirementFields.includes(key)).map(
@@ -687,6 +719,19 @@ export function VolunteersManager({
               }
             )}
           </div>
+          {relevantRequirementFields.length === 0 && (
+            <p className="text-xs text-muted-foreground">
+              Select volunteer roles above to see which training requirements apply.
+            </p>
+          )}
+          {showCertificatePanel && (
+            <ApplicationCertificatePanel
+              applicationId={app.id}
+              certificateUrl={certificateUrl}
+              certificateUploaded={certificateUploaded}
+              onUpdated={() => router.refresh()}
+            />
+          )}
         </div>
 
         {canReview && (
@@ -810,8 +855,8 @@ export function VolunteersManager({
                     </Select>
                     {!teamAssignReady && (
                       <p className="text-xs text-amber-800">
-                        Check off TNVR certificate and shadow training below before assigning a trap
-                        team.
+                        In Training &amp; Requirements above, upload or verify the TNVR certificate
+                        and check off certificate + shadow training before assigning a trap team.
                       </p>
                     )}
                   </div>
