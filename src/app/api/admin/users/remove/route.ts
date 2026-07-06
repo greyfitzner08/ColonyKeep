@@ -23,8 +23,8 @@ function parseDecisions(value: unknown): Record<string, AssignmentDecision> {
       continue;
     }
 
-    if (action === "reassign" && targetUserId) {
-      decisions[key] = { action: "reassign", targetUserId };
+    if (action === "reassign") {
+      decisions[key] = { action: "reassign", targetUserId: targetUserId ?? "" };
     }
   }
 

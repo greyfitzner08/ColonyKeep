@@ -341,7 +341,18 @@ async function releaseReservedAppointment(service: SupabaseClient, appointmentId
 
   if (!appointment || appointment.status === "available") return;
 
-  if (appointment.clinic_result_logged_at) return;
+  if (appointment.clinic_result_logged_at) {
+    await service
+      .from("appointments")
+      .update({
+        reserved_by: null,
+        reserved_by_name: null,
+        transporter_email: null,
+        transporter_name: null,
+      })
+      .eq("id", appointmentId);
+    return;
+  }
 
   await service
     .from("appointments")
@@ -622,6 +633,14 @@ export async function applyVolunteerAssignmentDecisions(
               "id",
               group.items.map((item) => item.id)
             );
+        } else {
+          await service
+            .from("team_announcements")
+            .delete()
+            .in(
+              "id",
+              group.items.map((item) => item.id)
+            );
         }
         break;
       }
@@ -630,6 +649,14 @@ export async function applyVolunteerAssignmentDecisions(
           await service
             .from("library_documents")
             .update({ created_by_email: target!.email })
+            .in(
+              "id",
+              group.items.map((item) => item.id)
+            );
+        } else {
+          await service
+            .from("library_documents")
+            .delete()
             .in(
               "id",
               group.items.map((item) => item.id)

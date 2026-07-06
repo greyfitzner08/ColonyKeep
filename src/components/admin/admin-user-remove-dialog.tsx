@@ -134,7 +134,7 @@ export function AdminUserRemoveDialog({
     return () => {
       cancelled = true;
     };
-  }, [open, user, onError]);
+  }, [open, user?.id]);
 
   function updateDecision(groupKey: string, decision: AssignmentDecision) {
     setDecisions((current) => ({ ...current, [groupKey]: decision }));
@@ -143,7 +143,15 @@ export function AdminUserRemoveDialog({
   }
 
   async function removeVolunteer() {
-    if (!user) return;
+    if (!user || !preview) return;
+
+    const resolvedDecisions = Object.fromEntries(
+      preview.groups.map((group) => [
+        group.key,
+        decisions[group.key] ??
+          defaultDecisionForGroup(group.key, group.reassignable, group.requiresReassign),
+      ])
+    );
 
     setRemoving(true);
     setError(null);
@@ -154,7 +162,7 @@ export function AdminUserRemoveDialog({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         userId: user.id,
-        decisions,
+        decisions: resolvedDecisions,
       }),
     });
     const result = await response.json().catch(() => null);
@@ -195,12 +203,7 @@ export function AdminUserRemoveDialog({
               const decision =
                 decisions[group.key] ??
                 defaultDecisionForGroup(group.key, group.reassignable, group.requiresReassign);
-              const action =
-                group.reassignable && !group.requiresReassign
-                  ? decision.action
-                  : group.requiresReassign
-                    ? "reassign"
-                    : "dismiss";
+              const selectedAction = group.requiresReassign ? "reassign" : decision.action;
 
               return (
                 <div key={group.key} className="rounded-lg border p-4 space-y-3">
@@ -230,7 +233,8 @@ export function AdminUserRemoveDialog({
                           <Button
                             type="button"
                             size="sm"
-                            variant={action === "dismiss" ? "default" : "outline"}
+                            variant={selectedAction === "dismiss" ? "default" : "outline"}
+                            aria-pressed={selectedAction === "dismiss"}
                             onClick={() => updateDecision(group.key, { action: "dismiss" })}
                           >
                             Dismiss and clear
@@ -239,7 +243,8 @@ export function AdminUserRemoveDialog({
                         <Button
                           type="button"
                           size="sm"
-                          variant={action === "reassign" ? "default" : "outline"}
+                          variant={selectedAction === "reassign" ? "default" : "outline"}
+                          aria-pressed={selectedAction === "reassign"}
                           onClick={() =>
                             updateDecision(group.key, {
                               action: "reassign",
@@ -252,7 +257,7 @@ export function AdminUserRemoveDialog({
                         </Button>
                       </div>
 
-                      <div className={cn(action !== "reassign" && "hidden")}>
+                      <div className={cn(selectedAction !== "reassign" && "hidden")}>
                         <Label className="sr-only">Reassignment user</Label>
                         <Select
                           value={
