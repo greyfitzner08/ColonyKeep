@@ -3,7 +3,7 @@ import { requireApiRole } from "@/lib/api/auth";
 import { createServiceClient } from "@/lib/supabase/server";
 import { fetchVolunteerRoleCatalogInputs } from "@/lib/volunteers/load-role-catalog";
 import type { VolunteerApplication, VolunteerRole } from "@/lib/types";
-import { mergeVolunteerRoles, pendingNewRoles } from "@/lib/volunteers/role-expansion";
+import { mergeVolunteerRoles, rolesPendingApproval } from "@/lib/volunteers/role-expansion";
 import { volunteerRequirementSource } from "@/lib/volunteers/requirement-source";
 import {
   missingRequirementsForRole,
@@ -54,6 +54,12 @@ export async function POST(request: NextRequest) {
     return errorResponse("Approved volunteer profile not found for this application.");
   }
 
+  const { data: pendingRoleRequests } = await service
+    .from("volunteer_role_requests")
+    .select("status, request_type, requested_roles")
+    .eq("email", application.email.toLowerCase())
+    .eq("status", "pending");
+
   const approvedRoles = (volunteerProfile.volunteer_roles ?? []) as VolunteerRole[];
   const rolesOverride = Array.isArray(body.volunteer_roles)
     ? (body.volunteer_roles as VolunteerRole[])
@@ -61,7 +67,11 @@ export async function POST(request: NextRequest) {
   const requestedRoles =
     rolesOverride && rolesOverride.length > 0
       ? rolesOverride
-      : pendingNewRoles(application as VolunteerApplication, approvedRoles);
+      : rolesPendingApproval(
+          application as VolunteerApplication,
+          approvedRoles,
+          pendingRoleRequests ?? []
+        );
 
   if (requestedRoles.length === 0) {
     return errorResponse("No new volunteer roles are pending on this application.");

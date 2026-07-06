@@ -603,7 +603,7 @@ export function VolunteersManager({
     const selectableApprovalRoles = filterSignupRoleDescriptions(applicationRoleOptions, app.birthday);
     const teamAssignReady = isRoleExpansion
       ? true
-      : approveTeam === "none" || canAssignVolunteerToTeam(requirementSource);
+      : approveTeam === "none" || canAssignVolunteerToTeam(app, context.linkedProfile);
     const certificateUrl =
       context.pendingRoleRequests[0]?.tnvr_certificate_url ??
       app.tnvr_certificate_url ??

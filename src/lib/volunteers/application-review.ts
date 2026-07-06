@@ -1,5 +1,5 @@
 import type { Profile, RoleDescription, VolunteerApplication, VolunteerRole, VolunteerRoleRequest } from "@/lib/types";
-import { pendingNewRoles, requirementSourceForRoleRequest } from "@/lib/volunteers/role-expansion";
+import { pendingNewRoles, requirementSourceForRoleRequest, rolesPendingApproval } from "@/lib/volunteers/role-expansion";
 import { volunteerRequirementSource } from "@/lib/volunteers/requirement-source";
 import {
   missingRequirementsForApplicationApproval,
@@ -48,15 +48,6 @@ export function getPendingRoleAddRequests(
   );
 }
 
-function pendingAddRolesFromRequests(
-  approvedRoles: VolunteerRole[],
-  pendingRoleRequests: VolunteerRoleRequest[]
-): VolunteerRole[] {
-  return Array.from(
-    new Set(pendingRoleRequests.flatMap((request) => request.requested_roles as VolunteerRole[]))
-  ).filter((role) => !approvedRoles.includes(role));
-}
-
 function requirementSourceForRole(
   application: VolunteerApplication,
   profile: Profile | undefined,
@@ -83,14 +74,14 @@ export function getApplicationReviewContext(
   const linkedProfile = profilesByEmail[application.email.toLowerCase()];
   const approvedRoles = (linkedProfile?.volunteer_roles ?? []) as VolunteerRole[];
   const pendingRoleRequests = getPendingRoleAddRequests(application.email, roleRequests);
-  const pendingAddRoles = pendingAddRolesFromRequests(approvedRoles, pendingRoleRequests);
-  const newRoles =
-    pendingAddRoles.length > 0
-      ? pendingAddRoles
-      : pendingNewRoles(application, approvedRoles);
+  const newRoles = rolesPendingApproval(application, approvedRoles, pendingRoleRequests);
   const isRoleExpansion =
     pendingRoleRequests.length > 0 || (approvedRoles.length > 0 && newRoles.length > 0);
-  const rolesToReview = isRoleExpansion ? newRoles : (application.roles_requested ?? []);
+  const rolesToReview = isRoleExpansion
+    ? newRoles
+    : application.status === "approved" && approvedRoles.length > 0
+      ? approvedRoles
+      : (application.roles_requested ?? []);
 
   const missingByRole: Partial<Record<VolunteerRole, RequirementField[]>> = {};
   const allMissingSet = new Set<RequirementField>();

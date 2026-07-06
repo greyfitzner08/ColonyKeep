@@ -145,6 +145,11 @@ export function VolunteerProfileRoles({
   );
 
   const needsCertForAdditions = rolesNeedingTnvrCert(rolesToAdd) && !certUploaded;
+  const showTrapCertificateSection =
+    hasCertOnFile ||
+    rolesNeedingTnvrCert(approvedRoles) ||
+    rolesNeedingTnvrCert(selectedRoles) ||
+    rolesNeedingTnvrCert(pendingAddRoles);
 
   const hasChanges = rolesToAdd.length > 0 || rolesToRemove.length > 0;
 
@@ -299,7 +304,8 @@ export function VolunteerProfileRoles({
                       {status === "pending-remove" && (
                         <Badge variant="outline" className="mt-1 text-xs">Removal pending</Badge>
                       )}
-                      {missing.length > 0 && status === "none" && (
+                      {missing.length > 0 &&
+                        (status === "pending-add" || selectedRoles.includes(value)) && (
                         <p className="text-xs text-muted-foreground mt-1">
                           Needs: {missing.map(requirementLabel).join(", ")}
                         </p>
@@ -334,11 +340,12 @@ export function VolunteerProfileRoles({
           </div>
         )}
 
+        {showTrapCertificateSection && (
         <div className="space-y-2 border-t pt-4">
           <p className="text-sm font-medium">TNVR certificate</p>
           <p className="text-sm text-muted-foreground">
-            Stored on your profile even if you step back from trapping roles. Required again only
-            when requesting new trapping-related roles without a certificate on file.
+            Only required for trapping-related volunteer interests. Your certificate stays on file
+            if you step back from those roles.
           </p>
           {hasCertOnFile ? (
             <p className="text-sm text-green-700">
@@ -355,6 +362,7 @@ export function VolunteerProfileRoles({
           />
           {uploadingCert && <p className="text-sm text-muted-foreground">Uploading…</p>}
         </div>
+        )}
 
         {error && <p className="text-sm text-destructive">{error}</p>}
 

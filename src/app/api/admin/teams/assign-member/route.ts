@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { syncProfileTeamMembership } from "@/lib/admin/team-members";
 import { requireApiRole } from "@/lib/api/auth";
 import { createServiceClient } from "@/lib/supabase/server";
-import { isTeamEligibleVolunteer } from "@/lib/volunteers/eligibility";
+import { hasTrapVolunteerRoles, isTeamEligibleVolunteer } from "@/lib/volunteers/eligibility";
 
 export async function POST(request: NextRequest) {
   const { response } = await requireApiRole(["admin"]);
@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
   const service = await createServiceClient();
   const { data: profile, error: profileError } = await service
     .from("profiles")
-    .select("id, email, team_id, role")
+    .select("id, email, team_id, role, volunteer_roles")
     .eq("id", userId)
     .single();
 
@@ -54,7 +54,11 @@ export async function POST(request: NextRequest) {
       .limit(1)
       .maybeSingle();
 
-    if (!application || !isTeamEligibleVolunteer(application)) {
+    if (
+      !application ||
+      !hasTrapVolunteerRoles(profile, application) ||
+      !isTeamEligibleVolunteer(application, profile)
+    ) {
       return NextResponse.json(
         {
           error:

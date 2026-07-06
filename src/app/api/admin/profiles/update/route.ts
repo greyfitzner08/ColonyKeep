@@ -102,6 +102,13 @@ export async function POST(request: NextRequest) {
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
+
+    if (volunteer_roles !== undefined) {
+      await service
+        .from("volunteer_applications")
+        .update({ roles_requested: volunteer_roles })
+        .eq("email", existingProfile.email.toLowerCase());
+    }
   }
 
   return NextResponse.json({ success: true });

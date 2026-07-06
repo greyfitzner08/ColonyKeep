@@ -212,7 +212,7 @@ export function AdminUserEditDialog({
         </DialogHeader>
 
         <div className="space-y-5">
-          <VolunteerEligibilityBadges application={application ?? undefined} />
+          <VolunteerEligibilityBadges application={application ?? undefined} profile={user} />
 
           <VolunteerContactFieldsForm
             values={contact}

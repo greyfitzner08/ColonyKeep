@@ -5,7 +5,7 @@ import { getRequestAppUrl } from "@/lib/app-url";
 import { getEmailValidationError, parsePrimaryEmail } from "@/lib/email-utils";
 import { sendVolunteerApprovalEmail } from "@/lib/email";
 import { ensureVolunteerAuthUser } from "@/lib/volunteers/approve-auth";
-import { canAssignVolunteerToTeam } from "@/lib/volunteers/eligibility";
+import { canAssignVolunteerToTeam, hasTrapVolunteerRoles } from "@/lib/volunteers/eligibility";
 import { isUnder18, isRoleAllowedOnSignup } from "@/lib/volunteers/age-eligibility";
 import { getDefaultVolunteerPassword } from "@/lib/volunteers/default-password";
 import type { VolunteerRole } from "@/lib/types";
@@ -100,10 +100,19 @@ export async function POST(request: NextRequest) {
       return errorResponse("Select at least one volunteer role to approve.");
     }
 
-    if (teamId && !canAssignVolunteerToTeam(application)) {
-      return errorResponse(
-        "Check off TNVR certificate and shadow training before assigning a trap team."
-      );
+    if (teamId) {
+      const approvalProfile = {
+        volunteer_roles: applicationRoles,
+        roles_requested: applicationRoles,
+      };
+      if (!hasTrapVolunteerRoles(approvalProfile, { roles_requested: applicationRoles })) {
+        return errorResponse("Trap team assignment requires a trapping-related volunteer role.");
+      }
+      if (!canAssignVolunteerToTeam(application, approvalProfile)) {
+        return errorResponse(
+          "Check off TNVR certificate and shadow training before assigning a trap team."
+        );
+      }
     }
 
     const youthPermission: VolunteerRole[] =

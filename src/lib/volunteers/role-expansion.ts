@@ -63,6 +63,39 @@ export function pendingNewRoles(
   return (application.roles_requested ?? []).filter((role) => !approvedRoles.includes(role));
 }
 
+/** Roles awaiting admin approval — ignores stale application.roles_requested on approved volunteers. */
+export function rolesPendingApproval(
+  application: Pick<VolunteerApplication, "status" | "roles_requested">,
+  approvedRoles: VolunteerRole[],
+  pendingRoleRequests: Pick<VolunteerRoleRequest, "status" | "request_type" | "requested_roles">[]
+): VolunteerRole[] {
+  const fromRequests = Array.from(
+    new Set(
+      pendingRoleRequests
+        .filter(
+          (request) =>
+            request.status === "pending" && (request.request_type ?? "add") === "add"
+        )
+        .flatMap((request) => request.requested_roles as VolunteerRole[])
+    )
+  ).filter((role) => !approvedRoles.includes(role));
+
+  if (fromRequests.length > 0) return fromRequests;
+
+  if (application.status === "approved") return [];
+
+  return pendingNewRoles(application as VolunteerApplication, approvedRoles);
+}
+
+export function volunteerRolesForTracking(
+  profile: Pick<Profile, "volunteer_roles"> | null | undefined,
+  application: Pick<VolunteerApplication, "roles_requested"> | null | undefined
+): VolunteerRole[] {
+  const profileRoles = (profile?.volunteer_roles ?? []) as VolunteerRole[];
+  if (profileRoles.length > 0) return profileRoles;
+  return (application?.roles_requested ?? []) as VolunteerRole[];
+}
+
 export async function syncApplicationForRoleRequests(
   service: SupabaseClient,
   email: string,
