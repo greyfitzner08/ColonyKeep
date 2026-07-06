@@ -1,5 +1,10 @@
-import { VOLUNTEER_ROLES } from "@/lib/constants";
 import type { VolunteerApplicationStatus, VolunteerRole } from "@/lib/types";
+import {
+  createVolunteerImportRoleMatcher,
+  parseVolunteerImportRoles,
+  volunteerImportRoleError,
+  type VolunteerImportRoleMatcher,
+} from "@/lib/volunteers/import-role-matcher";
 
 export const VOLUNTEER_IMPORT_HEADERS = [
   "Full Name",
@@ -26,12 +31,24 @@ const HEADER_ALIASES: Record<string, string> = {
   email_address: "email",
   phone: "phone",
   phone_number: "phone",
+  mobile: "phone",
+  mobile_phone: "phone",
+  cell: "phone",
+  cell_phone: "phone",
+  telephone: "phone",
+  contact_phone: "phone",
   birthday: "birthday",
   date_of_birth: "birthday",
   dob: "birthday",
   roles_requested: "roles_requested",
   roles: "roles_requested",
+  role: "roles_requested",
   volunteer_roles: "roles_requested",
+  volunteer_role: "roles_requested",
+  volunteer_interest: "roles_requested",
+  volunteer_interests: "roles_requested",
+  interests: "roles_requested",
+  interest: "roles_requested",
   why_volunteer: "why_volunteer",
   prior_experience: "prior_experience",
   experience: "prior_experience",
@@ -84,30 +101,6 @@ function parseBoolean(value: string | undefined, fallback = false): boolean {
   return fallback;
 }
 
-function parseRoles(value: string | undefined): VolunteerRole[] {
-  if (!value) return [];
-  const tokens = value.split(/[,;|]/).map((part) => part.trim()).filter(Boolean);
-  const roles: VolunteerRole[] = [];
-
-  for (const token of tokens) {
-    const byValue = VOLUNTEER_ROLES.find(
-      (role) => role.value === token || role.value === token.toLowerCase().replace(/\s+/g, "_")
-    );
-    if (byValue) {
-      roles.push(byValue.value);
-      continue;
-    }
-    const byLabel = VOLUNTEER_ROLES.find(
-      (role) => role.label.toLowerCase() === token.toLowerCase()
-    );
-    if (byLabel) {
-      roles.push(byLabel.value);
-    }
-  }
-
-  return Array.from(new Set(roles));
-}
-
 function parseStatus(value: string | undefined): VolunteerApplicationStatus {
   const normalized = value?.trim().toLowerCase();
   if (normalized === "needs_followup" || normalized === "needs follow-up") {
@@ -118,7 +111,10 @@ function parseStatus(value: string | undefined): VolunteerApplicationStatus {
   return "pending";
 }
 
-export function mapVolunteerImportRow(raw: Record<string, unknown>): {
+export function mapVolunteerImportRow(
+  raw: Record<string, unknown>,
+  roleMatcher: VolunteerImportRoleMatcher = createVolunteerImportRoleMatcher([])
+): {
   error?: string;
   record?: Record<string, unknown>;
 } {
@@ -127,7 +123,7 @@ export function mapVolunteerImportRow(raw: Record<string, unknown>): {
   const fullName = row.full_name?.trim();
   const phone = row.phone?.trim();
   const birthday = row.birthday?.trim();
-  const roles = parseRoles(row.roles_requested);
+  const { roles, unrecognized } = parseVolunteerImportRoles(row.roles_requested, roleMatcher);
 
   if (!email) {
     return { error: "Email is required." };
@@ -135,11 +131,10 @@ export function mapVolunteerImportRow(raw: Record<string, unknown>): {
   if (!fullName) {
     return { error: "Full name is required." };
   }
-  if (!phone) {
-    return { error: "Phone is required." };
-  }
   if (roles.length === 0) {
-    return { error: "At least one recognized role is required in Roles Requested." };
+    return {
+      error: volunteerImportRoleError(row.roles_requested, roleMatcher, unrecognized),
+    };
   }
 
   const whyVolunteer =
@@ -150,7 +145,7 @@ export function mapVolunteerImportRow(raw: Record<string, unknown>): {
       status: parseStatus(row.application_status),
       full_name: fullName,
       email,
-      phone,
+      phone: phone || "",
       birthday: birthday || null,
       roles_requested: roles,
       why_volunteer: whyVolunteer,
@@ -163,6 +158,8 @@ export function mapVolunteerImportRow(raw: Record<string, unknown>): {
     },
   };
 }
+
+export { createVolunteerImportRoleMatcher } from "@/lib/volunteers/import-role-matcher";
 
 export function buildVolunteerImportTemplateCsv() {
   return `${VOLUNTEER_IMPORT_HEADERS.join(",")}\n`;

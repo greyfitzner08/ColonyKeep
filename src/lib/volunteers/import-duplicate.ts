@@ -1,5 +1,6 @@
 import { parseCsv } from "@/lib/csv";
 import { mapVolunteerImportRow } from "@/lib/volunteers/import-mapper";
+import type { VolunteerImportRoleMatcher } from "@/lib/volunteers/import-role-matcher";
 import { mergeVolunteerRoles } from "@/lib/volunteers/role-expansion";
 import type { VolunteerApplicationStatus, VolunteerRole } from "@/lib/types";
 
@@ -157,10 +158,13 @@ export function foldImportRows(
   );
 }
 
-export function parseVolunteerImportCsv(csvText: string): VolunteerImportParsedRow[] {
+export function parseVolunteerImportCsv(
+  csvText: string,
+  roleMatcher?: VolunteerImportRoleMatcher
+): VolunteerImportParsedRow[] {
   const rows = parseCsv(csvText.replace(/^\uFEFF/, "").trim());
   return rows.map((raw, index) => {
-    const mapped = mapVolunteerImportRow(raw);
+    const mapped = mapVolunteerImportRow(raw, roleMatcher);
     if (mapped.error || !mapped.record) {
       return { row: index + 2, error: mapped.error ?? "Invalid row" };
     }

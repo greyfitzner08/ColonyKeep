@@ -143,9 +143,10 @@ export function VolunteerImporter() {
           <CardTitle className="text-base">Import Volunteers</CardTitle>
           <CardDescription>
             Admin only. Upload volunteer applications as CSV. Duplicate emails are flagged so you
-            can keep the current record, replace it, or merge fields. Birthday is optional in the
-            CSV — volunteers without one are prompted to add it on first login. Imported volunteers
-            must still open and accept the liability waiver and policy on first login, even if the
+            can keep the current record, replace it, or merge fields. Roles Requested should
+            match labels from Admin → Volunteer Roles (comma-separated), including custom or
+            renamed roles. Legacy names like Clinic Coordination still work. Birthday and phone
+            columns are optional when blank. Imported volunteers must still open and accept the liability waiver and policy on first login, even if the
             CSV marks them signed. Roles Requested should use role labels like &quot;Trapper&quot; or
             &quot;Trap Loaner&quot;, separated by commas. Download the template for all{" "}
             {VOLUNTEER_IMPORT_HEADERS.length} columns.

@@ -2,11 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireApiRole } from "@/lib/api/auth";
 import {
   buildVolunteerImportPreview,
-  parseVolunteerImportCsv,
   resolveVolunteerImportGroup,
   type VolunteerImportDuplicateAction,
   type VolunteerImportExistingSummary,
 } from "@/lib/volunteers/import-duplicate";
+import { parseVolunteerImportCsvWithCatalog } from "@/lib/volunteers/import-csv";
 import { createServiceClient } from "@/lib/supabase/server";
 
 const DUPLICATE_ACTIONS = new Set<VolunteerImportDuplicateAction>([
@@ -36,7 +36,9 @@ export async function POST(request: NextRequest) {
   const body = await request.json();
   const csvText = typeof body.csvText === "string" ? body.csvText : "";
   const resolutions = parseResolutions(body.resolutions);
-  const parsedRows = parseVolunteerImportCsv(csvText);
+
+  const service = await createServiceClient();
+  const { parsedRows } = await parseVolunteerImportCsvWithCatalog(service, csvText);
 
   if (!parsedRows.length) {
     return NextResponse.json({ error: "No rows to import" }, { status: 400 });
@@ -50,7 +52,6 @@ export async function POST(request: NextRequest) {
     )
   );
 
-  const service = await createServiceClient();
   const existingByEmail = new Map<string, VolunteerImportExistingSummary>();
 
   if (emails.length > 0) {
