@@ -1,5 +1,6 @@
 import type { VolunteerApplication, VolunteerRole, RoleDescription } from "@/lib/types";
 import { TNVR_ROLES } from "@/lib/constants";
+import { USER_COMPLETABLE_REQUIREMENTS } from "@/lib/volunteers/application-requirements";
 
 export type RequirementField =
   | "tnvr_certificate_uploaded"
@@ -25,6 +26,12 @@ export interface RoleRequirement {
 }
 
 const BASE_REQUIREMENTS: RequirementField[] = ["liability_waiver_signed", "policy_signed"];
+
+function excludeVolunteerSelfServiceRequirements(
+  fields: RequirementField[]
+): RequirementField[] {
+  return fields.filter((field) => !USER_COMPLETABLE_REQUIREMENTS.includes(field));
+}
 
 export const VOLUNTEER_ROLE_REQUIREMENTS: RoleRequirement[] = [
   { role: "intake_representative", label: "Intake Representative", requires: [...BASE_REQUIREMENTS, "intake_training"] },
@@ -69,12 +76,27 @@ export function getRoleRequirement(
   };
 }
 
+export function adminVerifiableRequirementsForRole(
+  role: VolunteerRole,
+  catalog: RoleDescription[] = []
+): RequirementField[] {
+  return excludeVolunteerSelfServiceRequirements(requirementsForRole(role, catalog));
+}
+
 export function missingRequirementsForRole(
   role: VolunteerRole,
   source: Pick<VolunteerApplication, RequirementField>,
   catalog?: RoleDescription[]
 ): RequirementField[] {
   return requirementsForRole(role, catalog).filter((field) => !source[field]);
+}
+
+export function missingAdminVerifiableRequirementsForRole(
+  role: VolunteerRole,
+  source: Pick<VolunteerApplication, RequirementField>,
+  catalog?: RoleDescription[]
+): RequirementField[] {
+  return adminVerifiableRequirementsForRole(role, catalog).filter((field) => !source[field]);
 }
 
 export function rolesNeedingTnvrCert(roles: VolunteerRole[]): boolean {
@@ -92,7 +114,7 @@ export function requirementsForApplicationApproval(
   catalog: RoleDescription[] = [],
   options?: { includeTeamAssignmentRequirements?: boolean }
 ): RequirementField[] {
-  const requirements = requirementsForRole(role, catalog);
+  const requirements = adminVerifiableRequirementsForRole(role, catalog);
   if (options?.includeTeamAssignmentRequirements) return requirements;
   return requirements.filter((field) => !TEAM_ASSIGNMENT_REQUIREMENT_FIELDS.includes(field));
 }

@@ -2,8 +2,8 @@ import type { Profile, RoleDescription, VolunteerApplication, VolunteerRole, Vol
 import { pendingNewRoles, requirementSourceForRoleRequest, rolesPendingApproval } from "@/lib/volunteers/role-expansion";
 import { volunteerRequirementSource } from "@/lib/volunteers/requirement-source";
 import {
+  missingAdminVerifiableRequirementsForRole,
   missingRequirementsForApplicationApproval,
-  missingRequirementsForRole,
   requirementLabel,
   type RequirementField,
 } from "@/lib/volunteers/role-requirements";
@@ -88,9 +88,8 @@ export function getApplicationReviewContext(
 
   for (const role of rolesToReview) {
     const source = requirementSourceForRole(application, linkedProfile, role, pendingRoleRequests);
-    const missingForDisplay = missingRequirementsForRole(role, source, roleCatalog);
-    const missingForApproval = isRoleExpansion
-      ? missingForDisplay
+    const missingForDisplay = isRoleExpansion
+      ? missingAdminVerifiableRequirementsForRole(role, source, roleCatalog)
       : missingRequirementsForApplicationApproval(role, source, roleCatalog);
 
     if (missingForDisplay.length > 0) {
@@ -106,7 +105,7 @@ export function getApplicationReviewContext(
     rolesToReview.every((role) => {
       const source = requirementSourceForRole(application, linkedProfile, role, pendingRoleRequests);
       const missingForApproval = isRoleExpansion
-        ? missingRequirementsForRole(role, source, roleCatalog)
+        ? missingAdminVerifiableRequirementsForRole(role, source, roleCatalog)
         : missingRequirementsForApplicationApproval(role, source, roleCatalog);
       return missingForApproval.length === 0;
     });

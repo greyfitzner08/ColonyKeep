@@ -28,18 +28,6 @@ export function VolunteerEligibilityBadges({
       return <Badge variant="outline">Not approved</Badge>;
     }
 
-    const missing: string[] = [];
-    if (!application.liability_waiver_signed) missing.push("waiver");
-    if (!application.policy_signed) missing.push("Policy Acknowledgement");
-
-    if (missing.length > 0) {
-      return (
-        <Badge variant="outline" className="text-orange-700 border-orange-200">
-          Missing: {missing.join(", ")}
-        </Badge>
-      );
-    }
-
     return <Badge variant="outline">No trap team roles selected</Badge>;
   }
 
@@ -51,8 +39,6 @@ export function VolunteerEligibilityBadges({
   if (application.status !== "approved") missing.push("approved");
   if (!application.tnvr_certificate_uploaded) missing.push("TNVR cert");
   if (!application.shadow_completed) missing.push("field training");
-  if (!application.liability_waiver_signed) missing.push("waiver");
-  if (!application.policy_signed) missing.push("Policy Acknowledgement");
 
   return (
     <Badge variant="outline" className="text-orange-700 border-orange-200">

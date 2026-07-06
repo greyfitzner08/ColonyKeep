@@ -4,8 +4,6 @@ import { createServiceClient } from "@/lib/supabase/server";
 import type { RequirementField } from "@/lib/volunteers/role-requirements";
 
 const ALLOWED_FIELDS = new Set<RequirementField>([
-  "liability_waiver_signed",
-  "policy_signed",
   "shadow_completed",
   "intake_training",
   "tnvr_certificate_uploaded",

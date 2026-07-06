@@ -6,7 +6,7 @@ import type { VolunteerApplication, VolunteerRole } from "@/lib/types";
 import { mergeVolunteerRoles, rolesPendingApproval } from "@/lib/volunteers/role-expansion";
 import { volunteerRequirementSource } from "@/lib/volunteers/requirement-source";
 import {
-  missingRequirementsForRole,
+  missingAdminVerifiableRequirementsForRole,
   requirementLabel,
 } from "@/lib/volunteers/role-requirements";
 
@@ -106,7 +106,7 @@ export async function POST(request: NextRequest) {
   const blocked = requestedRoles
     .map((role) => ({
       role,
-      missing: missingRequirementsForRole(role, source, roleCatalog),
+      missing: missingAdminVerifiableRequirementsForRole(role, source, roleCatalog),
     }))
     .filter((entry) => entry.missing.length > 0);
 

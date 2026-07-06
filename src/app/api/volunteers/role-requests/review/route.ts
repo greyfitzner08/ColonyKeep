@@ -10,7 +10,7 @@ import {
   requirementSourceForRoleRequest,
   syncApplicationForRoleRequests,
 } from "@/lib/volunteers/role-expansion";
-import { missingRequirementsForRole, requirementLabel } from "@/lib/volunteers/role-requirements";
+import { missingAdminVerifiableRequirementsForRole, requirementLabel } from "@/lib/volunteers/role-requirements";
 
 export async function POST(request: NextRequest) {
   const { profile, response } = await requireApiRole(["admin"]);
@@ -138,7 +138,7 @@ export async function POST(request: NextRequest) {
   if (ready.length === 0) {
     const details = requestedRoles
       .map((role) => {
-        const missing = missingRequirementsForRole(role, source, roleCatalog);
+        const missing = missingAdminVerifiableRequirementsForRole(role, source, roleCatalog);
         return `${role}: ${missing.map(requirementLabel).join(", ")}`;
       })
       .join("; ");

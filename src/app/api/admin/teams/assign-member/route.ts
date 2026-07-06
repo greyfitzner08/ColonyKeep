@@ -62,7 +62,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           error:
-            "Volunteer must be approved with TNVR certificate, field training, and liability waiver/Policy Acknowledgement before team assignment",
+            "Volunteer must be approved with TNVR certificate and field training before team assignment",
         },
         { status: 400 }
       );

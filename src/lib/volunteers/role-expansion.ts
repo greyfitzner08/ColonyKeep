@@ -1,6 +1,6 @@
 import type { Profile, RoleDescription, VolunteerApplication, VolunteerRole, VolunteerRoleRequest } from "@/lib/types";
 import type { RequirementField } from "@/lib/volunteers/role-requirements";
-import { missingRequirementsForRole } from "@/lib/volunteers/role-requirements";
+import { missingAdminVerifiableRequirementsForRole } from "@/lib/volunteers/role-requirements";
 import { volunteerRequirementSource } from "@/lib/volunteers/requirement-source";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
@@ -46,7 +46,7 @@ export function partitionRolesByRequirements(
   const pending: VolunteerRole[] = [];
 
   for (const role of roles) {
-    if (missingRequirementsForRole(role, source, catalog).length === 0) {
+    if (missingAdminVerifiableRequirementsForRole(role, source, catalog).length === 0) {
       ready.push(role);
     } else {
       pending.push(role);

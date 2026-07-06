@@ -89,8 +89,6 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 const ADMIN_CHECKBOX_FIELDS = [
-  { key: "liability_waiver_signed", label: "Liability Waiver" },
-  { key: "policy_signed", label: "Policy Acknowledgement" },
   { key: "shadow_completed", label: "Shadow Completed" },
   { key: "intake_training", label: "Intake Training" },
   { key: "tnvr_certificate_uploaded", label: "TNVR Certificate" },
@@ -800,6 +798,10 @@ export function VolunteersManager({
 
         <div className="space-y-3">
           <Label className="text-sm font-medium">Training & Requirements</Label>
+          <p className="text-xs text-muted-foreground">
+            Liability waiver and policy are completed by the volunteer at sign-in. Check off
+            training items here after verification.
+          </p>
           <div className="flex flex-wrap gap-4">
             {ADMIN_CHECKBOX_FIELDS.filter(({ key }) => expansionRequirementFields.includes(key)).map(
               ({ key, label }) => {

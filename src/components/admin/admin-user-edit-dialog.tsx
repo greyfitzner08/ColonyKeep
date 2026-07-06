@@ -277,7 +277,8 @@ export function AdminUserEditDialog({
               <Label>Volunteer interests</Label>
               <p className="text-xs text-muted-foreground mt-1">
                 Same options as the volunteer signup form. &quot;Other&quot; can only be selected
-                during signup.
+                during signup. Liability waiver and policy are completed by the volunteer at
+                sign-in, not here.
               </p>
             </div>
 

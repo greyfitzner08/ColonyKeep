@@ -18,18 +18,12 @@ export function canAssignVolunteerToTeam(
     VolunteerApplication,
     | "tnvr_certificate_uploaded"
     | "shadow_completed"
-    | "liability_waiver_signed"
-    | "policy_signed"
     | "roles_requested"
   >,
   profile?: Pick<Profile, "volunteer_roles"> | null
 ): boolean {
   const roles = volunteerRolesForTracking(profile, application);
   const trapRoles = roles.filter((role) => TNVR_ROLES.includes(role));
-
-  if (!application.liability_waiver_signed || !application.policy_signed) {
-    return false;
-  }
 
   if (trapRoles.length === 0) {
     return true;
