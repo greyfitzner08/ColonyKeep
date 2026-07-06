@@ -369,6 +369,30 @@ export function VolunteersManager({
       return;
     }
 
+    if (context.isRoleExpansion && context.newRoles.length > 0) {
+      clearActionError();
+      setActingId(app.id);
+      const response = await fetch("/api/volunteers/grant-roles", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          applicationId: app.id,
+          volunteer_roles: context.newRoles,
+          admin_notes: notesForApp(app) || null,
+        }),
+      });
+      const result = await response.json().catch(() => null);
+      setActingId(null);
+      if (!response.ok) {
+        showActionError(getApiErrorMessage(result, "Unable to approve role expansion"));
+        return;
+      }
+      clearActionError();
+      setReviewingApplication(null);
+      router.refresh();
+      return;
+    }
+
     await handleAction(app.id, "approve", undefined, email, approvalRolesForApp(app));
     setReviewingApplication(null);
   }
@@ -386,6 +410,30 @@ export function VolunteersManager({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           request_id: roleRequest.id,
+          action: "reject",
+          admin_notes: notesForApp(app) || null,
+        }),
+      });
+      const result = await response.json().catch(() => null);
+      setActingId(null);
+      if (!response.ok) {
+        showActionError(getApiErrorMessage(result, "Unable to reject role expansion"));
+        return;
+      }
+      clearActionError();
+      setReviewingApplication(null);
+      router.refresh();
+      return;
+    }
+
+    if (context.isRoleExpansion && context.newRoles.length > 0) {
+      clearActionError();
+      setActingId(app.id);
+      const response = await fetch("/api/volunteers/grant-roles", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          applicationId: app.id,
           action: "reject",
           admin_notes: notesForApp(app) || null,
         }),
@@ -606,10 +654,15 @@ export function VolunteersManager({
                     );
                   })}
                 </div>
-                {context.pendingRoleRequests.length > 0 && (
+                {context.pendingRoleRequests.length > 0 ? (
                   <p className="text-xs text-amber-800">
                     Trap-specific requirements (shadow, TNVR certificate) are tracked per role
                     request — check them off below after verification.
+                  </p>
+                ) : (
+                  <p className="text-xs text-amber-800">
+                    No open role request record was found. You can still approve the pending roles
+                    listed above once requirements are verified.
                   </p>
                 )}
               </div>

@@ -108,9 +108,13 @@ export function getApplicationReviewContext(
     }
   }
 
-  const rolesReady = rolesToReview.every((role) => (missingByRole[role]?.length ?? 0) === 0);
+  const rolesReady =
+    rolesToReview.length > 0 &&
+    rolesToReview.every((role) => (missingByRole[role]?.length ?? 0) === 0);
   const canReview =
-    REVIEWABLE_STATUSES.has(application.status) || pendingRoleRequests.length > 0;
+    REVIEWABLE_STATUSES.has(application.status) ||
+    pendingRoleRequests.length > 0 ||
+    (isRoleExpansion && newRoles.length > 0);
 
   let attentionLabel: string | null = null;
   let attentionDetail: string | null = null;
