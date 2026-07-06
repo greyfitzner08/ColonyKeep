@@ -106,6 +106,22 @@ function normalizeHeader(header: string): string {
     .replace(/^_|_$/g, "");
 }
 
+const IMPORT_FIELD_KEYS = new Set<VolunteerImportFieldKey>(
+  IMPORT_FIELD_OPTIONS.map((option) => option.key)
+);
+
+function resolveImportFieldKey(header: string): VolunteerImportFieldKey | undefined {
+  const normalizedHeader = normalizeHeader(header);
+  const alias = HEADER_ALIASES[normalizedHeader];
+  if (alias && IMPORT_FIELD_KEYS.has(alias as VolunteerImportFieldKey)) {
+    return alias as VolunteerImportFieldKey;
+  }
+  if (IMPORT_FIELD_KEYS.has(normalizedHeader as VolunteerImportFieldKey)) {
+    return normalizedHeader as VolunteerImportFieldKey;
+  }
+  return undefined;
+}
+
 export function normalizeVolunteerImportRow(
   raw: Record<string, unknown>,
   columnResolutions: Record<string, VolunteerImportColumnResolution> = {}
@@ -133,7 +149,7 @@ export function normalizeVolunteerImportRow(
       }
     }
 
-    const key = HEADER_ALIASES[normalizeHeader(header)];
+    const key = resolveImportFieldKey(header);
     if (!key) continue;
     normalized[key] = normalized[key] ? `${normalized[key]}\n${text}` : text;
   }

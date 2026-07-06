@@ -34,7 +34,6 @@ const EMPTY_FORM = {
   phone: "",
   birthday: "",
   roles: [] as VolunteerRole[],
-  whyVolunteer: "",
   priorExperience: "",
   howHeard: "",
   liabilityWaiverSigned: false,
@@ -112,7 +111,6 @@ export function VolunteerAddDialog({
         phone: form.phone.trim() || undefined,
         birthday: form.birthday.trim() || undefined,
         roles: form.roles,
-        whyVolunteer: form.whyVolunteer.trim() || undefined,
         priorExperience: form.priorExperience.trim() || undefined,
         howHeard: form.howHeard.trim() || undefined,
         liabilityWaiverSigned: form.liabilityWaiverSigned,
@@ -275,16 +273,6 @@ export function VolunteerAddDialog({
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2 sm:col-span-2">
-                <Label htmlFor="add-volunteer-why">Why volunteer</Label>
-                <Textarea
-                  id="add-volunteer-why"
-                  value={form.whyVolunteer}
-                  onChange={(event) => setForm({ ...form, whyVolunteer: event.target.value })}
-                  rows={2}
-                />
-              </div>
-
               <div className="space-y-2">
                 <Label htmlFor="add-volunteer-experience">Prior experience</Label>
                 <Textarea
