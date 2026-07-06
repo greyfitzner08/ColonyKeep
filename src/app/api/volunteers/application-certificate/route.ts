@@ -36,6 +36,16 @@ export async function POST(request: NextRequest) {
   }
 
   const service = await createServiceClient();
+  const { data: application, error: loadError } = await service
+    .from("volunteer_applications")
+    .select("email")
+    .eq("id", applicationId)
+    .single();
+
+  if (loadError || !application) {
+    return NextResponse.json({ error: loadError?.message ?? "Application not found" }, { status: 404 });
+  }
+
   const { error } = await service
     .from("volunteer_applications")
     .update({
@@ -49,6 +59,15 @@ export async function POST(request: NextRequest) {
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 400 });
   }
+
+  await service
+    .from("volunteer_role_requests")
+    .update({
+      tnvr_certificate_uploaded: true,
+      tnvr_certificate_url: certificateUrl,
+    })
+    .eq("email", application.email.toLowerCase())
+    .eq("status", "pending");
 
   return NextResponse.json({ success: true, certificate_url: certificateUrl });
 }

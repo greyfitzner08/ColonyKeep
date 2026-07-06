@@ -3,6 +3,7 @@ import { pendingNewRoles, requirementSourceForRoleRequest } from "@/lib/voluntee
 import { volunteerRequirementSource } from "@/lib/volunteers/requirement-source";
 import {
   missingRequirementsForApplicationApproval,
+  missingRequirementsForRole,
   requirementLabel,
   type RequirementField,
 } from "@/lib/volunteers/role-requirements";
@@ -47,6 +48,15 @@ export function getPendingRoleAddRequests(
   );
 }
 
+function pendingAddRolesFromRequests(
+  approvedRoles: VolunteerRole[],
+  pendingRoleRequests: VolunteerRoleRequest[]
+): VolunteerRole[] {
+  return Array.from(
+    new Set(pendingRoleRequests.flatMap((request) => request.requested_roles as VolunteerRole[]))
+  ).filter((role) => !approvedRoles.includes(role));
+}
+
 function requirementSourceForRole(
   application: VolunteerApplication,
   profile: Profile | undefined,
@@ -73,8 +83,13 @@ export function getApplicationReviewContext(
   const linkedProfile = profilesByEmail[application.email.toLowerCase()];
   const approvedRoles = (linkedProfile?.volunteer_roles ?? []) as VolunteerRole[];
   const pendingRoleRequests = getPendingRoleAddRequests(application.email, roleRequests);
-  const newRoles = pendingNewRoles(application, approvedRoles);
-  const isRoleExpansion = approvedRoles.length > 0 && newRoles.length > 0;
+  const pendingAddRoles = pendingAddRolesFromRequests(approvedRoles, pendingRoleRequests);
+  const newRoles =
+    pendingAddRoles.length > 0
+      ? pendingAddRoles
+      : pendingNewRoles(application, approvedRoles);
+  const isRoleExpansion =
+    pendingRoleRequests.length > 0 || (approvedRoles.length > 0 && newRoles.length > 0);
   const rolesToReview = isRoleExpansion ? newRoles : (application.roles_requested ?? []);
 
   const missingByRole: Partial<Record<VolunteerRole, RequirementField[]>> = {};
@@ -82,7 +97,9 @@ export function getApplicationReviewContext(
 
   for (const role of rolesToReview) {
     const source = requirementSourceForRole(application, linkedProfile, role, pendingRoleRequests);
-    const missing = missingRequirementsForApplicationApproval(role, source, roleCatalog);
+    const missing = isRoleExpansion
+      ? missingRequirementsForRole(role, source, roleCatalog)
+      : missingRequirementsForApplicationApproval(role, source, roleCatalog);
     if (missing.length > 0) {
       missingByRole[role] = missing;
       for (const field of missing) {
@@ -93,8 +110,7 @@ export function getApplicationReviewContext(
 
   const rolesReady = rolesToReview.every((role) => (missingByRole[role]?.length ?? 0) === 0);
   const canReview =
-    REVIEWABLE_STATUSES.has(application.status) ||
-    (isRoleExpansion && pendingRoleRequests.length > 0);
+    REVIEWABLE_STATUSES.has(application.status) || pendingRoleRequests.length > 0;
 
   let attentionLabel: string | null = null;
   let attentionDetail: string | null = null;

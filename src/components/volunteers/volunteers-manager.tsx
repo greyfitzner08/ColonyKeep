@@ -341,7 +341,7 @@ export function VolunteersManager({
     email?: string
   ) {
     const roleRequest = context.pendingRoleRequests[0];
-    if (context.isRoleExpansion && roleRequest) {
+    if (roleRequest) {
       clearActionError();
       setActingId(app.id);
       const response = await fetch("/api/volunteers/role-requests/review", {
@@ -378,7 +378,7 @@ export function VolunteersManager({
     context: ApplicationReviewContext
   ) {
     const roleRequest = context.pendingRoleRequests[0];
-    if (context.isRoleExpansion && roleRequest) {
+    if (roleRequest) {
       clearActionError();
       setActingId(app.id);
       const response = await fetch("/api/volunteers/role-requests/review", {
@@ -552,15 +552,19 @@ export function VolunteersManager({
       ? context.rolesReady
       : approvalRolesReady(app, context, selectedApprovalRoles);
     const requirementSource = requirementSourceForApplication(app, context);
-    const assigningTrapTeam = approveTeam !== "none";
+    const assigningTrapTeam = !isRoleExpansion && approveTeam !== "none";
     const relevantRequirementFields = requirementFieldsForReview(selectedApprovalRoles, roleCatalog, {
       assigningTrapTeam,
     });
     const selectableApprovalRoles = filterSignupRoleDescriptions(applicationRoleOptions, app.birthday);
-    const teamAssignReady =
-      approveTeam === "none" || canAssignVolunteerToTeam(requirementSource);
+    const teamAssignReady = isRoleExpansion
+      ? true
+      : approveTeam === "none" || canAssignVolunteerToTeam(requirementSource);
     const certificateUrl =
-      app.tnvr_certificate_url ?? linkedProfile?.tnvr_certificate_url ?? null;
+      context.pendingRoleRequests[0]?.tnvr_certificate_url ??
+      app.tnvr_certificate_url ??
+      linkedProfile?.tnvr_certificate_url ??
+      null;
     const certificateUploaded = Boolean(requirementSource.tnvr_certificate_uploaded);
     const showCertificatePanel =
       canReview &&
@@ -719,9 +723,14 @@ export function VolunteersManager({
               }
             )}
           </div>
-          {relevantRequirementFields.length === 0 && (
+          {relevantRequirementFields.length === 0 && !isRoleExpansion && (
             <p className="text-xs text-muted-foreground">
               Select volunteer roles above to see which training requirements apply.
+            </p>
+          )}
+          {isRoleExpansion && context.pendingRoleRequests.length > 0 && (
+            <p className="text-xs text-muted-foreground">
+              Check off each requirement after verification, then use Approve role expansion below.
             </p>
           )}
           {showCertificatePanel && (
@@ -1298,7 +1307,12 @@ export function VolunteersManager({
 
       <Dialog
         open={reviewingApplication != null}
-        onOpenChange={(open) => !open && setReviewingApplication(null)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setReviewingApplication(null);
+            setApproveTeam("none");
+          }
+        }}
       >
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           {reviewingApplication && reviewingContext && (
