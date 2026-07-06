@@ -40,7 +40,7 @@ export const VOLUNTEER_ROLES: { value: VolunteerRole; label: string }[] = [
   { value: "photographer", label: "Photographer" },
   { value: "videographer", label: "Videographer" },
   { value: "community_outreach", label: "Community Outreach" },
-  { value: "clinic_coordination", label: "Clinic Coordination" },
+  { value: "colony_support", label: "Colony Support" },
   { value: "youth_volunteer", label: "Youth Volunteer (under 18)" },
   { value: "other", label: "Other" },
 ];

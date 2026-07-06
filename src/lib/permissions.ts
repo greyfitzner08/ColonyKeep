@@ -49,7 +49,7 @@ function hasVolunteerRole(profile: Profile, roles: VolunteerRole[]): boolean {
 
 export function hasClinicCoordinationVolunteerRole(profile: Profile | null): boolean {
   if (!profile) return false;
-  return hasVolunteerRole(profile, ["clinic_coordination"]);
+  return hasVolunteerRole(profile, ["colony_support", "clinic_coordination"]);
 }
 
 export function canManageClinics(profile: Profile | null): boolean {

@@ -47,6 +47,7 @@ export type VolunteerRole =
   | "photographer"
   | "videographer"
   | "community_outreach"
+  | "colony_support"
   | "clinic_coordination"
   | "youth_volunteer"
   | "other";

@@ -41,6 +41,7 @@ export const VOLUNTEER_ROLE_REQUIREMENTS: RoleRequirement[] = [
   { role: "photographer", label: "Photographer", requires: [] },
   { role: "videographer", label: "Videographer", requires: [] },
   { role: "community_outreach", label: "Community Outreach", requires: BASE_REQUIREMENTS },
+  { role: "colony_support", label: "Colony Support", requires: BASE_REQUIREMENTS },
   { role: "youth_volunteer", label: "Youth Volunteer", requires: BASE_REQUIREMENTS },
   { role: "other", label: "Other", requires: BASE_REQUIREMENTS },
 ];
