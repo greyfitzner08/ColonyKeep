@@ -37,7 +37,7 @@ import {
   volunteerRoleLabel,
 } from "@/lib/volunteers/role-catalog";
 import { volunteerRequirementSource } from "@/lib/volunteers/requirement-source";
-import { canAssignVolunteerToTeam, getTeamEligibleVolunteers } from "@/lib/volunteers/eligibility";
+import { canAssignVolunteerToTeam, getTeamEligibleVolunteers, hasTrapTeamMemberRoles } from "@/lib/volunteers/eligibility";
 import {
   applicationMatchesFilter,
   attentionPriority,
@@ -142,7 +142,6 @@ export function VolunteersManager({
   const [interestFilter, setInterestFilter] = useState("all");
   const [approvalRoleEdits, setApprovalRoleEdits] = useState<Record<string, VolunteerRole[]>>({});
   const [additionalRoleEdits, setAdditionalRoleEdits] = useState<Record<string, VolunteerRole[]>>({});
-  const [approveTeam, setApproveTeam] = useState<string>("none");
   const [actionError, setActionError] = useState<string | null>(null);
   const [actingId, setActingId] = useState<string | null>(null);
   const [updatingField, setUpdatingField] = useState<string | null>(null);
@@ -483,12 +482,7 @@ export function VolunteersManager({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           applicationId: id,
-          teamId:
-            reviewTeamId !== "none"
-              ? reviewTeamId
-              : approveTeam === "none"
-                ? null
-                : approveTeam,
+          teamId: reviewTeamId === "none" ? null : reviewTeamId,
           email: emailToUse,
           volunteer_roles: volunteerRoles,
           platformRole: reviewPlatformRole !== "none" ? reviewPlatformRole : "volunteer",
@@ -831,14 +825,20 @@ export function VolunteersManager({
       ? context.rolesReady
       : approvalRolesReady(app, context, selectedApprovalRoles);
     const requirementSource = requirementSourceForApplication(app, context);
-    const assigningTrapTeam = !isRoleExpansion && approveTeam !== "none";
+    const assigningTrapTeam = !isRoleExpansion && reviewTeamId !== "none";
     const relevantRequirementFields = requirementFieldsForReview(selectedApprovalRoles, roleCatalog, {
       assigningTrapTeam,
     });
     const selectableApprovalRoles = filterSignupRoleDescriptions(applicationRoleOptions, app.birthday);
     const teamAssignReady = isRoleExpansion
       ? true
-      : approveTeam === "none" || canAssignVolunteerToTeam(app, context.linkedProfile);
+      : reviewTeamId === "none" || canAssignVolunteerToTeam(app, linkedProfile);
+    const trapTeamRolesSelected = hasTrapTeamMemberRoles(linkedProfile, {
+      roles_requested: selectedApprovalRoles,
+    });
+    const trapTeamEligible = linkedProfile
+      ? teamEligibleProfiles.some((entry) => entry.profile.id === linkedProfile.id)
+      : trapTeamRolesSelected;
     const certificateUrl =
       context.pendingRoleRequests[0]?.tnvr_certificate_url ??
       app.tnvr_certificate_url ??
@@ -1076,35 +1076,45 @@ export function VolunteersManager({
                 : "Applied when you approve or create their login account."}
             </p>
           </div>
-          {linkedProfile ? (
-            <div className="space-y-2">
-              <Label>Trap team</Label>
-              <Select
-                value={reviewTeamId}
-                onValueChange={setReviewTeamId}
-                disabled={
-                  reviewPlatformRole === "none" ||
-                  !teamEligibleProfiles.some((entry) => entry.profile.id === linkedProfile.id)
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Trap team" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">No team</SelectItem>
-                  {sortTrapTeams(teams).map((team) => (
-                    <SelectItem key={team.id} value={team.id}>
-                      {team.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          ) : (
-            <p className="text-xs text-muted-foreground self-end pb-1">
-              Trap team assignment unlocks after their login account exists.
-            </p>
-          )}
+          <div className="space-y-2">
+            <Label>Trap team</Label>
+            <Select
+              value={reviewTeamId}
+              onValueChange={setReviewTeamId}
+              disabled={
+                reviewPlatformRole === "none" ||
+                !trapTeamRolesSelected ||
+                (linkedProfile ? !trapTeamEligible : false)
+              }
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Trap team" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">No team</SelectItem>
+                {sortTrapTeams(teams).map((team) => (
+                  <SelectItem key={team.id} value={team.id}>
+                    {team.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {!linkedProfile && (
+              <p className="text-xs text-muted-foreground">
+                Optional on approve — applied when their login account is created.
+              </p>
+            )}
+            {linkedProfile && !trapTeamEligible && trapTeamRolesSelected && (
+              <p className="text-xs text-muted-foreground">
+                Team assignment unlocks after application approval and required training.
+              </p>
+            )}
+            {!trapTeamRolesSelected && (
+              <p className="text-xs text-muted-foreground">
+                Select a trap-team role to enable team assignment.
+              </p>
+            )}
+          </div>
         </div>
 
         {app.admin_notes && (
@@ -1296,35 +1306,11 @@ export function VolunteersManager({
               }}
             />
 
-            {canReview && (
-              <>
-                {rolesNeedingTnvrCert(selectedApprovalRoles) && (
-                  <p className="text-xs text-muted-foreground">
-                    TNVR field roles require certificate and shadow training before trap team
-                    assignment.
-                  </p>
-                )}
-                <div className="flex flex-col gap-2 border-t pt-4 sm:flex-row sm:items-end sm:justify-between">
-                  <div className="space-y-1.5 sm:min-w-[220px]">
-                    <Label htmlFor={`approve-team-${app.id}`} className="text-xs">
-                      Trap team (optional)
-                    </Label>
-                    <Select value={approveTeam} onValueChange={setApproveTeam}>
-                      <SelectTrigger id={`approve-team-${app.id}`} className="w-full sm:w-[240px]">
-                        <SelectValue placeholder="No team assignment" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">No team assignment</SelectItem>
-                        {sortTrapTeams(teams).map((t) => (
-                          <SelectItem key={t.id} value={t.id}>
-                            {t.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-              </>
+            {canReview && rolesNeedingTnvrCert(selectedApprovalRoles) && (
+              <p className="text-xs text-muted-foreground border-t pt-4">
+                TNVR field roles require certificate and shadow training before trap team
+                assignment.
+              </p>
             )}
 
             {!canReview && (
@@ -1782,7 +1768,7 @@ export function VolunteersManager({
         onOpenChange={(open) => {
           if (!open) {
             setReviewingApplication(null);
-            setApproveTeam("none");
+            setReviewTeamId("none");
             setAdditionalRoleEdits({});
             setContactEdits({});
           }
