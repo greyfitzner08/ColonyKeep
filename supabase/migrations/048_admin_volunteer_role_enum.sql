@@ -16,3 +16,4 @@ END;
 $$;
 
 REVOKE ALL ON FUNCTION admin_add_volunteer_role(text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION admin_add_volunteer_role(text) TO service_role;
