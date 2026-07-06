@@ -614,9 +614,57 @@ export function VolunteersManager({
       linkedProfile?.tnvr_certificate_url ??
       null;
     const certificateUploaded = Boolean(requirementSource.tnvr_certificate_uploaded);
+    const showReviewActions =
+      canReview || (isRoleExpansion && context.newRoles.length > 0);
+    const expansionRequirementFields = isRoleExpansion
+      ? requirementFieldsForRoles(selectedApprovalRoles, roleCatalog)
+      : relevantRequirementFields;
     const showCertificatePanel =
-      canReview &&
-      (assigningTrapTeam || rolesNeedingTnvrCert(selectedApprovalRoles) || Boolean(certificateUrl));
+      showReviewActions &&
+      (assigningTrapTeam ||
+        rolesNeedingTnvrCert(selectedApprovalRoles) ||
+        Boolean(certificateUrl));
+
+    const reviewActions = showReviewActions ? (
+      <div className="flex flex-wrap gap-2">
+        <Button
+          size="sm"
+          disabled={actingId === app.id || emailInvalid || !rolesReady || !teamAssignReady}
+          onClick={() => handleApproveApplication(app, context, emailValue)}
+        >
+          <Check className="h-4 w-4 mr-1" />
+          {actingId === app.id
+            ? "Working..."
+            : rolesReady
+              ? isRoleExpansion
+                ? "Approve role expansion"
+                : "Approve"
+              : selectedApprovalRoles.length === 0
+                ? "Select at least one role"
+                : "Complete requirements first"}
+        </Button>
+        {!isRoleExpansion && (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => handleAction(app.id, "followup", notesForApp(app))}
+            disabled={actingId === app.id}
+          >
+            <MessageCircle className="h-4 w-4 mr-1" />
+            {app.status === "needs_followup" ? "Update Follow-up" : "Follow-up"}
+          </Button>
+        )}
+        <Button
+          size="sm"
+          variant="destructive"
+          onClick={() => handleRejectApplication(app, context)}
+          disabled={actingId === app.id}
+        >
+          <X className="h-4 w-4 mr-1" />
+          {isRoleExpansion ? "Reject expansion" : "Reject"}
+        </Button>
+      </div>
+    ) : null;
 
     return (
       <div className="space-y-4">
@@ -664,6 +712,9 @@ export function VolunteersManager({
                     No open role request record was found. You can still approve the pending roles
                     listed above once requirements are verified.
                   </p>
+                )}
+                {reviewActions && (
+                  <div className="border-t border-amber-200 pt-3">{reviewActions}</div>
                 )}
               </div>
             </div>
@@ -754,7 +805,7 @@ export function VolunteersManager({
         <div className="space-y-3">
           <Label className="text-sm font-medium">Training & Requirements</Label>
           <div className="flex flex-wrap gap-4">
-            {ADMIN_CHECKBOX_FIELDS.filter(({ key }) => relevantRequirementFields.includes(key)).map(
+            {ADMIN_CHECKBOX_FIELDS.filter(({ key }) => expansionRequirementFields.includes(key)).map(
               ({ key, label }) => {
                 const fieldKey = `${app.id}:${key}`;
                 const checked = Boolean(requirementSource[key]);
@@ -776,14 +827,19 @@ export function VolunteersManager({
               }
             )}
           </div>
+          {expansionRequirementFields.length === 0 && isRoleExpansion && context.rolesReady && (
+            <p className="text-xs text-green-700">
+              No additional training requirements for the requested roles — ready to approve.
+            </p>
+          )}
           {relevantRequirementFields.length === 0 && !isRoleExpansion && (
             <p className="text-xs text-muted-foreground">
               Select volunteer roles above to see which training requirements apply.
             </p>
           )}
-          {isRoleExpansion && context.pendingRoleRequests.length > 0 && (
+          {isRoleExpansion && context.pendingRoleRequests.length === 0 && (
             <p className="text-xs text-muted-foreground">
-              Check off each requirement after verification, then use Approve role expansion below.
+              Check off any requirements below, then approve the role expansion above or here.
             </p>
           )}
           {showCertificatePanel && (
@@ -796,7 +852,7 @@ export function VolunteersManager({
           )}
         </div>
 
-        {canReview && (
+        {showReviewActions && (
           <div className="space-y-4 border-t pt-4">
             <div className="space-y-2">
               <Label htmlFor={`notes-${app.id}`}>
@@ -931,42 +987,9 @@ export function VolunteersManager({
               </div>
             )}
 
-            <div className="flex flex-wrap gap-2 border-t pt-4">
-              <Button
-                size="sm"
-                disabled={actingId === app.id || emailInvalid || !rolesReady || !teamAssignReady}
-                onClick={() => handleApproveApplication(app, context, emailValue)}
-              >
-                <Check className="h-4 w-4 mr-1" />
-                {actingId === app.id
-                  ? "Working..."
-                  : rolesReady
-                    ? isRoleExpansion
-                      ? "Approve role expansion"
-                      : "Approve"
-                    : selectedApprovalRoles.length === 0
-                      ? "Select at least one role"
-                      : "Complete requirements first"}
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => handleAction(app.id, "followup", notesForApp(app))}
-                disabled={actingId === app.id}
-              >
-                <MessageCircle className="h-4 w-4 mr-1" />
-                {app.status === "needs_followup" ? "Update Follow-up" : "Follow-up"}
-              </Button>
-              <Button
-                size="sm"
-                variant="destructive"
-                onClick={() => handleRejectApplication(app, context)}
-                disabled={actingId === app.id}
-              >
-                <X className="h-4 w-4 mr-1" />
-                {isRoleExpansion ? "Reject expansion" : "Reject"}
-              </Button>
-            </div>
+            {!isRoleExpansion && reviewActions && (
+              <div className="border-t pt-4">{reviewActions}</div>
+            )}
             {actionError && reviewingApplication?.id === app.id && (
               <p
                 className={`text-sm ${
@@ -1022,6 +1045,8 @@ export function VolunteersManager({
 
   function renderApplicationSummary(app: VolunteerApplication, context: ApplicationReviewContext) {
     const { linkedProfile, rolesToReview, canReview, isRoleExpansion, approvedRoles } = context;
+    const showReviewActions =
+      canReview || (isRoleExpansion && context.newRoles.length > 0);
 
     return (
       <>
@@ -1069,7 +1094,7 @@ export function VolunteersManager({
             Existing access unchanged: {approvedRoles.map(roleLabel).join(", ")}
           </p>
         )}
-        {canReview && (
+        {showReviewActions && (
           <Badge
             variant="outline"
             className={context.rolesReady ? "text-green-700 border-green-300" : "text-amber-800 border-amber-300 bg-amber-50"}
@@ -1324,14 +1349,40 @@ export function VolunteersManager({
                     </Badge>
                   )}
                   <Badge className={STATUS_COLORS[app.status]}>{app.status.replace(/_/g, " ")}</Badge>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setReviewingApplication(app)}
-                  >
-                    Review
-                  </Button>
+                  {context.isRoleExpansion && context.newRoles.length > 0 ? (
+                    <div className="flex flex-col gap-2">
+                      <Button
+                        type="button"
+                        size="sm"
+                        disabled={actingId === app.id || !context.rolesReady}
+                        onClick={() => handleApproveApplication(app, context, emailForApp(app))}
+                      >
+                        <Check className="h-4 w-4 mr-1" />
+                        {actingId === app.id
+                          ? "Working..."
+                          : context.rolesReady
+                            ? "Approve roles"
+                            : "Complete requirements"}
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setReviewingApplication(app)}
+                      >
+                        Review details
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setReviewingApplication(app)}
+                    >
+                      Review
+                    </Button>
+                  )}
                 </div>
               </div>
             </CardHeader>
