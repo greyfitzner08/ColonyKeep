@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
+import { ChevronDown } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { formatSingleLineAddress } from "@/lib/cases/colony-notes";
@@ -19,6 +20,7 @@ import {
 } from "@/lib/hotspots/volunteer-role-filter";
 import { densityMapCenter } from "@/lib/maps/density-center";
 import { HotspotsMapViewController } from "@/components/maps/hotspots-map-view-controller";
+import { cn } from "@/lib/utils";
 import type { HelpRequest, VolunteerRole } from "@/lib/types";
 
 const MapContainer = dynamic(
@@ -108,6 +110,7 @@ export function HotspotsMap({
     feeders: defaultLayers?.feeders ?? feeders.length > 0,
   });
   const [selectedVolunteerRoles, setSelectedVolunteerRoles] = useState<VolunteerRole[]>([]);
+  const [volunteerFiltersOpen, setVolunteerFiltersOpen] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -224,39 +227,65 @@ export function HotspotsMap({
       )}
 
       {layers.volunteers && (
-        <div className="space-y-3 rounded-lg border bg-muted/30 p-4">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <p className="text-sm font-medium">Filter by volunteer role</p>
+        <div className="rounded-lg border bg-muted/30">
+          <div className="flex items-start justify-between gap-2 p-4">
+            <button
+              type="button"
+              className="flex min-w-0 flex-1 items-start gap-2 rounded-md text-left transition-colors hover:bg-muted/50"
+              onClick={() => setVolunteerFiltersOpen((open) => !open)}
+              aria-expanded={volunteerFiltersOpen}
+            >
+              <ChevronDown
+                className={cn(
+                  "mt-0.5 h-4 w-4 shrink-0 text-muted-foreground transition-transform",
+                  volunteerFiltersOpen && "rotate-180"
+                )}
+              />
+              <div className="min-w-0">
+                <p className="text-sm font-medium">Filter by volunteer role</p>
+                {!volunteerFiltersOpen && (
+                  <p className="text-xs text-muted-foreground">
+                    {selectedVolunteerRoles.length > 0
+                      ? `${selectedVolunteerRoles.length} role${selectedVolunteerRoles.length === 1 ? "" : "s"} selected`
+                      : "Expand to filter trappers, transporters, and other roles"}
+                  </p>
+                )}
+              </div>
+            </button>
             {selectedVolunteerRoles.length > 0 && (
               <button
                 type="button"
-                className="text-xs text-primary underline"
+                className="shrink-0 text-xs text-primary underline"
                 onClick={() => setSelectedVolunteerRoles([])}
               >
                 Clear filters
               </button>
             )}
           </div>
-          <p className="text-xs text-muted-foreground">
-            Select one or more roles to find nearby trappers, transporters, recovery hosts, and other
-            volunteers. Leave all unchecked to show everyone who opted in.
-          </p>
-          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 max-h-48 overflow-y-auto pr-1">
-            {VOLUNTEER_ROLES.map((role) => (
-              <label
-                key={role.value}
-                htmlFor={`hotspot-role-${role.value}`}
-                className="flex items-center gap-2 rounded-md border bg-background px-3 py-2 cursor-pointer"
-              >
-                <Checkbox
-                  id={`hotspot-role-${role.value}`}
-                  checked={selectedVolunteerRoles.includes(role.value)}
-                  onCheckedChange={() => toggleVolunteerRole(role.value)}
-                />
-                <span className="text-sm">{role.label}</span>
-              </label>
-            ))}
-          </div>
+          {volunteerFiltersOpen && (
+            <div className="space-y-3 border-t px-4 pb-4 pt-3">
+              <p className="text-xs text-muted-foreground">
+                Select one or more roles to find nearby trappers, transporters, recovery hosts, and
+                other volunteers. Leave all unchecked to show everyone who opted in.
+              </p>
+              <div className="grid max-h-48 gap-2 overflow-y-auto pr-1 sm:grid-cols-2 lg:grid-cols-3">
+                {VOLUNTEER_ROLES.map((role) => (
+                  <label
+                    key={role.value}
+                    htmlFor={`hotspot-role-${role.value}`}
+                    className="flex cursor-pointer items-center gap-2 rounded-md border bg-background px-3 py-2"
+                  >
+                    <Checkbox
+                      id={`hotspot-role-${role.value}`}
+                      checked={selectedVolunteerRoles.includes(role.value)}
+                      onCheckedChange={() => toggleVolunteerRole(role.value)}
+                    />
+                    <span className="text-sm">{role.label}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
