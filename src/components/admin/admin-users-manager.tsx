@@ -1,8 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -14,6 +16,7 @@ import {
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import { AdminUserEditDialog } from "@/components/admin/admin-user-edit-dialog";
 import { AdminUserRemoveDialog } from "@/components/admin/admin-user-remove-dialog";
+import { getApiErrorMessage } from "@/lib/api/errors";
 import { ROLE_PERMISSIONS, isKnownUserRole } from "@/lib/constants";
 import {
   getApplicationByEmail,
@@ -24,6 +27,7 @@ import type {
   Profile,
   RoleDescription,
   TrapTeam,
+  UserRole,
   VolunteerApplication,
 } from "@/lib/types";
 import { Pencil, Search, Trash2 } from "lucide-react";
@@ -45,8 +49,13 @@ export function AdminUsersManager({
   applications,
   currentUserId,
 }: AdminUsersManagerProps) {
+  const router = useRouter();
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState<string>("all");
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkRole, setBulkRole] = useState<UserRole | "">("");
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const [updatingRoleId, setUpdatingRoleId] = useState<string | null>(null);
   const [editingUser, setEditingUser] = useState<Profile | null>(null);
   const [removingUser, setRemovingUser] = useState<Profile | null>(null);
   const [userError, setUserError] = useState<string | null>(null);
@@ -89,8 +98,117 @@ export function AdminUsersManager({
     });
   }, [users, search, roleFilter, teamById, roleCatalog]);
 
+  const selectableUsers = useMemo(
+    () => filteredUsers.filter((user) => user.id !== currentUserId),
+    [filteredUsers, currentUserId]
+  );
+
+  const allVisibleSelected =
+    selectableUsers.length > 0 && selectableUsers.every((user) => selected.has(user.id));
+
+  const selectedCount = selected.size;
+
+  const toggleRow = useCallback((id: string) => {
+    if (id === currentUserId) return;
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, [currentUserId]);
+
+  const toggleAllVisible = useCallback(() => {
+    if (allVisibleSelected) {
+      setSelected((prev) => {
+        const next = new Set(prev);
+        for (const user of selectableUsers) next.delete(user.id);
+        return next;
+      });
+      return;
+    }
+
+    setSelected((prev) => {
+      const next = new Set(prev);
+      for (const user of selectableUsers) next.add(user.id);
+      return next;
+    });
+  }, [allVisibleSelected, selectableUsers]);
+
+  const updateUserRole = useCallback(
+    async (userId: string, role: UserRole) => {
+      if (userId === currentUserId) return;
+
+      setUpdatingRoleId(userId);
+      setUserError(null);
+
+      const response = await fetch("/api/admin/profiles/update", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId, role }),
+      });
+      const result = await response.json().catch(() => null);
+      setUpdatingRoleId(null);
+
+      if (!response.ok) {
+        setUserError(getApiErrorMessage(result, "Unable to update platform role"));
+        return;
+      }
+
+      router.refresh();
+    },
+    [currentUserId, router]
+  );
+
+  const applyBulkRole = useCallback(async () => {
+    const userIds = [...selected].filter((id) => id !== currentUserId);
+    if (!userIds.length || !bulkRole) return;
+
+    setBulkBusy(true);
+    setUserError(null);
+
+    const response = await fetch("/api/admin/profiles/bulk-update", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userIds, role: bulkRole }),
+    });
+    const result = await response.json().catch(() => null);
+    setBulkBusy(false);
+
+    if (!response.ok) {
+      setUserError(getApiErrorMessage(result, "Unable to update platform roles"));
+      return;
+    }
+
+    setSelected(new Set());
+    setBulkRole("");
+    router.refresh();
+  }, [bulkRole, currentUserId, router, selected]);
+
   const columns = useMemo((): DataTableColumn<Profile>[] => {
     return [
+      {
+        id: "select",
+        label: "Select",
+        header: (
+          <Checkbox
+            checked={allVisibleSelected}
+            onCheckedChange={toggleAllVisible}
+            aria-label="Select all visible users"
+            disabled={selectableUsers.length === 0}
+          />
+        ),
+        defaultWidth: 52,
+        minWidth: 52,
+        render: (user) => (
+          <Checkbox
+            checked={selected.has(user.id)}
+            onCheckedChange={() => toggleRow(user.id)}
+            disabled={user.id === currentUserId}
+            aria-label={`Select ${user.full_name ?? user.email}`}
+          />
+        ),
+      },
       {
         id: "name",
         label: "Name",
@@ -110,14 +228,40 @@ export function AdminUsersManager({
       {
         id: "platform_role",
         label: "Platform role",
-        defaultWidth: 140,
+        defaultWidth: 180,
         sortValue: (user) =>
           isKnownUserRole(user.role) ? ROLE_PERMISSIONS[user.role].label : "No role",
-        render: (user) => (
-          <Badge variant="outline">
-            {isKnownUserRole(user.role) ? ROLE_PERMISSIONS[user.role].label : "No role"}
-          </Badge>
-        ),
+        render: (user) => {
+          const isSelf = user.id === currentUserId;
+          const isUpdating = updatingRoleId === user.id;
+
+          if (isSelf) {
+            return (
+              <Badge variant="outline">
+                {isKnownUserRole(user.role) ? ROLE_PERMISSIONS[user.role].label : "No role"}
+              </Badge>
+            );
+          }
+
+          return (
+            <Select
+              value={isKnownUserRole(user.role) ? user.role : undefined}
+              disabled={isUpdating}
+              onValueChange={(value) => updateUserRole(user.id, value as UserRole)}
+            >
+              <SelectTrigger className="h-8 w-full max-w-[170px]">
+                <SelectValue placeholder={isUpdating ? "Saving…" : "No role"} />
+              </SelectTrigger>
+              <SelectContent>
+                {Object.entries(ROLE_PERMISSIONS).map(([role, { label }]) => (
+                  <SelectItem key={role} value={role}>
+                    {label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          );
+        },
       },
       {
         id: "team",
@@ -202,7 +346,18 @@ export function AdminUsersManager({
         ),
       },
     ];
-  }, [roleCatalog, teamById, currentUserId]);
+  }, [
+    allVisibleSelected,
+    currentUserId,
+    roleCatalog,
+    selectableUsers.length,
+    selected,
+    teamById,
+    toggleAllVisible,
+    toggleRow,
+    updateUserRole,
+    updatingRoleId,
+  ]);
 
   return (
     <div className="space-y-4">
@@ -232,10 +387,52 @@ export function AdminUsersManager({
           </SelectContent>
         </Select>
         <p className="text-sm text-muted-foreground sm:ml-auto">
-          {filteredUsers.length} of {users.length} users · Remove is available for every account
-          except your own
+          {filteredUsers.length} of {users.length} users
         </p>
       </div>
+
+      {selectedCount > 0 && (
+        <div className="flex flex-col gap-3 rounded-lg border bg-muted/30 p-3 sm:flex-row sm:items-center">
+          <p className="text-sm font-medium">
+            {selectedCount} selected
+          </p>
+          <div className="flex flex-wrap items-center gap-2 sm:ml-auto">
+            <Select
+              value={bulkRole || undefined}
+              onValueChange={(value) => setBulkRole(value as UserRole)}
+            >
+              <SelectTrigger className="w-[200px]">
+                <SelectValue placeholder="Set platform role" />
+              </SelectTrigger>
+              <SelectContent>
+                {Object.entries(ROLE_PERMISSIONS).map(([role, { label }]) => (
+                  <SelectItem key={role} value={role}>
+                    {label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button
+              type="button"
+              disabled={!bulkRole || bulkBusy}
+              onClick={applyBulkRole}
+            >
+              {bulkBusy ? "Applying…" : "Apply to selected"}
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              disabled={bulkBusy}
+              onClick={() => {
+                setSelected(new Set());
+                setBulkRole("");
+              }}
+            >
+              Clear
+            </Button>
+          </div>
+        </div>
+      )}
 
       <DataTable
         tableId="admin-users"
@@ -245,6 +442,12 @@ export function AdminUsersManager({
         emptyMessage="No users match your search."
         enableSearch={false}
       />
+
+      <p className="text-xs text-muted-foreground">
+        Change platform roles inline in the table, or select multiple users for bulk updates. Your
+        own account cannot be changed here. Use Edit for contact details, volunteer interests, and
+        trap team assignment.
+      </p>
 
       <AdminUserEditDialog
         user={editingUser}
