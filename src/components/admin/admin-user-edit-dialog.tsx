@@ -136,7 +136,6 @@ export function AdminUserEditDialog({
     if (contact.full_name.trim() !== (user.full_name ?? "")) payload.fullName = contact.full_name.trim();
     if (contact.email.trim() !== user.email) payload.email = contact.email.trim();
     if (contact.phone.trim() !== (user.phone ?? "")) payload.phone = contact.phone.trim();
-    if ((contact.birthday || "") !== (user.birthday ?? "")) payload.birthday = contact.birthday || null;
     if (contact.home_street.trim() !== (user.home_street ?? "")) {
       payload.home_street = contact.home_street.trim();
     }
@@ -221,9 +220,12 @@ export function AdminUserEditDialog({
           <VolunteerContactFieldsForm
             values={contact}
             onChange={setContact}
-            showBirthday
             idPrefix={`admin-user-${user.id}`}
           />
+
+          <p className="text-xs text-muted-foreground -mt-2">
+            Birthday is collected when the user logs in for the first time.
+          </p>
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">

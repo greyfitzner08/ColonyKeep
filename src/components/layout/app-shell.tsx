@@ -80,6 +80,7 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
   }
 
   const needsBirthday =
+    !isActualAdmin &&
     effectiveProfile != null &&
     !effectiveProfile.birthday &&
     (!application || !application.birthday);

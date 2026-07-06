@@ -446,7 +446,7 @@ export function AdminUsersManager({
       <p className="text-xs text-muted-foreground">
         Change platform roles inline in the table, or select multiple users for bulk updates. Your
         own account cannot be changed here. Use Edit for contact details, volunteer interests, and
-        trap team assignment.
+        trap team assignment. Birthday is collected when users log in.
       </p>
 
       <AdminUserEditDialog

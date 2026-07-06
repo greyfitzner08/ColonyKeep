@@ -33,7 +33,6 @@ const EMPTY_FORM = {
   fullName: "",
   email: "",
   phone: "",
-  birthday: "",
   roles: [] as VolunteerRole[],
   adminNotes: "",
   setupLogin: true,
@@ -117,7 +116,6 @@ export function VolunteerAddDialog({
         fullName: form.fullName.trim(),
         email: form.email.trim(),
         phone: form.phone.trim() || undefined,
-        birthday: form.birthday.trim() || undefined,
         roles: form.roles,
         adminNotes: form.adminNotes.trim() || undefined,
       }),
@@ -189,8 +187,8 @@ export function VolunteerAddDialog({
           <DialogHeader>
             <DialogTitle>Add volunteer</DialogTitle>
             <DialogDescription>
-              Enter the basics now. You can add address, training, and trap team from Review after
-              saving.
+              Enter the basics now. Address, birthday, and training can be completed from Review
+              or when the volunteer logs in.
             </DialogDescription>
           </DialogHeader>
 
@@ -228,16 +226,6 @@ export function VolunteerAddDialog({
                   value={form.phone}
                   onChange={(event) => setForm({ ...form, phone: event.target.value })}
                   autoComplete="tel"
-                />
-              </div>
-
-              <div className="space-y-2 sm:col-span-2">
-                <Label htmlFor="add-volunteer-birthday">Birthday</Label>
-                <Input
-                  id="add-volunteer-birthday"
-                  type="date"
-                  value={form.birthday}
-                  onChange={(event) => setForm({ ...form, birthday: event.target.value })}
                 />
               </div>
             </div>
