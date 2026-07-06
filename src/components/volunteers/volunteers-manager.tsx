@@ -280,11 +280,11 @@ export function VolunteersManager({
   useEffect(() => {
     const profile = reviewingContext?.linkedProfile;
     if (!profile) {
-      setReviewPlatformRole("none");
+      setReviewPlatformRole("volunteer");
       setReviewTeamId("none");
       return;
     }
-    setReviewPlatformRole(isKnownUserRole(profile.role) ? profile.role : "none");
+    setReviewPlatformRole(isKnownUserRole(profile.role) ? profile.role : "volunteer");
     setReviewTeamId(profile.team_id ?? "none");
   }, [reviewingContext?.linkedProfile, reviewingApplication?.id]);
 
@@ -347,9 +347,10 @@ export function VolunteersManager({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         applicationId: app.id,
-        teamId: null,
+        teamId: reviewTeamId === "none" ? null : reviewTeamId,
         email: contact.email,
-        volunteer_roles: app.roles_requested ?? [],
+        volunteer_roles: approvalRolesForApp(app),
+        platformRole: reviewPlatformRole !== "none" ? reviewPlatformRole : "volunteer",
       }),
     });
     const result = await response.json().catch(() => null);
@@ -482,9 +483,15 @@ export function VolunteersManager({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           applicationId: id,
-          teamId: approveTeam === "none" ? null : approveTeam,
+          teamId:
+            reviewTeamId !== "none"
+              ? reviewTeamId
+              : approveTeam === "none"
+                ? null
+                : approveTeam,
           email: emailToUse,
           volunteer_roles: volunteerRoles,
+          platformRole: reviewPlatformRole !== "none" ? reviewPlatformRole : "volunteer",
         }),
       });
       const result = await response.json().catch(() => null);
@@ -856,9 +863,9 @@ export function VolunteersManager({
       : relevantRequirementFields;
     const trainingManagementRoles = Array.from(
       new Set([
-        ...context.rolesToReview,
+        ...selectedApprovalRoles,
         ...additionalRoles,
-        ...(showApprovedVolunteerManagement ? context.newRoles : []),
+        ...approvedRoles,
       ])
     ) as VolunteerRole[];
     const trainingRequirementFields = requirementFieldsForRoles(
@@ -867,7 +874,9 @@ export function VolunteersManager({
     );
     const showTrainingManagement = true;
     const showCertificatePanel =
-      rolesNeedingTnvrCert(trainingManagementRoles) || Boolean(certificateUrl);
+      rolesNeedingTnvrCert(trainingManagementRoles) ||
+      Boolean(certificateUrl) ||
+      trainingRequirementFields.includes("tnvr_certificate_uploaded");
     const contactValues = contactForApp(app, linkedProfile);
     const emailValue = contactValues.email;
     const emailInvalid = Boolean(getEmailValidationError(emailValue));
@@ -1043,26 +1052,31 @@ export function VolunteersManager({
           )}
         </div>
 
-        {linkedProfile && (
-          <div className="grid gap-4 sm:grid-cols-2 rounded-md border p-3">
-            <div className="space-y-2">
-              <Label>Platform role</Label>
-              <Select
-                value={reviewPlatformRole}
-                onValueChange={(value) => setReviewPlatformRole(value as UserRole | "none")}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Platform role" />
-                </SelectTrigger>
-                <SelectContent>
-                  {Object.entries(ROLE_PERMISSIONS).map(([role, { label }]) => (
-                    <SelectItem key={role} value={role}>
-                      {label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+        <div className="grid gap-4 sm:grid-cols-2 rounded-md border p-3">
+          <div className="space-y-2">
+            <Label>Platform role</Label>
+            <Select
+              value={reviewPlatformRole}
+              onValueChange={(value) => setReviewPlatformRole(value as UserRole | "none")}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Platform role" />
+              </SelectTrigger>
+              <SelectContent>
+                {Object.entries(ROLE_PERMISSIONS).map(([role, { label }]) => (
+                  <SelectItem key={role} value={role}>
+                    {label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              {linkedProfile
+                ? "Saved with Save changes below."
+                : "Applied when you approve or create their login account."}
+            </p>
+          </div>
+          {linkedProfile ? (
             <div className="space-y-2">
               <Label>Trap team</Label>
               <Select
@@ -1086,8 +1100,12 @@ export function VolunteersManager({
                 </SelectContent>
               </Select>
             </div>
-          </div>
-        )}
+          ) : (
+            <p className="text-xs text-muted-foreground self-end pb-1">
+              Trap team assignment unlocks after their login account exists.
+            </p>
+          )}
+        </div>
 
         {app.admin_notes && (
           <div className="rounded-md border bg-muted/40 p-3 text-sm">
@@ -1101,8 +1119,7 @@ export function VolunteersManager({
             <div className="space-y-1">
               <p className="text-sm font-medium">Volunteer interests</p>
               <p className="text-xs text-muted-foreground">
-                Grant additional roles after verifying training requirements below. Use Edit
-                volunteer profile to change platform role, trap team, or remove roles.
+                Grant additional roles after verifying training requirements below.
               </p>
             </div>
 

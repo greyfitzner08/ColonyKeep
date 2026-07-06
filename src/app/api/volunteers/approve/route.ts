@@ -7,8 +7,9 @@ import { sendVolunteerApprovalEmail } from "@/lib/email";
 import { ensureVolunteerAuthUser } from "@/lib/volunteers/approve-auth";
 import { canAssignVolunteerToTeam, hasTrapTeamMemberRoles } from "@/lib/volunteers/eligibility";
 import { isUnder18, isRoleAllowedOnSignup } from "@/lib/volunteers/age-eligibility";
+import { isKnownUserRole } from "@/lib/constants";
 import { getDefaultVolunteerPassword } from "@/lib/volunteers/default-password";
-import type { VolunteerRole } from "@/lib/types";
+import type { UserRole, VolunteerRole } from "@/lib/types";
 
 function errorResponse(message: string, status = 400) {
   return NextResponse.json({ error: message }, { status });
@@ -20,7 +21,14 @@ export async function POST(request: NextRequest) {
     if (response) return response;
 
     const body = await request.json();
-    const { applicationId, teamId, email: emailOverride, volunteer_roles: volunteerRolesOverride } = body;
+    const { applicationId, teamId, email: emailOverride, volunteer_roles: volunteerRolesOverride, platformRole } =
+      body as {
+        applicationId?: string;
+        teamId?: string | null;
+        email?: string;
+        volunteer_roles?: VolunteerRole[];
+        platformRole?: UserRole;
+      };
 
     if (!applicationId) {
       return errorResponse("Missing application ID");
@@ -128,11 +136,17 @@ export async function POST(request: NextRequest) {
       ])
     );
 
+    const resolvedPlatformRole: UserRole =
+      platformRole && isKnownUserRole(platformRole) ? platformRole : "volunteer";
+
     if (existingProfile) {
       const { error: profileUpdateError } = await service
         .from("profiles")
         .update({
-          role: existingProfile.role || "volunteer",
+          role:
+            platformRole && isKnownUserRole(platformRole)
+              ? platformRole
+              : existingProfile.role || "volunteer",
           ...(teamId ? { team_id: teamId } : {}),
           full_name: application.full_name,
           birthday: application.birthday ?? null,
@@ -168,7 +182,7 @@ export async function POST(request: NextRequest) {
         home_state: application.home_state ?? null,
         home_zip: application.home_zip ?? null,
         home_county: application.home_county ?? null,
-        role: "volunteer",
+        role: resolvedPlatformRole,
         team_id: teamId ?? null,
         volunteer_roles: mergedVolunteerRoles,
         tnvr_certificate_uploaded: application.tnvr_certificate_uploaded ?? false,
