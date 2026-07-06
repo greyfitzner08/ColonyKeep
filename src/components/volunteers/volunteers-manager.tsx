@@ -1450,10 +1450,7 @@ export function VolunteersManager({
   }
 
   function renderApplicationSummary(app: VolunteerApplication, context: ApplicationReviewContext) {
-    const { linkedProfile, rolesToReview, canReview, isRoleExpansion, approvedRoles } = context;
-    const showReviewActions =
-      canReview || (isRoleExpansion && context.newRoles.length > 0);
-
+    const { linkedProfile, rolesToReview, isRoleExpansion, approvedRoles } = context;
     return (
       <>
         <div>
@@ -1500,26 +1497,6 @@ export function VolunteersManager({
           <p className="text-xs text-muted-foreground">
             Existing access unchanged: {approvedRoles.map(roleLabel).join(", ")}
           </p>
-        )}
-        {showReviewActions && (
-          <Badge
-            variant="outline"
-            className={
-              context.allRequirementsMet
-                ? "text-green-700 border-green-300"
-                : context.canApproveWithPendingTraining
-                  ? "text-sky-800 border-sky-300 bg-sky-50"
-                  : "text-amber-800 border-amber-300 bg-amber-50"
-            }
-          >
-            {context.allRequirementsMet
-              ? "Ready to approve"
-              : context.canApproveWithPendingTraining
-                ? "Can approve with pending training"
-                : context.hasPendingTraining
-                  ? "Training pending"
-                  : "Requirements pending"}
-          </Badge>
         )}
       </>
     );

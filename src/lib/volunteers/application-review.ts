@@ -218,10 +218,8 @@ export function getApplicationReviewContext(
         .join(", ")}`;
     } else if (canReview) {
       attentionLabel = "Roles ready to approve";
-      attentionDetail = "New volunteer roles have met all training requirements.";
     } else {
       attentionLabel = "Role expansion";
-      attentionDetail = "Volunteer requested additional roles.";
     }
   } else if (application.status === "pending") {
     needsAttention = true;
@@ -233,13 +231,13 @@ export function getApplicationReviewContext(
     } else {
       attentionLabel = rolesReady ? "Ready to approve" : "Requirements pending";
       attentionDetail = rolesReady
-        ? "New application is ready for approval."
+        ? null
         : `Still need: ${Array.from(allMissingSet).map(requirementLabel).join(", ")}`;
     }
   } else if (application.status === "needs_followup") {
     needsAttention = true;
     attentionLabel = rolesReady ? "Follow-up — ready" : "Follow-up required";
-    attentionDetail = application.admin_notes?.trim() || "Application needs admin follow-up.";
+    attentionDetail = application.admin_notes?.trim() || null;
   } else if (hasPendingTraining) {
     needsAttention = true;
     attentionLabel = "Training pending";
