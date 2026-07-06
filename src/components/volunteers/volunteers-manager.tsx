@@ -63,7 +63,6 @@ import type {
 } from "@/lib/types";
 import { ApplicationCertificatePanel } from "@/components/volunteers/application-certificate-panel";
 import { VolunteerAddDialog } from "@/components/volunteers/volunteer-add-dialog";
-import { AdminUserEditDialog } from "@/components/admin/admin-user-edit-dialog";
 import {
   VolunteerContactFieldsForm,
   type VolunteerContactFormValues,
@@ -78,7 +77,6 @@ import {
   KeyRound,
   LayoutGrid,
   Table2,
-  Pencil,
 } from "lucide-react";
 
 interface VolunteersManagerProps {
@@ -153,8 +151,6 @@ export function VolunteersManager({
   const [nameEdits, setNameEdits] = useState<Record<string, string>>({});
   const [savingEmailId, setSavingEmailId] = useState<string | null>(null);
   const [resettingPasswordId, setResettingPasswordId] = useState<string | null>(null);
-  const [editingProfile, setEditingProfile] = useState<Profile | null>(null);
-  const [editingApplication, setEditingApplication] = useState<VolunteerApplication | null>(null);
   const [contactEdits, setContactEdits] = useState<Record<string, VolunteerContactFormValues>>({});
   const [pendingReviewId, setPendingReviewId] = useState<string | null>(null);
   const [reviewPlatformRole, setReviewPlatformRole] = useState<UserRole | "none">("none");
@@ -337,21 +333,6 @@ export function VolunteersManager({
 
   function clearActionError() {
     setActionError(null);
-  }
-
-  function openProfileEditor(application: VolunteerApplication, profile: Profile) {
-    clearActionError();
-    setEditingProfile(profile);
-    setEditingApplication(application);
-  }
-
-  function closeProfileEditor() {
-    setEditingProfile(null);
-    setEditingApplication(null);
-  }
-
-  function openVolunteerEditor(application: VolunteerApplication) {
-    setReviewingApplication(application);
   }
 
   async function provisionLoginAccount(
@@ -1039,7 +1020,7 @@ export function VolunteersManager({
           <div className="space-y-1">
             <p className="text-sm font-medium">Contact & address</p>
             <p className="text-xs text-muted-foreground">
-              Update contact info and address here. Use Save changes at the bottom when done.
+              Update contact info, roles, and address here. Save changes when done.
             </p>
           </div>
           <VolunteerContactFieldsForm
@@ -1642,31 +1623,18 @@ export function VolunteersManager({
         minWidth: 96,
         headerClassName: "text-right",
         cellClassName: "text-right",
-        render: (app) => {
-          const context = getReviewContext(app);
-          return (
-            <div className="flex justify-end gap-1">
-              <Button
-                type="button"
-                size="icon"
-                variant="ghost"
-                className="h-8 w-8"
-                onClick={() => openVolunteerEditor(app)}
-                aria-label={`Edit ${app.full_name}`}
-                title={
-                  context.linkedProfile
-                    ? "Edit volunteer profile"
-                    : "Edit volunteer application"
-                }
-              >
-                <Pencil className="h-3.5 w-3.5" />
-              </Button>
-              <Button type="button" size="sm" variant="outline" onClick={() => setReviewingApplication(app)}>
-                Review
-              </Button>
-            </div>
-          );
-        },
+        render: (app) => (
+          <div className="flex justify-end">
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => setReviewingApplication(app)}
+            >
+              Review
+            </Button>
+          </div>
+        ),
       },
     ];
   }, [profilesByEmail, roleCatalog, roleRequests]);
@@ -1809,35 +1777,18 @@ export function VolunteersManager({
                         variant="outline"
                         onClick={() => setReviewingApplication(app)}
                       >
-                        Review details
-                      </Button>
-                    </div>
-                  ) : (
-                    <div className="flex flex-col items-end gap-2">
-                      <Button
-                        type="button"
-                        size="icon"
-                        variant="outline"
-                        className="h-8 w-8"
-                        onClick={() => openVolunteerEditor(app)}
-                        aria-label={`Edit ${app.full_name}`}
-                        title={
-                          context.linkedProfile
-                            ? "Edit volunteer profile"
-                            : "Edit volunteer application"
-                        }
-                      >
-                        <Pencil className="h-3.5 w-3.5" />
-                      </Button>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        onClick={() => setReviewingApplication(app)}
-                      >
                         Review
                       </Button>
                     </div>
+                  ) : (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setReviewingApplication(app)}
+                    >
+                      Review
+                    </Button>
                   )}
                 </div>
               </div>
@@ -1923,22 +1874,6 @@ export function VolunteersManager({
           )}
         </DialogContent>
       </Dialog>
-
-      <AdminUserEditDialog
-        user={editingProfile}
-        open={editingProfile != null}
-        onOpenChange={(open) => !open && closeProfileEditor()}
-        teams={teams}
-        roleCatalog={roleCatalog}
-        application={editingApplication ?? undefined}
-        teamEligible={
-          editingProfile
-            ? teamEligibleProfiles.some((entry) => entry.profile.id === editingProfile.id)
-            : false
-        }
-        onError={setActionError}
-        relaxContactRequirements={Boolean(editingApplication?.imported_via_csv)}
-      />
     </div>
   );
 }
