@@ -41,6 +41,7 @@ import {
   attentionPriority,
   countApplicationsNeedingAttention,
   getApplicationReviewContext,
+  canApproveImportedVolunteerWithPendingTraining,
   requirementSourceForApplication,
   type ApplicationReviewContext,
   type ApplicationStatusFilter,
@@ -172,14 +173,8 @@ export function VolunteersManager({
     roles: VolunteerRole[]
   ): boolean {
     if (roles.length === 0) return false;
-    const source = volunteerRequirementSource(
-      app,
-      context.linkedProfile ?? { tnvr_certificate_uploaded: false, tnvr_certificate_url: null }
-    );
-    return roles.every(
-      (role) =>
-        missingRequirementsForApplicationApproval(role, source, roleCatalog).length === 0
-    );
+    if (canApproveImportedVolunteerWithPendingTraining(app, roles)) return true;
+    return context.allRequirementsMet;
   }
 
   const reviewingContext = useMemo(
@@ -600,6 +595,16 @@ export function VolunteersManager({
     const expansionRequirementFields = isRoleExpansion
       ? requirementFieldsForRoles(selectedApprovalRoles, roleCatalog)
       : relevantRequirementFields;
+    const trainingManagementRoles =
+      app.status === "approved" && context.hasPendingTraining
+        ? ((linkedProfile?.volunteer_roles ?? app.roles_requested ?? []) as VolunteerRole[])
+        : selectedApprovalRoles;
+    const trainingRequirementFields =
+      app.status === "approved" && context.hasPendingTraining
+        ? requirementFieldsForRoles(trainingManagementRoles, roleCatalog)
+        : expansionRequirementFields;
+    const showTrainingManagement =
+      canReview || isRoleExpansion || (app.status === "approved" && context.hasPendingTraining);
     const showCertificatePanel =
       showReviewActions &&
       (assigningTrapTeam ||
@@ -617,9 +622,13 @@ export function VolunteersManager({
           {actingId === app.id
             ? "Working..."
             : rolesReady
-              ? isRoleExpansion
-                ? "Approve role expansion"
-                : "Approve"
+              ? context.canApproveWithPendingTraining && !context.allRequirementsMet
+                ? isRoleExpansion
+                  ? "Approve role expansion"
+                  : "Approve with pending training"
+                : isRoleExpansion
+                  ? "Approve role expansion"
+                  : "Approve"
               : selectedApprovalRoles.length === 0
                 ? "Select at least one role"
                 : "Complete requirements first"}
@@ -649,6 +658,33 @@ export function VolunteersManager({
 
     return (
       <div className="space-y-4">
+        {app.imported_via_csv && canReview && !context.allRequirementsMet && (
+          <div className="rounded-md border border-sky-300 bg-sky-50 px-4 py-3 text-sm text-sky-950">
+            <p className="font-medium">CSV import</p>
+            <p className="mt-1">
+              This volunteer was imported rather than signing up online. You can approve them now
+              with their selected roles and verify training afterward. They will still need to
+              accept the liability waiver and policy on first login.
+            </p>
+            {context.allMissingRequirements.length > 0 && (
+              <p className="mt-2 text-sky-900">
+                Training still pending:{" "}
+                {context.allMissingRequirements.map(requirementLabel).join(", ")}
+              </p>
+            )}
+          </div>
+        )}
+
+        {app.status === "approved" && context.hasPendingTraining && (
+          <div className="rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+            <p className="font-medium">Training still pending</p>
+            <p className="mt-1">
+              This volunteer is approved and in the system. Check off training items below as you
+              verify them so they stay visible until complete.
+            </p>
+          </div>
+        )}
+
         {isRoleExpansion && (
           <div className="rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-sm">
             <div className="flex items-start gap-3">
@@ -789,8 +825,9 @@ export function VolunteersManager({
             Liability waiver and policy are completed by the volunteer at sign-in. Check off
             training items here after verification.
           </p>
+          {showTrainingManagement ? (
           <div className="flex flex-wrap gap-4">
-            {ADMIN_CHECKBOX_FIELDS.filter(({ key }) => expansionRequirementFields.includes(key)).map(
+            {ADMIN_CHECKBOX_FIELDS.filter(({ key }) => trainingRequirementFields.includes(key)).map(
               ({ key, label }) => {
                 const fieldKey = `${app.id}:${key}`;
                 const checked = Boolean(requirementSource[key]);
@@ -812,6 +849,11 @@ export function VolunteersManager({
               }
             )}
           </div>
+          ) : (
+            <p className="text-xs text-muted-foreground">
+              Open a pending application to verify training requirements.
+            </p>
+          )}
           {expansionRequirementFields.length === 0 && isRoleExpansion && context.rolesReady && (
             <p className="text-xs text-green-700">
               No additional training requirements for the requested roles — ready to approve.
@@ -912,7 +954,13 @@ export function VolunteersManager({
                               {entry.description}
                             </p>
                           )}
-                          {selected && approvalMissing.length > 0 && (
+                          {selected && approvalMissing.length > 0 && app.imported_via_csv && canReview && (
+                            <p className="text-xs text-sky-800">
+                              Training pending — can approve now:{" "}
+                              {approvalMissing.map(requirementLabel).join(", ")}
+                            </p>
+                          )}
+                          {selected && approvalMissing.length > 0 && !(app.imported_via_csv && canReview) && (
                             <p className="text-xs text-amber-800">
                               Needs before approval: {approvalMissing.map(requirementLabel).join(", ")}
                             </p>
@@ -1039,6 +1087,7 @@ export function VolunteersManager({
           <p className="font-medium">{app.full_name}</p>
           <p className="text-sm text-muted-foreground">
             {app.email} · Applied {formatDate(app.created_at)}
+            {app.imported_via_csv && <> · CSV import</>}
             {linkedProfile?.role && (
               <> · Platform role: {linkedProfile.role.replace(/_/g, " ")}</>
             )}
@@ -1082,9 +1131,21 @@ export function VolunteersManager({
         {showReviewActions && (
           <Badge
             variant="outline"
-            className={context.rolesReady ? "text-green-700 border-green-300" : "text-amber-800 border-amber-300 bg-amber-50"}
+            className={
+              context.allRequirementsMet
+                ? "text-green-700 border-green-300"
+                : context.canApproveWithPendingTraining
+                  ? "text-sky-800 border-sky-300 bg-sky-50"
+                  : "text-amber-800 border-amber-300 bg-amber-50"
+            }
           >
-            {context.rolesReady ? "Ready to approve" : "Requirements pending"}
+            {context.allRequirementsMet
+              ? "Ready to approve"
+              : context.canApproveWithPendingTraining
+                ? "Can approve with pending training"
+                : context.hasPendingTraining
+                  ? "Training pending"
+                  : "Requirements pending"}
           </Badge>
         )}
       </>

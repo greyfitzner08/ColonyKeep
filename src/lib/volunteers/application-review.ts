@@ -20,6 +20,36 @@ export type ApplicationViewMode = "cards" | "table";
 
 const REVIEWABLE_STATUSES = new Set(["pending", "needs_followup"]);
 
+export function canApproveImportedVolunteerWithPendingTraining(
+  application: VolunteerApplication,
+  rolesToReview: VolunteerRole[]
+): boolean {
+  return (
+    Boolean(application.imported_via_csv) &&
+    REVIEWABLE_STATUSES.has(application.status) &&
+    rolesToReview.length > 0
+  );
+}
+
+function missingRequirementsForReview(
+  application: VolunteerApplication,
+  linkedProfile: Profile | undefined,
+  role: VolunteerRole,
+  pendingRoleRequests: VolunteerRoleRequest[],
+  roleCatalog: RoleDescription[],
+  isRoleExpansion: boolean
+): RequirementField[] {
+  const source = requirementSourceForRole(
+    application,
+    linkedProfile,
+    role,
+    pendingRoleRequests
+  );
+  return isRoleExpansion
+    ? missingAdminVerifiableRequirementsForRole(role, source, roleCatalog)
+    : missingRequirementsForApplicationApproval(role, source, roleCatalog);
+}
+
 export interface ApplicationReviewContext {
   linkedProfile: Profile | undefined;
   approvedRoles: VolunteerRole[];
@@ -29,6 +59,9 @@ export interface ApplicationReviewContext {
   pendingRoleRequests: VolunteerRoleRequest[];
   missingByRole: Partial<Record<VolunteerRole, RequirementField[]>>;
   allMissingRequirements: RequirementField[];
+  allRequirementsMet: boolean;
+  canApproveWithPendingTraining: boolean;
+  hasPendingTraining: boolean;
   rolesReady: boolean;
   canReview: boolean;
   needsAttention: boolean;
@@ -87,10 +120,14 @@ export function getApplicationReviewContext(
   const allMissingSet = new Set<RequirementField>();
 
   for (const role of rolesToReview) {
-    const source = requirementSourceForRole(application, linkedProfile, role, pendingRoleRequests);
-    const missingForDisplay = isRoleExpansion
-      ? missingAdminVerifiableRequirementsForRole(role, source, roleCatalog)
-      : missingRequirementsForApplicationApproval(role, source, roleCatalog);
+    const missingForDisplay = missingRequirementsForReview(
+      application,
+      linkedProfile,
+      role,
+      pendingRoleRequests,
+      roleCatalog,
+      isRoleExpansion
+    );
 
     if (missingForDisplay.length > 0) {
       missingByRole[role] = missingForDisplay;
@@ -100,15 +137,16 @@ export function getApplicationReviewContext(
     }
   }
 
-  const rolesReady =
+  const allRequirementsMet =
     rolesToReview.length > 0 &&
-    rolesToReview.every((role) => {
-      const source = requirementSourceForRole(application, linkedProfile, role, pendingRoleRequests);
-      const missingForApproval = isRoleExpansion
-        ? missingAdminVerifiableRequirementsForRole(role, source, roleCatalog)
-        : missingRequirementsForApplicationApproval(role, source, roleCatalog);
-      return missingForApproval.length === 0;
-    });
+    rolesToReview.every((role) => (missingByRole[role] ?? []).length === 0);
+  const canApproveWithPendingTraining = canApproveImportedVolunteerWithPendingTraining(
+    application,
+    rolesToReview
+  );
+  const rolesReady = allRequirementsMet || canApproveWithPendingTraining;
+  const hasPendingTraining =
+    application.status === "approved" && !allRequirementsMet && rolesToReview.length > 0;
   const canReview =
     REVIEWABLE_STATUSES.has(application.status) ||
     pendingRoleRequests.length > 0 ||
@@ -134,14 +172,27 @@ export function getApplicationReviewContext(
     }
   } else if (application.status === "pending") {
     needsAttention = true;
-    attentionLabel = rolesReady ? "Ready to approve" : "Requirements pending";
-    attentionDetail = rolesReady
-      ? "New application is ready for approval."
-      : `Still need: ${Array.from(allMissingSet).map(requirementLabel).join(", ")}`;
+    if (canApproveWithPendingTraining && !allRequirementsMet) {
+      attentionLabel = "Imported — ready to approve";
+      attentionDetail = `Training still pending: ${Array.from(allMissingSet)
+        .map(requirementLabel)
+        .join(", ")}. You can approve now and verify training afterward.`;
+    } else {
+      attentionLabel = rolesReady ? "Ready to approve" : "Requirements pending";
+      attentionDetail = rolesReady
+        ? "New application is ready for approval."
+        : `Still need: ${Array.from(allMissingSet).map(requirementLabel).join(", ")}`;
+    }
   } else if (application.status === "needs_followup") {
     needsAttention = true;
     attentionLabel = rolesReady ? "Follow-up — ready" : "Follow-up required";
     attentionDetail = application.admin_notes?.trim() || "Application needs admin follow-up.";
+  } else if (hasPendingTraining) {
+    needsAttention = true;
+    attentionLabel = "Training pending";
+    attentionDetail = `Approved volunteer still needs: ${Array.from(allMissingSet)
+      .map(requirementLabel)
+      .join(", ")}`;
   }
 
   return {
@@ -153,6 +204,9 @@ export function getApplicationReviewContext(
     pendingRoleRequests,
     missingByRole,
     allMissingRequirements: Array.from(allMissingSet),
+    allRequirementsMet,
+    canApproveWithPendingTraining,
+    hasPendingTraining,
     rolesReady,
     canReview,
     needsAttention,
@@ -195,11 +249,12 @@ export function attentionPriority(
 
   if (context.isRoleExpansion && !context.rolesReady) return 0;
   if (application.status === "pending" && !context.isRoleExpansion) return 1;
-  if (application.status === "needs_followup" && !context.rolesReady) return 2;
-  if (context.isRoleExpansion && context.rolesReady) return 3;
-  if (application.status === "needs_followup") return 4;
-  if (application.status === "pending") return 5;
-  return 6;
+  if (context.hasPendingTraining) return 2;
+  if (application.status === "needs_followup" && !context.rolesReady) return 3;
+  if (context.isRoleExpansion && context.rolesReady) return 4;
+  if (application.status === "needs_followup") return 5;
+  if (application.status === "pending") return 6;
+  return 7;
 }
 
 export function countApplicationsNeedingAttention(
