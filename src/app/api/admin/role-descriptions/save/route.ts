@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireApiRole } from "@/lib/api/auth";
+import { VOLUNTEER_ROLES } from "@/lib/constants";
 import { createServiceClient } from "@/lib/supabase/server";
 import { isValidRoleId, normalizeRoleId, roleIdValidationError } from "@/lib/volunteers/role-id";
 import { isKnownRequirementField } from "@/lib/volunteers/role-requirements";
@@ -91,12 +92,16 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ role: data });
   }
 
-  const { error: enumError } = await service.rpc("admin_add_volunteer_role", {
-    new_role: roleId,
-  });
+  const builtInRoleIds = new Set(VOLUNTEER_ROLES.map((role) => role.value));
 
-  if (enumError) {
-    return NextResponse.json({ error: enumError.message }, { status: 400 });
+  if (!builtInRoleIds.has(roleId)) {
+    const { error: enumError } = await service.rpc("admin_add_volunteer_role", {
+      new_role: roleId,
+    });
+
+    if (enumError) {
+      return NextResponse.json({ error: enumError.message }, { status: 400 });
+    }
   }
 
   const { data, error } = await service

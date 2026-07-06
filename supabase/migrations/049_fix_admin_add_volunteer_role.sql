@@ -1,4 +1,4 @@
--- Allow admins to add new volunteer_role enum values via API (validated slug only).
+-- Fix enum add syntax: use string literals and skip values that already exist.
 
 CREATE OR REPLACE FUNCTION admin_add_volunteer_role(new_role text)
 RETURNS void
@@ -11,7 +11,17 @@ BEGIN
     RAISE EXCEPTION 'Invalid volunteer role id';
   END IF;
 
-  EXECUTE format('ALTER TYPE volunteer_role ADD VALUE IF NOT EXISTS %L', new_role);
+  IF EXISTS (
+    SELECT 1
+    FROM pg_enum e
+    JOIN pg_type t ON e.enumtypid = t.oid
+    WHERE t.typname = 'volunteer_role'
+      AND e.enumlabel = new_role
+  ) THEN
+    RETURN;
+  END IF;
+
+  EXECUTE format('ALTER TYPE volunteer_role ADD VALUE %L', new_role);
 END;
 $$;
 
