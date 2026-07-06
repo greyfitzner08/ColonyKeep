@@ -25,6 +25,7 @@ import {
   requirementLabel,
   missingRequirementsForRole,
   missingRequirementsForApplicationApproval,
+  missingAdminVerifiableRequirementsForRole,
   rolesNeedingTnvrCert,
   TEAM_ASSIGNMENT_REQUIREMENT_FIELDS,
   type RequirementField,
@@ -134,6 +135,7 @@ export function VolunteersManager({
   const [viewMode, setViewMode] = useState<ApplicationViewMode>("cards");
   const [interestFilter, setInterestFilter] = useState("all");
   const [approvalRoleEdits, setApprovalRoleEdits] = useState<Record<string, VolunteerRole[]>>({});
+  const [additionalRoleEdits, setAdditionalRoleEdits] = useState<Record<string, VolunteerRole[]>>({});
   const [approveTeam, setApproveTeam] = useState<string>("none");
   const [actionError, setActionError] = useState<string | null>(null);
   const [actingId, setActingId] = useState<string | null>(null);
@@ -177,6 +179,32 @@ export function VolunteersManager({
         : [...base, role];
       return { ...current, [appId]: next };
     });
+  }
+
+  function additionalRolesForApp(appId: string): VolunteerRole[] {
+    return additionalRoleEdits[appId] ?? [];
+  }
+
+  function toggleAdditionalRole(appId: string, role: VolunteerRole) {
+    setAdditionalRoleEdits((current) => {
+      const base = current[appId] ?? [];
+      const next = base.includes(role)
+        ? base.filter((entry) => entry !== role)
+        : [...base, role];
+      return { ...current, [appId]: next };
+    });
+  }
+
+  function additionalRolesReady(
+    app: VolunteerApplication,
+    context: ApplicationReviewContext,
+    roles: VolunteerRole[]
+  ): boolean {
+    if (roles.length === 0) return false;
+    const source = requirementSourceForApplication(app, context);
+    return roles.every(
+      (role) => missingAdminVerifiableRequirementsForRole(role, source, roleCatalog).length === 0
+    );
   }
 
   function approvalRolesReady(
@@ -453,6 +481,48 @@ export function VolunteersManager({
     setReviewingApplication(null);
   }
 
+  async function handleGrantAdditionalRoles(
+    app: VolunteerApplication,
+    context: ApplicationReviewContext
+  ) {
+    const rolesToGrant = additionalRolesForApp(app.id);
+    if (rolesToGrant.length === 0) {
+      showActionError("Select at least one new role to grant.");
+      return;
+    }
+
+    if (!additionalRolesReady(app, context, rolesToGrant)) {
+      showActionError("Complete training requirements before granting new roles.");
+      return;
+    }
+
+    clearActionError();
+    setActingId(app.id);
+    const response = await fetch("/api/volunteers/grant-roles", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        applicationId: app.id,
+        volunteer_roles: rolesToGrant,
+        admin_notes: notesForApp(app) || null,
+      }),
+    });
+    const result = await response.json().catch(() => null);
+    setActingId(null);
+    if (!response.ok) {
+      showActionError(getApiErrorMessage(result, "Unable to grant volunteer roles"));
+      return;
+    }
+
+    setAdditionalRoleEdits((current) => {
+      const next = { ...current };
+      delete next[app.id];
+      return next;
+    });
+    clearActionError();
+    router.refresh();
+  }
+
   async function saveName(applicationId: string, fullName: string) {
     clearActionError();
     setSavingEmailId(applicationId);
@@ -615,24 +685,37 @@ export function VolunteersManager({
     const certificateUploaded = Boolean(requirementSource.tnvr_certificate_uploaded);
     const showReviewActions =
       canReview || (isRoleExpansion && context.newRoles.length > 0);
+    const isApprovedManagedVolunteer =
+      app.status === "approved" && Boolean(linkedProfile) && !isRoleExpansion;
+    const additionalRoles = additionalRolesForApp(app.id);
+    const availableAdditionalRoles = filterSignupRoleDescriptions(
+      applicationRoleOptions,
+      app.birthday
+    ).filter((entry) => !approvedRoles.includes(entry.role_id));
     const expansionRequirementFields = isRoleExpansion
       ? requirementFieldsForRoles(selectedApprovalRoles, roleCatalog)
       : relevantRequirementFields;
-    const trainingManagementRoles =
-      app.status === "approved" && context.hasPendingTraining
+    const trainingManagementRoles = isApprovedManagedVolunteer
+      ? Array.from(new Set([...approvedRoles, ...additionalRoles]))
+      : app.status === "approved" && context.hasPendingTraining
         ? ((linkedProfile?.volunteer_roles ?? app.roles_requested ?? []) as VolunteerRole[])
         : selectedApprovalRoles;
     const trainingRequirementFields =
-      app.status === "approved" && context.hasPendingTraining
+      isApprovedManagedVolunteer || (app.status === "approved" && context.hasPendingTraining)
         ? requirementFieldsForRoles(trainingManagementRoles, roleCatalog)
         : expansionRequirementFields;
     const showTrainingManagement =
-      canReview || isRoleExpansion || (app.status === "approved" && context.hasPendingTraining);
+      canReview ||
+      isRoleExpansion ||
+      isApprovedManagedVolunteer ||
+      (app.status === "approved" && context.hasPendingTraining);
     const showCertificatePanel =
-      showReviewActions &&
-      (assigningTrapTeam ||
-        rolesNeedingTnvrCert(selectedApprovalRoles) ||
-        Boolean(certificateUrl));
+      (showReviewActions &&
+        (assigningTrapTeam ||
+          rolesNeedingTnvrCert(selectedApprovalRoles) ||
+          Boolean(certificateUrl))) ||
+      (isApprovedManagedVolunteer &&
+        (rolesNeedingTnvrCert(trainingManagementRoles) || Boolean(certificateUrl)));
 
     const reviewActions = showReviewActions ? (
       <div className="flex flex-wrap gap-2">
@@ -798,7 +881,7 @@ export function VolunteersManager({
             </div>
           </div>
 
-          {canReview && (
+          {canReview || isApprovedManagedVolunteer ? (
             <div className="space-y-2">
               <Label htmlFor={`email-${app.id}`}>Email</Label>
               <div className="flex flex-wrap items-end gap-2">
@@ -832,13 +915,108 @@ export function VolunteersManager({
                 </p>
               )}
             </div>
-          )}
+          ) : null}
         </div>
 
-        {app.admin_notes && !canReview && (
+        {app.admin_notes && !canReview && !isApprovedManagedVolunteer && (
           <div className="rounded-md border bg-muted/40 p-3 text-sm">
             <p className="font-medium">Follow-up notes</p>
             <p className="mt-1 whitespace-pre-wrap text-muted-foreground">{app.admin_notes}</p>
+          </div>
+        )}
+
+        {isApprovedManagedVolunteer && (
+          <div className="space-y-4 rounded-lg border bg-muted/20 p-4">
+            <div className="space-y-1">
+              <p className="text-sm font-medium">Volunteer interests</p>
+              <p className="text-xs text-muted-foreground">
+                Grant additional roles after verifying training requirements below. Use Edit
+                volunteer profile for contact info, birthday, or removing roles.
+              </p>
+            </div>
+
+            {approvedRoles.length > 0 && (
+              <div className="flex flex-wrap gap-1">
+                {approvedRoles.map((role) => (
+                  <Badge key={role} variant="secondary">
+                    {roleLabel(role)}
+                  </Badge>
+                ))}
+              </div>
+            )}
+
+            {availableAdditionalRoles.length > 0 ? (
+              <div className="grid gap-2 sm:grid-cols-2">
+                {availableAdditionalRoles.map((entry) => {
+                  const selected = additionalRoles.includes(entry.role_id);
+                  const missing = missingAdminVerifiableRequirementsForRole(
+                    entry.role_id,
+                    requirementSource,
+                    roleCatalog
+                  );
+
+                  return (
+                    <label
+                      key={entry.role_id}
+                      htmlFor={`add-role-${app.id}-${entry.role_id}`}
+                      className={cn(
+                        "flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition-colors",
+                        selected ? "border-primary bg-primary/5" : "hover:bg-muted/40"
+                      )}
+                    >
+                      <Checkbox
+                        id={`add-role-${app.id}-${entry.role_id}`}
+                        className="mt-0.5"
+                        checked={selected}
+                        onCheckedChange={() => toggleAdditionalRole(app.id, entry.role_id)}
+                      />
+                      <div className="min-w-0 space-y-1">
+                        <p className="text-sm font-medium leading-none">
+                          {volunteerRoleLabel(entry.role_id, roleCatalog)}
+                        </p>
+                        {entry.description && (
+                          <p className="text-xs text-muted-foreground line-clamp-2">
+                            {entry.description}
+                          </p>
+                        )}
+                        {selected && missing.length > 0 && (
+                          <p className="text-xs text-amber-900">
+                            Needs: {missing.map(requirementLabel).join(", ")}
+                          </p>
+                        )}
+                      </div>
+                    </label>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                This volunteer already has every available role for their age group.
+              </p>
+            )}
+
+            {additionalRoles.length > 0 && (
+              <div className="flex flex-wrap items-center gap-2 border-t pt-3">
+                <Button
+                  size="sm"
+                  disabled={
+                    actingId === app.id ||
+                    !additionalRolesReady(app, context, additionalRoles)
+                  }
+                  onClick={() => handleGrantAdditionalRoles(app, context)}
+                >
+                  <Check className="h-4 w-4 mr-1" />
+                  {actingId === app.id
+                    ? "Working..."
+                    : `Grant ${additionalRoles.length} role${additionalRoles.length === 1 ? "" : "s"}`}
+                </Button>
+                {!additionalRolesReady(app, context, additionalRoles) && (
+                  <p className="text-xs text-amber-800">
+                    Check off required training above before granting new roles.
+                  </p>
+                )}
+              </div>
+            )}
           </div>
         )}
 
@@ -874,7 +1052,7 @@ export function VolunteersManager({
           </div>
           ) : (
             <p className="text-xs text-muted-foreground">
-              Open a pending application to verify training requirements.
+              Open a volunteer record to verify training requirements.
             </p>
           )}
           {expansionRequirementFields.length === 0 && isRoleExpansion && context.rolesReady && (
@@ -1554,6 +1732,7 @@ export function VolunteersManager({
           if (!open) {
             setReviewingApplication(null);
             setApproveTeam("none");
+            setAdditionalRoleEdits({});
           }
         }}
       >
