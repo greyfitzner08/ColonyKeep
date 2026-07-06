@@ -24,6 +24,7 @@ interface HotspotsShellProps {
   feeders: MapFeeder[];
   initialVolunteers: HotspotMapVolunteer[];
   isAdmin?: boolean;
+  canEditColonyAddress?: boolean;
 }
 
 export function HotspotsShell({
@@ -31,6 +32,7 @@ export function HotspotsShell({
   feeders,
   initialVolunteers,
   isAdmin = false,
+  canEditColonyAddress = false,
 }: HotspotsShellProps) {
   const [helpRequests, setHelpRequests] = useState(initialHelpRequests);
   const [volunteers, setVolunteers] = useState(initialVolunteers);
@@ -80,6 +82,12 @@ export function HotspotsShell({
     };
   }, []);
 
+  function handleHelpRequestUpdated(updated: HelpRequest) {
+    setHelpRequests((current) =>
+      current.map((hr) => (hr.id === updated.id ? { ...hr, ...updated } : hr))
+    );
+  }
+
   return (
     <div className="space-y-4">
       {isAdmin && (
@@ -101,6 +109,8 @@ export function HotspotsShell({
           volunteers={volunteers}
           feeders={feeders}
           volunteersLoading={(volunteersLoading && !volunteersFetched) || coloniesLoading}
+          canEditColonyAddress={canEditColonyAddress}
+          onHelpRequestUpdated={handleHelpRequestUpdated}
         />
       </TabsContent>
 

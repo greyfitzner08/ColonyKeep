@@ -20,6 +20,8 @@ import {
 } from "@/lib/hotspots/volunteer-role-filter";
 import { densityMapCenter } from "@/lib/maps/density-center";
 import { HotspotsMapViewController } from "@/components/maps/hotspots-map-view-controller";
+import { HotspotsUnmappedColonies } from "@/components/maps/hotspots-unmapped-colonies";
+import { hasStoredColonyCoords } from "@/lib/cases/colony-address-fields";
 import { cn } from "@/lib/utils";
 import type { HelpRequest, VolunteerRole } from "@/lib/types";
 
@@ -94,6 +96,8 @@ interface HotspotsMapProps {
   feeders: MapFeeder[];
   defaultLayers?: Partial<Record<MapLayer, boolean>>;
   volunteersLoading?: boolean;
+  canEditColonyAddress?: boolean;
+  onHelpRequestUpdated?: (updated: HelpRequest) => void;
 }
 
 export function HotspotsMap({
@@ -102,6 +106,8 @@ export function HotspotsMap({
   feeders,
   defaultLayers,
   volunteersLoading = false,
+  canEditColonyAddress = false,
+  onHelpRequestUpdated,
 }: HotspotsMapProps) {
   const [mounted, setMounted] = useState(false);
   const [layers, setLayers] = useState<Record<MapLayer, boolean>>({
@@ -120,8 +126,16 @@ export function HotspotsMap({
   const coloniesWithCoords = useMemo(
     () =>
       helpRequests.filter(
-        (hr) => hr.colony_lat && hr.colony_lng && isHotspotColonyStatus(hr.status)
+        (hr) => hasStoredColonyCoords(hr) && isHotspotColonyStatus(hr.status)
       ),
+    [helpRequests]
+  );
+
+  const unmappedColonyCount = useMemo(
+    () =>
+      helpRequests.filter(
+        (hr) => isHotspotColonyStatus(hr.status) && !hasStoredColonyCoords(hr)
+      ).length,
     [helpRequests]
   );
 
@@ -179,7 +193,8 @@ export function HotspotsMap({
               className="inline-block h-3 w-3 rounded-full"
               style={{ backgroundColor: HOTSPOT_OPEN_CASE_COLOR }}
             />
-            Colonies ({coloniesWithCoords.length})
+            Colonies ({coloniesWithCoords.length}
+            {unmappedColonyCount > 0 ? ` mapped · ${unmappedColonyCount} unmapped` : ""})
           </label>
           <label className="flex items-center gap-2 text-sm cursor-pointer">
             <Checkbox
@@ -287,6 +302,14 @@ export function HotspotsMap({
             </div>
           )}
         </div>
+      )}
+
+      {layers.colonies && unmappedColonyCount > 0 && (
+        <HotspotsUnmappedColonies
+          helpRequests={helpRequests}
+          canEdit={canEditColonyAddress}
+          onHelpRequestUpdated={(updated) => onHelpRequestUpdated?.(updated)}
+        />
       )}
 
       <div className="relative isolate z-0 h-[400px] sm:h-[500px] lg:h-[600px] rounded-lg overflow-hidden border [&_.leaflet-container]:z-0">

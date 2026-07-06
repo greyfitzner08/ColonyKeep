@@ -7,6 +7,8 @@ import type { HelpRequest } from "@/lib/types";
 const COLONY_HOTSPOT_FIELDS =
   "id, case_number, status, colony_address, colony_city, colony_state, colony_zip, colony_county, colony_lat, colony_lng, assigned_team_name";
 
+export { COLONY_HOTSPOT_FIELDS };
+
 const FEEDER_HOTSPOT_FIELDS =
   "feeder_name, feeder_phone, feeder_email, feeder_street, feeder_city, feeder_state, feeder_zip, feeder_county, feeder_lat, feeder_lng";
 
