@@ -7,7 +7,16 @@ export default async function HotspotsPage() {
   const { helpRequests, feeders, volunteers, error } = await getHotspotsData();
 
   if (error) {
-    throw new Error(`Unable to load colony hotspots: ${error}`);
+    return (
+      <div className="space-y-4 sm:space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold sm:text-3xl">Hotspots Map</h1>
+          <p className="text-sm text-destructive sm:text-base">
+            Unable to load colony hotspots: {error}
+          </p>
+        </div>
+      </div>
+    );
   }
 
   const coloniesMapped = helpRequests.filter((hr) => hr.colony_lat && hr.colony_lng).length;

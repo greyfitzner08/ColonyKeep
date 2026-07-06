@@ -25,13 +25,15 @@ interface HotspotsShellProps {
 }
 
 export function HotspotsShell({
-  helpRequests,
+  helpRequests: initialHelpRequests,
   feeders,
   initialVolunteers,
 }: HotspotsShellProps) {
+  const [helpRequests, setHelpRequests] = useState(initialHelpRequests);
   const [volunteers, setVolunteers] = useState(initialVolunteers);
   const [volunteersLoading, setVolunteersLoading] = useState(false);
   const [volunteersFetched, setVolunteersFetched] = useState(false);
+  const [coloniesLoading, setColoniesLoading] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -52,7 +54,23 @@ export function HotspotsShell({
       }
     }
 
-    loadVolunteers();
+    async function loadColonies() {
+      setColoniesLoading(true);
+      try {
+        const response = await fetch("/api/hotspots/colonies");
+        const payload = await response.json().catch(() => null);
+        if (!cancelled && response.ok && Array.isArray(payload?.helpRequests)) {
+          setHelpRequests(payload.helpRequests);
+        }
+      } finally {
+        if (!cancelled) {
+          setColoniesLoading(false);
+        }
+      }
+    }
+
+    void loadVolunteers();
+    void loadColonies();
 
     return () => {
       cancelled = true;
@@ -71,7 +89,7 @@ export function HotspotsShell({
           helpRequests={helpRequests}
           volunteers={volunteers}
           feeders={feeders}
-          volunteersLoading={volunteersLoading && !volunteersFetched}
+          volunteersLoading={(volunteersLoading && !volunteersFetched) || coloniesLoading}
         />
       </TabsContent>
 

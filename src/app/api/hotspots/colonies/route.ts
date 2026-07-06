@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireCaseWorker } from "@/lib/api/auth";
-import { loadHotspotVolunteers } from "@/lib/hotspots/geocode-profile-locations";
+import { loadHotspotHelpRequests } from "@/lib/hotspots/load-hotspots-data";
+import { backfillHelpRequestCoordinates } from "@/lib/help-requests/geocode-backfill";
 import { createServiceClient } from "@/lib/supabase/server";
 import { hasSupabaseAdminConfig } from "@/lib/supabase/env";
 
@@ -9,14 +10,20 @@ export async function GET() {
   if (response) return response;
 
   if (!hasSupabaseAdminConfig()) {
-    return NextResponse.json({ volunteers: [] });
+    return NextResponse.json({ helpRequests: [] });
   }
 
   const service = await createServiceClient();
-  const volunteers = await loadHotspotVolunteers(service, { geocodeLimit: 8 });
+  const { helpRequests, error } = await loadHotspotHelpRequests(service);
+
+  if (error) {
+    return NextResponse.json({ error }, { status: 500 });
+  }
+
+  const geocodedHelpRequests = await backfillHelpRequestCoordinates(service, helpRequests, 8);
 
   return NextResponse.json(
-    { volunteers },
+    { helpRequests: geocodedHelpRequests },
     {
       headers: {
         "Cache-Control": "private, max-age=300",
