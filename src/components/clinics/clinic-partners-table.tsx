@@ -115,6 +115,7 @@ export function ClinicPartnersTable({ clinics, onEdit }: ClinicPartnersTableProp
         label: "Clinic",
         defaultWidth: 220,
         wrap: true,
+        sortValue: (clinic) => clinic.name,
         render: (clinic) => (
           <div>
             <p className="font-medium">{clinic.name}</p>
@@ -126,6 +127,7 @@ export function ClinicPartnersTable({ clinics, onEdit }: ClinicPartnersTableProp
         id: "phone",
         label: "Phone",
         defaultWidth: 130,
+        sortValue: (clinic) => clinic.phone ?? "",
         render: (clinic) =>
           clinic.phone ? (
             <a href={`tel:${clinic.phone}`} className="whitespace-nowrap text-primary hover:underline">
@@ -165,6 +167,7 @@ export function ClinicPartnersTable({ clinics, onEdit }: ClinicPartnersTableProp
         id: "status",
         label: "Status",
         defaultWidth: 90,
+        sortValue: (clinic) => (clinic.is_active ? "Active" : "Inactive"),
         render: (clinic) => (
           <Badge variant={clinic.is_active ? "default" : "secondary"}>
             {clinic.is_active ? "Active" : "Inactive"}

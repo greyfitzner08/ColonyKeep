@@ -93,12 +93,15 @@ export function VolunteerDirectoryTable({ entries, teams }: VolunteerDirectoryTa
         id: "name",
         label: "Name",
         defaultWidth: 160,
+        sortValue: (entry) => entry.full_name ?? entry.email,
         render: (entry) => <span className="font-medium">{entry.full_name ?? "—"}</span>,
       },
       {
         id: "volunteer_roles",
         label: "Volunteer roles",
         defaultWidth: 220,
+        sortValue: (entry) =>
+          entry.volunteer_roles.map((role) => volunteerRoleLabel(role)).join(", "),
         render: (entry) =>
           entry.volunteer_roles.length === 0 ? (
             <span className="text-muted-foreground">—</span>
@@ -116,12 +119,14 @@ export function VolunteerDirectoryTable({ entries, teams }: VolunteerDirectoryTa
         id: "team",
         label: "Trap team",
         defaultWidth: 120,
+        sortValue: (entry) => entry.team_name ?? "",
         render: (entry) => entry.team_name ?? "—",
       },
       {
         id: "phone",
         label: "Phone",
         defaultWidth: 130,
+        sortValue: (entry) => entry.phone ?? "",
         render: (entry) =>
           entry.phone ? (
             <a href={`tel:${entry.phone}`} className="whitespace-nowrap text-primary hover:underline">
@@ -135,6 +140,7 @@ export function VolunteerDirectoryTable({ entries, teams }: VolunteerDirectoryTa
         id: "email",
         label: "Email",
         defaultWidth: 240,
+        sortValue: (entry) => entry.email,
         render: (entry) => (
           <div className="flex min-w-0 items-center gap-1">
             <a
@@ -164,6 +170,7 @@ export function VolunteerDirectoryTable({ entries, teams }: VolunteerDirectoryTa
         id: "address",
         label: "Address",
         defaultWidth: 260,
+        sortValue: (entry) => entry.address ?? "",
         render: (entry) =>
           entry.address ? (
             <span className="text-muted-foreground">{entry.address}</span>

@@ -66,12 +66,7 @@ import {
   KeyRound,
   LayoutGrid,
   Table2,
-  ArrowUp,
-  ArrowDown,
-  ArrowUpDown,
 } from "lucide-react";
-
-type NameSortDirection = "asc" | "desc";
 
 interface VolunteersManagerProps {
   applications: VolunteerApplication[];
@@ -133,7 +128,6 @@ export function VolunteersManager({
   const [reviewingApplication, setReviewingApplication] = useState<VolunteerApplication | null>(null);
   const [filter, setFilter] = useState<ApplicationStatusFilter>("needs_attention");
   const [viewMode, setViewMode] = useState<ApplicationViewMode>("cards");
-  const [nameSort, setNameSort] = useState<NameSortDirection | null>(null);
   const [interestFilter, setInterestFilter] = useState("all");
   const [approvalRoleEdits, setApprovalRoleEdits] = useState<Record<string, VolunteerRole[]>>({});
   const [approveTeam, setApproveTeam] = useState<string>("none");
@@ -232,13 +226,6 @@ export function VolunteersManager({
       });
     }
 
-    if (viewMode === "table" && nameSort) {
-      return [...results].sort((a, b) => {
-        const cmp = a.full_name.localeCompare(b.full_name, undefined, { sensitivity: "base" });
-        return nameSort === "asc" ? cmp : -cmp;
-      });
-    }
-
     return [...results].sort((a, b) => {
       const priorityDiff =
         attentionPriority(a, profilesByEmail, roleRequests, roleCatalog) -
@@ -246,7 +233,7 @@ export function VolunteersManager({
       if (priorityDiff !== 0) return priorityDiff;
       return a.full_name.localeCompare(b.full_name, undefined, { sensitivity: "base" });
     });
-  }, [applications, filter, interestFilter, profilesByEmail, roleRequests, roleCatalog, viewMode, nameSort]);
+  }, [applications, filter, interestFilter, profilesByEmail, roleRequests, roleCatalog]);
 
   function notesForApp(app: VolunteerApplication) {
     return actionNotes[app.id] ?? app.admin_notes ?? "";
@@ -1105,29 +1092,12 @@ export function VolunteersManager({
   }
 
   const applicationTableColumns = useMemo((): DataTableColumn<VolunteerApplication>[] => {
-    const applicantHeader = (
-      <button
-        type="button"
-        className="inline-flex items-center gap-1 text-left transition-colors hover:text-foreground"
-        onClick={() => setNameSort((current) => (current === "asc" ? "desc" : "asc"))}
-      >
-        Applicant
-        {nameSort === "asc" ? (
-          <ArrowUp className="h-3.5 w-3.5" />
-        ) : nameSort === "desc" ? (
-          <ArrowDown className="h-3.5 w-3.5" />
-        ) : (
-          <ArrowUpDown className="h-3.5 w-3.5 opacity-50" />
-        )}
-      </button>
-    );
-
     return [
       {
         id: "applicant",
         label: "Applicant",
-        header: applicantHeader,
         defaultWidth: 220,
+        sortValue: (app) => app.full_name,
         render: (app) => (
           <div className="min-w-0">
             <p className="truncate font-medium">{app.full_name}</p>
@@ -1140,6 +1110,7 @@ export function VolunteersManager({
         id: "status",
         label: "Status",
         defaultWidth: 130,
+        sortValue: (app) => app.status,
         render: (app) => (
           <Badge className={STATUS_COLORS[app.status]}>{app.status.replace(/_/g, " ")}</Badge>
         ),
@@ -1148,6 +1119,15 @@ export function VolunteersManager({
         id: "attention",
         label: "Attention",
         defaultWidth: 180,
+        sortValue: (app) => {
+          const context = getApplicationReviewContext(
+            app,
+            profilesByEmail,
+            roleRequests,
+            roleCatalog
+          );
+          return context.attentionLabel ?? "";
+        },
         render: (app) => {
           const context = getApplicationReviewContext(
             app,
@@ -1230,7 +1210,7 @@ export function VolunteersManager({
         ),
       },
     ];
-  }, [nameSort, profilesByEmail, roleCatalog, roleRequests]);
+  }, [profilesByEmail, roleCatalog, roleRequests]);
 
   return (
     <div className="space-y-4">

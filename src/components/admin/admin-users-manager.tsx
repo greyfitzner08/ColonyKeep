@@ -95,6 +95,7 @@ export function AdminUsersManager({
         id: "name",
         label: "Name",
         defaultWidth: 180,
+        sortValue: (user) => user.full_name?.trim() || user.email,
         render: (user) => (
           <span className="truncate font-medium">{user.full_name?.trim() || "—"}</span>
         ),
@@ -103,12 +104,15 @@ export function AdminUsersManager({
         id: "email",
         label: "Email",
         defaultWidth: 220,
+        sortValue: (user) => user.email,
         render: (user) => <span className="truncate text-muted-foreground">{user.email}</span>,
       },
       {
         id: "platform_role",
         label: "Platform role",
         defaultWidth: 140,
+        sortValue: (user) =>
+          isKnownUserRole(user.role) ? ROLE_PERMISSIONS[user.role].label : "No role",
         render: (user) => (
           <Badge variant="outline">
             {isKnownUserRole(user.role) ? ROLE_PERMISSIONS[user.role].label : "No role"}
@@ -119,6 +123,7 @@ export function AdminUsersManager({
         id: "team",
         label: "Team",
         defaultWidth: 120,
+        sortValue: (user) => (user.team_id ? teamById.get(user.team_id) ?? "" : ""),
         render: (user) => (
           <span className="text-muted-foreground">
             {user.team_id ? teamById.get(user.team_id) ?? "—" : "—"}
@@ -129,6 +134,10 @@ export function AdminUsersManager({
         id: "volunteer_roles",
         label: "Volunteer interests",
         defaultWidth: 220,
+        sortValue: (user) =>
+          (user.volunteer_roles ?? [])
+            .map((role) => volunteerRoleLabel(role, roleCatalog))
+            .join(", "),
         render: (user) => {
           const roles = user.volunteer_roles ?? [];
           const visibleRoles = roles.slice(0, MAX_ROLE_BADGES);

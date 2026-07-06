@@ -264,6 +264,7 @@ export function RoleDescriptionsManager({
         id: "role",
         label: "Role",
         defaultWidth: 200,
+        sortValue: (role) => role.label,
         render: (role) => (
           <div>
             <p className="font-medium">{role.label}</p>
@@ -299,6 +300,7 @@ export function RoleDescriptionsManager({
         id: "signup",
         label: "Signup form",
         defaultWidth: 120,
+        sortValue: (role) => (role.is_signup_active === false ? 0 : 1),
         render: (role) => (
           <div className="flex items-center gap-2">
             <Switch
@@ -317,6 +319,7 @@ export function RoleDescriptionsManager({
         id: "description",
         label: "Description",
         defaultWidth: 280,
+        sortValue: (role) => role.description ?? "",
         render: (role) => (
           <p className="line-clamp-2 text-sm text-muted-foreground">{role.description || "—"}</p>
         ),

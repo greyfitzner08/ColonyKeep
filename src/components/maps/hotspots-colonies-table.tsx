@@ -27,6 +27,7 @@ export function HotspotsColoniesTable({ helpRequests }: HotspotsColoniesTablePro
         label: "Case #",
         defaultWidth: 120,
         minWidth: 100,
+        sortValue: (hr) => hr.case_number,
         render: (hr) => (
           <Link href={`/case/${hr.id}`} className="font-medium text-primary hover:underline">
             {hr.case_number}
@@ -38,6 +39,7 @@ export function HotspotsColoniesTable({ helpRequests }: HotspotsColoniesTablePro
         label: "Status",
         defaultWidth: 160,
         minWidth: 130,
+        sortValue: (hr) => getStatusLabel(hr.status),
         render: (hr) => (
           <Badge className={cn("whitespace-normal text-xs", STATUS_COLORS[hr.status])}>
             {getStatusLabel(hr.status)}
@@ -49,6 +51,14 @@ export function HotspotsColoniesTable({ helpRequests }: HotspotsColoniesTablePro
         label: "Colony address",
         defaultWidth: 280,
         minWidth: 200,
+        sortValue: (hr) =>
+          formatSingleLineAddress([
+            hr.colony_address,
+            hr.colony_city,
+            hr.colony_state,
+            hr.colony_zip,
+            hr.colony_county,
+          ]) ?? "",
         render: (hr) =>
           formatSingleLineAddress([
             hr.colony_address,
@@ -63,6 +73,7 @@ export function HotspotsColoniesTable({ helpRequests }: HotspotsColoniesTablePro
         label: "City",
         defaultWidth: 140,
         minWidth: 100,
+        sortValue: (hr) => hr.colony_city ?? "",
         render: (hr) => hr.colony_city ?? "—",
       },
       {
@@ -70,6 +81,7 @@ export function HotspotsColoniesTable({ helpRequests }: HotspotsColoniesTablePro
         label: "County",
         defaultWidth: 140,
         minWidth: 100,
+        sortValue: (hr) => hr.colony_county ?? "",
         render: (hr) => hr.colony_county ?? "—",
       },
       {
@@ -77,6 +89,7 @@ export function HotspotsColoniesTable({ helpRequests }: HotspotsColoniesTablePro
         label: "ZIP",
         defaultWidth: 90,
         minWidth: 80,
+        sortValue: (hr) => hr.colony_zip ?? "",
         render: (hr) => hr.colony_zip ?? "—",
       },
       {
@@ -84,6 +97,7 @@ export function HotspotsColoniesTable({ helpRequests }: HotspotsColoniesTablePro
         label: "Trap team",
         defaultWidth: 150,
         minWidth: 120,
+        sortValue: (hr) => hr.assigned_team_name?.trim() || "Unassigned",
         render: (hr) => hr.assigned_team_name?.trim() || "Unassigned",
       },
       {
@@ -91,6 +105,7 @@ export function HotspotsColoniesTable({ helpRequests }: HotspotsColoniesTablePro
         label: "Mapped",
         defaultWidth: 100,
         minWidth: 90,
+        sortValue: (hr) => (hr.colony_lat && hr.colony_lng ? 1 : 0),
         render: (hr) => (hr.colony_lat && hr.colony_lng ? "Yes" : "No"),
       },
     ];

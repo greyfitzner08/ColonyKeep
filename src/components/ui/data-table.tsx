@@ -1,8 +1,9 @@
 "use client";
 
 import { useCallback, useMemo, useRef, useState, type ReactNode } from "react";
-import { GripVertical } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, GripVertical } from "lucide-react";
 import { useColumnLayout } from "@/hooks/use-column-layout";
+import { compareSortValues, type SortDirection } from "@/lib/sort-values";
 import { cn } from "@/lib/utils";
 
 export interface DataTableColumn<T> {
@@ -15,6 +16,8 @@ export interface DataTableColumn<T> {
   cellClassName?: string;
   /** Allow cell text to wrap when using content-based column sizing. */
   wrap?: boolean;
+  /** When provided, the column header becomes sortable (A-Z / min-max). */
+  sortValue?: (row: T) => string | number | null | undefined;
   render: (row: T) => ReactNode;
 }
 
@@ -32,6 +35,8 @@ export interface DataTableProps<T> {
   clipCellContent?: boolean;
   /** `content` sizes columns to fit cell data; `fixed` uses resizable pixel widths. */
   columnSizing?: "fixed" | "content";
+  /** Initial sort applied when the table mounts. */
+  defaultSort?: { columnId: string; direction: SortDirection };
 }
 
 export function DataTable<T>({
@@ -46,8 +51,13 @@ export function DataTable<T>({
   minTableWidth,
   clipCellContent = false,
   columnSizing = "content",
+  defaultSort,
 }: DataTableProps<T>) {
   const isFixedSizing = columnSizing === "fixed";
+  const [sort, setSort] = useState<{ columnId: string; direction: SortDirection } | null>(
+    defaultSort ?? null
+  );
+
   const columnDefinitions = useMemo(
     () =>
       columns.map((column) => ({
@@ -68,6 +78,18 @@ export function DataTable<T>({
     .map((id) => columnById.get(id))
     .filter((column): column is DataTableColumn<T> => Boolean(column));
 
+  const sortedRows = useMemo(() => {
+    if (!sort) return rows;
+
+    const column = columnById.get(sort.columnId);
+    if (!column?.sortValue) return rows;
+
+    const getValue = column.sortValue;
+    return [...rows].sort((left, right) =>
+      compareSortValues(getValue(left), getValue(right), sort.direction)
+    );
+  }, [rows, sort, columnById]);
+
   const [draggingColumnId, setDraggingColumnId] = useState<string | null>(null);
   const [dropTargetColumnId, setDropTargetColumnId] = useState<string | null>(null);
   const draggingColumnIdRef = useRef<string | null>(null);
@@ -85,6 +107,18 @@ export function DataTable<T>({
     );
     return Math.max(minTableWidth ?? 0, calculated);
   }, [columnWidths, isFixedSizing, minTableWidth, orderedColumns]);
+
+  const toggleSort = useCallback((columnId: string) => {
+    setSort((current) => {
+      if (current?.columnId !== columnId) {
+        return { columnId, direction: "asc" };
+      }
+      if (current.direction === "asc") {
+        return { columnId, direction: "desc" };
+      }
+      return null;
+    });
+  }, []);
 
   const startResize = useCallback(
     (event: React.PointerEvent<HTMLDivElement>, columnId: string) => {
@@ -125,6 +159,31 @@ export function DataTable<T>({
     },
     [columnWidths, setColumnWidth]
   );
+
+  function renderHeaderLabel(column: DataTableColumn<T>) {
+    if (column.header) return column.header;
+    if (!column.sortValue) return column.label;
+
+    const isActive = sort?.columnId === column.id;
+    const direction = isActive ? sort.direction : null;
+
+    return (
+      <button
+        type="button"
+        className="inline-flex min-w-0 items-center gap-1 text-left transition-colors hover:text-foreground"
+        onClick={() => toggleSort(column.id)}
+      >
+        <span className="truncate">{column.label}</span>
+        {direction === "asc" ? (
+          <ArrowUp className="h-3.5 w-3.5 shrink-0" />
+        ) : direction === "desc" ? (
+          <ArrowDown className="h-3.5 w-3.5 shrink-0" />
+        ) : (
+          <ArrowUpDown className="h-3.5 w-3.5 shrink-0 opacity-50" />
+        )}
+      </button>
+    );
+  }
 
   if (rows.length === 0) {
     return <p className="py-12 text-center text-muted-foreground">{emptyMessage}</p>;
@@ -227,7 +286,7 @@ export function DataTable<T>({
                         clipCellContent && isFixedSizing ? "truncate" : "whitespace-normal"
                       )}
                     >
-                      {column.header ?? column.label}
+                      {renderHeaderLabel(column)}
                     </div>
                   </div>
                   {isFixedSizing && (
@@ -245,7 +304,7 @@ export function DataTable<T>({
           </tr>
         </thead>
         <tbody>
-          {rows.map((row) => (
+          {sortedRows.map((row) => (
             <tr
               key={getRowKey(row)}
               className={cn("border-t align-top hover:bg-muted/30", getRowClassName?.(row))}

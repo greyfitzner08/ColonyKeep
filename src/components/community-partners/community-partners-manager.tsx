@@ -349,6 +349,7 @@ export function CommunityPartnersManager({ partners: initial }: CommunityPartner
         label: "Organization",
         defaultWidth: 220,
         wrap: true,
+        sortValue: (partner) => partner.name,
         render: (partner) => (
           <div>
             <p className="font-medium">{partner.name}</p>
@@ -361,6 +362,7 @@ export function CommunityPartnersManager({ partners: initial }: CommunityPartner
         label: "Type",
         defaultWidth: 150,
         wrap: true,
+        sortValue: (partner) => organizationTypeLabel(partner.organization_type),
         render: (partner) => organizationTypeLabel(partner.organization_type),
       },
       {

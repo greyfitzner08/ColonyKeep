@@ -45,6 +45,7 @@ export function IntakeCaseTable({
       {
         id: "case_number",
         label: "Case #",
+        sortValue: (helpRequest) => helpRequest.case_number,
         render: (helpRequest) => {
           const medical = hasActiveMedicalFlag(
             helpRequest.medical_flags ?? [],
@@ -73,6 +74,7 @@ export function IntakeCaseTable({
       {
         id: "status",
         label: "Status",
+        sortValue: (helpRequest) => getStatusLabel(helpRequest.status, statusLabelContext),
         render: (helpRequest) => (
           <Badge className={cn("text-xs whitespace-nowrap", STATUS_COLORS[helpRequest.status])}>
             {getStatusLabel(helpRequest.status, statusLabelContext)}
@@ -83,6 +85,8 @@ export function IntakeCaseTable({
         id: "location",
         label: "Location",
         wrap: true,
+        sortValue: (helpRequest) =>
+          `${helpRequest.colony_city}, ${helpRequest.colony_county} ${helpRequest.colony_zip}`,
         render: (helpRequest) => (
           <span className="text-muted-foreground">
             {helpRequest.colony_city}, {helpRequest.colony_county} {helpRequest.colony_zip}
@@ -92,12 +96,15 @@ export function IntakeCaseTable({
       {
         id: "cats",
         label: "Cats",
+        sortValue: (helpRequest) =>
+          helpRequest.kittens_under_8_weeks + helpRequest.cats_over_8_weeks,
         render: (helpRequest) =>
           helpRequest.kittens_under_8_weeks + helpRequest.cats_over_8_weeks,
       },
       {
         id: "team",
         label: "Team",
+        sortValue: (helpRequest) => helpRequest.assigned_team_name ?? "",
         render: (helpRequest) => (
           <span className="text-muted-foreground">{helpRequest.assigned_team_name ?? "—"}</span>
         ),
@@ -106,6 +113,11 @@ export function IntakeCaseTable({
         id: "working",
         label: "Working",
         wrap: true,
+        sortValue: (helpRequest) =>
+          helpRequest.claimed_by_name ??
+          helpRequest.claimed_by_email ??
+          helpRequest.assigned_to ??
+          "",
         render: (helpRequest) =>
           helpRequest.claimed_by_name ??
           helpRequest.claimed_by_email ??
@@ -115,6 +127,7 @@ export function IntakeCaseTable({
       {
         id: "submitted",
         label: "Submitted",
+        sortValue: (helpRequest) => helpRequest.created_at,
         render: (helpRequest) => (
           <span className="text-muted-foreground">{formatDateTime(helpRequest.created_at)}</span>
         ),

@@ -152,6 +152,7 @@ export function TrapTeamsManager({ teams, users, applications }: TrapTeamsManage
         id: "team",
         label: "Team",
         defaultWidth: 140,
+        sortValue: (team) => team.name,
         render: (team) => (
           <div>
             <p className="text-sm font-medium">{team.name}</p>
@@ -163,6 +164,7 @@ export function TrapTeamsManager({ teams, users, applications }: TrapTeamsManage
         id: "zip_codes",
         label: "ZIP codes",
         defaultWidth: 260,
+        sortValue: (team) => formatZipCodes(team.zip_codes),
         render: (team) => (
           <p className="line-clamp-2 text-sm text-muted-foreground">{formatZipCodes(team.zip_codes)}</p>
         ),
@@ -171,6 +173,7 @@ export function TrapTeamsManager({ teams, users, applications }: TrapTeamsManage
         id: "lead",
         label: "Lead",
         defaultWidth: 220,
+        sortValue: (team) => formatLead(team, profileByEmail),
         render: (team) => (
           <p className="truncate text-sm text-muted-foreground">{formatLead(team, profileByEmail)}</p>
         ),
