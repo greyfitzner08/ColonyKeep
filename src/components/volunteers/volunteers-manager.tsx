@@ -62,6 +62,11 @@ import { ApplicationCertificatePanel } from "@/components/volunteers/application
 import { VolunteerAddDialog } from "@/components/volunteers/volunteer-add-dialog";
 import { AdminUserEditDialog } from "@/components/admin/admin-user-edit-dialog";
 import {
+  VolunteerContactFieldsForm,
+  type VolunteerContactFormValues,
+} from "@/components/volunteers/volunteer-contact-fields-form";
+import { volunteerContactFromApplication } from "@/lib/volunteers/contact-fields";
+import {
   Check,
   X,
   MessageCircle,
@@ -147,6 +152,7 @@ export function VolunteersManager({
   const [resettingPasswordId, setResettingPasswordId] = useState<string | null>(null);
   const [editingProfile, setEditingProfile] = useState<Profile | null>(null);
   const [editingApplication, setEditingApplication] = useState<VolunteerApplication | null>(null);
+  const [contactEdits, setContactEdits] = useState<Record<string, VolunteerContactFormValues>>({});
 
   const roleCatalog = useMemo(() => roleDescriptions, [roleDescriptions]);
 
@@ -164,6 +170,36 @@ export function VolunteersManager({
 
   function roleLabel(role: VolunteerRole) {
     return volunteerRoleLabel(role, roleCatalog);
+  }
+
+  function getReviewContext(application: VolunteerApplication) {
+    return getApplicationReviewContext(
+      application,
+      profilesByEmail,
+      roleRequests,
+      roleCatalog,
+      profilesList
+    );
+  }
+
+  function contactForApp(
+    app: VolunteerApplication,
+    linkedProfile?: Profile
+  ): VolunteerContactFormValues {
+    if (contactEdits[app.id]) return contactEdits[app.id];
+
+    const fromApp = volunteerContactFromApplication(app);
+    return {
+      full_name: fromApp.full_name ?? "",
+      email: fromApp.email ?? "",
+      phone: fromApp.phone ?? linkedProfile?.phone ?? "",
+      birthday: fromApp.birthday ?? linkedProfile?.birthday ?? "",
+      home_street: fromApp.home_street ?? linkedProfile?.home_street ?? "",
+      home_city: fromApp.home_city ?? linkedProfile?.home_city ?? "",
+      home_state: fromApp.home_state ?? linkedProfile?.home_state ?? "",
+      home_zip: fromApp.home_zip ?? linkedProfile?.home_zip ?? "",
+      home_county: fromApp.home_county ?? linkedProfile?.home_county ?? "",
+    };
   }
 
   function approvalRolesForApp(app: VolunteerApplication): VolunteerRole[] {
@@ -218,16 +254,8 @@ export function VolunteersManager({
   }
 
   const reviewingContext = useMemo(
-    () =>
-      reviewingApplication
-        ? getApplicationReviewContext(
-            reviewingApplication,
-            profilesByEmail,
-            roleRequests,
-            roleCatalog
-          )
-        : null,
-    [reviewingApplication, profilesByEmail, roleRequests, roleCatalog]
+    () => (reviewingApplication ? getReviewContext(reviewingApplication) : null),
+    [reviewingApplication, profilesByEmail, roleRequests, roleCatalog, profilesList]
   );
 
   useEffect(() => {
@@ -251,12 +279,7 @@ export function VolunteersManager({
 
     if (interestFilter !== "all") {
       results = results.filter((application) => {
-        const context = getApplicationReviewContext(
-          application,
-          profilesByEmail,
-          roleRequests,
-          roleCatalog
-        );
+        const context = getReviewContext(application);
         return context.rolesToReview.includes(interestFilter as VolunteerRole);
       });
     }
@@ -274,8 +297,8 @@ export function VolunteersManager({
     return actionNotes[app.id] ?? app.admin_notes ?? "";
   }
 
-  function emailForApp(app: VolunteerApplication) {
-    return emailEdits[app.id] ?? app.email;
+  function emailForApp(app: VolunteerApplication, linkedProfile?: Profile) {
+    return contactForApp(app, linkedProfile).email;
   }
 
   function nameForApp(app: VolunteerApplication) {
@@ -523,6 +546,48 @@ export function VolunteersManager({
     router.refresh();
   }
 
+  async function saveContactDetails(app: VolunteerApplication, linkedProfile?: Profile) {
+    const contact = contactForApp(app, linkedProfile);
+    clearActionError();
+    setSavingEmailId(app.id);
+
+    const payload: Record<string, unknown> = {
+      applicationId: app.id,
+      fullName: contact.full_name.trim(),
+      email: contact.email.trim(),
+      phone: contact.phone.trim() || null,
+      birthday: contact.birthday || null,
+      homeStreet: contact.home_street.trim() || null,
+      homeCity: contact.home_city.trim() || null,
+      homeState: contact.home_state.trim() || null,
+      homeZip: contact.home_zip.trim() || null,
+      homeCounty: contact.home_county.trim() || null,
+    };
+
+    if (!linkedProfile || app.status !== "approved") {
+      payload.roles = approvalRolesForApp(app);
+    }
+
+    const response = await fetch("/api/volunteers/update-details", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const result = await response.json().catch(() => null);
+    setSavingEmailId(null);
+    if (!response.ok) {
+      showActionError(getApiErrorMessage(result, "Unable to save volunteer details"));
+      return;
+    }
+
+    setContactEdits((current) => {
+      const next = { ...current };
+      delete next[app.id];
+      return next;
+    });
+    router.refresh();
+  }
+
   async function saveName(applicationId: string, fullName: string) {
     clearActionError();
     setSavingEmailId(applicationId);
@@ -659,10 +724,6 @@ export function VolunteersManager({
   }
 
   function renderApplicationDetails(app: VolunteerApplication, context: ApplicationReviewContext) {
-    const emailValue = emailForApp(app);
-    const nameValue = nameForApp(app);
-    const emailInvalid = Boolean(getEmailValidationError(emailValue));
-    const suggestedEmail = parsePrimaryEmail(emailValue);
     const { linkedProfile, canReview, isRoleExpansion, approvedRoles } = context;
     const selectedApprovalRoles = isRoleExpansion ? context.rolesToReview : approvalRolesForApp(app);
     const rolesReady = isRoleExpansion
@@ -685,37 +746,38 @@ export function VolunteersManager({
     const certificateUploaded = Boolean(requirementSource.tnvr_certificate_uploaded);
     const showReviewActions =
       canReview || (isRoleExpansion && context.newRoles.length > 0);
-    const isApprovedManagedVolunteer =
-      app.status === "approved" && Boolean(linkedProfile) && !isRoleExpansion;
+    const showApprovedVolunteerManagement =
+      app.status === "approved" && Boolean(linkedProfile);
+    const showApplicationRoleEditor = !showApprovedVolunteerManagement;
     const additionalRoles = additionalRolesForApp(app.id);
     const availableAdditionalRoles = filterSignupRoleDescriptions(
       applicationRoleOptions,
       app.birthday
-    ).filter((entry) => !approvedRoles.includes(entry.role_id));
+    ).filter(
+      (entry) =>
+        !approvedRoles.includes(entry.role_id) && !context.newRoles.includes(entry.role_id)
+    );
     const expansionRequirementFields = isRoleExpansion
       ? requirementFieldsForRoles(selectedApprovalRoles, roleCatalog)
       : relevantRequirementFields;
-    const trainingManagementRoles = isApprovedManagedVolunteer
-      ? Array.from(new Set([...approvedRoles, ...additionalRoles]))
-      : app.status === "approved" && context.hasPendingTraining
-        ? ((linkedProfile?.volunteer_roles ?? app.roles_requested ?? []) as VolunteerRole[])
-        : selectedApprovalRoles;
-    const trainingRequirementFields =
-      isApprovedManagedVolunteer || (app.status === "approved" && context.hasPendingTraining)
-        ? requirementFieldsForRoles(trainingManagementRoles, roleCatalog)
-        : expansionRequirementFields;
-    const showTrainingManagement =
-      canReview ||
-      isRoleExpansion ||
-      isApprovedManagedVolunteer ||
-      (app.status === "approved" && context.hasPendingTraining);
+    const trainingManagementRoles = Array.from(
+      new Set([
+        ...context.rolesToReview,
+        ...additionalRoles,
+        ...(showApprovedVolunteerManagement ? context.newRoles : []),
+      ])
+    ) as VolunteerRole[];
+    const trainingRequirementFields = requirementFieldsForRoles(
+      trainingManagementRoles,
+      roleCatalog
+    );
+    const showTrainingManagement = true;
     const showCertificatePanel =
-      (showReviewActions &&
-        (assigningTrapTeam ||
-          rolesNeedingTnvrCert(selectedApprovalRoles) ||
-          Boolean(certificateUrl))) ||
-      (isApprovedManagedVolunteer &&
-        (rolesNeedingTnvrCert(trainingManagementRoles) || Boolean(certificateUrl)));
+      rolesNeedingTnvrCert(trainingManagementRoles) || Boolean(certificateUrl);
+    const contactValues = contactForApp(app, linkedProfile);
+    const emailValue = contactValues.email;
+    const emailInvalid = Boolean(getEmailValidationError(emailValue));
+    const suggestedEmail = parsePrimaryEmail(emailValue);
 
     const reviewActions = showReviewActions ? (
       <div className="flex flex-wrap gap-2">
@@ -846,92 +908,69 @@ export function VolunteersManager({
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
           <div>
-            <p><strong>Phone:</strong> {app.phone}</p>
-            <p><strong>Birthday:</strong> {app.birthday ? formatDate(app.birthday) : "—"}</p>
-            {isRoleExpansion && (
-              <p><strong>Roles:</strong> {selectedApprovalRoles.map(roleLabel).join(", ") || "—"}</p>
-            )}
-          </div>
-          <div>
             <p><strong>Experience:</strong> {app.prior_experience ?? "—"}</p>
             <p><strong>How heard:</strong> {app.how_heard ?? "—"}</p>
           </div>
+          {linkedProfile && linkedProfile.email.toLowerCase() !== app.email.toLowerCase() && (
+            <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-amber-950">
+              <p className="text-xs">
+                Linked login profile uses <strong>{linkedProfile.email}</strong>. Saving contact
+                details below updates both records when possible.
+              </p>
+            </div>
+          )}
         </div>
 
         <div className="space-y-3 rounded-md border p-3">
-          <div className="space-y-2">
-            <Label htmlFor={`name-${app.id}`}>Full name</Label>
-            <div className="flex flex-wrap items-end gap-2">
-              <Input
-                id={`name-${app.id}`}
-                value={nameValue}
-                onChange={(event) =>
-                  setNameEdits((prev) => ({ ...prev, [app.id]: event.target.value }))
-                }
-                className="max-w-md"
-              />
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={savingEmailId === app.id || nameValue === app.full_name}
-                onClick={() => saveName(app.id, nameValue)}
-              >
-                {savingEmailId === app.id ? "Saving..." : "Save Name"}
-              </Button>
-            </div>
+          <div className="space-y-1">
+            <p className="text-sm font-medium">Contact & address</p>
+            <p className="text-xs text-muted-foreground">
+              Edit volunteer details directly from this review panel.
+            </p>
           </div>
-
-          {canReview || isApprovedManagedVolunteer ? (
-            <div className="space-y-2">
-              <Label htmlFor={`email-${app.id}`}>Email</Label>
-              <div className="flex flex-wrap items-end gap-2">
-                <Input
-                  id={`email-${app.id}`}
-                  type="email"
-                  value={emailValue}
-                  onChange={(event) =>
-                    setEmailEdits((prev) => ({ ...prev, [app.id]: event.target.value }))
-                  }
-                  className="max-w-md"
-                />
-                <Button
-                  size="sm"
-                  variant="outline"
-                  disabled={savingEmailId === app.id || emailValue === app.email}
-                  onClick={() => saveEmail(app.id, emailValue)}
-                >
-                  {savingEmailId === app.id ? "Saving..." : "Save Email"}
-                </Button>
-              </div>
-              {emailInvalid && (
-                <p className="flex flex-wrap items-center gap-1 text-sm text-destructive">
-                  <AlertTriangle className="h-4 w-4 shrink-0" />
-                  <span>
-                    Fix the email address before approving. Use one valid address only.
-                    {suggestedEmail && emailValue.trim().toLowerCase() !== suggestedEmail && (
-                      <> Suggested: {suggestedEmail}</>
-                    )}
-                  </span>
-                </p>
-              )}
-            </div>
-          ) : null}
+          <VolunteerContactFieldsForm
+            values={contactValues}
+            onChange={(values) =>
+              setContactEdits((current) => ({ ...current, [app.id]: values }))
+            }
+            showBirthday
+            idPrefix={`review-contact-${app.id}`}
+          />
+          {emailInvalid && (
+            <p className="flex flex-wrap items-center gap-1 text-sm text-destructive">
+              <AlertTriangle className="h-4 w-4 shrink-0" />
+              <span>
+                Enter a valid email address before approving.
+                {suggestedEmail && emailValue.trim().toLowerCase() !== suggestedEmail && (
+                  <> Suggested: {suggestedEmail}</>
+                )}
+              </span>
+            </p>
+          )}
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={savingEmailId === app.id || emailInvalid}
+            onClick={() => saveContactDetails(app, linkedProfile)}
+          >
+            {savingEmailId === app.id ? "Saving..." : "Save contact details"}
+          </Button>
         </div>
 
-        {app.admin_notes && !canReview && !isApprovedManagedVolunteer && (
+        {app.admin_notes && (
           <div className="rounded-md border bg-muted/40 p-3 text-sm">
             <p className="font-medium">Follow-up notes</p>
             <p className="mt-1 whitespace-pre-wrap text-muted-foreground">{app.admin_notes}</p>
           </div>
         )}
 
-        {isApprovedManagedVolunteer && (
+        {showApprovedVolunteerManagement && (
           <div className="space-y-4 rounded-lg border bg-muted/20 p-4">
             <div className="space-y-1">
               <p className="text-sm font-medium">Volunteer interests</p>
               <p className="text-xs text-muted-foreground">
                 Grant additional roles after verifying training requirements below. Use Edit
-                volunteer profile for contact info, birthday, or removing roles.
+                volunteer profile to change platform role, trap team, or remove roles.
               </p>
             </div>
 
@@ -1026,7 +1065,6 @@ export function VolunteersManager({
             Liability waiver and policy are completed by the volunteer at sign-in. Check off
             training items here after verification.
           </p>
-          {showTrainingManagement ? (
           <div className="flex flex-wrap gap-4">
             {ADMIN_CHECKBOX_FIELDS.filter(({ key }) => trainingRequirementFields.includes(key)).map(
               ({ key, label }) => {
@@ -1050,11 +1088,6 @@ export function VolunteersManager({
               }
             )}
           </div>
-          ) : (
-            <p className="text-xs text-muted-foreground">
-              Open a volunteer record to verify training requirements.
-            </p>
-          )}
           {expansionRequirementFields.length === 0 && isRoleExpansion && context.rolesReady && (
             <p className="text-xs text-green-700">
               No additional training requirements for the requested roles — ready to approve.
@@ -1079,6 +1112,123 @@ export function VolunteersManager({
             />
           )}
         </div>
+
+        {showApplicationRoleEditor && !isRoleExpansion && (
+          <div className="rounded-lg border bg-muted/20 p-4 space-y-4">
+            <div className="space-y-1">
+              <p className="text-sm font-medium">Volunteer roles</p>
+              <p className="text-xs text-muted-foreground">
+                Select or adjust volunteer interests for this application
+                {app.birthday ? " (filtered by age)" : ""}.
+              </p>
+            </div>
+
+            <div className="grid gap-2 sm:grid-cols-2">
+              {selectableApprovalRoles.map((entry) => {
+                const selected = selectedApprovalRoles.includes(entry.role_id);
+                const approvalMissing = missingRequirementsForApplicationApproval(
+                  entry.role_id,
+                  requirementSource,
+                  roleCatalog
+                );
+                const teamMissing = missingRequirementsForRole(
+                  entry.role_id,
+                  requirementSource,
+                  roleCatalog
+                ).filter((field) => TEAM_ASSIGNMENT_REQUIREMENT_FIELDS.includes(field));
+
+                return (
+                  <label
+                    key={entry.role_id}
+                    htmlFor={`approve-role-${app.id}-${entry.role_id}`}
+                    className={cn(
+                      "flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition-colors",
+                      selected
+                        ? "border-primary bg-primary/5"
+                        : "bg-background hover:bg-muted/40"
+                    )}
+                  >
+                    <Checkbox
+                      id={`approve-role-${app.id}-${entry.role_id}`}
+                      className="mt-0.5"
+                      checked={selected}
+                      onCheckedChange={() => toggleApprovalRole(app.id, entry.role_id)}
+                    />
+                    <div className="min-w-0 flex-1 space-y-1">
+                      <p className="text-sm font-medium leading-none">{entry.label}</p>
+                      {entry.description && (
+                        <p className="text-xs text-muted-foreground line-clamp-2">
+                          {entry.description}
+                        </p>
+                      )}
+                      {selected && approvalMissing.length > 0 && app.imported_via_csv && canReview && (
+                        <p className="text-xs text-sky-800">
+                          Training pending — can approve now:{" "}
+                          {approvalMissing.map(requirementLabel).join(", ")}
+                        </p>
+                      )}
+                      {selected && approvalMissing.length > 0 && !(app.imported_via_csv && canReview) && (
+                        <p className="text-xs text-amber-800">
+                          Needs before approval: {approvalMissing.map(requirementLabel).join(", ")}
+                        </p>
+                      )}
+                      {selected && approvalMissing.length === 0 && (
+                        <p className="text-xs text-green-700">Requirements complete</p>
+                      )}
+                      {selected && teamMissing.length > 0 && (
+                        <p className="text-xs text-muted-foreground">
+                          Before trap team assignment: {teamMissing.map(requirementLabel).join(", ")}
+                        </p>
+                      )}
+                    </div>
+                  </label>
+                );
+              })}
+            </div>
+
+            {canReview && (
+              <>
+                {rolesNeedingTnvrCert(selectedApprovalRoles) && (
+                  <p className="text-xs text-muted-foreground">
+                    TNVR field roles require certificate and shadow training before trap team
+                    assignment.
+                  </p>
+                )}
+                <div className="flex flex-col gap-2 border-t pt-4 sm:flex-row sm:items-end sm:justify-between">
+                  <div className="space-y-1.5 sm:min-w-[220px]">
+                    <Label htmlFor={`approve-team-${app.id}`} className="text-xs">
+                      Trap team (optional)
+                    </Label>
+                    <Select value={approveTeam} onValueChange={setApproveTeam}>
+                      <SelectTrigger id={`approve-team-${app.id}`} className="w-full sm:w-[240px]">
+                        <SelectValue placeholder="No team assignment" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">No team assignment</SelectItem>
+                        {sortTrapTeams(teams).map((t) => (
+                          <SelectItem key={t.id} value={t.id}>
+                            {t.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </>
+            )}
+
+            {!canReview && (
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={savingEmailId === app.id}
+                onClick={() => saveContactDetails(app, linkedProfile)}
+              >
+                {savingEmailId === app.id ? "Saving..." : "Save roles"}
+              </Button>
+            )}
+          </div>
+        )}
 
         {showReviewActions && (
           <div className="space-y-4 border-t pt-4">
@@ -1107,129 +1257,8 @@ export function VolunteersManager({
               )}
             </div>
 
-            {!isRoleExpansion && (
-              <div className="rounded-lg border bg-muted/20 p-4 space-y-4">
-                <div className="space-y-1">
-                  <p className="text-sm font-medium">Volunteer roles on approval</p>
-                  <p className="text-xs text-muted-foreground">
-                    Confirm or adjust the roles this volunteer will receive. Options match the signup
-                    form{app.birthday ? " and this applicant's age" : ""}.
-                  </p>
-                </div>
-
-                <div className="grid gap-2 sm:grid-cols-2">
-                  {selectableApprovalRoles.map((entry) => {
-                    const selected = selectedApprovalRoles.includes(entry.role_id);
-                    const approvalMissing = missingRequirementsForApplicationApproval(
-                      entry.role_id,
-                      requirementSource,
-                      roleCatalog
-                    );
-                    const teamMissing = missingRequirementsForRole(
-                      entry.role_id,
-                      requirementSource,
-                      roleCatalog
-                    ).filter((field) => TEAM_ASSIGNMENT_REQUIREMENT_FIELDS.includes(field));
-
-                    return (
-                      <label
-                        key={entry.role_id}
-                        htmlFor={`approve-role-${app.id}-${entry.role_id}`}
-                        className={cn(
-                          "flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition-colors",
-                          selected
-                            ? "border-primary bg-primary/5"
-                            : "bg-background hover:bg-muted/40"
-                        )}
-                      >
-                        <Checkbox
-                          id={`approve-role-${app.id}-${entry.role_id}`}
-                          className="mt-0.5"
-                          checked={selected}
-                          onCheckedChange={() => toggleApprovalRole(app.id, entry.role_id)}
-                        />
-                        <div className="min-w-0 flex-1 space-y-1">
-                          <p className="text-sm font-medium leading-none">{entry.label}</p>
-                          {entry.description && (
-                            <p className="text-xs text-muted-foreground line-clamp-2">
-                              {entry.description}
-                            </p>
-                          )}
-                          {selected && approvalMissing.length > 0 && app.imported_via_csv && canReview && (
-                            <p className="text-xs text-sky-800">
-                              Training pending — can approve now:{" "}
-                              {approvalMissing.map(requirementLabel).join(", ")}
-                            </p>
-                          )}
-                          {selected && approvalMissing.length > 0 && !(app.imported_via_csv && canReview) && (
-                            <p className="text-xs text-amber-800">
-                              Needs before approval: {approvalMissing.map(requirementLabel).join(", ")}
-                            </p>
-                          )}
-                          {selected && approvalMissing.length === 0 && (
-                            <p className="text-xs text-green-700">Ready to approve</p>
-                          )}
-                          {selected && teamMissing.length > 0 && (
-                            <p className="text-xs text-muted-foreground">
-                              Before trap team assignment: {teamMissing.map(requirementLabel).join(", ")}
-                            </p>
-                          )}
-                        </div>
-                      </label>
-                    );
-                  })}
-                </div>
-
-                {rolesNeedingTnvrCert(selectedApprovalRoles) && (
-                  <p className="text-xs text-muted-foreground">
-                    TNVR field roles do not require a certificate upload at signup. Staff will verify
-                    certificate and shadow training before assigning a trap team.
-                  </p>
-                )}
-                {selectedApprovalRoles.includes("colony_support") && (
-                  <p className="text-xs text-muted-foreground">
-                    Colony support volunteers can join a trap team without TNVR certificate or shadow
-                    training.
-                  </p>
-                )}
-
-                <div className="flex flex-col gap-2 border-t pt-4 sm:flex-row sm:items-end sm:justify-between">
-                  <div className="space-y-1.5 sm:min-w-[220px]">
-                    <Label htmlFor={`approve-team-${app.id}`} className="text-xs">
-                      Trap team (optional)
-                    </Label>
-                    <Select value={approveTeam} onValueChange={setApproveTeam}>
-                      <SelectTrigger id={`approve-team-${app.id}`} className="w-full sm:w-[240px]">
-                        <SelectValue placeholder="No team assignment" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">No team assignment</SelectItem>
-                        {sortTrapTeams(teams).map((t) => (
-                          <SelectItem key={t.id} value={t.id}>
-                            {t.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    {!teamAssignReady && (
-                      <p className="text-xs text-amber-800">
-                        {rolesNeedingTnvrCert(selectedApprovalRoles)
-                          ? "In Training & Requirements above, upload or verify the TNVR certificate and check off certificate + shadow training before assigning a trap team."
-                          : "Complete any remaining requirements before assigning a trap team."}
-                      </p>
-                    )}
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    {selectedApprovalRoles.length === 0
-                      ? "Select at least one role to approve."
-                      : `${selectedApprovalRoles.length} role${selectedApprovalRoles.length === 1 ? "" : "s"} selected`}
-                  </p>
-                </div>
-              </div>
-            )}
-
             {!isRoleExpansion && reviewActions && (
-              <div className="border-t pt-4">{reviewActions}</div>
+              <div>{reviewActions}</div>
             )}
             {actionError && reviewingApplication?.id === app.id && (
               <p
@@ -1248,7 +1277,7 @@ export function VolunteersManager({
           </div>
         )}
 
-        {app.status === "approved" && linkedProfile && (
+        {linkedProfile && (
           <div className="rounded-md border p-3 space-y-2">
             <p className="text-sm font-medium">Volunteer profile</p>
             <p className="text-sm text-muted-foreground">
@@ -1406,21 +1435,11 @@ export function VolunteersManager({
         label: "Attention",
         defaultWidth: 180,
         sortValue: (app) => {
-          const context = getApplicationReviewContext(
-            app,
-            profilesByEmail,
-            roleRequests,
-            roleCatalog
-          );
+          const context = getReviewContext(app);
           return context.attentionLabel ?? "";
         },
         render: (app) => {
-          const context = getApplicationReviewContext(
-            app,
-            profilesByEmail,
-            roleRequests,
-            roleCatalog
-          );
+          const context = getReviewContext(app);
           return (
             <div className="space-y-1">
               {context.attentionLabel ? (
@@ -1450,12 +1469,7 @@ export function VolunteersManager({
         label: "Roles / requirements",
         defaultWidth: 260,
         render: (app) => {
-          const context = getApplicationReviewContext(
-            app,
-            profilesByEmail,
-            roleRequests,
-            roleCatalog
-          );
+          const context = getReviewContext(app);
           return (
             <div className="flex flex-wrap gap-1">
               {context.rolesToReview.map((role) => {
@@ -1490,12 +1504,7 @@ export function VolunteersManager({
         headerClassName: "text-right",
         cellClassName: "text-right",
         render: (app) => {
-          const context = getApplicationReviewContext(
-            app,
-            profilesByEmail,
-            roleRequests,
-            roleCatalog
-          );
+          const context = getReviewContext(app);
           return (
             <div className="flex justify-end gap-1">
               {app.status === "approved" && context.linkedProfile && (
@@ -1605,12 +1614,7 @@ export function VolunteersManager({
       )}
 
       {viewMode === "cards" && filtered.map((app) => {
-        const context = getApplicationReviewContext(
-          app,
-          profilesByEmail,
-          roleRequests,
-          roleCatalog
-        );
+        const context = getReviewContext(app);
 
         return (
           <Card
@@ -1714,12 +1718,7 @@ export function VolunteersManager({
           }
           searchPlaceholder="Search applicants…"
           getRowClassName={(app) => {
-            const context = getApplicationReviewContext(
-              app,
-              profilesByEmail,
-              roleRequests,
-              roleCatalog
-            );
+            const context = getReviewContext(app);
             return context.isRoleExpansion && !context.rolesReady ? "bg-amber-50/60" : undefined;
           }}
           emptyMessage="No applications match your filters."
@@ -1733,6 +1732,7 @@ export function VolunteersManager({
             setReviewingApplication(null);
             setApproveTeam("none");
             setAdditionalRoleEdits({});
+            setContactEdits({});
           }
         }}
       >

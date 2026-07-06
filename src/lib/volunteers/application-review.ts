@@ -81,6 +81,24 @@ export function getPendingRoleAddRequests(
   );
 }
 
+function findLinkedProfile(
+  application: VolunteerApplication,
+  profilesByEmail: Record<string, Profile>,
+  profiles: Profile[] = []
+): Profile | undefined {
+  const byEmail = profilesByEmail[application.email.toLowerCase()];
+  if (byEmail) return byEmail;
+
+  const normalizedName = application.full_name.trim().toLowerCase();
+  if (!normalizedName || profiles.length === 0) return undefined;
+
+  const matches = profiles.filter(
+    (profile) => profile.full_name?.trim().toLowerCase() === normalizedName
+  );
+
+  return matches.length === 1 ? matches[0] : undefined;
+}
+
 function requirementSourceForRole(
   application: VolunteerApplication,
   profile: Profile | undefined,
@@ -102,9 +120,10 @@ export function getApplicationReviewContext(
   application: VolunteerApplication,
   profilesByEmail: Record<string, Profile>,
   roleRequests: VolunteerRoleRequest[] = [],
-  roleCatalog: RoleDescription[] = []
+  roleCatalog: RoleDescription[] = [],
+  profiles: Profile[] = []
 ): ApplicationReviewContext {
-  const linkedProfile = profilesByEmail[application.email.toLowerCase()];
+  const linkedProfile = findLinkedProfile(application, profilesByEmail, profiles);
   const approvedRoles = (linkedProfile?.volunteer_roles ?? []) as VolunteerRole[];
   const pendingRoleRequests = getPendingRoleAddRequests(application.email, roleRequests);
   const newRoles = rolesPendingApproval(application, approvedRoles, pendingRoleRequests);

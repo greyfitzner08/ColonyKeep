@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
   const contactFields = parseVolunteerContactUpdate(body);
   const applicationUpdate = contactFieldsToApplicationUpdate(contactFields);
 
-  const updates: Record<string, string | null> = {
+  const updates: Record<string, unknown> = {
     reviewed_by: profile.email,
     reviewed_at: new Date().toISOString(),
     ...applicationUpdate,
@@ -32,6 +32,16 @@ export async function POST(request: NextRequest) {
 
   if (adminNotes !== undefined) {
     updates.admin_notes = adminNotes.trim() || null;
+  }
+
+  if (Array.isArray(body.roles) || Array.isArray(body.roles_requested)) {
+    const rawRoles = (Array.isArray(body.roles) ? body.roles : body.roles_requested) as unknown[];
+    const roles = rawRoles.filter(
+      (entry): entry is string => typeof entry === "string" && entry.trim().length > 0
+    );
+    if (roles.length > 0) {
+      updates.roles_requested = roles;
+    }
   }
 
   if (Object.keys(updates).length === 2) {
