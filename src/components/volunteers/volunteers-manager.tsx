@@ -31,7 +31,6 @@ import {
 } from "@/lib/volunteers/role-requirements";
 import {
   filterSignupRoleDescriptions,
-  resolveVolunteerRoleCatalog,
   signupVolunteerRoleOptions,
   volunteerRoleLabel,
 } from "@/lib/volunteers/role-catalog";
