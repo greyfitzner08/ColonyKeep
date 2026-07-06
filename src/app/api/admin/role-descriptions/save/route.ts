@@ -92,7 +92,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ role: data });
   }
 
-  const builtInRoleIds = new Set(VOLUNTEER_ROLES.map((role) => role.value));
+  const builtInRoleIds = new Set<string>(VOLUNTEER_ROLES.map((role) => role.value));
 
   if (!builtInRoleIds.has(roleId)) {
     const { error: enumError } = await service.rpc("admin_add_volunteer_role", {
