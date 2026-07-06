@@ -80,9 +80,11 @@ export function VolunteerImporter() {
         <CardTitle className="text-base">Import Volunteers</CardTitle>
         <CardDescription>
           Admin only. Upload volunteer applications as CSV. Each row creates a pending application
-          (duplicate emails are skipped). Roles Requested should use role labels like
-          &quot;Trapper&quot; or &quot;Trap Loaner&quot;, separated by commas.
-          Download the template for all {VOLUNTEER_IMPORT_HEADERS.length} columns.
+          (duplicate emails are skipped). Imported volunteers must still open and accept the
+          liability waiver and policy on first login, even if the CSV marks them signed. Roles
+          Requested should use role labels like &quot;Trapper&quot; or &quot;Trap Loaner&quot;,
+          separated by commas. Download the template for all {VOLUNTEER_IMPORT_HEADERS.length}{" "}
+          columns.
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-wrap items-center gap-3">

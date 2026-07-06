@@ -3,6 +3,7 @@ import type { Profile, UserRole, VolunteerApplication, VolunteerRole } from "@/l
 import { volunteerRequirementSource } from "@/lib/volunteers/requirement-source";
 import {
   missingRequirementsForRole,
+  requirementsForRole,
   requirementLabel,
   type RequirementField,
 } from "@/lib/volunteers/role-requirements";
@@ -53,6 +54,12 @@ export function volunteerRolesForRequirementCheck(
   return application?.roles_requested ?? [];
 }
 
+export function needsImportedUserRequirementConfirmation(
+  application: VolunteerApplication | null | undefined
+): boolean {
+  return Boolean(application?.imported_via_csv) && !application?.user_requirements_completed_at;
+}
+
 export function getMissingUserCompletableRequirements(
   profile: Profile | null,
   application: VolunteerApplication | null | undefined
@@ -61,6 +68,18 @@ export function getMissingUserCompletableRequirements(
 
   const roles = volunteerRolesForRequirementCheck(profile, application);
   if (roles.length === 0) return [];
+
+  if (needsImportedUserRequirementConfirmation(application)) {
+    const required = new Set<RequirementField>();
+    for (const role of roles) {
+      for (const field of requirementsForRole(role)) {
+        if (USER_COMPLETABLE_REQUIREMENTS.includes(field)) {
+          required.add(field);
+        }
+      }
+    }
+    return Array.from(required);
+  }
 
   const source = volunteerRequirementSource(application, profile);
   const missing = new Set<RequirementField>();

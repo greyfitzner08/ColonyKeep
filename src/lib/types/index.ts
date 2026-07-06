@@ -430,6 +430,8 @@ export interface VolunteerApplication {
   tnvr_certificate_url: string | null;
   event_crash_course: boolean;
   admin_notes: string | null;
+  imported_via_csv: boolean;
+  user_requirements_completed_at: string | null;
   reviewed_by: string | null;
   reviewed_at: string | null;
   created_at: string;

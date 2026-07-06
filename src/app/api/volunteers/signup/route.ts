@@ -154,6 +154,7 @@ export async function POST(request: NextRequest) {
     policy_signed: Boolean(body.policy_signed),
     tnvr_certificate_uploaded: Boolean(body.tnvr_certificate_uploaded),
     tnvr_certificate_url: body.tnvr_certificate_url ?? null,
+    user_requirements_completed_at: new Date().toISOString(),
   });
 
   if (error) {

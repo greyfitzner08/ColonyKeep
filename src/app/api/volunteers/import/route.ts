@@ -39,7 +39,10 @@ export async function POST(request: NextRequest) {
       continue;
     }
 
-    const { error } = await service.from("volunteer_applications").insert(mapped.record);
+    const { error } = await service.from("volunteer_applications").insert({
+      ...mapped.record,
+      imported_via_csv: true,
+    });
     if (error) {
       errors.push({ row: index + 2, error: error.message });
       continue;

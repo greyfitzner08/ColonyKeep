@@ -11,6 +11,7 @@ import { LIABILITY_WAIVER_URL, POLICY_URL } from "@/lib/constants";
 import {
   getMissingUserCompletableRequirements,
   missingRequirementLabels,
+  needsImportedUserRequirementConfirmation,
   volunteerRolesForRequirementCheck,
 } from "@/lib/volunteers/application-requirements";
 import { volunteerRoleLabel, resolveVolunteerRoleCatalog } from "@/lib/volunteers/role-catalog";
@@ -26,10 +27,19 @@ export function VolunteerRequirementsGate({
   application,
 }: VolunteerRequirementsGateProps) {
   const router = useRouter();
-  const [liabilityOpened, setLiabilityOpened] = useState(application.liability_waiver_signed);
-  const [policyOpened, setPolicyOpened] = useState(application.policy_signed);
-  const [liabilitySigned, setLiabilitySigned] = useState(application.liability_waiver_signed);
-  const [policySigned, setPolicySigned] = useState(application.policy_signed);
+  const importedConfirmationPending = needsImportedUserRequirementConfirmation(application);
+  const [liabilityOpened, setLiabilityOpened] = useState(
+    importedConfirmationPending ? false : application.liability_waiver_signed
+  );
+  const [policyOpened, setPolicyOpened] = useState(
+    importedConfirmationPending ? false : application.policy_signed
+  );
+  const [liabilitySigned, setLiabilitySigned] = useState(
+    importedConfirmationPending ? false : application.liability_waiver_signed
+  );
+  const [policySigned, setPolicySigned] = useState(
+    importedConfirmationPending ? false : application.policy_signed
+  );
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
@@ -80,7 +90,9 @@ export function VolunteerRequirementsGate({
             <ClipboardCheck className="mx-auto h-10 w-10 text-primary mb-2" />
             <CardTitle>Complete your volunteer requirements</CardTitle>
             <CardDescription>
-              Before using the volunteer portal, finish the documents required for your roles.
+              {importedConfirmationPending
+                ? "Your application was added by an administrator. Please open and accept the required documents before using the volunteer portal."
+                : "Before using the volunteer portal, finish the documents required for your roles."}
             </CardDescription>
           </CardHeader>
         </Card>

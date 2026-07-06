@@ -93,6 +93,7 @@ export async function POST(request: NextRequest) {
       policy_signed: nextApplication.policy_signed,
       tnvr_certificate_uploaded: nextApplication.tnvr_certificate_uploaded,
       tnvr_certificate_url: nextApplication.tnvr_certificate_url,
+      user_requirements_completed_at: new Date().toISOString(),
     })
     .eq("id", application.id);
 
