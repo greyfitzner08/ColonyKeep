@@ -1,6 +1,13 @@
-import { TNVR_ROLES } from "@/lib/constants";
+import { TNVR_ROLES, TRAP_TEAM_SUPPORT_ROLES } from "@/lib/constants";
 import type { Profile, VolunteerApplication, VolunteerRole } from "@/lib/types";
 import { volunteerRolesForTracking } from "@/lib/volunteers/role-expansion";
+
+function rolesForTrapTeamChecks(
+  profile?: Pick<Profile, "volunteer_roles"> | null,
+  application?: Pick<VolunteerApplication, "roles_requested"> | null
+): VolunteerRole[] {
+  return volunteerRolesForTracking(profile, application);
+}
 
 export function isTeamEligibleVolunteer(
   application: VolunteerApplication,
@@ -10,6 +17,41 @@ export function isTeamEligibleVolunteer(
     application.status === "approved" &&
     canAssignVolunteerToTeam(application, profile)
   );
+}
+
+/** Field roles (trapper, transporter, etc.) — require TNVR certificate and shadow training. */
+export function hasTrapVolunteerRoles(
+  profile: Pick<Profile, "volunteer_roles"> | null | undefined,
+  application: Pick<VolunteerApplication, "roles_requested"> | null | undefined
+): boolean {
+  return rolesForTrapTeamChecks(profile, application).some((role) =>
+    TNVR_ROLES.includes(role)
+  );
+}
+
+/** Colony support / feeder volunteers — trap team without TNVR training. */
+export function hasTrapTeamSupportRoles(
+  profile: Pick<Profile, "volunteer_roles"> | null | undefined,
+  application: Pick<VolunteerApplication, "roles_requested"> | null | undefined
+): boolean {
+  return rolesForTrapTeamChecks(profile, application).some((role) =>
+    TRAP_TEAM_SUPPORT_ROLES.includes(role)
+  );
+}
+
+/** Any volunteer role that qualifies for trap team membership. */
+export function hasTrapTeamMemberRoles(
+  profile: Pick<Profile, "volunteer_roles"> | null | undefined,
+  application: Pick<VolunteerApplication, "roles_requested"> | null | undefined
+): boolean {
+  return hasTrapVolunteerRoles(profile, application) || hasTrapTeamSupportRoles(profile, application);
+}
+
+export function requiresTnvrTrainingForTrapTeam(
+  profile?: Pick<Profile, "volunteer_roles"> | null,
+  application?: Pick<VolunteerApplication, "roles_requested"> | null
+): boolean {
+  return hasTrapVolunteerRoles(profile, application);
 }
 
 /** Field checks for trap team assignment (ignores application status). */
@@ -22,23 +64,11 @@ export function canAssignVolunteerToTeam(
   >,
   profile?: Pick<Profile, "volunteer_roles"> | null
 ): boolean {
-  const roles = volunteerRolesForTracking(profile, application);
-  const trapRoles = roles.filter((role) => TNVR_ROLES.includes(role));
-
-  if (trapRoles.length === 0) {
+  if (!requiresTnvrTrainingForTrapTeam(profile, application)) {
     return true;
   }
 
-  return application.tnvr_certificate_uploaded && application.shadow_completed;
-}
-
-export function hasTrapVolunteerRoles(
-  profile: Pick<Profile, "volunteer_roles"> | null | undefined,
-  application: Pick<VolunteerApplication, "roles_requested"> | null | undefined
-): boolean {
-  return volunteerRolesForTracking(profile, application).some((role) =>
-    TNVR_ROLES.includes(role)
-  );
+  return Boolean(application.tnvr_certificate_uploaded && application.shadow_completed);
 }
 
 export interface TeamEligibleVolunteer {
@@ -58,7 +88,7 @@ export function getTeamEligibleVolunteers(
     .map((application) => {
       const profile = profileByEmail.get(application.email.toLowerCase());
       if (!profile?.role || !isTeamEligibleVolunteer(application, profile)) return null;
-      if (!hasTrapVolunteerRoles(profile, application)) return null;
+      if (!hasTrapTeamMemberRoles(profile, application)) return null;
       return { profile, application };
     })
     .filter((entry): entry is TeamEligibleVolunteer => entry !== null)

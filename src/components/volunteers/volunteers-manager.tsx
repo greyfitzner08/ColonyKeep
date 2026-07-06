@@ -985,6 +985,12 @@ export function VolunteersManager({
                     certificate and shadow training before assigning a trap team.
                   </p>
                 )}
+                {selectedApprovalRoles.includes("colony_support") && (
+                  <p className="text-xs text-muted-foreground">
+                    Colony support volunteers can join a trap team without TNVR certificate or shadow
+                    training.
+                  </p>
+                )}
 
                 <div className="flex flex-col gap-2 border-t pt-4 sm:flex-row sm:items-end sm:justify-between">
                   <div className="space-y-1.5 sm:min-w-[220px]">
@@ -1006,8 +1012,9 @@ export function VolunteersManager({
                     </Select>
                     {!teamAssignReady && (
                       <p className="text-xs text-amber-800">
-                        In Training &amp; Requirements above, upload or verify the TNVR certificate
-                        and check off certificate + shadow training before assigning a trap team.
+                        {rolesNeedingTnvrCert(selectedApprovalRoles)
+                          ? "In Training & Requirements above, upload or verify the TNVR certificate and check off certificate + shadow training before assigning a trap team."
+                          : "Complete any remaining requirements before assigning a trap team."}
                       </p>
                     )}
                   </div>

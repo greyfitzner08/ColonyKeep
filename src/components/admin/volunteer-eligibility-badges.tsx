@@ -4,8 +4,10 @@ import { Badge } from "@/components/ui/badge";
 import type { Profile, VolunteerApplication } from "@/lib/types";
 import {
   canAssignVolunteerToTeam,
-  hasTrapVolunteerRoles,
+  hasTrapTeamMemberRoles,
+  hasTrapTeamSupportRoles,
   isTeamEligibleVolunteer,
+  requiresTnvrTrainingForTrapTeam,
 } from "@/lib/volunteers/eligibility";
 
 interface VolunteerEligibilityBadgesProps {
@@ -21,9 +23,11 @@ export function VolunteerEligibilityBadges({
     return <Badge variant="outline">No application on file</Badge>;
   }
 
-  const trapVolunteer = hasTrapVolunteerRoles(profile, application);
+  const trapTeamRole = hasTrapTeamMemberRoles(profile, application);
+  const supportOnly = hasTrapTeamSupportRoles(profile, application) &&
+    !requiresTnvrTrainingForTrapTeam(profile, application);
 
-  if (!trapVolunteer) {
+  if (!trapTeamRole) {
     if (application.status !== "approved") {
       return <Badge variant="outline">Not approved</Badge>;
     }
@@ -32,13 +36,23 @@ export function VolunteerEligibilityBadges({
   }
 
   if (isTeamEligibleVolunteer(application, profile)) {
-    return <Badge className="bg-green-100 text-green-800 hover:bg-green-100">Trap team eligible</Badge>;
+    return (
+      <Badge className="bg-green-100 text-green-800 hover:bg-green-100">
+        {supportOnly ? "Trap team eligible (support)" : "Trap team eligible"}
+      </Badge>
+    );
   }
 
   const missing: string[] = [];
   if (application.status !== "approved") missing.push("approved");
-  if (!application.tnvr_certificate_uploaded) missing.push("TNVR cert");
-  if (!application.shadow_completed) missing.push("field training");
+  if (requiresTnvrTrainingForTrapTeam(profile, application)) {
+    if (!application.tnvr_certificate_uploaded) missing.push("TNVR cert");
+    if (!application.shadow_completed) missing.push("field training");
+  }
+
+  if (missing.length === 0 && !canAssignVolunteerToTeam(application, profile)) {
+    missing.push("requirements");
+  }
 
   return (
     <Badge variant="outline" className="text-orange-700 border-orange-200">

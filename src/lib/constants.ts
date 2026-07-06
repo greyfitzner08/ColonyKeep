@@ -25,6 +25,9 @@ export const TNVR_ROLES: VolunteerRole[] = [
   "recovery",
 ];
 
+/** Volunteer roles that can join a trap team without TNVR certificate or shadow training. */
+export const TRAP_TEAM_SUPPORT_ROLES: VolunteerRole[] = ["colony_support"];
+
 export const VOLUNTEER_ROLES: { value: VolunteerRole; label: string }[] = [
   { value: "intake_representative", label: "Intake Representative" },
   { value: "trapper", label: "Trapper" },

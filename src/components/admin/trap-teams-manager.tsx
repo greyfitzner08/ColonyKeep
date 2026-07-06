@@ -271,8 +271,9 @@ export function TrapTeamsManager({ teams, users, applications }: TrapTeamsManage
                 <div>
                   <Label>Team members ({editingMembers.length})</Label>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Only approved volunteers with TNVR certificate, shadow training, and signed forms
-                    can be assigned.
+                    Approved volunteers with trapping, transport, recovery, or colony support roles
+                    can be assigned. TNVR certificate and shadow training are only required for
+                    field trapping roles.
                   </p>
                 </div>
 

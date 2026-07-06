@@ -2,7 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { syncProfileTeamMembership } from "@/lib/admin/team-members";
 import { requireApiRole } from "@/lib/api/auth";
 import { createServiceClient } from "@/lib/supabase/server";
-import { hasTrapVolunteerRoles, isTeamEligibleVolunteer } from "@/lib/volunteers/eligibility";
+import {
+  hasTrapTeamMemberRoles,
+  isTeamEligibleVolunteer,
+  requiresTnvrTrainingForTrapTeam,
+} from "@/lib/volunteers/eligibility";
 
 export async function POST(request: NextRequest) {
   const { response } = await requireApiRole(["admin"]);
@@ -56,13 +60,14 @@ export async function POST(request: NextRequest) {
 
     if (
       !application ||
-      !hasTrapVolunteerRoles(profile, application) ||
+      !hasTrapTeamMemberRoles(profile, application) ||
       !isTeamEligibleVolunteer(application, profile)
     ) {
       return NextResponse.json(
         {
-          error:
-            "Volunteer must be approved with TNVR certificate and field training before team assignment",
+          error: requiresTnvrTrainingForTrapTeam(profile, application)
+            ? "Volunteer must be approved with TNVR certificate and field training before team assignment"
+            : "Volunteer must be approved before trap team assignment",
         },
         { status: 400 }
       );
