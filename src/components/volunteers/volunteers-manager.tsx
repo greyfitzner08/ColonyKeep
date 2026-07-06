@@ -58,6 +58,7 @@ import type {
   RoleDescription,
 } from "@/lib/types";
 import { ApplicationCertificatePanel } from "@/components/volunteers/application-certificate-panel";
+import { VolunteerAddDialog } from "@/components/volunteers/volunteer-add-dialog";
 import {
   Check,
   X,
@@ -1328,7 +1329,9 @@ export function VolunteersManager({
           </p>
         </div>
 
-        <div className="flex items-center gap-1 w-fit rounded-lg border bg-background p-1">
+        <div className="flex items-center gap-2">
+          <VolunteerAddDialog roleDescriptions={roleCatalog} triggerVariant="icon" />
+          <div className="flex items-center gap-1 w-fit rounded-lg border bg-background p-1">
           <Button
             type="button"
             size="sm"
@@ -1349,6 +1352,7 @@ export function VolunteersManager({
             <Table2 className="h-4 w-4" />
             Table
           </Button>
+          </div>
         </div>
       </div>
 

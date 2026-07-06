@@ -25,6 +25,7 @@ import { Plus } from "lucide-react";
 interface VolunteerAddDialogProps {
   roleDescriptions: RoleDescription[];
   disabledRoleIds?: VolunteerRole[];
+  triggerVariant?: "default" | "icon";
 }
 
 const EMPTY_FORM = {
@@ -46,6 +47,7 @@ const EMPTY_FORM = {
 export function VolunteerAddDialog({
   roleDescriptions,
   disabledRoleIds = [],
+  triggerVariant = "default",
 }: VolunteerAddDialogProps) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -135,10 +137,24 @@ export function VolunteerAddDialog({
 
   return (
     <>
-      <Button variant="outline" size="sm" onClick={() => setOpen(true)}>
-        <Plus className="h-4 w-4 mr-2" />
-        Add volunteer
-      </Button>
+      {triggerVariant === "icon" ? (
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          className="h-8 w-8 shrink-0"
+          onClick={() => setOpen(true)}
+          title="Add volunteer"
+          aria-label="Add volunteer"
+        >
+          <Plus className="h-4 w-4" />
+        </Button>
+      ) : (
+        <Button type="button" variant="outline" size="sm" onClick={() => setOpen(true)}>
+          <Plus className="h-4 w-4 mr-2" />
+          Add volunteer
+        </Button>
+      )}
 
       <Dialog open={open} onOpenChange={handleOpenChange}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
