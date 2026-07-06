@@ -97,12 +97,14 @@ export function getApplicationReviewContext(
 
   for (const role of rolesToReview) {
     const source = requirementSourceForRole(application, linkedProfile, role, pendingRoleRequests);
-    const missing = isRoleExpansion
-      ? missingRequirementsForRole(role, source, roleCatalog)
+    const missingForDisplay = missingRequirementsForRole(role, source, roleCatalog);
+    const missingForApproval = isRoleExpansion
+      ? missingForDisplay
       : missingRequirementsForApplicationApproval(role, source, roleCatalog);
-    if (missing.length > 0) {
-      missingByRole[role] = missing;
-      for (const field of missing) {
+
+    if (missingForDisplay.length > 0) {
+      missingByRole[role] = missingForDisplay;
+      for (const field of missingForDisplay) {
         allMissingSet.add(field);
       }
     }
@@ -110,7 +112,13 @@ export function getApplicationReviewContext(
 
   const rolesReady =
     rolesToReview.length > 0 &&
-    rolesToReview.every((role) => (missingByRole[role]?.length ?? 0) === 0);
+    rolesToReview.every((role) => {
+      const source = requirementSourceForRole(application, linkedProfile, role, pendingRoleRequests);
+      const missingForApproval = isRoleExpansion
+        ? missingRequirementsForRole(role, source, roleCatalog)
+        : missingRequirementsForApplicationApproval(role, source, roleCatalog);
+      return missingForApproval.length === 0;
+    });
   const canReview =
     REVIEWABLE_STATUSES.has(application.status) ||
     pendingRoleRequests.length > 0 ||
