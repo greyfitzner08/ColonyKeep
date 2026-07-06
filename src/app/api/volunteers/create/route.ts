@@ -52,7 +52,6 @@ export async function POST(request: NextRequest) {
     phone: parseOptionalString(body.phone),
     birthday: parseOptionalString(body.birthday),
     roles_requested: roles.join(", "),
-    why_volunteer: parseOptionalString(body.whyVolunteer ?? body.why_volunteer),
     prior_experience: parseOptionalString(body.priorExperience ?? body.prior_experience),
     how_heard: parseOptionalString(body.howHeard ?? body.how_heard),
     liability_waiver_signed: parseOptionalBoolean(body.liabilityWaiverSigned ?? body.liability_waiver_signed),
@@ -94,6 +93,7 @@ export async function POST(request: NextRequest) {
     .from("volunteer_applications")
     .insert({
       ...mapped.record,
+      why_volunteer: "Added by admin",
       imported_via_csv: true,
     })
     .select("id, full_name, email, status")

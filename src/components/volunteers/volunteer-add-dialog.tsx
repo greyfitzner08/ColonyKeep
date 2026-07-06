@@ -159,9 +159,8 @@ export function VolunteerAddDialog({
           <DialogHeader>
             <DialogTitle>Add volunteer</DialogTitle>
             <DialogDescription>
-              Create a volunteer application manually. Fields match CSV import. The volunteer will
-              still need to accept the liability waiver and policy on first login, even if marked
-              signed here.
+              Create a volunteer application manually. The volunteer will still need to accept the
+              liability waiver and policy on first login, even if marked signed here.
             </DialogDescription>
           </DialogHeader>
 
