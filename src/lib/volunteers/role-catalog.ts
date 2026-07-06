@@ -41,9 +41,14 @@ export function resolveVolunteerRoleCatalog(
         });
   }
 
-  return VOLUNTEER_ROLES.map((role) => merged.get(role.value)).filter(
-    (entry): entry is RoleDescription => entry != null
-  );
+  return [
+    ...VOLUNTEER_ROLES.map((role) => merged.get(role.value)).filter(
+      (entry): entry is RoleDescription => entry != null
+    ),
+    ...Array.from(merged.values())
+      .filter((entry) => !VOLUNTEER_ROLES.some((role) => role.value === entry.role_id))
+      .sort((a, b) => a.label.localeCompare(b.label)),
+  ];
 }
 
 /** Roles shown on the volunteer signup form (includes Other; excludes admin-only labels). */
@@ -59,6 +64,11 @@ export function filterSignupRoleDescriptions(
   birthday: string | null | undefined
 ): RoleDescription[] {
   return catalog.filter((entry) => isRoleAllowedOnSignup(entry.role_id, birthday));
+}
+
+/** All configured volunteer roles (admin settings, no signup filters). */
+export function allVolunteerRoleOptions(catalog: RoleDescription[]): RoleDescription[] {
+  return catalog;
 }
 
 /** @deprecated Use signupVolunteerRoleOptions — same list. */

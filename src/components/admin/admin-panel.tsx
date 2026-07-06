@@ -25,7 +25,7 @@ export function AdminPanel({
       <TabsList>
         <TabsTrigger value="users">Users</TabsTrigger>
         <TabsTrigger value="teams">Trap Teams</TabsTrigger>
-        <TabsTrigger value="roles">Role Descriptions</TabsTrigger>
+        <TabsTrigger value="roles">Volunteer Roles</TabsTrigger>
         <TabsTrigger value="imports">Data Import</TabsTrigger>
       </TabsList>
 

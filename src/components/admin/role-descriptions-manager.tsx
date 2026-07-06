@@ -21,20 +21,28 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { createClient } from "@/lib/supabase/client";
+import { getApiErrorMessage } from "@/lib/api/errors";
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
-import { resolveVolunteerRoleCatalog, signupVolunteerRoleOptions } from "@/lib/volunteers/role-catalog";
+import {
+  allVolunteerRoleOptions,
+  resolveVolunteerRoleCatalog,
+} from "@/lib/volunteers/role-catalog";
+import { normalizeRoleId } from "@/lib/volunteers/role-id";
 import {
   REQUIREMENT_FIELD_OPTIONS,
   displayRequirementLabel,
   isKnownRequirementField,
 } from "@/lib/volunteers/role-requirements";
 import type { RoleDescription } from "@/lib/types";
-import { Pencil, Plus, X } from "lucide-react";
+import { Pencil, Plus, Trash2, X } from "lucide-react";
 
 interface RoleDescriptionsManagerProps {
   roleDescriptions: RoleDescription[];
 }
+
+type EditorMode = "edit" | "create";
+
+const PROTECTED_ROLE_IDS = new Set(["youth_volunteer", "other"]);
 
 export function RoleDescriptionsManager({ roleDescriptions }: RoleDescriptionsManagerProps) {
   const router = useRouter();
@@ -43,14 +51,18 @@ export function RoleDescriptionsManager({ roleDescriptions }: RoleDescriptionsMa
     [roleDescriptions]
   );
 
-  const selectableRoles = useMemo(() => signupVolunteerRoleOptions(catalog), [catalog]);
+  const allRoles = useMemo(() => allVolunteerRoleOptions(catalog), [catalog]);
 
+  const [editorMode, setEditorMode] = useState<EditorMode | null>(null);
   const [editingRole, setEditingRole] = useState<RoleDescription | null>(null);
+  const [label, setLabel] = useState("");
+  const [roleId, setRoleId] = useState("");
   const [description, setDescription] = useState("");
   const [requirements, setRequirements] = useState<string[]>([]);
   const [presetToAdd, setPresetToAdd] = useState<string>("");
   const [customRequirement, setCustomRequirement] = useState("");
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const availablePresets = useMemo(
@@ -58,14 +70,41 @@ export function RoleDescriptionsManager({ roleDescriptions }: RoleDescriptionsMa
     [requirements]
   );
 
+  const normalizedRoleId = normalizeRoleId(roleId || label);
+
   useEffect(() => {
-    if (!editingRole) return;
-    setDescription(editingRole.description);
-    setRequirements(editingRole.requirements ?? []);
+    if (!editorMode) return;
+    if (editorMode === "create") {
+      setEditingRole(null);
+      setLabel("");
+      setRoleId("");
+      setDescription("");
+      setRequirements([]);
+    } else if (editingRole) {
+      setLabel(editingRole.label);
+      setRoleId(editingRole.role_id);
+      setDescription(editingRole.description);
+      setRequirements(editingRole.requirements ?? []);
+    }
     setPresetToAdd("");
     setCustomRequirement("");
     setError(null);
-  }, [editingRole]);
+  }, [editorMode, editingRole]);
+
+  function openCreateDialog() {
+    setEditorMode("create");
+  }
+
+  function openEditDialog(role: RoleDescription) {
+    setEditingRole(role);
+    setEditorMode("edit");
+  }
+
+  function closeDialog() {
+    setEditorMode(null);
+    setEditingRole(null);
+    setError(null);
+  }
 
   function addPresetRequirement() {
     if (!presetToAdd || requirements.includes(presetToAdd)) return;
@@ -74,13 +113,13 @@ export function RoleDescriptionsManager({ roleDescriptions }: RoleDescriptionsMa
   }
 
   function addCustomRequirement() {
-    const label = customRequirement.trim();
-    if (!label) return;
-    if (requirements.some((item) => item.toLowerCase() === label.toLowerCase())) {
+    const value = customRequirement.trim();
+    if (!value) return;
+    if (requirements.some((item) => item.toLowerCase() === value.toLowerCase())) {
       setError("That requirement is already on this role.");
       return;
     }
-    setRequirements((current) => [...current, label]);
+    setRequirements((current) => [...current, value]);
     setCustomRequirement("");
     setError(null);
   }
@@ -90,48 +129,70 @@ export function RoleDescriptionsManager({ roleDescriptions }: RoleDescriptionsMa
   }
 
   async function saveRole() {
-    if (!editingRole) return;
-
     setSaving(true);
     setError(null);
-    const supabase = createClient();
 
-    const payload = {
-      description: description.trim(),
-      requirements,
-    };
-
-    const response = editingRole.id.startsWith("default-")
-      ? await supabase.from("role_descriptions").upsert(
-          {
-            role_id: editingRole.role_id,
-            label: editingRole.label,
-            ...payload,
-          },
-          { onConflict: "role_id" }
-        )
-      : await supabase
-          .from("role_descriptions")
-          .update(payload)
-          .eq("id", editingRole.id);
-
+    const response = await fetch("/api/admin/role-descriptions/save", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        id:
+          editorMode === "edit" && editingRole && !editingRole.id.startsWith("default-")
+            ? editingRole.id
+            : undefined,
+        role_id:
+          editorMode === "edit" && editingRole
+            ? editingRole.role_id
+            : normalizedRoleId,
+        label: label.trim(),
+        description: description.trim(),
+        requirements,
+      }),
+    });
+    const result = await response.json().catch(() => null);
     setSaving(false);
 
-    if (response.error) {
-      setError(response.error.message);
+    if (!response.ok) {
+      setError(getApiErrorMessage(result, "Unable to save role"));
       return;
     }
 
-    setEditingRole(null);
+    closeDialog();
     router.refresh();
   }
 
-  const roleColumns = useMemo((): DataTableColumn<(typeof selectableRoles)[number]>[] => {
+  async function deleteRole() {
+    if (!editingRole || editingRole.id.startsWith("default-")) return;
+    if (!window.confirm(`Remove the "${editingRole.label}" volunteer role? This cannot be undone.`)) {
+      return;
+    }
+
+    setDeleting(true);
+    setError(null);
+
+    const response = await fetch("/api/admin/role-descriptions/delete", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: editingRole.id }),
+    });
+    const result = await response.json().catch(() => null);
+    setDeleting(false);
+
+    if (!response.ok) {
+      setError(getApiErrorMessage(result, "Unable to remove role"));
+      return;
+    }
+
+    closeDialog();
+    router.refresh();
+  }
+
+  const roleColumns = useMemo((): DataTableColumn<RoleDescription>[] => {
     return [
       {
         id: "role",
         label: "Role",
-        defaultWidth: 180,
+        defaultWidth: 200,
         render: (role) => (
           <div>
             <p className="font-medium">{role.label}</p>
@@ -179,7 +240,7 @@ export function RoleDescriptionsManager({ roleDescriptions }: RoleDescriptionsMa
         headerClassName: "text-right",
         cellClassName: "text-right",
         render: (role) => (
-          <Button type="button" size="sm" variant="outline" onClick={() => setEditingRole(role)}>
+          <Button type="button" size="sm" variant="outline" onClick={() => openEditDialog(role)}>
             <Pencil className="mr-1.5 h-3.5 w-3.5" />
             Edit
           </Button>
@@ -188,34 +249,81 @@ export function RoleDescriptionsManager({ roleDescriptions }: RoleDescriptionsMa
     ];
   }, []);
 
+  const canDelete =
+    editorMode === "edit" &&
+    editingRole &&
+    !editingRole.id.startsWith("default-") &&
+    !PROTECTED_ROLE_IDS.has(editingRole.role_id);
+
   return (
     <div className="space-y-4">
-      <p className="text-sm text-muted-foreground">
-        Manage volunteer role descriptions and approval requirements. Tracked requirements
-        (waiver, training, etc.) sync with volunteer applications; custom requirements are
-        manual checklists for admins.
-      </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <p className="text-sm text-muted-foreground max-w-2xl">
+          Add, rename, and remove volunteer roles. Each role has a display name, signup description,
+          and approval requirements. Removing a role only works when no volunteers or applications
+          still use it.
+        </p>
+        <Button type="button" onClick={openCreateDialog}>
+          <Plus className="h-4 w-4 mr-1" />
+          Add role
+        </Button>
+      </div>
 
       <DataTable
         tableId="admin-role-descriptions"
         columns={roleColumns}
-        rows={selectableRoles}
+        rows={allRoles}
         getRowKey={(role) => role.role_id}
         emptyMessage="No volunteer roles configured."
       />
 
-      <Dialog open={editingRole != null} onOpenChange={(open) => !open && setEditingRole(null)}>
+      <Dialog open={editorMode != null} onOpenChange={(open) => !open && closeDialog()}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-          {editingRole && (
+          {editorMode && (
             <>
               <DialogHeader>
-                <DialogTitle>{editingRole.label}</DialogTitle>
+                <DialogTitle>
+                  {editorMode === "create" ? "Add volunteer role" : `Edit ${editingRole?.label}`}
+                </DialogTitle>
                 <DialogDescription>
-                  Update the public description and approval requirements for this volunteer role.
+                  {editorMode === "create"
+                    ? "Create a new volunteer role for signup, applications, and permissions."
+                    : "Update the display name, description, and approval requirements for this role."}
                 </DialogDescription>
               </DialogHeader>
 
               <div className="space-y-5">
+                <div className="space-y-2">
+                  <Label htmlFor="role-label">Role name</Label>
+                  <Input
+                    id="role-label"
+                    value={label}
+                    onChange={(event) => setLabel(event.target.value)}
+                    placeholder="e.g. Fundraising"
+                  />
+                </div>
+
+                {editorMode === "create" ? (
+                  <div className="space-y-2">
+                    <Label htmlFor="role-id">Role id</Label>
+                    <Input
+                      id="role-id"
+                      value={roleId}
+                      onChange={(event) => setRoleId(event.target.value)}
+                      placeholder="fundraising"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Stored as <span className="font-mono">{normalizedRoleId || "…"}</span> — lowercase
+                      letters, numbers, and underscores only.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-1">
+                    <Label>Role id</Label>
+                    <p className="text-sm font-mono text-muted-foreground">{editingRole?.role_id}</p>
+                  </div>
+                )}
+
                 <div className="space-y-2">
                   <Label htmlFor="role-description">Description</Label>
                   <Textarea
@@ -230,8 +338,8 @@ export function RoleDescriptionsManager({ roleDescriptions }: RoleDescriptionsMa
                   <div>
                     <Label>Approval requirements</Label>
                     <p className="text-xs text-muted-foreground mt-1">
-                      Add tracked system requirements or custom labels. Remove any requirement
-                      that should not block approval for this role.
+                      Tracked requirements sync with volunteer applications. Custom labels are manual
+                      admin checklists.
                     </p>
                   </div>
 
@@ -343,13 +451,32 @@ export function RoleDescriptionsManager({ roleDescriptions }: RoleDescriptionsMa
                 {error && <p className="text-sm text-destructive">{error}</p>}
               </div>
 
-              <div className="flex justify-end gap-2 pt-2">
-                <Button type="button" variant="outline" onClick={() => setEditingRole(null)}>
-                  Cancel
-                </Button>
-                <Button type="button" onClick={saveRole} disabled={saving || !description.trim()}>
-                  {saving ? "Saving…" : "Save role"}
-                </Button>
+              <div className="flex flex-wrap items-center justify-between gap-2 pt-2">
+                {canDelete ? (
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    onClick={deleteRole}
+                    disabled={deleting || saving}
+                  >
+                    <Trash2 className="h-4 w-4 mr-1" />
+                    {deleting ? "Removing…" : "Remove role"}
+                  </Button>
+                ) : (
+                  <span />
+                )}
+                <div className="flex gap-2 ml-auto">
+                  <Button type="button" variant="outline" onClick={closeDialog}>
+                    Cancel
+                  </Button>
+                  <Button
+                    type="button"
+                    onClick={saveRole}
+                    disabled={saving || deleting || !label.trim() || !description.trim()}
+                  >
+                    {saving ? "Saving…" : editorMode === "create" ? "Create role" : "Save changes"}
+                  </Button>
+                </div>
               </div>
             </>
           )}
