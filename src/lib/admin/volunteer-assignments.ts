@@ -11,6 +11,7 @@ export interface AssignmentGroup {
   key: string;
   label: string;
   description: string;
+  unassignOutcome: string;
   count: number;
   items: AssignmentItem[];
   reassignable: boolean;
@@ -19,7 +20,7 @@ export interface AssignmentGroup {
 
 export type AssignmentDecision =
   | { action: "reassign"; targetUserId: string }
-  | { action: "dismiss" };
+  | { action: "unassign" };
 
 export interface VolunteerAssignmentPreview {
   userId: string;
@@ -125,6 +126,8 @@ export async function previewVolunteerAssignments(
       key: "claimed_cases",
       label: "Claimed cases",
       description: "Intake or trap cases currently claimed by this volunteer.",
+      unassignOutcome:
+        "Releases their claim. The cases stay open and become unclaimed.",
       count: claimedCases.data!.length,
       items: claimedCases.data!.map((row) => ({
         id: row.id,
@@ -140,6 +143,8 @@ export async function previewVolunteerAssignments(
       key: "legacy_case_assignments",
       label: "Legacy case assignments",
       description: "Older assigned-to fields that still reference this volunteer.",
+      unassignOutcome:
+        "Clears their name from the case. The cases are not closed or deleted.",
       count: legacyCases.length,
       items: legacyCases.map((row) => ({
         id: row.id,
@@ -155,6 +160,8 @@ export async function previewVolunteerAssignments(
       key: "reserved_appointments",
       label: "Clinic appointments",
       description: "Reserved clinic slots claimed by this volunteer.",
+      unassignOutcome:
+        "Cancels their reservation and opens the clinic slot again. The clinic date itself stays on the calendar.",
       count: reservedAppointments.data!.length,
       items: reservedAppointments.data!.map((row) => ({
         id: row.id,
@@ -170,6 +177,8 @@ export async function previewVolunteerAssignments(
       key: "transport_appointments",
       label: "Transport assignments",
       description: "Appointments where this volunteer is listed as transporter.",
+      unassignOutcome:
+        "Removes them as transporter. The appointment and clinic date are unchanged.",
       count: transportAppointments.data!.length,
       items: transportAppointments.data!.map((row) => ({
         id: row.id,
@@ -185,6 +194,8 @@ export async function previewVolunteerAssignments(
       key: "shift_signups",
       label: "Shift signups",
       description: "Volunteer shift board slots signed up for this volunteer.",
+      unassignOutcome:
+        "Removes their signup only. The shift event stays on the board for other volunteers.",
       count: shifts.data!.length,
       items: shifts.data!.map((row) => ({
         id: row.id,
@@ -200,6 +211,7 @@ export async function previewVolunteerAssignments(
       key: "trap_team_lead",
       label: "Trap team lead",
       description: "Trap teams where this volunteer is the listed lead.",
+      unassignOutcome: "Another volunteer must be chosen as the new team lead.",
       count: teamsAsLead.data!.length,
       items: teamsAsLead.data!.map((row) => ({
         id: row.id,
@@ -215,6 +227,7 @@ export async function previewVolunteerAssignments(
       key: "trap_team_membership",
       label: "Trap team membership",
       description: "Trap team rosters that include this volunteer.",
+      unassignOutcome: "Removes them from the team roster. The trap team stays active.",
       count: teamsAsMember.data!.length,
       items: teamsAsMember.data!.map((row) => ({
         id: row.id,
@@ -230,6 +243,7 @@ export async function previewVolunteerAssignments(
       key: "equipment_custody",
       label: "Assigned trap equipment",
       description: "Equipment items assigned to this volunteer for custody.",
+      unassignOutcome: "Marks the equipment as unassigned. The equipment record is not deleted.",
       count: equipmentAssigned.data!.length,
       items: equipmentAssigned.data!.map((row) => ({
         id: row.id,
@@ -245,6 +259,7 @@ export async function previewVolunteerAssignments(
       key: "equipment_loans",
       label: "Loaned trap equipment",
       description: "Equipment currently loaned out with this volunteer as borrower.",
+      unassignOutcome: "Clears the borrower on the loan. The equipment item is not deleted.",
       count: equipmentBorrowed.data!.length,
       items: equipmentBorrowed.data!.map((row) => ({
         id: row.id,
@@ -260,6 +275,7 @@ export async function previewVolunteerAssignments(
       key: "volunteer_hours",
       label: "Logged volunteer hours",
       description: "Impact hours logged under this volunteer's email.",
+      unassignOutcome: "Deletes these logged hour entries.",
       count: volunteerHours.data!.length,
       items: volunteerHours.data!.map((row) => ({
         id: row.id,
@@ -278,6 +294,7 @@ export async function previewVolunteerAssignments(
       key: "volunteer_records",
       label: "Volunteer application records",
       description: "Signup application and role request history for this volunteer.",
+      unassignOutcome: "Deletes their application and role request history.",
       count: volunteerRecordCount,
       items: [
         ...(application.data
@@ -298,6 +315,7 @@ export async function previewVolunteerAssignments(
       key: "team_announcements",
       label: "Team feed posts",
       description: "Announcements authored by this volunteer.",
+      unassignOutcome: "Deletes these team feed posts.",
       count: announcements.data!.length,
       items: announcements.data!.map((row) => ({
         id: row.id,
@@ -313,6 +331,7 @@ export async function previewVolunteerAssignments(
       key: "library_documents",
       label: "Resource library uploads",
       description: "Documents uploaded by this volunteer.",
+      unassignOutcome: "Deletes these uploaded documents.",
       count: libraryDocs.data!.length,
       items: libraryDocs.data!.map((row) => ({
         id: row.id,

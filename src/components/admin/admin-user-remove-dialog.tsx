@@ -54,9 +54,9 @@ function defaultDecisionForGroup(
     return { action: "reassign", targetUserId: "" };
   }
   if (!reassignable || groupKey === "volunteer_records" || groupKey === "trap_team_membership") {
-    return { action: "dismiss" };
+    return { action: "unassign" };
   }
-  return { action: "dismiss" };
+  return { action: "unassign" };
 }
 
 export function AdminUserRemoveDialog({
@@ -194,7 +194,7 @@ export function AdminUserRemoveDialog({
             <DialogDescription>
               {user.role === "admin"
                 ? "This user is an administrator. Removing them deletes their login and profile permanently."
-                : "This volunteer still has active assignments. Reassign each item to another user or dismiss it before removing their account."}
+                : "This volunteer still has active assignments. Reassign each item to another volunteer, or unassign them and leave the case, shift, or appointment in place."}
             </DialogDescription>
           </DialogHeader>
 
@@ -233,11 +233,11 @@ export function AdminUserRemoveDialog({
                           <Button
                             type="button"
                             size="sm"
-                            variant={selectedAction === "dismiss" ? "default" : "outline"}
-                            aria-pressed={selectedAction === "dismiss"}
-                            onClick={() => updateDecision(group.key, { action: "dismiss" })}
+                            variant={selectedAction === "unassign" ? "default" : "outline"}
+                            aria-pressed={selectedAction === "unassign"}
+                            onClick={() => updateDecision(group.key, { action: "unassign" })}
                           >
-                            Dismiss and clear
+                            Unassign volunteer
                           </Button>
                         ) : null}
                         <Button
@@ -281,10 +281,18 @@ export function AdminUserRemoveDialog({
                           </SelectContent>
                         </Select>
                       </div>
+
+                      {selectedAction === "unassign" ? (
+                        <p className="text-xs text-muted-foreground">{group.unassignOutcome}</p>
+                      ) : (
+                        <p className="text-xs text-muted-foreground">
+                          Transfer these items to the selected volunteer before removing this account.
+                        </p>
+                      )}
                     </div>
                   ) : (
                     <p className="text-sm text-muted-foreground">
-                      These records will be cleared automatically when this volunteer is removed.
+                      {group.unassignOutcome}
                     </p>
                   )}
                 </div>

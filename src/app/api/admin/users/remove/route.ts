@@ -18,8 +18,8 @@ function parseDecisions(value: unknown): Record<string, AssignmentDecision> {
     const action = (entry as { action?: string }).action;
     const targetUserId = (entry as { targetUserId?: string }).targetUserId?.trim();
 
-    if (action === "dismiss") {
-      decisions[key] = { action: "dismiss" };
+    if (action === "unassign" || action === "dismiss") {
+      decisions[key] = { action: "unassign" };
       continue;
     }
 
