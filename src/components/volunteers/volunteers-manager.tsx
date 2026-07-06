@@ -63,10 +63,10 @@ import type {
 } from "@/lib/types";
 import { ApplicationCertificatePanel } from "@/components/volunteers/application-certificate-panel";
 import { VolunteerAddDialog } from "@/components/volunteers/volunteer-add-dialog";
-import {
-  VolunteerContactFieldsForm,
+import { VolunteerContactFieldsForm,
   type VolunteerContactFormValues,
 } from "@/components/volunteers/volunteer-contact-fields-form";
+import { VolunteerRoleCheckboxList } from "@/components/volunteers/volunteer-role-checkbox-list";
 import { volunteerContactFromApplication } from "@/lib/volunteers/contact-fields";
 import {
   Check,
@@ -1117,49 +1117,27 @@ export function VolunteersManager({
             )}
 
             {availableAdditionalRoles.length > 0 ? (
-              <div className="grid gap-2 sm:grid-cols-2">
-                {availableAdditionalRoles.map((entry) => {
-                  const selected = additionalRoles.includes(entry.role_id);
+              <VolunteerRoleCheckboxList
+                entries={availableAdditionalRoles}
+                selectedRoles={additionalRoles}
+                onToggle={(roleId) => toggleAdditionalRole(app.id, roleId)}
+                idPrefix={`add-role-${app.id}`}
+                roleCatalog={roleCatalog}
+                renderMeta={(entry, selected) => {
+                  if (!selected) return null;
                   const missing = missingAdminVerifiableRequirementsForRole(
                     entry.role_id,
                     requirementSource,
                     roleCatalog
                   );
-
+                  if (missing.length === 0) return null;
                   return (
-                    <label
-                      key={entry.role_id}
-                      htmlFor={`add-role-${app.id}-${entry.role_id}`}
-                      className={cn(
-                        "flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition-colors",
-                        selected ? "border-primary bg-primary/5" : "hover:bg-muted/40"
-                      )}
-                    >
-                      <Checkbox
-                        id={`add-role-${app.id}-${entry.role_id}`}
-                        className="mt-0.5"
-                        checked={selected}
-                        onCheckedChange={() => toggleAdditionalRole(app.id, entry.role_id)}
-                      />
-                      <div className="min-w-0 space-y-1">
-                        <p className="text-sm font-medium leading-none">
-                          {volunteerRoleLabel(entry.role_id, roleCatalog)}
-                        </p>
-                        {entry.description && (
-                          <p className="text-xs text-muted-foreground line-clamp-2">
-                            {entry.description}
-                          </p>
-                        )}
-                        {selected && missing.length > 0 && (
-                          <p className="text-xs text-amber-900">
-                            Needs: {missing.map(requirementLabel).join(", ")}
-                          </p>
-                        )}
-                      </div>
-                    </label>
+                    <p className="text-xs text-amber-900">
+                      Needs: {missing.map(requirementLabel).join(", ")}
+                    </p>
                   );
-                })}
-              </div>
+                }}
+              />
             ) : (
               <p className="text-xs text-muted-foreground">
                 This volunteer already has every available role for their age group.
@@ -1255,9 +1233,15 @@ export function VolunteersManager({
               </p>
             </div>
 
-            <div className="grid gap-2 sm:grid-cols-2">
-              {selectableApprovalRoles.map((entry) => {
-                const selected = selectedApprovalRoles.includes(entry.role_id);
+            <VolunteerRoleCheckboxList
+              entries={selectableApprovalRoles}
+              selectedRoles={selectedApprovalRoles}
+              onToggle={(roleId) => toggleApprovalRole(app.id, roleId)}
+              idPrefix={`approve-role-${app.id}`}
+              roleCatalog={roleCatalog}
+              renderMeta={(entry, selected) => {
+                if (!selected) return null;
+
                 const approvalMissing = missingRequirementsForApplicationApproval(
                   entry.role_id,
                   requirementSource,
@@ -1270,53 +1254,30 @@ export function VolunteersManager({
                 ).filter((field) => TEAM_ASSIGNMENT_REQUIREMENT_FIELDS.includes(field));
 
                 return (
-                  <label
-                    key={entry.role_id}
-                    htmlFor={`approve-role-${app.id}-${entry.role_id}`}
-                    className={cn(
-                      "flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition-colors",
-                      selected
-                        ? "border-primary bg-primary/5"
-                        : "bg-background hover:bg-muted/40"
+                  <>
+                    {approvalMissing.length > 0 && app.imported_via_csv && canReview && (
+                      <p className="text-xs text-sky-800">
+                        Training pending — can approve now:{" "}
+                        {approvalMissing.map(requirementLabel).join(", ")}
+                      </p>
                     )}
-                  >
-                    <Checkbox
-                      id={`approve-role-${app.id}-${entry.role_id}`}
-                      className="mt-0.5"
-                      checked={selected}
-                      onCheckedChange={() => toggleApprovalRole(app.id, entry.role_id)}
-                    />
-                    <div className="min-w-0 flex-1 space-y-1">
-                      <p className="text-sm font-medium leading-none">{entry.label}</p>
-                      {entry.description && (
-                        <p className="text-xs text-muted-foreground line-clamp-2">
-                          {entry.description}
-                        </p>
-                      )}
-                      {selected && approvalMissing.length > 0 && app.imported_via_csv && canReview && (
-                        <p className="text-xs text-sky-800">
-                          Training pending — can approve now:{" "}
-                          {approvalMissing.map(requirementLabel).join(", ")}
-                        </p>
-                      )}
-                      {selected && approvalMissing.length > 0 && !(app.imported_via_csv && canReview) && (
-                        <p className="text-xs text-amber-800">
-                          Needs before approval: {approvalMissing.map(requirementLabel).join(", ")}
-                        </p>
-                      )}
-                      {selected && approvalMissing.length === 0 && (
-                        <p className="text-xs text-green-700">Requirements complete</p>
-                      )}
-                      {selected && teamMissing.length > 0 && (
-                        <p className="text-xs text-muted-foreground">
-                          Before trap team assignment: {teamMissing.map(requirementLabel).join(", ")}
-                        </p>
-                      )}
-                    </div>
-                  </label>
+                    {approvalMissing.length > 0 && !(app.imported_via_csv && canReview) && (
+                      <p className="text-xs text-amber-800">
+                        Needs before approval: {approvalMissing.map(requirementLabel).join(", ")}
+                      </p>
+                    )}
+                    {approvalMissing.length === 0 && (
+                      <p className="text-xs text-green-700">Requirements complete</p>
+                    )}
+                    {teamMissing.length > 0 && (
+                      <p className="text-xs text-muted-foreground">
+                        Before trap team assignment: {teamMissing.map(requirementLabel).join(", ")}
+                      </p>
+                    )}
+                  </>
                 );
-              })}
-            </div>
+              }}
+            />
 
             {canReview && (
               <>
