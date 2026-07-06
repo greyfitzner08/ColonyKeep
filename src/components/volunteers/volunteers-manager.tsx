@@ -324,6 +324,42 @@ export function VolunteersManager({
     setEditingApplication(null);
   }
 
+  function openVolunteerEditor(application: VolunteerApplication, context: ApplicationReviewContext) {
+    if (context.linkedProfile) {
+      openProfileEditor(application, context.linkedProfile);
+      return;
+    }
+    setReviewingApplication(application);
+  }
+
+  async function provisionLoginAccount(app: VolunteerApplication, linkedProfile?: Profile) {
+    clearActionError();
+    setActingId(app.id);
+    const contact = contactForApp(app, linkedProfile);
+    const response = await fetch("/api/volunteers/approve", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        applicationId: app.id,
+        teamId: null,
+        email: contact.email,
+        volunteer_roles: app.roles_requested ?? [],
+      }),
+    });
+    const result = await response.json().catch(() => null);
+    setActingId(null);
+    if (!response.ok) {
+      showActionError(getApiErrorMessage(result, "Unable to create volunteer login account"));
+      return;
+    }
+    if (result?.warning) {
+      showActionError(result.warning);
+    } else {
+      clearActionError();
+    }
+    router.refresh();
+  }
+
   async function handleAction(
     id: string,
     action: "approve" | "reject" | "followup",
@@ -1277,6 +1313,26 @@ export function VolunteersManager({
           </div>
         )}
 
+        {app.status === "approved" && !linkedProfile && (
+          <div className="rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+            <p className="font-medium">No login account linked</p>
+            <p className="mt-1">
+              This volunteer is marked approved on their application but does not have a platform
+              login profile yet (common for CSV imports). Create their account to enable full profile
+              editing and sign-in.
+            </p>
+            <Button
+              size="sm"
+              className="mt-3"
+              variant="outline"
+              disabled={actingId === app.id}
+              onClick={() => provisionLoginAccount(app, linkedProfile)}
+            >
+              {actingId === app.id ? "Working…" : "Create login account"}
+            </Button>
+          </div>
+        )}
+
         {linkedProfile && (
           <div className="rounded-md border p-3 space-y-2">
             <p className="text-sm font-medium">Volunteer profile</p>
@@ -1294,7 +1350,7 @@ export function VolunteersManager({
           </div>
         )}
 
-        {app.status === "approved" && (
+        {app.status === "approved" && linkedProfile && (
           <div className="rounded-md border bg-muted/30 p-3 space-y-2">
             <p className="text-sm font-medium">Volunteer login</p>
             <p className="text-sm text-muted-foreground">
@@ -1507,19 +1563,21 @@ export function VolunteersManager({
           const context = getReviewContext(app);
           return (
             <div className="flex justify-end gap-1">
-              {app.status === "approved" && context.linkedProfile && (
-                <Button
-                  type="button"
-                  size="icon"
-                  variant="ghost"
-                  className="h-8 w-8"
-                  onClick={() => openProfileEditor(app, context.linkedProfile!)}
-                  aria-label={`Edit ${app.full_name}`}
-                  title="Edit volunteer profile"
-                >
-                  <Pencil className="h-3.5 w-3.5" />
-                </Button>
-              )}
+              <Button
+                type="button"
+                size="icon"
+                variant="ghost"
+                className="h-8 w-8"
+                onClick={() => openVolunteerEditor(app, context)}
+                aria-label={`Edit ${app.full_name}`}
+                title={
+                  context.linkedProfile
+                    ? "Edit volunteer profile"
+                    : "Edit volunteer application"
+                }
+              >
+                <Pencil className="h-3.5 w-3.5" />
+              </Button>
               <Button type="button" size="sm" variant="outline" onClick={() => setReviewingApplication(app)}>
                 Review
               </Button>
@@ -1669,19 +1727,21 @@ export function VolunteersManager({
                     </div>
                   ) : (
                     <div className="flex flex-col items-end gap-2">
-                      {app.status === "approved" && context.linkedProfile && (
-                        <Button
-                          type="button"
-                          size="icon"
-                          variant="outline"
-                          className="h-8 w-8"
-                          onClick={() => openProfileEditor(app, context.linkedProfile!)}
-                          aria-label={`Edit ${app.full_name}`}
-                          title="Edit volunteer profile"
-                        >
-                          <Pencil className="h-3.5 w-3.5" />
-                        </Button>
-                      )}
+                      <Button
+                        type="button"
+                        size="icon"
+                        variant="outline"
+                        className="h-8 w-8"
+                        onClick={() => openVolunteerEditor(app, context)}
+                        aria-label={`Edit ${app.full_name}`}
+                        title={
+                          context.linkedProfile
+                            ? "Edit volunteer profile"
+                            : "Edit volunteer application"
+                        }
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Button>
                       <Button
                         type="button"
                         size="sm"

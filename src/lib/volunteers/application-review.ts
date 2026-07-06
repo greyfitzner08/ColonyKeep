@@ -1,4 +1,5 @@
 import type { Profile, RoleDescription, VolunteerApplication, VolunteerRole, VolunteerRoleRequest } from "@/lib/types";
+import { parsePrimaryEmail } from "@/lib/email-utils";
 import { pendingNewRoles, requirementSourceForRoleRequest, rolesPendingApproval } from "@/lib/volunteers/role-expansion";
 import { volunteerRequirementSource } from "@/lib/volunteers/requirement-source";
 import {
@@ -81,22 +82,55 @@ export function getPendingRoleAddRequests(
   );
 }
 
+function normalizePersonName(value: string): string {
+  return value.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
 function findLinkedProfile(
   application: VolunteerApplication,
   profilesByEmail: Record<string, Profile>,
   profiles: Profile[] = []
 ): Profile | undefined {
-  const byEmail = profilesByEmail[application.email.toLowerCase()];
-  if (byEmail) return byEmail;
+  const primaryEmail = parsePrimaryEmail(application.email);
+  if (primaryEmail) {
+    const byPrimaryEmail = profilesByEmail[primaryEmail];
+    if (byPrimaryEmail) return byPrimaryEmail;
+  }
 
-  const normalizedName = application.full_name.trim().toLowerCase();
+  const byRawEmail = profilesByEmail[application.email.toLowerCase()];
+  if (byRawEmail) return byRawEmail;
+
+  const normalizedName = normalizePersonName(application.full_name);
   if (!normalizedName || profiles.length === 0) return undefined;
 
   const matches = profiles.filter(
-    (profile) => profile.full_name?.trim().toLowerCase() === normalizedName
+    (profile) => normalizePersonName(profile.full_name ?? "") === normalizedName
   );
 
-  return matches.length === 1 ? matches[0] : undefined;
+  if (matches.length === 1) return matches[0];
+
+  if (matches.length > 1 && primaryEmail) {
+    const emailLocal = primaryEmail.split("@")[0];
+    const byEmailHint = matches.find((profile) => {
+      const profileEmail = parsePrimaryEmail(profile.email);
+      return (
+        profileEmail === primaryEmail ||
+        profile.email.toLowerCase().startsWith(`${emailLocal}@`) ||
+        profile.email.toLowerCase().includes(emailLocal)
+      );
+    });
+    if (byEmailHint) return byEmailHint;
+  }
+
+  if (matches.length > 1 && application.phone?.trim()) {
+    const normalizedPhone = application.phone.replace(/\D/g, "");
+    const byPhone = matches.find(
+      (profile) => profile.phone?.replace(/\D/g, "") === normalizedPhone
+    );
+    if (byPhone) return byPhone;
+  }
+
+  return undefined;
 }
 
 function requirementSourceForRole(
