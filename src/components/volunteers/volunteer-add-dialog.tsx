@@ -20,7 +20,7 @@ import { getEmailValidationError } from "@/lib/email-utils";
 import { cn } from "@/lib/utils";
 import { resolveVolunteerRoleCatalog, volunteerRoleLabel } from "@/lib/volunteers/role-catalog";
 import type { RoleDescription, VolunteerApplicationStatus, VolunteerRole } from "@/lib/types";
-import { Plus } from "lucide-react";
+import { Plus, ChevronDown } from "lucide-react";
 
 interface VolunteerAddDialogProps {
   roleDescriptions: RoleDescription[];
@@ -51,6 +51,7 @@ export function VolunteerAddDialog({
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState(EMPTY_FORM);
+  const [expandedRoles, setExpandedRoles] = useState<Set<VolunteerRole>>(() => new Set());
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -64,6 +65,7 @@ export function VolunteerAddDialog({
 
   function resetForm() {
     setForm(EMPTY_FORM);
+    setExpandedRoles(new Set());
     setError(null);
     setMessage(null);
   }
@@ -80,6 +82,18 @@ export function VolunteerAddDialog({
         ? current.roles.filter((role) => role !== roleId)
         : [...current.roles, roleId],
     }));
+  }
+
+  function toggleRoleDescription(roleId: VolunteerRole) {
+    setExpandedRoles((current) => {
+      const next = new Set(current);
+      if (next.has(roleId)) {
+        next.delete(roleId);
+      } else {
+        next.add(roleId);
+      }
+      return next;
+    });
   }
 
   async function handleSubmit() {
@@ -235,37 +249,55 @@ export function VolunteerAddDialog({
             <div className="space-y-2">
               <Label>Roles requested</Label>
               <p className="text-xs text-muted-foreground">
-                Select one or more volunteer roles. Options match Admin → Volunteer Roles.
+                Select one or more volunteer roles. Expand a row to read its description.
               </p>
-              <div className="grid gap-2 sm:grid-cols-2">
+              <div className="rounded-md border divide-y">
                 {roleOptions.map((entry) => {
                   const selected = form.roles.includes(entry.role_id);
+                  const expanded = expandedRoles.has(entry.role_id);
+                  const description = entry.description?.trim();
+                  const roleLabel = volunteerRoleLabel(entry.role_id, roleOptions);
+
                   return (
-                    <label
+                    <div
                       key={entry.role_id}
-                      htmlFor={`add-volunteer-role-${entry.role_id}`}
-                      className={cn(
-                        "flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition-colors",
-                        selected ? "border-primary bg-primary/5" : "hover:bg-muted/40"
-                      )}
+                      className={cn(selected && "bg-primary/5")}
                     >
-                      <Checkbox
-                        id={`add-volunteer-role-${entry.role_id}`}
-                        className="mt-0.5"
-                        checked={selected}
-                        onCheckedChange={() => toggleRole(entry.role_id)}
-                      />
-                      <div className="min-w-0 space-y-1">
-                        <p className="text-sm font-medium leading-none">
-                          {volunteerRoleLabel(entry.role_id, roleOptions)}
-                        </p>
-                        {entry.description && (
-                          <p className="text-xs text-muted-foreground line-clamp-2">
-                            {entry.description}
-                          </p>
+                      <div className="flex items-center gap-2 px-3 py-2">
+                        <Checkbox
+                          id={`add-volunteer-role-${entry.role_id}`}
+                          checked={selected}
+                          onCheckedChange={() => toggleRole(entry.role_id)}
+                        />
+                        <label
+                          htmlFor={`add-volunteer-role-${entry.role_id}`}
+                          className="min-w-0 flex-1 cursor-pointer text-sm font-medium leading-snug"
+                        >
+                          {roleLabel}
+                        </label>
+                        {description && (
+                          <button
+                            type="button"
+                            className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                            onClick={() => toggleRoleDescription(entry.role_id)}
+                            aria-expanded={expanded}
+                            aria-label={`${expanded ? "Hide" : "Show"} description for ${roleLabel}`}
+                          >
+                            <ChevronDown
+                              className={cn(
+                                "h-4 w-4 transition-transform",
+                                expanded && "rotate-180"
+                              )}
+                            />
+                          </button>
                         )}
                       </div>
-                    </label>
+                      {expanded && description && (
+                        <p className="px-3 pb-2.5 pl-9 text-xs text-muted-foreground">
+                          {description}
+                        </p>
+                      )}
+                    </div>
                   );
                 })}
               </div>
