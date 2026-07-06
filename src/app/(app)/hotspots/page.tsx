@@ -1,9 +1,12 @@
 import { HotspotsShell } from "@/components/maps/hotspots-shell";
 import { getHotspotsData } from "@/lib/hotspots/cached-loaders";
+import { getAppProfile } from "@/lib/auth";
 
 export const revalidate = 300;
 
 export default async function HotspotsPage() {
+  const profile = await getAppProfile();
+  const isAdmin = profile?.role === "admin";
   const { helpRequests, feeders, volunteers, error } = await getHotspotsData();
 
   if (error) {
@@ -36,6 +39,7 @@ export default async function HotspotsPage() {
         helpRequests={helpRequests}
         feeders={feeders}
         initialVolunteers={volunteers}
+        isAdmin={isAdmin}
       />
     </div>
   );

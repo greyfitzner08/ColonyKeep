@@ -4,7 +4,21 @@ import { applyTrapTeamAssignment } from "@/lib/cases/assign-team-by-zip";
 import { mapImportRowToHelpRequest } from "@/lib/cases/import-mapper";
 import { parseCaseImportCsv } from "@/lib/cases/parse-case-import-csv";
 import { sanitizeHelpRequestRecord } from "@/lib/cases/help-request-insert";
+import {
+  geocodeColonyFields,
+  hasGeocodableColonyAddress,
+} from "@/lib/help-requests/geocode-backfill";
 import { createServiceClient } from "@/lib/supabase/server";
+
+function colonyFieldsFromRecord(record: Record<string, unknown>) {
+  return {
+    colony_address: typeof record.colony_address === "string" ? record.colony_address : null,
+    colony_city: typeof record.colony_city === "string" ? record.colony_city : null,
+    colony_state: typeof record.colony_state === "string" ? record.colony_state : null,
+    colony_zip: typeof record.colony_zip === "string" ? record.colony_zip : null,
+    colony_county: typeof record.colony_county === "string" ? record.colony_county : null,
+  };
+}
 
 export async function POST(request: NextRequest) {
   const { profile, response } = await requireApiRole(["admin"]);
@@ -30,6 +44,7 @@ export async function POST(request: NextRequest) {
 
   const created: { case_number: string }[] = [];
   const errors: { row: number; error: string }[] = [];
+  let geocodeDeferred = 0;
 
   for (let index = 0; index < rows.length; index += 1) {
     const mapped = mapImportRowToHelpRequest(rows[index], profile!.email);
@@ -49,12 +64,31 @@ export async function POST(request: NextRequest) {
     const { data, error } = await service
       .from("help_requests")
       .insert(record)
-      .select("case_number")
+      .select("id, case_number")
       .single();
 
     if (error) {
       errors.push({ row: index + parsedRows.headerRowIndex + 2, error: error.message });
       continue;
+    }
+
+    const colonyFields = colonyFieldsFromRecord(record);
+    if (data?.id && hasGeocodableColonyAddress(colonyFields)) {
+      if (process.env.GOOGLE_MAPS_API_KEY) {
+        try {
+          const coords = await geocodeColonyFields(colonyFields);
+          if (coords) {
+            await service
+              .from("help_requests")
+              .update({ colony_lat: coords.lat, colony_lng: coords.lng })
+              .eq("id", data.id);
+          }
+        } catch {
+          geocodeDeferred += 1;
+        }
+      } else {
+        geocodeDeferred += 1;
+      }
     }
 
     created.push({ case_number: data.case_number });
@@ -64,6 +98,7 @@ export async function POST(request: NextRequest) {
     success: errors.length === 0,
     imported: created.length,
     caseNumbers: created.map((entry) => entry.case_number),
+    geocodeDeferred,
     errors,
   });
 }

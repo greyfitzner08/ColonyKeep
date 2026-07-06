@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { HotspotsColoniesTable } from "@/components/maps/hotspots-colonies-table";
+import { HotspotsGeocodeBackfill } from "@/components/maps/hotspots-geocode-backfill";
 import type { MapFeeder } from "@/components/maps/hotspots-map";
 import type { HotspotMapVolunteer } from "@/lib/hotspots/volunteer-role-filter";
 import type { HelpRequest } from "@/lib/types";
@@ -22,12 +23,14 @@ interface HotspotsShellProps {
   helpRequests: HelpRequest[];
   feeders: MapFeeder[];
   initialVolunteers: HotspotMapVolunteer[];
+  isAdmin?: boolean;
 }
 
 export function HotspotsShell({
   helpRequests: initialHelpRequests,
   feeders,
   initialVolunteers,
+  isAdmin = false,
 }: HotspotsShellProps) {
   const [helpRequests, setHelpRequests] = useState(initialHelpRequests);
   const [volunteers, setVolunteers] = useState(initialVolunteers);
@@ -78,7 +81,15 @@ export function HotspotsShell({
   }, []);
 
   return (
-    <Tabs defaultValue="map" className="space-y-4">
+    <div className="space-y-4">
+      {isAdmin && (
+        <HotspotsGeocodeBackfill
+          helpRequests={helpRequests}
+          onHelpRequestsChange={(updater) => setHelpRequests(updater)}
+        />
+      )}
+
+      <Tabs defaultValue="map" className="space-y-4">
       <TabsList>
         <TabsTrigger value="map">Map</TabsTrigger>
         <TabsTrigger value="table">Colonies table</TabsTrigger>
@@ -97,5 +108,6 @@ export function HotspotsShell({
         <HotspotsColoniesTable helpRequests={helpRequests} />
       </TabsContent>
     </Tabs>
+    </div>
   );
 }
