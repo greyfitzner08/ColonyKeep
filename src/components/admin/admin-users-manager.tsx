@@ -33,6 +33,7 @@ interface AdminUsersManagerProps {
   teams: TrapTeam[];
   roleDescriptions: RoleDescription[];
   applications: VolunteerApplication[];
+  currentUserId: string;
 }
 
 const MAX_ROLE_BADGES = 3;
@@ -42,6 +43,7 @@ export function AdminUsersManager({
   teams,
   roleDescriptions,
   applications,
+  currentUserId,
 }: AdminUsersManagerProps) {
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState<string>("all");
@@ -171,7 +173,7 @@ export function AdminUsersManager({
               <Pencil className="mr-1.5 h-3.5 w-3.5" />
               Edit
             </Button>
-            {user.role !== "admin" ? (
+            {user.id !== currentUserId ? (
               <Button
                 type="button"
                 size="sm"
@@ -190,7 +192,7 @@ export function AdminUsersManager({
         ),
       },
     ];
-  }, [roleCatalog, teamById]);
+  }, [roleCatalog, teamById, currentUserId]);
 
   return (
     <div className="space-y-4">
@@ -220,7 +222,8 @@ export function AdminUsersManager({
           </SelectContent>
         </Select>
         <p className="text-sm text-muted-foreground sm:ml-auto">
-          {filteredUsers.length} of {users.length} users
+          {filteredUsers.length} of {users.length} users · Remove is available for every account
+          except your own
         </p>
       </div>
 

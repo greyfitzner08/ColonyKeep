@@ -30,6 +30,7 @@ export default async function AdminPage() {
         roleDescriptions={roleDescriptions}
         disabledRoleIds={disabledRoleIds}
         applications={(applications ?? []) as VolunteerApplication[]}
+        currentUserId={profile.id}
       />
     </div>
   );

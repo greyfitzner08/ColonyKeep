@@ -58,10 +58,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "User not found" }, { status: 404 });
   }
 
-  if (targetProfile.role === "admin") {
-    return NextResponse.json({ error: "Admin accounts cannot be removed here." }, { status: 400 });
-  }
-
   const preview = await previewVolunteerAssignments(service, targetProfile as Profile);
 
   if (preview.hasAssignments) {

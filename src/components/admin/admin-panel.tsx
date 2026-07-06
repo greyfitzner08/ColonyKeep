@@ -13,6 +13,7 @@ interface AdminPanelProps {
   roleDescriptions: RoleDescription[];
   disabledRoleIds: VolunteerRole[];
   applications: VolunteerApplication[];
+  currentUserId: string;
 }
 
 export function AdminPanel({
@@ -21,6 +22,7 @@ export function AdminPanel({
   roleDescriptions,
   disabledRoleIds,
   applications,
+  currentUserId,
 }: AdminPanelProps) {
   return (
     <Tabs defaultValue="users">
@@ -37,6 +39,7 @@ export function AdminPanel({
           teams={teams}
           roleDescriptions={roleDescriptions}
           applications={applications}
+          currentUserId={currentUserId}
         />
       </TabsContent>
 

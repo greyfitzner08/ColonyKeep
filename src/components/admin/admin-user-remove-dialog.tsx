@@ -184,8 +184,9 @@ export function AdminUserRemoveDialog({
           <DialogHeader>
             <DialogTitle>Remove {user.full_name ?? user.email}?</DialogTitle>
             <DialogDescription>
-              This volunteer still has active assignments. Reassign each item to another user or
-              dismiss it before removing their account.
+              {user.role === "admin"
+                ? "This user is an administrator. Removing them deletes their login and profile permanently."
+                : "This volunteer still has active assignments. Reassign each item to another user or dismiss it before removing their account."}
             </DialogDescription>
           </DialogHeader>
 
@@ -332,8 +333,10 @@ export function AdminUserRemoveDialog({
             <AlertDialogTitle>Remove volunteer?</AlertDialogTitle>
             <AlertDialogDescription>
               {preview?.hasAssignments
-                ? "Review assignments before removing this volunteer."
-                : `Remove ${user.full_name ?? user.email} from the platform? Their login and profile will be deleted.`}
+                ? "Review assignments before removing this user."
+                : user.role === "admin"
+                  ? `Remove administrator ${user.full_name ?? user.email}? Their login and profile will be deleted permanently.`
+                  : `Remove ${user.full_name ?? user.email} from the platform? Their login and profile will be deleted.`}
             </AlertDialogDescription>
           </AlertDialogHeader>
           {error ? <p className="text-sm text-destructive">{error}</p> : null}
