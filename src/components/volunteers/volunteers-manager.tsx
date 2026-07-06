@@ -149,10 +149,7 @@ export function VolunteersManager({
   const [savingEmailId, setSavingEmailId] = useState<string | null>(null);
   const [resettingPasswordId, setResettingPasswordId] = useState<string | null>(null);
 
-  const roleCatalog = useMemo(
-    () => resolveVolunteerRoleCatalog(roleDescriptions),
-    [roleDescriptions]
-  );
+  const roleCatalog = useMemo(() => roleDescriptions, [roleDescriptions]);
 
   const applicationRoleOptions = useMemo(
     () => signupVolunteerRoleOptions(roleCatalog),

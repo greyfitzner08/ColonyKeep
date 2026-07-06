@@ -44,10 +44,7 @@ export function VolunteerProfileRoles({
 }: VolunteerProfileRolesProps) {
   const router = useRouter();
   const [roleDescriptions, setRoleDescriptions] = useState<RoleDescription[]>([]);
-  const roleCatalog = useMemo(
-    () => resolveVolunteerRoleCatalog(roleDescriptions),
-    [roleDescriptions]
-  );
+  const roleCatalog = useMemo(() => roleDescriptions, [roleDescriptions]);
   const signupRoles = useMemo(
     () => signupVolunteerRoleOptions(roleCatalog),
     [roleCatalog]
@@ -55,9 +52,15 @@ export function VolunteerProfileRoles({
 
   useEffect(() => {
     const supabase = createClient();
-    supabase.from("role_descriptions").select("*").then(({ data, error }) => {
+    Promise.all([
+      supabase.from("role_descriptions").select("*"),
+      supabase.from("disabled_volunteer_roles").select("role_id"),
+    ]).then(([{ data, error }, { data: disabled }]) => {
       if (!error && data) {
-        setRoleDescriptions(data as RoleDescription[]);
+        const disabledRoleIds = (disabled ?? []).map((row) => row.role_id as VolunteerRole);
+        setRoleDescriptions(
+          resolveVolunteerRoleCatalog(data as RoleDescription[], disabledRoleIds)
+        );
       }
     });
   }, []);

@@ -169,10 +169,7 @@ export function VolunteerSignupWizard({ variant, profile, onSubmitted }: Volunte
     };
   });
 
-  const roleCatalog = useMemo(
-    () => resolveVolunteerRoleCatalog(roleDescriptions),
-    [roleDescriptions]
-  );
+  const roleCatalog = useMemo(() => roleDescriptions, [roleDescriptions]);
   const signupRoles = signupVolunteerRoleOptions(roleCatalog);
   const visibleRoleDescriptions = filterSignupRoleDescriptions(signupRoles, form.birthday);
   const needsTnvrCert = form.roles_requested.some((role) => TNVR_ROLES.includes(role));
@@ -180,9 +177,15 @@ export function VolunteerSignupWizard({ variant, profile, onSubmitted }: Volunte
 
   useEffect(() => {
     const supabase = createClient();
-    supabase.from("role_descriptions").select("*").then(({ data, error }) => {
+    Promise.all([
+      supabase.from("role_descriptions").select("*"),
+      supabase.from("disabled_volunteer_roles").select("role_id"),
+    ]).then(([{ data, error }, { data: disabled }]) => {
       if (!error && data) {
-        setRoleDescriptions(data as RoleDescription[]);
+        const disabledRoleIds = (disabled ?? []).map((row) => row.role_id as VolunteerRole);
+        setRoleDescriptions(
+          resolveVolunteerRoleCatalog(data as RoleDescription[], disabledRoleIds)
+        );
       }
     });
   }, []);

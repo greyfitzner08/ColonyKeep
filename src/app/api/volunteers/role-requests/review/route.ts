@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireApiRole } from "@/lib/api/auth";
 import { createServiceClient } from "@/lib/supabase/server";
-import type { RoleDescription, VolunteerApplication, VolunteerRole } from "@/lib/types";
-import { resolveVolunteerRoleCatalog } from "@/lib/volunteers/role-catalog";
+import { fetchVolunteerRoleCatalogInputs } from "@/lib/volunteers/load-role-catalog";
+import type { VolunteerApplication, VolunteerRole } from "@/lib/types";
 import {
   markApplicationApprovedAfterRoleGrant,
   mergeVolunteerRoles,
@@ -25,8 +25,7 @@ export async function POST(request: NextRequest) {
   }
 
   const service = await createServiceClient();
-  const { data: roleDescriptions } = await service.from("role_descriptions").select("*");
-  const roleCatalog = resolveVolunteerRoleCatalog((roleDescriptions ?? []) as RoleDescription[]);
+  const { catalog: roleCatalog } = await fetchVolunteerRoleCatalogInputs(service);
 
   const { data: roleRequest, error: fetchError } = await service
     .from("volunteer_role_requests")

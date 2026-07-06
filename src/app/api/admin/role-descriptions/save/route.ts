@@ -42,7 +42,17 @@ export async function POST(request: NextRequest) {
   const service = await createServiceClient();
   const payload = { label, description, requirements };
 
+  async function clearDisabledRole(roleId: string) {
+    await service.from("disabled_volunteer_roles").delete().eq("role_id", roleId);
+  }
+
   if (id) {
+    const { data: existingRole } = await service
+      .from("role_descriptions")
+      .select("role_id")
+      .eq("id", id)
+      .maybeSingle();
+
     const { data, error } = await service
       .from("role_descriptions")
       .update(payload)
@@ -52,6 +62,10 @@ export async function POST(request: NextRequest) {
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 400 });
+    }
+
+    if (existingRole?.role_id) {
+      await clearDisabledRole(existingRole.role_id);
     }
 
     return NextResponse.json({ role: data });
@@ -88,6 +102,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
 
+    await clearDisabledRole(roleId);
+
     return NextResponse.json({ role: data });
   }
 
@@ -111,6 +127,8 @@ export async function POST(request: NextRequest) {
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 400 });
   }
+
+  await clearDisabledRole(roleId);
 
   return NextResponse.json({ role: data });
 }

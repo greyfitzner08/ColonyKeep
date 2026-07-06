@@ -19,8 +19,10 @@ const DEFAULT_ROLE_DESCRIPTIONS: RoleDescription[] = VOLUNTEER_ROLES.map((role) 
 
 /** Merge DB role descriptions with defaults, preserving signup order from VOLUNTEER_ROLES. */
 export function resolveVolunteerRoleCatalog(
-  roleDescriptions: RoleDescription[]
+  roleDescriptions: RoleDescription[],
+  disabledRoleIds: VolunteerRole[] = []
 ): RoleDescription[] {
+  const disabled = new Set(disabledRoleIds);
   const merged = new Map<VolunteerRole, RoleDescription>();
 
   for (const defaults of DEFAULT_ROLE_DESCRIPTIONS) {
@@ -43,10 +45,14 @@ export function resolveVolunteerRoleCatalog(
 
   return [
     ...VOLUNTEER_ROLES.map((role) => merged.get(role.value)).filter(
-      (entry): entry is RoleDescription => entry != null
+      (entry): entry is RoleDescription => entry != null && !disabled.has(entry.role_id)
     ),
     ...Array.from(merged.values())
-      .filter((entry) => !VOLUNTEER_ROLES.some((role) => role.value === entry.role_id))
+      .filter(
+        (entry) =>
+          !disabled.has(entry.role_id) &&
+          !VOLUNTEER_ROLES.some((role) => role.value === entry.role_id)
+      )
       .sort((a, b) => a.label.localeCompare(b.label)),
   ];
 }

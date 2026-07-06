@@ -1,8 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
 import { VolunteersManager } from "@/components/volunteers/volunteers-manager";
 import { VolunteerRoleRequestsPanel } from "@/components/volunteers/volunteer-role-requests-panel";
-import type { VolunteerApplication, TrapTeam, VolunteerRoleRequest, Profile, RoleDescription } from "@/lib/types";
-import { resolveVolunteerRoleCatalog } from "@/lib/volunteers/role-catalog";
+import { fetchVolunteerRoleCatalogInputs } from "@/lib/volunteers/load-role-catalog";
+import type { VolunteerApplication, TrapTeam, VolunteerRoleRequest, Profile } from "@/lib/types";
 
 interface VolunteersPageProps {
   searchParams: Promise<{ status?: string }>;
@@ -17,7 +17,7 @@ export default async function VolunteersPage({ searchParams }: VolunteersPagePro
     query = query.eq("status", params.status);
   }
 
-  const [{ data: applications }, { data: teams }, { data: roleRequests }, { data: profiles }, { data: roleDescriptions }] =
+  const [{ data: applications }, { data: teams }, { data: roleRequests }, { data: profiles }, { catalog }] =
     await Promise.all([
     query,
     supabase.from("trap_teams").select("*").eq("is_active", true),
@@ -27,7 +27,7 @@ export default async function VolunteersPage({ searchParams }: VolunteersPagePro
       .select(
         "email, volunteer_roles, role, full_name, must_change_password, tnvr_certificate_uploaded, tnvr_certificate_url"
       ),
-    supabase.from("role_descriptions").select("*").order("label"),
+    fetchVolunteerRoleCatalogInputs(supabase),
   ]);
 
   const profilesByEmail = Object.fromEntries(
@@ -50,7 +50,7 @@ export default async function VolunteersPage({ searchParams }: VolunteersPagePro
         teams={(teams ?? []) as TrapTeam[]}
         profilesByEmail={profilesByEmail}
         roleRequests={(roleRequests ?? []) as VolunteerRoleRequest[]}
-        roleDescriptions={(roleDescriptions ?? []) as RoleDescription[]}
+        roleDescriptions={catalog}
       />
     </div>
   );

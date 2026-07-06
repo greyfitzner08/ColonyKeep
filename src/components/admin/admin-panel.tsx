@@ -5,12 +5,13 @@ import { AdminUsersManager } from "@/components/admin/admin-users-manager";
 import { RoleDescriptionsManager } from "@/components/admin/role-descriptions-manager";
 import { TrapTeamsManager } from "@/components/admin/trap-teams-manager";
 import { VolunteerImporter } from "@/components/volunteers/volunteer-importer";
-import type { Profile, TrapTeam, RoleDescription, VolunteerApplication } from "@/lib/types";
+import type { Profile, TrapTeam, RoleDescription, VolunteerApplication, VolunteerRole } from "@/lib/types";
 
 interface AdminPanelProps {
   users: Profile[];
   teams: TrapTeam[];
   roleDescriptions: RoleDescription[];
+  disabledRoleIds: VolunteerRole[];
   applications: VolunteerApplication[];
 }
 
@@ -18,6 +19,7 @@ export function AdminPanel({
   users,
   teams,
   roleDescriptions,
+  disabledRoleIds,
   applications,
 }: AdminPanelProps) {
   return (
@@ -43,7 +45,10 @@ export function AdminPanel({
       </TabsContent>
 
       <TabsContent value="roles" className="mt-4">
-        <RoleDescriptionsManager roleDescriptions={roleDescriptions} />
+        <RoleDescriptionsManager
+          roleDescriptions={roleDescriptions}
+          disabledRoleIds={disabledRoleIds}
+        />
       </TabsContent>
 
       <TabsContent value="imports" className="mt-4 space-y-4">

@@ -21,6 +21,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { getApiErrorMessage } from "@/lib/api/errors";
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import {
@@ -33,22 +43,26 @@ import {
   displayRequirementLabel,
   isKnownRequirementField,
 } from "@/lib/volunteers/role-requirements";
-import type { RoleDescription } from "@/lib/types";
+import type { RoleDescription, VolunteerRole } from "@/lib/types";
 import { Pencil, Plus, Trash2, X } from "lucide-react";
 
 interface RoleDescriptionsManagerProps {
   roleDescriptions: RoleDescription[];
+  disabledRoleIds?: VolunteerRole[];
 }
 
 type EditorMode = "edit" | "create";
 
 const PROTECTED_ROLE_IDS = new Set(["youth_volunteer", "other"]);
 
-export function RoleDescriptionsManager({ roleDescriptions }: RoleDescriptionsManagerProps) {
+export function RoleDescriptionsManager({
+  roleDescriptions,
+  disabledRoleIds = [],
+}: RoleDescriptionsManagerProps) {
   const router = useRouter();
   const catalog = useMemo(
-    () => resolveVolunteerRoleCatalog(roleDescriptions),
-    [roleDescriptions]
+    () => resolveVolunteerRoleCatalog(roleDescriptions, disabledRoleIds),
+    [roleDescriptions, disabledRoleIds]
   );
 
   const allRoles = useMemo(() => allVolunteerRoleOptions(catalog), [catalog]);
@@ -63,6 +77,7 @@ export function RoleDescriptionsManager({ roleDescriptions }: RoleDescriptionsMa
   const [customRequirement, setCustomRequirement] = useState("");
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [roleToRemove, setRoleToRemove] = useState<RoleDescription | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const availablePresets = useMemo(
@@ -161,19 +176,17 @@ export function RoleDescriptionsManager({ roleDescriptions }: RoleDescriptionsMa
     router.refresh();
   }
 
-  async function deleteRole() {
-    if (!editingRole || editingRole.id.startsWith("default-")) return;
-    if (!window.confirm(`Remove the "${editingRole.label}" volunteer role? This cannot be undone.`)) {
-      return;
-    }
-
+  async function deleteRole(role: RoleDescription) {
     setDeleting(true);
     setError(null);
 
     const response = await fetch("/api/admin/role-descriptions/delete", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: editingRole.id }),
+      body: JSON.stringify({
+        id: role.id,
+        role_id: role.role_id,
+      }),
     });
     const result = await response.json().catch(() => null);
     setDeleting(false);
@@ -183,8 +196,19 @@ export function RoleDescriptionsManager({ roleDescriptions }: RoleDescriptionsMa
       return;
     }
 
+    setRoleToRemove(null);
     closeDialog();
     router.refresh();
+  }
+
+  function requestRemoveRole(role: RoleDescription) {
+    if (PROTECTED_ROLE_IDS.has(role.role_id)) return;
+    setRoleToRemove(role);
+    setError(null);
+  }
+
+  function isRoleRemovable(role: RoleDescription): boolean {
+    return !PROTECTED_ROLE_IDS.has(role.role_id);
   }
 
   const roleColumns = useMemo((): DataTableColumn<RoleDescription>[] => {
@@ -235,25 +259,35 @@ export function RoleDescriptionsManager({ roleDescriptions }: RoleDescriptionsMa
       {
         id: "actions",
         label: "Actions",
-        defaultWidth: 100,
-        minWidth: 88,
+        defaultWidth: 160,
+        minWidth: 140,
         headerClassName: "text-right",
         cellClassName: "text-right",
         render: (role) => (
-          <Button type="button" size="sm" variant="outline" onClick={() => openEditDialog(role)}>
-            <Pencil className="mr-1.5 h-3.5 w-3.5" />
-            Edit
-          </Button>
+          <div className="flex justify-end gap-2">
+            <Button type="button" size="sm" variant="outline" onClick={() => openEditDialog(role)}>
+              <Pencil className="mr-1.5 h-3.5 w-3.5" />
+              Edit
+            </Button>
+            {isRoleRemovable(role) ? (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="text-destructive hover:text-destructive"
+                onClick={() => requestRemoveRole(role)}
+              >
+                <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+                Remove
+              </Button>
+            ) : null}
+          </div>
         ),
       },
     ];
   }, []);
 
-  const canDelete =
-    editorMode === "edit" &&
-    editingRole &&
-    !editingRole.id.startsWith("default-") &&
-    !PROTECTED_ROLE_IDS.has(editingRole.role_id);
+  const canDelete = editorMode === "edit" && editingRole && isRoleRemovable(editingRole);
 
   return (
     <div className="space-y-4">
@@ -456,7 +490,7 @@ export function RoleDescriptionsManager({ roleDescriptions }: RoleDescriptionsMa
                   <Button
                     type="button"
                     variant="destructive"
-                    onClick={deleteRole}
+                    onClick={() => editingRole && requestRemoveRole(editingRole)}
                     disabled={deleting || saving}
                   >
                     <Trash2 className="h-4 w-4 mr-1" />
@@ -482,6 +516,40 @@ export function RoleDescriptionsManager({ roleDescriptions }: RoleDescriptionsMa
           )}
         </DialogContent>
       </Dialog>
+
+      <AlertDialog
+        open={roleToRemove != null}
+        onOpenChange={(open) => {
+          if (!open && !deleting) setRoleToRemove(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove volunteer role?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {roleToRemove
+                ? `"${roleToRemove.label}" will be removed from signup and role management. Existing volunteers or applications still using this role must be updated first.`
+                : null}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          {error && roleToRemove ? (
+            <p className="text-sm text-destructive">{error}</p>
+          ) : null}
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={deleting || !roleToRemove}
+              onClick={(event) => {
+                event.preventDefault();
+                if (roleToRemove) void deleteRole(roleToRemove);
+              }}
+            >
+              {deleting ? "Removing…" : "Remove role"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
