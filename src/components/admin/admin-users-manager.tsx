@@ -155,37 +155,38 @@ export function AdminUsersManager({
       {
         id: "actions",
         label: "Actions",
-        defaultWidth: 180,
-        minWidth: 160,
+        defaultWidth: 88,
+        minWidth: 80,
         headerClassName: "text-right",
         cellClassName: "text-right",
         render: (user) => (
-          <div className="flex justify-end gap-2">
+          <div className="flex justify-end gap-1">
             <Button
               type="button"
-              size="sm"
-              variant="outline"
+              size="icon"
+              variant="ghost"
+              className="h-8 w-8"
               onClick={() => {
                 setUserError(null);
                 setEditingUser(user);
               }}
+              aria-label={`Edit ${user.full_name ?? user.email}`}
             >
-              <Pencil className="mr-1.5 h-3.5 w-3.5" />
-              Edit
+              <Pencil className="h-3.5 w-3.5" />
             </Button>
             {user.id !== currentUserId ? (
               <Button
                 type="button"
-                size="sm"
-                variant="outline"
-                className="text-destructive hover:text-destructive"
+                size="icon"
+                variant="ghost"
+                className="h-8 w-8 text-destructive hover:text-destructive"
                 onClick={() => {
                   setUserError(null);
                   setRemovingUser(user);
                 }}
+                aria-label={`Remove ${user.full_name ?? user.email}`}
               >
-                <Trash2 className="mr-1.5 h-3.5 w-3.5" />
-                Remove
+                <Trash2 className="h-3.5 w-3.5" />
               </Button>
             ) : null}
           </div>

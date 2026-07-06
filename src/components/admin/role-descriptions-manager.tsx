@@ -324,26 +324,32 @@ export function RoleDescriptionsManager({
       {
         id: "actions",
         label: "Actions",
-        defaultWidth: 160,
-        minWidth: 140,
+        defaultWidth: 88,
+        minWidth: 80,
         headerClassName: "text-right",
         cellClassName: "text-right",
         render: (role) => (
-          <div className="flex justify-end gap-2">
-            <Button type="button" size="sm" variant="outline" onClick={() => openEditDialog(role)}>
-              <Pencil className="mr-1.5 h-3.5 w-3.5" />
-              Edit
+          <div className="flex justify-end gap-1">
+            <Button
+              type="button"
+              size="icon"
+              variant="ghost"
+              className="h-8 w-8"
+              onClick={() => openEditDialog(role)}
+              aria-label={`Edit ${role.label}`}
+            >
+              <Pencil className="h-3.5 w-3.5" />
             </Button>
             {isRoleRemovable(role) ? (
               <Button
                 type="button"
-                size="sm"
-                variant="outline"
-                className="text-destructive hover:text-destructive"
+                size="icon"
+                variant="ghost"
+                className="h-8 w-8 text-destructive hover:text-destructive"
                 onClick={() => requestRemoveRole(role)}
+                aria-label={`Remove ${role.label}`}
               >
-                <Trash2 className="mr-1.5 h-3.5 w-3.5" />
-                Remove
+                <Trash2 className="h-3.5 w-3.5" />
               </Button>
             ) : null}
           </div>
