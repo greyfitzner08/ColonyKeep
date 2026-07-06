@@ -1,8 +1,33 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireApiRole } from "@/lib/api/auth";
-import { parseCsv } from "@/lib/csv";
-import { mapVolunteerImportRow } from "@/lib/volunteers/import-mapper";
+import {
+  buildVolunteerImportPreview,
+  parseVolunteerImportCsv,
+  resolveVolunteerImportGroup,
+  type VolunteerImportDuplicateAction,
+  type VolunteerImportExistingSummary,
+} from "@/lib/volunteers/import-duplicate";
 import { createServiceClient } from "@/lib/supabase/server";
+
+const DUPLICATE_ACTIONS = new Set<VolunteerImportDuplicateAction>([
+  "skip",
+  "replace",
+  "merge_import",
+  "merge_keep_existing",
+]);
+
+function parseResolutions(
+  value: unknown
+): Record<string, VolunteerImportDuplicateAction> {
+  if (!value || typeof value !== "object") return {};
+  const resolutions: Record<string, VolunteerImportDuplicateAction> = {};
+  for (const [email, action] of Object.entries(value as Record<string, unknown>)) {
+    if (typeof action === "string" && DUPLICATE_ACTIONS.has(action as VolunteerImportDuplicateAction)) {
+      resolutions[email.toLowerCase()] = action as VolunteerImportDuplicateAction;
+    }
+  }
+  return resolutions;
+}
 
 export async function POST(request: NextRequest) {
   const { response } = await requireApiRole(["admin"]);
@@ -10,47 +35,115 @@ export async function POST(request: NextRequest) {
 
   const body = await request.json();
   const csvText = typeof body.csvText === "string" ? body.csvText : "";
-  const rows = parseCsv(csvText.replace(/^\uFEFF/, "").trim());
+  const resolutions = parseResolutions(body.resolutions);
+  const parsedRows = parseVolunteerImportCsv(csvText);
 
-  if (!rows.length) {
+  if (!parsedRows.length) {
     return NextResponse.json({ error: "No rows to import" }, { status: 400 });
   }
 
+  const emails = Array.from(
+    new Set(
+      parsedRows
+        .map((entry) => entry.record?.email.toLowerCase())
+        .filter((email): email is string => Boolean(email))
+    )
+  );
+
   const service = await createServiceClient();
-  const imported: { email: string; full_name: string }[] = [];
-  const errors: { row: number; error: string }[] = [];
+  const existingByEmail = new Map<string, VolunteerImportExistingSummary>();
 
-  for (let index = 0; index < rows.length; index += 1) {
-    const mapped = mapVolunteerImportRow(rows[index]);
-    if (mapped.error || !mapped.record) {
-      errors.push({ row: index + 2, error: mapped.error ?? "Invalid row" });
-      continue;
-    }
-
-    const email = String(mapped.record.email);
-    const { data: existing } = await service
+  if (emails.length > 0) {
+    const { data: existingRows, error } = await service
       .from("volunteer_applications")
-      .select("id")
-      .eq("email", email)
-      .maybeSingle();
+      .select(
+        "id, full_name, email, phone, birthday, status, roles_requested, why_volunteer, prior_experience, how_heard, liability_waiver_signed, policy_signed, tnvr_certificate_uploaded, admin_notes"
+      )
+      .in("email", emails);
 
-    if (existing) {
-      errors.push({ row: index + 2, error: `Application already exists for ${email}` });
-      continue;
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
     }
+
+    for (const row of existingRows ?? []) {
+      existingByEmail.set(String(row.email).toLowerCase(), row as VolunteerImportExistingSummary);
+    }
+  }
+
+  const preview = buildVolunteerImportPreview(parsedRows, existingByEmail);
+  const imported: { email: string; full_name: string }[] = [];
+  const errors = [...preview.errors];
+
+  if (preview.duplicateGroups.length > 0 && Object.keys(resolutions).length === 0) {
+    return NextResponse.json(
+      {
+        error: "Duplicate emails require resolution before import.",
+        duplicateEmails: preview.duplicateGroups.map((group) => group.email),
+        needsResolution: true,
+      },
+      { status: 409 }
+    );
+  }
+
+  for (const group of preview.duplicateGroups) {
+    const action = resolutions[group.email] ?? group.suggestedAction;
+
+    const resolved = resolveVolunteerImportGroup(group, action);
+    if (!resolved.apply || !resolved.record) continue;
+
+    if (resolved.existingId) {
+      const { error } = await service
+        .from("volunteer_applications")
+        .update({
+          ...resolved.record,
+          imported_via_csv: true,
+        })
+        .eq("id", resolved.existingId);
+
+      if (error) {
+        errors.push({
+          row: group.importRows[0]?.row ?? 0,
+          error: `${group.email}: ${error.message}`,
+        });
+        continue;
+      }
+    } else {
+      const { error } = await service.from("volunteer_applications").insert({
+        ...resolved.record,
+        imported_via_csv: true,
+      });
+
+      if (error) {
+        errors.push({
+          row: group.importRows[0]?.row ?? 0,
+          error: `${group.email}: ${error.message}`,
+        });
+        continue;
+      }
+    }
+
+    imported.push({
+      email: resolved.record.email,
+      full_name: resolved.record.full_name,
+    });
+  }
+
+  for (const entry of preview.uniqueRows) {
+    if (!entry.record) continue;
 
     const { error } = await service.from("volunteer_applications").insert({
-      ...mapped.record,
+      ...entry.record,
       imported_via_csv: true,
     });
+
     if (error) {
-      errors.push({ row: index + 2, error: error.message });
+      errors.push({ row: entry.row, error: error.message });
       continue;
     }
 
     imported.push({
-      email,
-      full_name: String(mapped.record.full_name),
+      email: entry.record.email,
+      full_name: entry.record.full_name,
     });
   }
 
