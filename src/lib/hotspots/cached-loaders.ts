@@ -5,8 +5,9 @@ import { hasSupabaseAdminConfig } from "@/lib/supabase/env";
 import {
   loadHotspotFeeders,
   loadHotspotHelpRequests,
+  loadHotspotVolunteers,
 } from "@/lib/hotspots/load-hotspots-data";
-import { loadHotspotVolunteersWithCoordsOnly } from "@/lib/hotspots/geocode-profile-locations";
+import { backfillHelpRequestCoordinates } from "@/lib/help-requests/geocode-backfill";
 import type { MapFeeder } from "@/components/maps/hotspots-map";
 import type { HotspotMapVolunteer } from "@/lib/hotspots/volunteer-role-filter";
 import type { HelpRequest } from "@/lib/types";
@@ -32,9 +33,10 @@ async function loadHotspotsPayload(supabase: SupabaseClient): Promise<CachedHots
     return { helpRequests, feeders: [], volunteers: [], error: feederError };
   }
 
-  const volunteers = await loadHotspotVolunteersWithCoordsOnly(supabase);
+  const geocodedHelpRequests = await backfillHelpRequestCoordinates(supabase, helpRequests, 15);
+  const volunteers = await loadHotspotVolunteers(supabase, { geocodeLimit: 15 });
 
-  return { helpRequests, feeders, volunteers, error: null };
+  return { helpRequests: geocodedHelpRequests, feeders, volunteers, error: null };
 }
 
 /** Cached loader — must not import cookie-based Supabase clients. */

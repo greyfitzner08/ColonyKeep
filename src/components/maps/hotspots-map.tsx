@@ -104,7 +104,7 @@ export function HotspotsMap({
   const [mounted, setMounted] = useState(false);
   const [layers, setLayers] = useState<Record<MapLayer, boolean>>({
     colonies: defaultLayers?.colonies ?? true,
-    volunteers: defaultLayers?.volunteers ?? false,
+    volunteers: defaultLayers?.volunteers ?? volunteers.length > 0,
     feeders: defaultLayers?.feeders ?? feeders.length > 0,
   });
   const [selectedVolunteerRoles, setSelectedVolunteerRoles] = useState<VolunteerRole[]>([]);

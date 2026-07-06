@@ -8,16 +8,6 @@ export const INTAKE_QUEUE_STATUSES: HelpRequestStatus[] = [
   "needs_more_info",
 ];
 
-/** Colony hotspots map — open intake cases and closed cases only. */
-export const HOTSPOT_COLONY_STATUSES: HelpRequestStatus[] = [
-  ...INTAKE_QUEUE_STATUSES,
-  "closed",
-];
-
-export function isHotspotColonyStatus(status: HelpRequestStatus) {
-  return HOTSPOT_COLONY_STATUSES.includes(status);
-}
-
 /** Statuses intake/inquiry volunteers may set on a case. */
 export const INTAKE_EDITABLE_STATUSES: HelpRequestStatus[] = [
   "new_intake",
@@ -33,6 +23,17 @@ export const TRAP_KANBAN_STATUSES: HelpRequestStatus[] = [
   "appointment_needed",
   "appointment_reserved",
 ];
+
+/** Colony hotspots map — inquiry queue, active trap workflow, and closed cases. */
+export const HOTSPOT_COLONY_STATUSES: HelpRequestStatus[] = [
+  ...INTAKE_QUEUE_STATUSES,
+  ...TRAP_KANBAN_STATUSES,
+  "closed",
+];
+
+export function isHotspotColonyStatus(status: HelpRequestStatus) {
+  return HOTSPOT_COLONY_STATUSES.includes(status);
+}
 
 /** No longer used as case statuses — kept for legacy reads until migrated. */
 export const DEPRECATED_HELP_REQUEST_STATUSES: HelpRequestStatus[] = [

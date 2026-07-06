@@ -13,7 +13,7 @@ export async function GET() {
   }
 
   const service = await createServiceClient();
-  const volunteers = await loadHotspotVolunteers(service, { geocodeLimit: 8 });
+  const volunteers = await loadHotspotVolunteers(service, { geocodeLimit: 15 });
 
   return NextResponse.json(
     { volunteers },
