@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { ChevronDown, MapPinOff, Pencil } from "lucide-react";
+import { ChevronDown, MapPin, MapPinOff, Pencil } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,6 +11,7 @@ import { formatSingleLineAddress } from "@/lib/cases/colony-notes";
 import { hasStoredColonyCoords } from "@/lib/cases/colony-address-fields";
 import { getStatusLabel, isHotspotColonyStatus } from "@/lib/cases/statuses";
 import { STATUS_COLORS } from "@/lib/constants";
+import { normalizeGeocodeParts } from "@/lib/geocode";
 import { cn } from "@/lib/utils";
 import type { HelpRequest } from "@/lib/types";
 
@@ -21,14 +22,15 @@ interface HotspotsUnmappedColoniesProps {
 }
 
 function colonyAddressPreview(hr: HelpRequest) {
+  const parts = normalizeGeocodeParts(hr);
   return (
     formatSingleLineAddress([
-      hr.colony_address,
-      hr.colony_city,
-      hr.colony_state,
-      hr.colony_zip,
-      hr.colony_county,
-    ]) ?? "No address on file"
+      parts.street,
+      parts.city,
+      parts.state,
+      parts.zip,
+      parts.county,
+    ]) ?? "No usable address on file"
   );
 }
 
@@ -40,6 +42,8 @@ export function HotspotsUnmappedColonies({
   const [open, setOpen] = useState(true);
   const [search, setSearch] = useState("");
   const [editingCase, setEditingCase] = useState<HelpRequest | null>(null);
+  const [retryingId, setRetryingId] = useState<string | null>(null);
+  const [retryError, setRetryError] = useState<string | null>(null);
 
   const unmapped = useMemo(
     () =>
@@ -70,6 +74,43 @@ export function HotspotsUnmappedColonies({
       return haystack.includes(query);
     });
   }, [search, unmapped]);
+
+  async function retryGeocode(hr: HelpRequest) {
+    setRetryingId(hr.id);
+    setRetryError(null);
+
+    try {
+      const response = await fetch("/api/help-requests/colony-address", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          help_request_id: hr.id,
+          colony_address: hr.colony_address,
+          colony_city: hr.colony_city,
+          colony_state: hr.colony_state,
+          colony_zip: hr.colony_zip,
+          colony_county: hr.colony_county,
+        }),
+      });
+      const payload = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        throw new Error(payload?.error ?? "Unable to map this address");
+      }
+
+      onHelpRequestUpdated(payload.helpRequest as HelpRequest);
+
+      if (!payload.geocoded) {
+        setRetryError(
+          `Could not map ${hr.case_number}. Edit the address to add city, state, or ZIP.`
+        );
+      }
+    } catch (error) {
+      setRetryError(error instanceof Error ? error.message : "Unable to map this address");
+    } finally {
+      setRetryingId(null);
+    }
+  }
 
   if (unmapped.length === 0) {
     return null;
@@ -121,6 +162,8 @@ export function HotspotsUnmappedColonies({
               className="bg-background"
             />
 
+            {retryError && <p className="text-xs text-destructive">{retryError}</p>}
+
             <div className="max-h-64 space-y-2 overflow-y-auto pr-1">
               {filtered.length === 0 ? (
                 <p className="text-sm text-muted-foreground">No unmapped colonies match your search.</p>
@@ -148,16 +191,27 @@ export function HotspotsUnmappedColonies({
                       </p>
                     </div>
                     {canEdit && (
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        className="shrink-0"
-                        onClick={() => setEditingCase(hr)}
-                      >
-                        <Pencil className="mr-1 h-3.5 w-3.5" />
-                        Edit address
-                      </Button>
+                      <div className="flex shrink-0 flex-wrap gap-2">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="secondary"
+                          disabled={retryingId === hr.id}
+                          onClick={() => void retryGeocode(hr)}
+                        >
+                          <MapPin className="mr-1 h-3.5 w-3.5" />
+                          {retryingId === hr.id ? "Mapping…" : "Map now"}
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setEditingCase(hr)}
+                        >
+                          <Pencil className="mr-1 h-3.5 w-3.5" />
+                          Edit address
+                        </Button>
+                      </div>
                     )}
                   </div>
                 ))
