@@ -81,8 +81,8 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
 
   const needsBirthday =
     effectiveProfile != null &&
-    Object.prototype.hasOwnProperty.call(effectiveProfile, "birthday") &&
-    !effectiveProfile.birthday;
+    !effectiveProfile.birthday &&
+    (!application || !application.birthday);
 
   const showPlatformTutorial =
     profile != null &&

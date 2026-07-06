@@ -138,9 +138,6 @@ export function mapVolunteerImportRow(raw: Record<string, unknown>): {
   if (!phone) {
     return { error: "Phone is required." };
   }
-  if (!birthday) {
-    return { error: "Birthday is required (YYYY-MM-DD)." };
-  }
   if (roles.length === 0) {
     return { error: "At least one recognized role is required in Roles Requested." };
   }
@@ -154,7 +151,7 @@ export function mapVolunteerImportRow(raw: Record<string, unknown>): {
       full_name: fullName,
       email,
       phone,
-      birthday,
+      birthday: birthday || null,
       roles_requested: roles,
       why_volunteer: whyVolunteer,
       prior_experience: row.prior_experience ?? null,

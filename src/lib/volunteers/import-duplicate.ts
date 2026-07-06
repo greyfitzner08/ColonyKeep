@@ -8,7 +8,7 @@ export type VolunteerImportRecord = {
   full_name: string;
   email: string;
   phone: string;
-  birthday: string;
+  birthday: string | null;
   roles_requested: VolunteerRole[];
   why_volunteer: string;
   prior_experience: string | null;
@@ -30,7 +30,7 @@ export type VolunteerImportExistingSummary = {
   full_name: string;
   email: string;
   phone: string;
-  birthday: string;
+  birthday: string | null;
   status: VolunteerApplicationStatus;
   roles_requested: VolunteerRole[];
   why_volunteer: string;

@@ -411,7 +411,7 @@ export interface VolunteerApplication {
   full_name: string;
   email: string;
   phone: string;
-  birthday: string;
+  birthday: string | null;
   home_street: string | null;
   home_city: string | null;
   home_state: string | null;

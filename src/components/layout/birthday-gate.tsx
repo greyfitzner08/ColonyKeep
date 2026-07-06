@@ -47,8 +47,9 @@ export function BirthdayGate({ userName }: BirthdayGateProps) {
           <Cake className="mx-auto h-10 w-10 text-pink-500 mb-2" />
           <CardTitle>Add your birthday</CardTitle>
           <CardDescription>
-            Hi {userName}! We use birthdays for team feed celebrations and upcoming birthday banners.
-            Your birth year is kept private — only month and day are shared with the team.
+            Hi {userName}! Before you continue, add your birthday. We use it for team feed
+            celebrations and upcoming birthday banners. Your birth year is kept private — only
+            month and day are shared with the team.
           </CardDescription>
         </CardHeader>
         <CardContent>
