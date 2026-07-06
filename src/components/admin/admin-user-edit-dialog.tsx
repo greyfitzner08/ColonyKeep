@@ -52,6 +52,7 @@ interface AdminUserEditDialogProps {
   application: VolunteerApplication | undefined;
   teamEligible: boolean;
   onError: (message: string | null) => void;
+  relaxContactRequirements?: boolean;
 }
 
 export function AdminUserEditDialog({
@@ -63,6 +64,7 @@ export function AdminUserEditDialog({
   application,
   teamEligible,
   onError,
+  relaxContactRequirements = false,
 }: AdminUserEditDialogProps) {
   const router = useRouter();
   const assignableRoles = useMemo(
@@ -118,15 +120,17 @@ export function AdminUserEditDialog({
       setSaving(false);
       return;
     }
-    if (!contact.phone.trim()) {
-      onError("Phone is required");
-      setSaving(false);
-      return;
-    }
-    if (!isHomeAddressComplete(contact)) {
-      onError("Home street, city, ZIP code, and county are required");
-      setSaving(false);
-      return;
+    if (!relaxContactRequirements) {
+      if (!contact.phone.trim()) {
+        onError("Phone is required");
+        setSaving(false);
+        return;
+      }
+      if (!isHomeAddressComplete(contact)) {
+        onError("Home street, city, ZIP code, and county are required");
+        setSaving(false);
+        return;
+      }
     }
 
     if (contact.full_name.trim() !== (user.full_name ?? "")) payload.fullName = contact.full_name.trim();

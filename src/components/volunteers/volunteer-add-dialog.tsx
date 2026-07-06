@@ -8,24 +8,25 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { getApiErrorMessage } from "@/lib/api/errors";
 import { getEmailValidationError } from "@/lib/email-utils";
 import { cn } from "@/lib/utils";
 import { resolveVolunteerRoleCatalog, volunteerRoleLabel } from "@/lib/volunteers/role-catalog";
-import type { RoleDescription, VolunteerApplicationStatus, VolunteerRole } from "@/lib/types";
+import type { RoleDescription, VolunteerApplication, VolunteerRole } from "@/lib/types";
 import { Plus, ChevronDown } from "lucide-react";
 
 interface VolunteerAddDialogProps {
   roleDescriptions: RoleDescription[];
   disabledRoleIds?: VolunteerRole[];
   triggerVariant?: "default" | "icon";
+  onCreated?: (applicationId: string) => void;
 }
 
 const EMPTY_FORM = {
@@ -34,19 +35,15 @@ const EMPTY_FORM = {
   phone: "",
   birthday: "",
   roles: [] as VolunteerRole[],
-  priorExperience: "",
-  howHeard: "",
-  liabilityWaiverSigned: false,
-  policySigned: false,
-  tnvrCertificateUploaded: false,
-  applicationStatus: "pending" as VolunteerApplicationStatus,
   adminNotes: "",
+  setupLogin: true,
 };
 
 export function VolunteerAddDialog({
   roleDescriptions,
   disabledRoleIds = [],
   triggerVariant = "default",
+  onCreated,
 }: VolunteerAddDialogProps) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -54,7 +51,6 @@ export function VolunteerAddDialog({
   const [expandedRoles, setExpandedRoles] = useState<Set<VolunteerRole>>(() => new Set());
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [message, setMessage] = useState<string | null>(null);
 
   const roleOptions = useMemo(
     () => resolveVolunteerRoleCatalog(roleDescriptions, disabledRoleIds),
@@ -67,7 +63,6 @@ export function VolunteerAddDialog({
     setForm(EMPTY_FORM);
     setExpandedRoles(new Set());
     setError(null);
-    setMessage(null);
   }
 
   function handleOpenChange(nextOpen: boolean) {
@@ -98,7 +93,6 @@ export function VolunteerAddDialog({
 
   async function handleSubmit() {
     setError(null);
-    setMessage(null);
 
     if (!form.fullName.trim()) {
       setError("Full name is required.");
@@ -125,26 +119,48 @@ export function VolunteerAddDialog({
         phone: form.phone.trim() || undefined,
         birthday: form.birthday.trim() || undefined,
         roles: form.roles,
-        priorExperience: form.priorExperience.trim() || undefined,
-        howHeard: form.howHeard.trim() || undefined,
-        liabilityWaiverSigned: form.liabilityWaiverSigned,
-        policySigned: form.policySigned,
-        tnvrCertificateUploaded: form.tnvrCertificateUploaded,
-        applicationStatus: form.applicationStatus,
         adminNotes: form.adminNotes.trim() || undefined,
       }),
     });
     const result = await response.json().catch(() => null);
-    setSaving(false);
 
     if (!response.ok) {
+      setSaving(false);
       setError(getApiErrorMessage(result, "Unable to add volunteer"));
       return;
     }
 
-    setMessage(`Added volunteer application for ${result.application?.full_name ?? form.fullName}.`);
+    const applicationId = result.application?.id as string | undefined;
+
+    if (form.setupLogin && applicationId) {
+      const approveResponse = await fetch("/api/volunteers/approve", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          applicationId,
+          email: form.email.trim(),
+          volunteer_roles: form.roles,
+        }),
+      });
+      const approveResult = await approveResponse.json().catch(() => null);
+      if (!approveResponse.ok) {
+        setSaving(false);
+        setError(
+          getApiErrorMessage(
+            approveResult,
+            "Volunteer was added but login setup failed. Open them in Review to finish setup."
+          )
+        );
+        router.refresh();
+        if (applicationId) onCreated?.(applicationId);
+        return;
+      }
+    }
+
+    setSaving(false);
+    handleOpenChange(false);
     router.refresh();
-    setTimeout(() => handleOpenChange(false), 1200);
+    if (applicationId) onCreated?.(applicationId);
   }
 
   return (
@@ -169,12 +185,12 @@ export function VolunteerAddDialog({
       )}
 
       <Dialog open={open} onOpenChange={handleOpenChange}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Add volunteer</DialogTitle>
             <DialogDescription>
-              Create a volunteer application manually. The volunteer will still need to accept the
-              liability waiver and policy on first login, even if marked signed here.
+              Enter the basics now. You can add address, training, and trap team from Review after
+              saving.
             </DialogDescription>
           </DialogHeader>
 
@@ -215,7 +231,7 @@ export function VolunteerAddDialog({
                 />
               </div>
 
-              <div className="space-y-2">
+              <div className="space-y-2 sm:col-span-2">
                 <Label htmlFor="add-volunteer-birthday">Birthday</Label>
                 <Input
                   id="add-volunteer-birthday"
@@ -224,33 +240,10 @@ export function VolunteerAddDialog({
                   onChange={(event) => setForm({ ...form, birthday: event.target.value })}
                 />
               </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="add-volunteer-status">Application status</Label>
-                <Select
-                  value={form.applicationStatus}
-                  onValueChange={(value) =>
-                    setForm({ ...form, applicationStatus: value as VolunteerApplicationStatus })
-                  }
-                >
-                  <SelectTrigger id="add-volunteer-status">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="pending">Pending</SelectItem>
-                    <SelectItem value="needs_followup">Needs follow-up</SelectItem>
-                    <SelectItem value="approved">Approved</SelectItem>
-                    <SelectItem value="rejected">Rejected</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
             </div>
 
             <div className="space-y-2">
-              <Label>Roles requested</Label>
-              <p className="text-xs text-muted-foreground">
-                Select one or more volunteer roles. Expand a row to read its description.
-              </p>
+              <Label>Volunteer roles</Label>
               <div className="rounded-md border divide-y">
                 {roleOptions.map((entry) => {
                   const selected = form.roles.includes(entry.role_id);
@@ -259,10 +252,7 @@ export function VolunteerAddDialog({
                   const roleLabel = volunteerRoleLabel(entry.role_id, roleOptions);
 
                   return (
-                    <div
-                      key={entry.role_id}
-                      className={cn(selected && "bg-primary/5")}
-                    >
+                    <div key={entry.role_id} className={cn(selected && "bg-primary/5")}>
                       <div className="flex items-center gap-2 px-3 py-2">
                         <Checkbox
                           id={`add-volunteer-role-${entry.role_id}`}
@@ -303,63 +293,8 @@ export function VolunteerAddDialog({
               </div>
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="add-volunteer-experience">Prior experience</Label>
-                <Textarea
-                  id="add-volunteer-experience"
-                  value={form.priorExperience}
-                  onChange={(event) => setForm({ ...form, priorExperience: event.target.value })}
-                  rows={2}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="add-volunteer-how-heard">How heard</Label>
-                <Input
-                  id="add-volunteer-how-heard"
-                  value={form.howHeard}
-                  onChange={(event) => setForm({ ...form, howHeard: event.target.value })}
-                />
-              </div>
-            </div>
-
-            <div className="space-y-3 rounded-md border p-3">
-              <p className="text-sm font-medium">Training & documents</p>
-              <p className="text-xs text-muted-foreground">
-                Waivers and policy must still be accepted by the volunteer at sign-in.
-              </p>
-              <div className="flex flex-wrap gap-4">
-                <label className="flex items-center gap-2 text-sm">
-                  <Checkbox
-                    checked={form.liabilityWaiverSigned}
-                    onCheckedChange={(value) =>
-                      setForm({ ...form, liabilityWaiverSigned: value === true })
-                    }
-                  />
-                  Liability waiver signed
-                </label>
-                <label className="flex items-center gap-2 text-sm">
-                  <Checkbox
-                    checked={form.policySigned}
-                    onCheckedChange={(value) => setForm({ ...form, policySigned: value === true })}
-                  />
-                  Policy acknowledgement
-                </label>
-                <label className="flex items-center gap-2 text-sm">
-                  <Checkbox
-                    checked={form.tnvrCertificateUploaded}
-                    onCheckedChange={(value) =>
-                      setForm({ ...form, tnvrCertificateUploaded: value === true })
-                    }
-                  />
-                  TNVR certificate uploaded
-                </label>
-              </div>
-            </div>
-
             <div className="space-y-2">
-              <Label htmlFor="add-volunteer-notes">Admin notes</Label>
+              <Label htmlFor="add-volunteer-notes">Admin notes (optional)</Label>
               <Textarea
                 id="add-volunteer-notes"
                 value={form.adminNotes}
@@ -368,18 +303,31 @@ export function VolunteerAddDialog({
               />
             </div>
 
+            <label className="flex items-start gap-2 rounded-md border bg-muted/30 p-3 text-sm">
+              <Checkbox
+                className="mt-0.5"
+                checked={form.setupLogin}
+                onCheckedChange={(value) => setForm({ ...form, setupLogin: value === true })}
+              />
+              <span>
+                <span className="font-medium">Approve and create login account</span>
+                <span className="mt-1 block text-xs text-muted-foreground">
+                  Recommended. Sets them up to sign in immediately. Training can be completed later.
+                </span>
+              </span>
+            </label>
+
             {error && <p className="text-sm text-destructive">{error}</p>}
-            {message && <p className="text-sm text-green-700">{message}</p>}
           </div>
 
-          <div className="flex justify-end gap-2">
+          <DialogFooter className="gap-2 sm:gap-0">
             <Button type="button" variant="outline" onClick={() => handleOpenChange(false)}>
               Cancel
             </Button>
             <Button type="button" onClick={handleSubmit} disabled={saving}>
-              {saving ? "Adding…" : "Add volunteer"}
+              {saving ? "Adding…" : form.setupLogin ? "Add & set up login" : "Add volunteer"}
             </Button>
-          </div>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </>

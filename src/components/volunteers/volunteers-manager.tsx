@@ -14,6 +14,7 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -49,6 +50,7 @@ import {
   type ApplicationViewMode,
 } from "@/lib/volunteers/application-review";
 import { cn, formatDate } from "@/lib/utils";
+import { ROLE_PERMISSIONS, isKnownUserRole } from "@/lib/constants";
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import type {
   VolunteerApplication,
@@ -57,6 +59,7 @@ import type {
   VolunteerRoleRequest,
   Profile,
   RoleDescription,
+  UserRole,
 } from "@/lib/types";
 import { ApplicationCertificatePanel } from "@/components/volunteers/application-certificate-panel";
 import { VolunteerAddDialog } from "@/components/volunteers/volunteer-add-dialog";
@@ -153,6 +156,9 @@ export function VolunteersManager({
   const [editingProfile, setEditingProfile] = useState<Profile | null>(null);
   const [editingApplication, setEditingApplication] = useState<VolunteerApplication | null>(null);
   const [contactEdits, setContactEdits] = useState<Record<string, VolunteerContactFormValues>>({});
+  const [pendingReviewId, setPendingReviewId] = useState<string | null>(null);
+  const [reviewPlatformRole, setReviewPlatformRole] = useState<UserRole | "none">("none");
+  const [reviewTeamId, setReviewTeamId] = useState("none");
 
   const roleCatalog = useMemo(() => roleDescriptions, [roleDescriptions]);
 
@@ -266,6 +272,26 @@ export function VolunteersManager({
     }
   }, [applications, reviewingApplication]);
 
+  useEffect(() => {
+    if (!pendingReviewId) return;
+    const app = applications.find((entry) => entry.id === pendingReviewId);
+    if (app) {
+      setReviewingApplication(app);
+      setPendingReviewId(null);
+    }
+  }, [applications, pendingReviewId]);
+
+  useEffect(() => {
+    const profile = reviewingContext?.linkedProfile;
+    if (!profile) {
+      setReviewPlatformRole("none");
+      setReviewTeamId("none");
+      return;
+    }
+    setReviewPlatformRole(isKnownUserRole(profile.role) ? profile.role : "none");
+    setReviewTeamId(profile.team_id ?? "none");
+  }, [reviewingContext?.linkedProfile, reviewingApplication?.id]);
+
   const attentionCount = useMemo(
     () =>
       countApplicationsNeedingAttention(applications, profilesByEmail, roleRequests, roleCatalog),
@@ -324,15 +350,14 @@ export function VolunteersManager({
     setEditingApplication(null);
   }
 
-  function openVolunteerEditor(application: VolunteerApplication, context: ApplicationReviewContext) {
-    if (context.linkedProfile) {
-      openProfileEditor(application, context.linkedProfile);
-      return;
-    }
+  function openVolunteerEditor(application: VolunteerApplication) {
     setReviewingApplication(application);
   }
 
-  async function provisionLoginAccount(app: VolunteerApplication, linkedProfile?: Profile) {
+  async function provisionLoginAccount(
+    app: VolunteerApplication,
+    linkedProfile?: Profile
+  ): Promise<boolean> {
     clearActionError();
     setActingId(app.id);
     const contact = contactForApp(app, linkedProfile);
@@ -350,7 +375,7 @@ export function VolunteersManager({
     setActingId(null);
     if (!response.ok) {
       showActionError(getApiErrorMessage(result, "Unable to create volunteer login account"));
-      return;
+      return false;
     }
     if (result?.warning) {
       showActionError(result.warning);
@@ -358,6 +383,100 @@ export function VolunteersManager({
       clearActionError();
     }
     router.refresh();
+    return true;
+  }
+
+  async function saveVolunteerChanges(
+    app: VolunteerApplication,
+    context: ApplicationReviewContext
+  ) {
+    const linkedProfile = context.linkedProfile;
+    const contact = contactForApp(app, linkedProfile);
+    const emailError = getEmailValidationError(contact.email);
+    if (emailError) {
+      showActionError(emailError);
+      return;
+    }
+
+    clearActionError();
+    setSavingEmailId(app.id);
+
+    const payload: Record<string, unknown> = {
+      applicationId: app.id,
+      fullName: contact.full_name.trim(),
+      email: contact.email.trim(),
+      phone: contact.phone.trim() || null,
+      birthday: contact.birthday || null,
+      homeStreet: contact.home_street.trim() || null,
+      homeCity: contact.home_city.trim() || null,
+      homeState: contact.home_state.trim() || null,
+      homeZip: contact.home_zip.trim() || null,
+      homeCounty: contact.home_county.trim() || null,
+    };
+
+    const notes = notesForApp(app);
+    if (notes !== (app.admin_notes ?? "")) {
+      payload.adminNotes = notes;
+    }
+
+    const isApprovedWithProfile = app.status === "approved" && Boolean(linkedProfile);
+    if (!isApprovedWithProfile) {
+      payload.roles = approvalRolesForApp(app);
+    }
+
+    const response = await fetch("/api/volunteers/update-details", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const result = await response.json().catch(() => null);
+    if (!response.ok) {
+      setSavingEmailId(null);
+      showActionError(getApiErrorMessage(result, "Unable to save volunteer details"));
+      return;
+    }
+
+    if (linkedProfile) {
+      const profilePayload: Record<string, unknown> = { userId: linkedProfile.id };
+      const nextPlatformRole = reviewPlatformRole === "none" ? null : reviewPlatformRole;
+      const nextTeamId = reviewTeamId === "none" ? null : reviewTeamId;
+
+      if (nextPlatformRole && nextPlatformRole !== linkedProfile.role) {
+        profilePayload.role = nextPlatformRole;
+      }
+      if (nextTeamId !== linkedProfile.team_id) {
+        profilePayload.teamId = nextTeamId;
+      }
+
+      if (Object.keys(profilePayload).length > 1) {
+        const profileResponse = await fetch("/api/admin/profiles/update", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(profilePayload),
+        });
+        const profileResult = await profileResponse.json().catch(() => null);
+        if (!profileResponse.ok) {
+          setSavingEmailId(null);
+          showActionError(getApiErrorMessage(profileResult, "Unable to save profile settings"));
+          return;
+        }
+      }
+    }
+
+    setContactEdits((current) => {
+      const next = { ...current };
+      delete next[app.id];
+      return next;
+    });
+    setSavingEmailId(null);
+    router.refresh();
+
+    if (app.status === "approved" && !linkedProfile) {
+      await provisionLoginAccount(app);
+      return;
+    }
+
+    clearActionError();
   }
 
   async function handleAction(
@@ -582,47 +701,6 @@ export function VolunteersManager({
     router.refresh();
   }
 
-  async function saveContactDetails(app: VolunteerApplication, linkedProfile?: Profile) {
-    const contact = contactForApp(app, linkedProfile);
-    clearActionError();
-    setSavingEmailId(app.id);
-
-    const payload: Record<string, unknown> = {
-      applicationId: app.id,
-      fullName: contact.full_name.trim(),
-      email: contact.email.trim(),
-      phone: contact.phone.trim() || null,
-      birthday: contact.birthday || null,
-      homeStreet: contact.home_street.trim() || null,
-      homeCity: contact.home_city.trim() || null,
-      homeState: contact.home_state.trim() || null,
-      homeZip: contact.home_zip.trim() || null,
-      homeCounty: contact.home_county.trim() || null,
-    };
-
-    if (!linkedProfile || app.status !== "approved") {
-      payload.roles = approvalRolesForApp(app);
-    }
-
-    const response = await fetch("/api/volunteers/update-details", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    const result = await response.json().catch(() => null);
-    setSavingEmailId(null);
-    if (!response.ok) {
-      showActionError(getApiErrorMessage(result, "Unable to save volunteer details"));
-      return;
-    }
-
-    setContactEdits((current) => {
-      const next = { ...current };
-      delete next[app.id];
-      return next;
-    });
-    router.refresh();
-  }
 
   async function saveName(applicationId: string, fullName: string) {
     clearActionError();
@@ -961,7 +1039,7 @@ export function VolunteersManager({
           <div className="space-y-1">
             <p className="text-sm font-medium">Contact & address</p>
             <p className="text-xs text-muted-foreground">
-              Edit volunteer details directly from this review panel.
+              Update contact info and address here. Use Save changes at the bottom when done.
             </p>
           </div>
           <VolunteerContactFieldsForm
@@ -983,15 +1061,53 @@ export function VolunteersManager({
               </span>
             </p>
           )}
-          <Button
-            size="sm"
-            variant="outline"
-            disabled={savingEmailId === app.id || emailInvalid}
-            onClick={() => saveContactDetails(app, linkedProfile)}
-          >
-            {savingEmailId === app.id ? "Saving..." : "Save contact details"}
-          </Button>
         </div>
+
+        {linkedProfile && (
+          <div className="grid gap-4 sm:grid-cols-2 rounded-md border p-3">
+            <div className="space-y-2">
+              <Label>Platform role</Label>
+              <Select
+                value={reviewPlatformRole}
+                onValueChange={(value) => setReviewPlatformRole(value as UserRole | "none")}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Platform role" />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(ROLE_PERMISSIONS).map(([role, { label }]) => (
+                    <SelectItem key={role} value={role}>
+                      {label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Trap team</Label>
+              <Select
+                value={reviewTeamId}
+                onValueChange={setReviewTeamId}
+                disabled={
+                  reviewPlatformRole === "none" ||
+                  !teamEligibleProfiles.some((entry) => entry.profile.id === linkedProfile.id)
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Trap team" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">No team</SelectItem>
+                  {sortTrapTeams(teams).map((team) => (
+                    <SelectItem key={team.id} value={team.id}>
+                      {team.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        )}
 
         {app.admin_notes && (
           <div className="rounded-md border bg-muted/40 p-3 text-sm">
@@ -1254,14 +1370,9 @@ export function VolunteersManager({
             )}
 
             {!canReview && (
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={savingEmailId === app.id}
-                onClick={() => saveContactDetails(app, linkedProfile)}
-              >
-                {savingEmailId === app.id ? "Saving..." : "Save roles"}
-              </Button>
+              <p className="text-xs text-muted-foreground">
+                Role changes are saved with Save changes at the bottom.
+              </p>
             )}
           </div>
         )}
@@ -1315,38 +1426,10 @@ export function VolunteersManager({
 
         {app.status === "approved" && !linkedProfile && (
           <div className="rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950">
-            <p className="font-medium">No login account linked</p>
+            <p className="font-medium">Login account not set up yet</p>
             <p className="mt-1">
-              This volunteer is marked approved on their application but does not have a platform
-              login profile yet (common for CSV imports). Create their account to enable full profile
-              editing and sign-in.
+              Save changes below to create their platform login automatically.
             </p>
-            <Button
-              size="sm"
-              className="mt-3"
-              variant="outline"
-              disabled={actingId === app.id}
-              onClick={() => provisionLoginAccount(app, linkedProfile)}
-            >
-              {actingId === app.id ? "Working…" : "Create login account"}
-            </Button>
-          </div>
-        )}
-
-        {linkedProfile && (
-          <div className="rounded-md border p-3 space-y-2">
-            <p className="text-sm font-medium">Volunteer profile</p>
-            <p className="text-sm text-muted-foreground">
-              Edit contact info, birthday, volunteer roles, platform role, and trap team.
-            </p>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => openProfileEditor(app, linkedProfile)}
-            >
-              <Pencil className="h-4 w-4 mr-1" />
-              Edit volunteer profile
-            </Button>
           </div>
         )}
 
@@ -1568,7 +1651,7 @@ export function VolunteersManager({
                 size="icon"
                 variant="ghost"
                 className="h-8 w-8"
-                onClick={() => openVolunteerEditor(app, context)}
+                onClick={() => openVolunteerEditor(app)}
                 aria-label={`Edit ${app.full_name}`}
                 title={
                   context.linkedProfile
@@ -1637,7 +1720,11 @@ export function VolunteersManager({
         </div>
 
         <div className="flex items-center gap-2">
-          <VolunteerAddDialog roleDescriptions={roleCatalog} triggerVariant="icon" />
+          <VolunteerAddDialog
+            roleDescriptions={roleCatalog}
+            triggerVariant="icon"
+            onCreated={(applicationId) => setPendingReviewId(applicationId)}
+          />
           <div className="flex items-center gap-1 w-fit rounded-lg border bg-background p-1">
           <Button
             type="button"
@@ -1732,7 +1819,7 @@ export function VolunteersManager({
                         size="icon"
                         variant="outline"
                         className="h-8 w-8"
-                        onClick={() => openVolunteerEditor(app, context)}
+                        onClick={() => openVolunteerEditor(app)}
                         aria-label={`Edit ${app.full_name}`}
                         title={
                           context.linkedProfile
@@ -1809,6 +1896,29 @@ export function VolunteersManager({
                 </DialogDescription>
               </DialogHeader>
               {renderApplicationDetails(reviewingApplication, reviewingContext)}
+              <DialogFooter className="gap-2 border-t pt-4 sm:justify-between">
+                <p className="text-xs text-muted-foreground text-left mr-auto">
+                  {reviewingApplication.status === "approved" && !reviewingContext.linkedProfile
+                    ? "Save will also create their login account."
+                    : "Training checkboxes save immediately when toggled."}
+                </p>
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setReviewingApplication(null)}
+                  >
+                    Close
+                  </Button>
+                  <Button
+                    type="button"
+                    disabled={savingEmailId === reviewingApplication.id}
+                    onClick={() => saveVolunteerChanges(reviewingApplication, reviewingContext)}
+                  >
+                    {savingEmailId === reviewingApplication.id ? "Saving…" : "Save changes"}
+                  </Button>
+                </div>
+              </DialogFooter>
             </>
           )}
         </DialogContent>
@@ -1827,6 +1937,7 @@ export function VolunteersManager({
             : false
         }
         onError={setActionError}
+        relaxContactRequirements={Boolean(editingApplication?.imported_via_csv)}
       />
     </div>
   );
