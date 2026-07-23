@@ -105,6 +105,14 @@ export async function ensureVolunteerAuthUser(
       const existingUserId = await findAuthUserIdByEmail(service, email);
       if (!existingUserId) {
         const message = createResult.error.message?.trim();
+        if (message && /jwt|kid|es256|signature/i.test(message)) {
+          return {
+            error:
+              "Could not create volunteer login: Supabase Auth rejected the server API key. " +
+              "In Supabase → Settings → API Keys, copy the current service_role key (or create an sb_secret_... key), " +
+              "set SUPABASE_SERVICE_ROLE_KEY or SUPABASE_SECRET_KEY in Vercel, remove any wrong SUPABASE_SECRET_KEY value, and redeploy.",
+          };
+        }
         return {
           error: message
             ? `Could not create volunteer login: ${message}`
