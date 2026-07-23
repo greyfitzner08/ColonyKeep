@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-interface AddressParts {
+export interface AddressParts {
   address: string;
   city: string;
   state: string;
@@ -19,6 +19,9 @@ interface AddressAutocompleteProps {
   onAddressChange?: (address: string) => void;
   defaultValue?: string;
   label?: string;
+  required?: boolean;
+  id?: string;
+  placeholder?: string;
 }
 
 interface Prediction {
@@ -26,20 +29,38 @@ interface Prediction {
   place_id: string;
 }
 
+/** Build a single-line address when the form only stores one address field. */
+export function formatAddressPartsLine(
+  parts: Pick<AddressParts, "address" | "city" | "state" | "zip">
+): string {
+  const cityState = [parts.city, parts.state].filter(Boolean).join(", ");
+  const cityStateZip = [cityState, parts.zip].filter(Boolean).join(" ");
+  return [parts.address, cityStateZip].filter(Boolean).join(", ");
+}
+
 export function AddressAutocomplete({
   onSelect,
   onAddressChange,
   defaultValue = "",
-  label = "Colony Address",
+  label = "Address",
+  required = false,
+  id,
+  placeholder = "Start typing an address...",
 }: AddressAutocompleteProps) {
   const [query, setQuery] = useState(defaultValue);
   const [predictions, setPredictions] = useState<Prediction[]>([]);
   const [open, setOpen] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const lastDefaultRef = useRef(defaultValue);
 
   useEffect(() => {
-    setQuery(defaultValue);
-  }, [defaultValue]);
+    // Only sync from parent when the default changes externally (e.g. dialog open / place select),
+    // not on every keystroke echo from onAddressChange.
+    if (defaultValue !== lastDefaultRef.current && defaultValue !== query) {
+      setQuery(defaultValue);
+    }
+    lastDefaultRef.current = defaultValue;
+  }, [defaultValue, query]);
 
   useEffect(() => {
     if (query.length < 3) {
@@ -77,8 +98,9 @@ export function AddressAutocomplete({
 
   return (
     <div className="relative space-y-2">
-      <Label>{label}</Label>
+      <Label htmlFor={id}>{label}</Label>
       <Input
+        id={id}
         value={query}
         onChange={(e) => {
           const value = e.target.value;
@@ -86,9 +108,13 @@ export function AddressAutocomplete({
           onAddressChange?.(value);
         }}
         onFocus={() => predictions.length > 0 && setOpen(true)}
-        placeholder="Start typing an address..."
+        onBlur={() => {
+          // Delay so suggestion click can register
+          window.setTimeout(() => setOpen(false), 150);
+        }}
+        placeholder={placeholder}
         autoComplete="off"
-        required
+        required={required}
       />
       {open && predictions.length > 0 && (
         <ul className="absolute z-50 mt-1 w-full rounded-md border bg-popover shadow-lg">
@@ -97,6 +123,7 @@ export function AddressAutocomplete({
               <button
                 type="button"
                 className="w-full px-3 py-2 text-left text-sm hover:bg-accent"
+                onMouseDown={(event) => event.preventDefault()}
                 onClick={() => handleSelect(p)}
               >
                 {p.description}

@@ -12,6 +12,10 @@ import { ClinicPackageServicesEditor } from "@/components/clinics/clinic-package
 import { ServiceCatalogEditor } from "@/components/clinics/service-catalog-editor";
 import { ClinicPackagesDisplay } from "@/components/clinics/clinic-packages-display";
 import {
+  AddressAutocomplete,
+  formatAddressPartsLine,
+} from "@/components/forms/address-autocomplete";
+import {
   defaultIncludedCatalog,
   hasVisibleClinicPackages,
   normalizeServiceCatalog,
@@ -141,7 +145,17 @@ export function ClinicsManager({ clinics: initial }: ClinicsManagerProps) {
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2"><Label>Name</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
-            <div className="space-y-2"><Label>Address</Label><Input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} /></div>
+            <AddressAutocomplete
+              label="Address"
+              defaultValue={form.address}
+              onAddressChange={(address) => setForm({ ...form, address })}
+              onSelect={(parts) =>
+                setForm({
+                  ...form,
+                  address: formatAddressPartsLine(parts),
+                })
+              }
+            />
             <div className="space-y-2"><Label>Phone</Label><Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></div>
             <div className="space-y-2">
               <Label>Operating Days</Label>

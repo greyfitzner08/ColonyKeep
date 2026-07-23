@@ -2,7 +2,9 @@
 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { AddressAutocomplete } from "@/components/forms/address-autocomplete";
 import { CountySelect } from "@/components/forms/county-select";
+import { resolveCountyFromAutocomplete } from "@/lib/counties";
 import type { HelpRequest } from "@/lib/types";
 
 interface CaseFeederFieldsProps {
@@ -48,12 +50,23 @@ export function CaseFeederFields({
         />
       </div>
       <div className="space-y-2 sm:col-span-2">
-        <Label htmlFor={`${idPrefix}-street`}>Street address</Label>
-        <Input
+        <AddressAutocomplete
           id={`${idPrefix}-street`}
-          value={hr.feeder_street ?? ""}
-          onChange={(e) => onChange({ ...hr, feeder_street: e.target.value || null })}
-          placeholder="123 Main St"
+          label="Street address"
+          defaultValue={hr.feeder_street ?? ""}
+          onAddressChange={(address) => onChange({ ...hr, feeder_street: address || null })}
+          onSelect={(parts) =>
+            onChange({
+              ...hr,
+              feeder_street: parts.address || null,
+              feeder_city: parts.city || null,
+              feeder_state: parts.state || null,
+              feeder_zip: parts.zip || null,
+              feeder_county: resolveCountyFromAutocomplete(parts.county, parts.state) || null,
+              feeder_lat: parts.lat ?? hr.feeder_lat,
+              feeder_lng: parts.lng ?? hr.feeder_lng,
+            })
+          }
         />
       </div>
       <div className="space-y-2">

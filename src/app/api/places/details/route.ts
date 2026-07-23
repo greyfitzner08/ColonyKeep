@@ -36,7 +36,10 @@ export async function GET(request: NextRequest) {
   const streetNumber = getComponent(components, "street_number");
   const route = getComponent(components, "route");
   const address = [streetNumber, route].filter(Boolean).join(" ") || result.formatted_address;
-  const state = getComponent(components, "administrative_area_level_1");
+  const stateComponent = components.find((c: { types: string[] }) =>
+    c.types.includes("administrative_area_level_1")
+  );
+  const state = stateComponent?.short_name || stateComponent?.long_name || "";
   const rawCounty = getComponent(components, "administrative_area_level_2");
 
   return NextResponse.json({

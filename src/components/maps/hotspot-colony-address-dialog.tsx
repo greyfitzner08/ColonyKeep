@@ -137,6 +137,7 @@ export function HotspotColonyAddressDialog({
           <AddressAutocomplete
             label="Colony address"
             defaultValue={form.colony_address}
+            required
             onAddressChange={(address) => update("colony_address", address)}
             onSelect={(parts) => {
               update("colony_address", parts.address);

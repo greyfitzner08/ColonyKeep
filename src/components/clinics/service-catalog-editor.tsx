@@ -20,6 +20,10 @@ interface ServiceCatalogEditorProps {
   packageMode?: boolean;
 }
 
+function isPresetIncludedName(name: string): boolean {
+  return (DEFAULT_INCLUDED_SERVICE_NAMES as readonly string[]).includes(name);
+}
+
 export function ServiceCatalogEditor({
   value,
   onChange,
@@ -27,6 +31,7 @@ export function ServiceCatalogEditor({
 }: ServiceCatalogEditorProps) {
   const included = getIncludedOptions(value);
   const addons = getAddonOptions(value);
+  const customIncluded = included.filter((item) => !isPresetIncludedName(item.name));
 
   function setIncludedNames(names: string[]) {
     const addonItems = getAddonOptions(value);
@@ -64,19 +69,27 @@ export function ServiceCatalogEditor({
     onChange([...included, ...addons.filter((_, i) => i !== index)]);
   }
 
-  function updateCustomIncluded(currentName: string, name: string) {
-    const includedItems = included.map((item) =>
-      item.name === currentName ? { ...item, name } : item
-    );
+  function updateCustomIncludedAt(customIndex: number, name: string) {
+    let customIdx = 0;
+    const includedItems = included.map((item) => {
+      if (isPresetIncludedName(item.name)) return item;
+      const next = customIdx === customIndex ? { ...item, name } : item;
+      customIdx += 1;
+      return next;
+    });
     onChange([...includedItems, ...addons]);
   }
 
-  function removeCustomIncluded(name: string) {
-    onChange([...included.filter((item) => item.name !== name), ...addons]);
+  function removeCustomIncludedAt(customIndex: number) {
+    let customIdx = 0;
+    const nextIncluded = included.filter((item) => {
+      if (isPresetIncludedName(item.name)) return true;
+      const keep = customIdx !== customIndex;
+      customIdx += 1;
+      return keep;
+    });
+    onChange([...nextIncluded, ...addons]);
   }
-
-  const presetNames = new Set(DEFAULT_INCLUDED_SERVICE_NAMES);
-  const customIncluded = included.filter((item) => !presetNames.has(item.name as typeof DEFAULT_INCLUDED_SERVICE_NAMES[number]));
 
   return (
     <div className="space-y-6">
@@ -102,14 +115,19 @@ export function ServiceCatalogEditor({
         {customIncluded.length > 0 && (
           <div className="space-y-2">
             <Label className="text-sm">Custom included items</Label>
-            {customIncluded.map((item) => (
-              <div key={item.name || "new"} className="flex gap-2">
+            {customIncluded.map((item, index) => (
+              <div key={`custom-included-${index}`} className="flex gap-2">
                 <Input
                   value={item.name}
                   placeholder="Custom included service"
-                  onChange={(e) => updateCustomIncluded(item.name, e.target.value)}
+                  onChange={(e) => updateCustomIncludedAt(index, e.target.value)}
                 />
-                <Button type="button" variant="ghost" size="icon" onClick={() => removeCustomIncluded(item.name)}>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => removeCustomIncludedAt(index)}
+                >
                   <Trash2 className="h-4 w-4" />
                 </Button>
               </div>
@@ -150,7 +168,7 @@ export function ServiceCatalogEditor({
           <p className="text-sm text-muted-foreground">No add-on services yet (e.g. microchip, combo test).</p>
         ) : (
           addons.map((addon, index) => (
-            <div key={index} className="flex gap-2 items-center">
+            <div key={`addon-${index}`} className="flex gap-2 items-center">
               <Input
                 placeholder="Service name"
                 value={addon.name}

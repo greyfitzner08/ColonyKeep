@@ -400,6 +400,7 @@ export function ColonyIntakeForm() {
                 <AddressAutocomplete
                   label="Your home street address"
                   defaultValue={form.contact_street}
+                  required
                   onAddressChange={(address) => update("contact_street", address)}
                   onSelect={(parts) => {
                     update("contact_street", parts.address);
@@ -520,14 +521,22 @@ export function ColonyIntakeForm() {
                           Please complete your home address on the previous step, or uncheck the box
                           above to enter a separate colony location.
                         </p>
-                        <div className="space-y-2">
-                          <Label>Your home street address</Label>
-                          <Input
-                            value={form.contact_street}
-                            onChange={(e) => update("contact_street", e.target.value)}
-                            required
-                          />
-                        </div>
+                        <AddressAutocomplete
+                          label="Your home street address"
+                          defaultValue={form.contact_street}
+                          required
+                          onAddressChange={(address) => update("contact_street", address)}
+                          onSelect={(parts) => {
+                            update("contact_street", parts.address);
+                            update("contact_city", parts.city);
+                            update("contact_state", parts.state);
+                            update("contact_zip", parts.zip);
+                            update(
+                              "contact_county",
+                              resolveCountyFromAutocomplete(parts.county, parts.state)
+                            );
+                          }}
+                        />
                         <div className="grid grid-cols-2 gap-4">
                           <div className="space-y-2">
                             <Label>Your city</Label>
@@ -571,6 +580,7 @@ export function ColonyIntakeForm() {
                     <AddressAutocomplete
                       label="Colony address"
                       defaultValue={form.colony_address}
+                      required
                       onAddressChange={(address) => update("colony_address", address)}
                       onSelect={(parts) => {
                         update("colony_address", parts.address);

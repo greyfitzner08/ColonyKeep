@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Download, Eye, Pencil, Plus, Search, Trash2 } from "lucide-react";
 import { CommunityPartnerImporter } from "@/components/community-partners/partner-importer";
 import { PartnerContactsEditor } from "@/components/community-partners/partner-contacts-editor";
+import { AddressAutocomplete } from "@/components/forms/address-autocomplete";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -619,13 +620,20 @@ export function CommunityPartnersManager({ partners: initial }: CommunityPartner
                 placeholder="https://"
               />
             </div>
-            <div className="space-y-2">
-              <Label>Address</Label>
-              <Input
-                value={form.address}
-                onChange={(event) => setForm({ ...form, address: event.target.value })}
-              />
-            </div>
+            <AddressAutocomplete
+              label="Address"
+              defaultValue={form.address}
+              onAddressChange={(address) => setForm({ ...form, address })}
+              onSelect={(parts) =>
+                setForm({
+                  ...form,
+                  address: parts.address,
+                  city: parts.city,
+                  state: parts.state,
+                  zip: parts.zip,
+                })
+              }
+            />
             <div className="grid gap-4 sm:grid-cols-3">
               <div className="space-y-2">
                 <Label>City</Label>

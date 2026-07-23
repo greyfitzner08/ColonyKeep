@@ -103,6 +103,7 @@ export function VolunteerContactFieldsForm({
         <AddressAutocomplete
           label="Home street address"
           defaultValue={values.home_street}
+          required
           onAddressChange={(address) => update("home_street", address)}
           onSelect={(parts) =>
             onChange({
