@@ -46,6 +46,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: loadError?.message ?? "Application not found" }, { status: 404 });
   }
 
+  const email = application.email.toLowerCase();
   const { error } = await service
     .from("volunteer_applications")
     .update({
@@ -66,8 +67,17 @@ export async function POST(request: NextRequest) {
       tnvr_certificate_uploaded: true,
       tnvr_certificate_url: certificateUrl,
     })
-    .eq("email", application.email.toLowerCase())
+    .eq("email", email)
     .eq("status", "pending");
+
+  // Keep linked profile in sync when the volunteer already has a login.
+  await service
+    .from("profiles")
+    .update({
+      tnvr_certificate_uploaded: true,
+      tnvr_certificate_url: certificateUrl,
+    })
+    .eq("email", email);
 
   return NextResponse.json({ success: true, certificate_url: certificateUrl });
 }

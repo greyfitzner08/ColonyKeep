@@ -1315,12 +1315,13 @@ export function VolunteersManager({
               applicationId={app.id}
               certificateUrl={certificateUrl}
               certificateUploaded={certificateUploaded}
-              onUpdated={() => {
+              onUpdated={(uploadedUrl) => {
                 setApplicationPatches((current) => ({
                   ...current,
                   [app.id]: {
                     ...current[app.id],
                     tnvr_certificate_uploaded: true,
+                    tnvr_certificate_url: uploadedUrl,
                   },
                 }));
               }}
@@ -1720,7 +1721,7 @@ export function VolunteersManager({
           <VolunteerAddDialog
             roleDescriptions={roleCatalog}
             triggerVariant="icon"
-            onCreated={(applicationId) => setPendingReviewId(applicationId)}
+            onNeedsReview={(applicationId) => setPendingReviewId(applicationId)}
           />
           <div className="flex items-center gap-1 w-fit rounded-lg border bg-background p-1">
           <Button

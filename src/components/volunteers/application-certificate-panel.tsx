@@ -10,7 +10,7 @@ interface ApplicationCertificatePanelProps {
   applicationId: string;
   certificateUrl: string | null;
   certificateUploaded: boolean;
-  onUpdated: () => void;
+  onUpdated: (certificateUrl: string) => void;
 }
 
 export function ApplicationCertificatePanel({
@@ -57,7 +57,7 @@ export function ApplicationCertificatePanel({
     }
 
     event.target.value = "";
-    onUpdated();
+    onUpdated(path);
   }
 
   async function openCertificate() {

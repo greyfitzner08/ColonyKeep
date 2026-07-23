@@ -19,14 +19,17 @@ import { getApiErrorMessage } from "@/lib/api/errors";
 import { getEmailValidationError } from "@/lib/email-utils";
 import { cn } from "@/lib/utils";
 import { resolveVolunteerRoleCatalog, volunteerRoleLabel } from "@/lib/volunteers/role-catalog";
-import type { RoleDescription, VolunteerApplication, VolunteerRole } from "@/lib/types";
+import { rolesNeedingTnvrCert } from "@/lib/volunteers/role-requirements";
+import type { RoleDescription, VolunteerRole } from "@/lib/types";
+import { createClient } from "@/lib/supabase/client";
 import { Plus, ChevronDown } from "lucide-react";
 
 interface VolunteerAddDialogProps {
   roleDescriptions: RoleDescription[];
   disabledRoleIds?: VolunteerRole[];
   triggerVariant?: "default" | "icon";
-  onCreated?: (applicationId: string) => void;
+  /** Called when the volunteer was created but still needs Review (e.g. login setup failed). */
+  onNeedsReview?: (applicationId: string) => void;
 }
 
 const EMPTY_FORM = {
@@ -42,11 +45,12 @@ export function VolunteerAddDialog({
   roleDescriptions,
   disabledRoleIds = [],
   triggerVariant = "default",
-  onCreated,
+  onNeedsReview,
 }: VolunteerAddDialogProps) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState(EMPTY_FORM);
+  const [certificateFile, setCertificateFile] = useState<File | null>(null);
   const [expandedRoles, setExpandedRoles] = useState<Set<VolunteerRole>>(() => new Set());
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -56,10 +60,12 @@ export function VolunteerAddDialog({
     [roleDescriptions, disabledRoleIds]
   );
 
+  const needsCertificate = rolesNeedingTnvrCert(form.roles);
   const emailInvalid = Boolean(form.email.trim() && getEmailValidationError(form.email));
 
   function resetForm() {
     setForm(EMPTY_FORM);
+    setCertificateFile(null);
     setExpandedRoles(new Set());
     setError(null);
   }
@@ -70,12 +76,12 @@ export function VolunteerAddDialog({
   }
 
   function toggleRole(roleId: VolunteerRole) {
-    setForm((current) => ({
-      ...current,
-      roles: current.roles.includes(roleId)
+    setForm((current) => {
+      const roles = current.roles.includes(roleId)
         ? current.roles.filter((role) => role !== roleId)
-        : [...current.roles, roleId],
-    }));
+        : [...current.roles, roleId];
+      return { ...current, roles };
+    });
   }
 
   function toggleRoleDescription(roleId: VolunteerRole) {
@@ -88,6 +94,29 @@ export function VolunteerAddDialog({
       }
       return next;
     });
+  }
+
+  async function uploadCertificate(applicationId: string, file: File): Promise<string | null> {
+    const supabase = createClient();
+    const path = `applications/${applicationId}/${Date.now()}-${file.name.replace(/\s+/g, "-")}`;
+    const { error: uploadError } = await supabase.storage.from("certificates").upload(path, file);
+
+    if (uploadError) {
+      throw new Error(uploadError.message);
+    }
+
+    const response = await fetch("/api/volunteers/application-certificate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ applicationId, certificate_url: path }),
+    });
+    const result = await response.json().catch(() => null);
+
+    if (!response.ok) {
+      throw new Error(getApiErrorMessage(result, "Certificate uploaded but could not be saved"));
+    }
+
+    return path;
   }
 
   async function handleSubmit() {
@@ -129,8 +158,29 @@ export function VolunteerAddDialog({
     }
 
     const applicationId = result.application?.id as string | undefined;
+    if (!applicationId) {
+      setSaving(false);
+      setError("Volunteer was created but no application id was returned.");
+      return;
+    }
 
-    if (form.setupLogin && applicationId) {
+    if (certificateFile && needsCertificate) {
+      try {
+        await uploadCertificate(applicationId, certificateFile);
+      } catch (uploadErr) {
+        setSaving(false);
+        setError(
+          uploadErr instanceof Error
+            ? `Volunteer was added, but certificate upload failed: ${uploadErr.message}`
+            : "Volunteer was added, but certificate upload failed. Open them in Review to upload."
+        );
+        router.refresh();
+        onNeedsReview?.(applicationId);
+        return;
+      }
+    }
+
+    if (form.setupLogin) {
       const approveResponse = await fetch("/api/volunteers/approve", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -150,7 +200,7 @@ export function VolunteerAddDialog({
           )
         );
         router.refresh();
-        if (applicationId) onCreated?.(applicationId);
+        onNeedsReview?.(applicationId);
         return;
       }
     }
@@ -158,7 +208,6 @@ export function VolunteerAddDialog({
     setSaving(false);
     handleOpenChange(false);
     router.refresh();
-    if (applicationId) onCreated?.(applicationId);
   }
 
   return (
@@ -187,8 +236,8 @@ export function VolunteerAddDialog({
           <DialogHeader>
             <DialogTitle>Add volunteer</DialogTitle>
             <DialogDescription>
-              Enter the basics now. Address, birthday, and training can be completed from Review
-              or when the volunteer logs in.
+              Enter contact details, roles, and an optional TNVR certificate. Address and remaining
+              training can be completed later from Review.
             </DialogDescription>
           </DialogHeader>
 
@@ -280,6 +329,24 @@ export function VolunteerAddDialog({
                 })}
               </div>
             </div>
+
+            {needsCertificate && (
+              <div className="space-y-2 rounded-md border border-dashed p-3">
+                <Label htmlFor="add-volunteer-certificate">TNVR certificate (optional)</Label>
+                <p className="text-xs text-muted-foreground">
+                  Recommended for trapping-related roles. You can also upload it later from Review.
+                </p>
+                <Input
+                  id="add-volunteer-certificate"
+                  type="file"
+                  accept=".pdf,.jpg,.jpeg,.png"
+                  onChange={(event) => setCertificateFile(event.target.files?.[0] ?? null)}
+                />
+                {certificateFile && (
+                  <p className="text-xs text-muted-foreground">Selected: {certificateFile.name}</p>
+                )}
+              </div>
+            )}
 
             <div className="space-y-2">
               <Label htmlFor="add-volunteer-notes">Admin notes (optional)</Label>
