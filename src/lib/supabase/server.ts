@@ -53,14 +53,13 @@ export async function createServiceClient() {
     );
   }
 
-  // Always authenticate as the secret key. Never fall back to a user session JWT —
-  // that causes Auth Admin errors like "unrecognized JWT kid <nil> for algorithm ES256".
+  // Plain createClient with the secret key (no cookies / no accessToken).
+  // accessToken disables supabase.auth.admin, which we need for volunteer login setup.
   return createClient(supabaseUrl, secretKey, {
     auth: {
       autoRefreshToken: false,
       persistSession: false,
       detectSessionInUrl: false,
     },
-    accessToken: async () => secretKey,
   });
 }

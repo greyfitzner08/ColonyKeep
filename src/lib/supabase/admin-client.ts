@@ -23,12 +23,12 @@ export function createAdminClient() {
     );
   }
 
+  // Do not set accessToken — that option disables supabase.auth.admin.
   return createClient(supabaseUrl, secretKey, {
     auth: {
       autoRefreshToken: false,
       persistSession: false,
       detectSessionInUrl: false,
     },
-    accessToken: async () => secretKey,
   });
 }
