@@ -77,6 +77,7 @@ import {
   KeyRound,
   LayoutGrid,
   Table2,
+  Search,
 } from "lucide-react";
 
 interface VolunteersManagerProps {
@@ -146,6 +147,7 @@ export function VolunteersManager({
   const [filter, setFilter] = useState<ApplicationStatusFilter>("needs_attention");
   const [viewMode, setViewMode] = useState<ApplicationViewMode>("cards");
   const [interestFilter, setInterestFilter] = useState("all");
+  const [searchQuery, setSearchQuery] = useState("");
   const [approvalRoleEdits, setApprovalRoleEdits] = useState<Record<string, VolunteerRole[]>>({});
   const [additionalRoleEdits, setAdditionalRoleEdits] = useState<Record<string, VolunteerRole[]>>({});
   const [actionError, setActionError] = useState<string | null>(null);
@@ -331,6 +333,23 @@ export function VolunteersManager({
       });
     }
 
+    const query = searchQuery.trim().toLowerCase();
+    if (query) {
+      results = results.filter((application) =>
+        [
+          application.full_name,
+          application.email,
+          application.phone,
+          application.status,
+          ...(application.roles_requested ?? []),
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase()
+          .includes(query)
+      );
+    }
+
     return [...results].sort((a, b) => {
       const priorityDiff =
         attentionPriority(a, profilesByEmail, mergedRoleRequests, roleCatalog) -
@@ -338,7 +357,15 @@ export function VolunteersManager({
       if (priorityDiff !== 0) return priorityDiff;
       return a.full_name.localeCompare(b.full_name, undefined, { sensitivity: "base" });
     });
-  }, [mergedApplications, filter, interestFilter, profilesByEmail, mergedRoleRequests, roleCatalog]);
+  }, [
+    mergedApplications,
+    filter,
+    interestFilter,
+    searchQuery,
+    profilesByEmail,
+    mergedRoleRequests,
+    roleCatalog,
+  ]);
 
   function notesForApp(app: VolunteerApplication) {
     return actionNotes[app.id] ?? app.admin_notes ?? "";
@@ -1649,6 +1676,17 @@ export function VolunteersManager({
 
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex flex-wrap gap-3">
+          <div className="relative w-full sm:w-[260px]">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              placeholder="Search applicants…"
+              className="pl-9"
+              aria-label="Search applicants"
+            />
+          </div>
+
           <Select value={filter} onValueChange={(value) => setFilter(value as ApplicationStatusFilter)}>
             <SelectTrigger className="w-[240px]"><SelectValue placeholder="Status" /></SelectTrigger>
             <SelectContent>
@@ -1711,9 +1749,11 @@ export function VolunteersManager({
 
       {filtered.length === 0 && (
         <p className="text-sm text-muted-foreground">
-          {filter === "needs_attention"
-            ? "No applications need attention right now."
-            : "No applications match your filters."}
+          {searchQuery.trim()
+            ? "No applications match your search."
+            : filter === "needs_attention"
+              ? "No applications need attention right now."
+              : "No applications match your filters."}
         </p>
       )}
 
@@ -1788,24 +1828,13 @@ export function VolunteersManager({
         );
       })}
 
-      {viewMode === "table" && (
+      {viewMode === "table" && filtered.length > 0 && (
         <DataTable
           tableId="volunteer-applications"
           columns={applicationTableColumns}
           rows={filtered}
           getRowKey={(app) => app.id}
-          getSearchText={(app) =>
-            [
-              app.full_name,
-              app.email,
-              app.phone,
-              app.status,
-              ...(app.roles_requested ?? []),
-            ]
-              .filter(Boolean)
-              .join(" ")
-          }
-          searchPlaceholder="Search applicants…"
+          enableSearch={false}
           getRowClassName={(app) => {
             const context = getReviewContext(app);
             return context.isRoleExpansion && !context.rolesReady ? "bg-amber-50/60" : undefined;
