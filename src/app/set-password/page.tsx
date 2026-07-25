@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Cat } from "lucide-react";
+import { Cat, CheckCircle2 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,6 +15,7 @@ export default function SetPasswordPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState(false);
   const router = useRouter();
 
   async function handleSubmit(e: React.FormEvent) {
@@ -49,6 +50,10 @@ export default function SetPasswordPage() {
       return;
     }
 
+    setSuccess(true);
+  }
+
+  function goToDashboard() {
     router.push("/");
     router.refresh();
   }
@@ -61,34 +66,55 @@ export default function SetPasswordPage() {
             <Cat className="h-8 w-8" />
             <span className="text-xl font-semibold">TNVR Rescue</span>
           </Link>
-          <CardTitle>Create Your Password</CardTitle>
-          <CardDescription>
-            Choose a new password to replace your temporary one. You must do this before using the portal.
-          </CardDescription>
+          {success ? (
+            <>
+              <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-green-100 text-green-700">
+                <CheckCircle2 className="h-7 w-7" aria-hidden />
+              </div>
+              <CardTitle>Password updated</CardTitle>
+              <CardDescription>
+                Your password was changed successfully. You can continue to the volunteer dashboard.
+              </CardDescription>
+            </>
+          ) : (
+            <>
+              <CardTitle>Create Your Password</CardTitle>
+              <CardDescription>
+                Choose a new password to replace your temporary one. You must do this before using the
+                portal.
+              </CardDescription>
+            </>
+          )}
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label>Password</Label>
-              <PasswordInput
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Confirm Password</Label>
-              <PasswordInput
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                required
-              />
-            </div>
-            {error && <p className="text-sm text-destructive">{error}</p>}
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Saving..." : "Create Password"}
+          {success ? (
+            <Button type="button" className="w-full" onClick={goToDashboard}>
+              Go to dashboard
             </Button>
-          </form>
+          ) : (
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="space-y-2">
+                <Label>Password</Label>
+                <PasswordInput
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Confirm Password</Label>
+                <PasswordInput
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  required
+                />
+              </div>
+              {error && <p className="text-sm text-destructive">{error}</p>}
+              <Button type="submit" className="w-full" disabled={loading}>
+                {loading ? "Saving..." : "Create Password"}
+              </Button>
+            </form>
+          )}
         </CardContent>
       </Card>
     </div>
