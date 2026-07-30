@@ -226,7 +226,7 @@ export function AddressAutocomplete({
             {predictions.length > 0 ? (
               <ul className="py-1" role="listbox">
                 {predictions.map((prediction) => (
-                  <li key={prediction.place_id} role="option">
+                  <li key={prediction.place_id} role="option" aria-selected="false">
                     <button
                       type="button"
                       className="w-full px-3 py-2 text-left text-sm hover:bg-accent"
