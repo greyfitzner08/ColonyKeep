@@ -63,6 +63,7 @@ export function AddressAutocomplete({
   const [dropdownRect, setDropdownRect] = useState<DropdownRect | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const lastDefaultRef = useRef(defaultValue);
+  const selectingRef = useRef(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
 
@@ -79,6 +80,9 @@ export function AddressAutocomplete({
       setStatusError(null);
       return;
     }
+
+    // Don't refetch while a suggestion is being applied.
+    if (selectingRef.current) return;
 
     clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(async () => {
@@ -124,6 +128,8 @@ export function AddressAutocomplete({
   }, [open, predictions.length, statusError, query]);
 
   async function handleSelect(prediction: Prediction) {
+    selectingRef.current = true;
+    clearTimeout(debounceRef.current);
     setQuery(prediction.description);
     setOpen(false);
     setPredictions([]);
@@ -132,9 +138,35 @@ export function AddressAutocomplete({
     try {
       const res = await fetch(`/api/places/details?place_id=${prediction.place_id}`);
       const data = await res.json();
-      onSelect(data);
+      const line =
+        typeof data?.formatted_address === "string" && data.formatted_address.trim()
+          ? data.formatted_address.trim()
+          : prediction.description;
+      setQuery(line);
+      onAddressChange?.(line);
+      onSelect({
+        address: "",
+        city: "",
+        state: "",
+        county: "",
+        zip: "",
+        ...data,
+        formatted_address: data?.formatted_address || prediction.description,
+      });
     } catch {
-      onSelect({ address: prediction.description, city: "", state: "", county: "", zip: "" });
+      onSelect({
+        address: prediction.description,
+        city: "",
+        state: "",
+        county: "",
+        zip: "",
+        formatted_address: prediction.description,
+      });
+    } finally {
+      // Allow parent defaultValue sync, then resume typing/search.
+      window.setTimeout(() => {
+        selectingRef.current = false;
+      }, 0);
     }
   }
 
@@ -148,6 +180,7 @@ export function AddressAutocomplete({
         id={id}
         value={query}
         onChange={(e) => {
+          selectingRef.current = false;
           const value = e.target.value;
           setQuery(value);
           onAddressChange?.(value);
@@ -157,9 +190,10 @@ export function AddressAutocomplete({
         }}
         onBlur={() => {
           window.setTimeout(() => {
+            if (selectingRef.current) return;
             if (listRef.current?.contains(document.activeElement)) return;
             setOpen(false);
-          }, 150);
+          }, 200);
         }}
         placeholder={placeholder}
         autoComplete="off"
@@ -169,11 +203,16 @@ export function AddressAutocomplete({
         createPortal(
           <ul
             ref={listRef}
-            className="fixed z-[100] max-h-60 overflow-auto rounded-md border bg-popover shadow-lg"
+            data-address-suggest=""
+            className="fixed z-[200] max-h-60 overflow-auto rounded-md border bg-popover shadow-lg"
             style={{
               top: dropdownRect.top,
               left: dropdownRect.left,
               width: dropdownRect.width,
+            }}
+            onMouseDown={(event) => {
+              // Keep focus handling from closing the dialog/dropdown before selection.
+              event.preventDefault();
             }}
           >
             {predictions.length > 0 ? (
@@ -182,8 +221,11 @@ export function AddressAutocomplete({
                   <button
                     type="button"
                     className="w-full px-3 py-2 text-left text-sm hover:bg-accent"
-                    onMouseDown={(event) => event.preventDefault()}
-                    onClick={() => handleSelect(p)}
+                    onPointerDown={(event) => {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      void handleSelect(p);
+                    }}
                   >
                     {p.description}
                   </button>
