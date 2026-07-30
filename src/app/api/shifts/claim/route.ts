@@ -42,6 +42,7 @@ export async function POST(request: NextRequest) {
   if (action === "claim") {
     await sendShiftConfirmationEmail(email, profile!.full_name ?? email, {
       event_name: shift.event_name,
+      position_name: shift.position_name,
       date: shift.date,
       start_time: shift.start_time,
       end_time: shift.end_time,

@@ -68,6 +68,9 @@ export function MyShiftsCard({ shifts }: MyShiftsCardProps) {
                 >
                   <div className="space-y-1">
                     <p className="font-medium">{shift.event_name}</p>
+                    {shift.position_name?.trim() && (
+                      <p className="text-sm">{shift.position_name.trim()}</p>
+                    )}
                     <p className="text-sm text-muted-foreground">
                       {formatDate(shift.date)} · {shift.start_time} - {shift.end_time}
                     </p>

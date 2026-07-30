@@ -11,11 +11,17 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Missing shift id" }, { status: 400 });
   }
 
+  const positionName = String(body.position_name ?? "").trim();
+  if (!positionName) {
+    return NextResponse.json({ error: "Position name is required." }, { status: 400 });
+  }
+
   const service = await createServiceClient();
   const { data, error } = await service
     .from("shifts")
     .update({
       event_name: body.event_name,
+      position_name: positionName,
       shift_type: body.shift_type,
       required_roles: body.required_roles ?? "any",
       date: body.date,

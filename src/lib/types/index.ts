@@ -441,6 +441,8 @@ export interface VolunteerApplication {
 export interface Shift {
   id: string;
   event_name: string;
+  /** Named volunteer position within the event (e.g. Registration Desk). */
+  position_name: string | null;
   shift_type: ShiftType;
   required_roles: ShiftRequiredRole;
   date: string;

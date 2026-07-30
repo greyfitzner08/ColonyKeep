@@ -140,12 +140,23 @@ export async function sendVolunteerPasswordResetEmail(
 export async function sendShiftConfirmationEmail(
   email: string,
   name: string,
-  shift: { event_name: string; date: string; start_time: string; end_time: string; location: string }
+  shift: {
+    event_name: string;
+    position_name?: string | null;
+    date: string;
+    start_time: string;
+    end_time: string;
+    location: string;
+  }
 ): Promise<void> {
   if (!resend) {
     console.log(`[email] Shift confirmation to ${email} (Resend not configured)`);
     return;
   }
+
+  const positionLine = shift.position_name?.trim()
+    ? `<li><strong>Position:</strong> ${shift.position_name.trim()}</li>`
+    : "";
 
   await resend.emails.send({
     from: FROM,
@@ -157,6 +168,7 @@ export async function sendShiftConfirmationEmail(
       <p>You've signed up for the following shift:</p>
       <ul>
         <li><strong>Event:</strong> ${shift.event_name}</li>
+        ${positionLine}
         <li><strong>Date:</strong> ${shift.date}</li>
         <li><strong>Time:</strong> ${shift.start_time} - ${shift.end_time}</li>
         <li><strong>Location:</strong> ${shift.location}</li>

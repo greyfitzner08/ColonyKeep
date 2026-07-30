@@ -5,6 +5,7 @@ import type { ShiftRequiredRole, ShiftType } from "@/lib/types";
 
 interface ShiftCreateInput {
   event_name?: string;
+  position_name?: string | null;
   shift_type?: ShiftType;
   required_roles?: ShiftRequiredRole;
   date?: string;
@@ -18,12 +19,14 @@ interface ShiftCreateInput {
 
 function normalizeShiftRow(entry: ShiftCreateInput, fallbackEventName?: string) {
   const eventName = String(entry.event_name ?? fallbackEventName ?? "").trim();
+  const positionName = String(entry.position_name ?? "").trim();
   const date = String(entry.date ?? "").trim();
   const startTime = String(entry.start_time ?? "").trim();
   const endTime = String(entry.end_time ?? "").trim();
   const location = String(entry.location ?? "").trim();
 
   if (!eventName) return { error: "Event name is required." };
+  if (!positionName) return { error: "Each shift needs a position name." };
   if (!date) return { error: "Each shift needs a date." };
   if (!startTime || !endTime) return { error: "Each shift needs a start and end time." };
   if (!location) return { error: "Each shift needs a location." };
@@ -31,6 +34,7 @@ function normalizeShiftRow(entry: ShiftCreateInput, fallbackEventName?: string) 
   return {
     row: {
       event_name: eventName,
+      position_name: positionName,
       shift_type: entry.shift_type ?? "event",
       required_roles: entry.required_roles ?? "any",
       date,
@@ -69,8 +73,9 @@ export async function POST(request: NextRequest) {
         body.event_name
       );
       if ("error" in normalized && normalized.error) {
+        const label = String((entry as ShiftCreateInput).position_name ?? "").trim() || `Shift ${index + 1}`;
         return NextResponse.json(
-          { error: `Shift ${index + 1}: ${normalized.error}` },
+          { error: `${label}: ${normalized.error}` },
           { status: 400 }
         );
       }

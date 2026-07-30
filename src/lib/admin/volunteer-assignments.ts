@@ -89,7 +89,7 @@ export async function previewVolunteerAssignments(
       .from("appointments")
       .select("id, clinic_name, date")
       .ilike("transporter_email", email),
-    service.from("shifts").select("id, event_name, date").contains("signed_up_emails", [email]),
+    service.from("shifts").select("id, event_name, position_name, date").contains("signed_up_emails", [email]),
     service.from("trap_teams").select("id, name").ilike("lead_email", email),
     service.from("trap_teams").select("id, name").contains("members", [email]),
     service
@@ -199,7 +199,9 @@ export async function previewVolunteerAssignments(
       count: shifts.data!.length,
       items: shifts.data!.map((row) => ({
         id: row.id,
-        label: `${row.event_name} · ${row.date}`,
+        label: row.position_name
+          ? `${row.event_name} · ${row.position_name} · ${row.date}`
+          : `${row.event_name} · ${row.date}`,
       })),
       reassignable: true,
       requiresReassign: false,
