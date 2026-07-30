@@ -29,8 +29,20 @@ const DialogContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>
 >(({ className, children, onPointerDownOutside, onInteractOutside, onFocusOutside, ...props }, ref) => {
-  function isAddressSuggestTarget(target: EventTarget | null) {
-    return target instanceof Element && Boolean(target.closest("[data-address-suggest]"));
+  function eventTargetElement(event: {
+    target: EventTarget;
+    detail?: { originalEvent?: Event };
+  }): Element | null {
+    const original = event.detail?.originalEvent?.target;
+    if (original instanceof Element) return original;
+    return event.target instanceof Element ? event.target : null;
+  }
+
+  function isAddressSuggestTarget(event: {
+    target: EventTarget;
+    detail?: { originalEvent?: Event };
+  }) {
+    return Boolean(eventTargetElement(event)?.closest("[data-address-suggest]"));
   }
 
   return (
@@ -43,19 +55,19 @@ const DialogContent = React.forwardRef<
         className
       )}
       onPointerDownOutside={(event) => {
-        if (isAddressSuggestTarget(event.target)) {
+        if (isAddressSuggestTarget(event)) {
           event.preventDefault();
         }
         onPointerDownOutside?.(event);
       }}
       onInteractOutside={(event) => {
-        if (isAddressSuggestTarget(event.target)) {
+        if (isAddressSuggestTarget(event)) {
           event.preventDefault();
         }
         onInteractOutside?.(event);
       }}
       onFocusOutside={(event) => {
-        if (isAddressSuggestTarget(event.target)) {
+        if (isAddressSuggestTarget(event)) {
           event.preventDefault();
         }
         onFocusOutside?.(event);
