@@ -17,7 +17,9 @@ export default async function ShiftBoardPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold">Shift Board</h1>
-        <p className="text-muted-foreground">Sign up for volunteer shifts</p>
+        <p className="text-muted-foreground">
+          Sign up for volunteer shifts. Events can include multiple days and opportunities.
+        </p>
       </div>
       <ShiftBoard
         shifts={(shifts ?? []) as Shift[]}
