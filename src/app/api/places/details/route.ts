@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { resolveCountyFromAutocomplete } from "@/lib/counties";
+import { getGoogleMapsApiKey } from "@/lib/google-maps";
 
 function getComponent(
   components: Array<{ long_name: string; short_name: string; types: string[] }>,
@@ -14,14 +15,14 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "place_id required" }, { status: 400 });
   }
 
-  const apiKey = process.env.GOOGLE_MAPS_API_KEY;
+  const apiKey = getGoogleMapsApiKey();
   if (!apiKey) {
-    return NextResponse.json({ address: "", city: "", county: "", zip: "" });
+    return NextResponse.json({ address: "", city: "", state: "", county: "", zip: "" });
   }
 
   const url = new URL("https://maps.googleapis.com/maps/api/place/details/json");
   url.searchParams.set("place_id", placeId);
-  url.searchParams.set("fields", "address_components,formatted_address,geometry");
+  url.searchParams.set("fields", "name,address_components,formatted_address,geometry");
   url.searchParams.set("key", apiKey);
 
   const res = await fetch(url.toString());
@@ -29,13 +30,15 @@ export async function GET(request: NextRequest) {
   const result = data.result;
 
   if (!result) {
-    return NextResponse.json({ address: "", city: "", county: "", zip: "" });
+    return NextResponse.json({ address: "", city: "", state: "", county: "", zip: "" });
   }
 
   const components = result.address_components ?? [];
   const streetNumber = getComponent(components, "street_number");
   const route = getComponent(components, "route");
-  const address = [streetNumber, route].filter(Boolean).join(" ") || result.formatted_address;
+  const street = [streetNumber, route].filter(Boolean).join(" ");
+  // Prefer street when available; otherwise keep the venue/formatted address for single-line fields.
+  const address = street || result.name || result.formatted_address || "";
   const stateComponent = components.find((c: { types: string[] }) =>
     c.types.includes("administrative_area_level_1")
   );
@@ -50,5 +53,6 @@ export async function GET(request: NextRequest) {
     zip: getComponent(components, "postal_code"),
     lat: result.geometry?.location?.lat,
     lng: result.geometry?.location?.lng,
+    formatted_address: result.formatted_address ?? "",
   });
 }

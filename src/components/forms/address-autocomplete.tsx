@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
@@ -12,6 +13,7 @@ export interface AddressParts {
   zip: string;
   lat?: number;
   lng?: number;
+  formatted_address?: string;
 }
 
 interface AddressAutocompleteProps {
@@ -29,10 +31,17 @@ interface Prediction {
   place_id: string;
 }
 
+interface DropdownRect {
+  top: number;
+  left: number;
+  width: number;
+}
+
 /** Build a single-line address when the form only stores one address field. */
 export function formatAddressPartsLine(
-  parts: Pick<AddressParts, "address" | "city" | "state" | "zip">
+  parts: Pick<AddressParts, "address" | "city" | "state" | "zip" | "formatted_address">
 ): string {
+  if (parts.formatted_address?.trim()) return parts.formatted_address.trim();
   const cityState = [parts.city, parts.state].filter(Boolean).join(", ");
   const cityStateZip = [cityState, parts.zip].filter(Boolean).join(" ");
   return [parts.address, cityStateZip].filter(Boolean).join(", ");
@@ -50,12 +59,14 @@ export function AddressAutocomplete({
   const [query, setQuery] = useState(defaultValue);
   const [predictions, setPredictions] = useState<Prediction[]>([]);
   const [open, setOpen] = useState(false);
+  const [statusError, setStatusError] = useState<string | null>(null);
+  const [dropdownRect, setDropdownRect] = useState<DropdownRect | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const lastDefaultRef = useRef(defaultValue);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const listRef = useRef<HTMLUListElement>(null);
 
   useEffect(() => {
-    // Only sync from parent when the default changes externally (e.g. dialog open / place select),
-    // not on every keystroke echo from onAddressChange.
     if (defaultValue !== lastDefaultRef.current && defaultValue !== query) {
       setQuery(defaultValue);
     }
@@ -65,6 +76,7 @@ export function AddressAutocomplete({
   useEffect(() => {
     if (query.length < 3) {
       setPredictions([]);
+      setStatusError(null);
       return;
     }
 
@@ -74,18 +86,48 @@ export function AddressAutocomplete({
         const res = await fetch(`/api/places/autocomplete?input=${encodeURIComponent(query)}`);
         const data = await res.json();
         setPredictions(data.predictions ?? []);
+        setStatusError(typeof data.error === "string" ? data.error : null);
         setOpen(true);
       } catch {
         setPredictions([]);
+        setStatusError("Could not load address suggestions.");
       }
     }, 300);
 
     return () => clearTimeout(debounceRef.current);
   }, [query]);
 
+  useLayoutEffect(() => {
+    if (!open || (predictions.length === 0 && !statusError)) {
+      setDropdownRect(null);
+      return;
+    }
+
+    function updatePosition() {
+      const input = inputRef.current;
+      if (!input) return;
+      const rect = input.getBoundingClientRect();
+      setDropdownRect({
+        top: rect.bottom + 4,
+        left: rect.left,
+        width: rect.width,
+      });
+    }
+
+    updatePosition();
+    window.addEventListener("resize", updatePosition);
+    window.addEventListener("scroll", updatePosition, true);
+    return () => {
+      window.removeEventListener("resize", updatePosition);
+      window.removeEventListener("scroll", updatePosition, true);
+    };
+  }, [open, predictions.length, statusError, query]);
+
   async function handleSelect(prediction: Prediction) {
     setQuery(prediction.description);
     setOpen(false);
+    setPredictions([]);
+    onAddressChange?.(prediction.description);
 
     try {
       const res = await fetch(`/api/places/details?place_id=${prediction.place_id}`);
@@ -96,10 +138,13 @@ export function AddressAutocomplete({
     }
   }
 
+  const showDropdown = open && dropdownRect && (predictions.length > 0 || Boolean(statusError));
+
   return (
     <div className="relative space-y-2">
       <Label htmlFor={id}>{label}</Label>
       <Input
+        ref={inputRef}
         id={id}
         value={query}
         onChange={(e) => {
@@ -107,31 +152,49 @@ export function AddressAutocomplete({
           setQuery(value);
           onAddressChange?.(value);
         }}
-        onFocus={() => predictions.length > 0 && setOpen(true)}
+        onFocus={() => {
+          if (predictions.length > 0 || statusError) setOpen(true);
+        }}
         onBlur={() => {
-          // Delay so suggestion click can register
-          window.setTimeout(() => setOpen(false), 150);
+          window.setTimeout(() => {
+            if (listRef.current?.contains(document.activeElement)) return;
+            setOpen(false);
+          }, 150);
         }}
         placeholder={placeholder}
         autoComplete="off"
         required={required}
       />
-      {open && predictions.length > 0 && (
-        <ul className="absolute z-50 mt-1 w-full rounded-md border bg-popover shadow-lg">
-          {predictions.map((p) => (
-            <li key={p.place_id}>
-              <button
-                type="button"
-                className="w-full px-3 py-2 text-left text-sm hover:bg-accent"
-                onMouseDown={(event) => event.preventDefault()}
-                onClick={() => handleSelect(p)}
-              >
-                {p.description}
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
+      {showDropdown &&
+        createPortal(
+          <ul
+            ref={listRef}
+            className="fixed z-[100] max-h-60 overflow-auto rounded-md border bg-popover shadow-lg"
+            style={{
+              top: dropdownRect.top,
+              left: dropdownRect.left,
+              width: dropdownRect.width,
+            }}
+          >
+            {predictions.length > 0 ? (
+              predictions.map((p) => (
+                <li key={p.place_id}>
+                  <button
+                    type="button"
+                    className="w-full px-3 py-2 text-left text-sm hover:bg-accent"
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={() => handleSelect(p)}
+                  >
+                    {p.description}
+                  </button>
+                </li>
+              ))
+            ) : (
+              <li className="px-3 py-2 text-sm text-muted-foreground">{statusError}</li>
+            )}
+          </ul>,
+          document.body
+        )}
     </div>
   );
 }
