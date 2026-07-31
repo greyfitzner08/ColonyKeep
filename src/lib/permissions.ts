@@ -63,9 +63,7 @@ export function canManageClinicEvents(profile: Profile | null): boolean {
 }
 
 export function canManageCommunityPartners(profile: Profile | null): boolean {
-  if (!profile?.role) return false;
-  if (profile.role === "admin" || profile.role === "inquiry_team") return true;
-  return hasVolunteerRole(profile, ["community_outreach", "grant_writing", "social_media"]);
+  return profile?.role === "admin";
 }
 
 function hasTnvrVolunteerInterest(profile: Profile): boolean {

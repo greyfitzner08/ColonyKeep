@@ -68,7 +68,7 @@ export default async function IntakePage({ searchParams }: IntakePageProps) {
           {profile?.role === "inquiry_team" && (
             <p className="mt-1 text-sm text-muted-foreground">
               Claim a case before reviewing details, confirm information is complete, then route it
-              to a trap team. Intake does not close cases.
+              to a trap team. Inquiry reviews cases and does not close them.
             </p>
           )}
           <div className="mt-2 flex flex-wrap items-center gap-2">

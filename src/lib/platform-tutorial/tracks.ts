@@ -155,14 +155,14 @@ const ADMIN_TRACK: AdvancedTutorialTrack = {
 const INQUIRY_TRACK: AdvancedTutorialTrack = {
   id: "inquiry",
   title: "Inquiry team workflow",
-  summary: "How a new help request moves from first contact into field work and clinics.",
+  summary: "How inquiry reviews new cases and hands them off to trap teams.",
   roleLabel: "Inquiry Team",
   steps: [
     step({
       id: "adv-inquiry-welcome",
       title: "Your role on inquiry",
       description:
-        "You qualify new requests — you do not close cases. Claim first so nobody else works the same case, confirm details are complete, then route to a trap team.",
+        "You review new cases — you do not close them. Claim a case first so nobody else works it at the same time, confirm the details are complete, then route it to a trap team.",
       icon: Sparkles,
     }),
     step({
@@ -182,7 +182,7 @@ const INQUIRY_TRACK: AdvancedTutorialTrack = {
       icon: ArrowRightLeft,
       navHref: "/intake",
       navigateOnStep: false,
-      flowNote: "Intake owns qualification · Trap teams own field work and closure.",
+      flowNote: "Inquiry reviews and routes · Trap teams own field work, timelines, and closure.",
     }),
     step({
       id: "adv-inquiry-trap",
@@ -192,25 +192,6 @@ const INQUIRY_TRACK: AdvancedTutorialTrack = {
       icon: Kanban,
       navHref: "/trap-queue",
       flowNote: "Same case, different stage — don’t recreate it as a new intake.",
-    }),
-    step({
-      id: "adv-inquiry-map",
-      title: "Use Hotspots for context",
-      description:
-        "Check nearby colonies and geography before promising timelines. The map reflects the same help requests you’re managing in the queues.",
-      icon: Map,
-      navHref: "/hotspots",
-      flowNote: "Geography informs triage; status changes still happen on the case.",
-    }),
-    step({
-      id: "adv-inquiry-partners",
-      title: "Community partners when needed",
-      description:
-        "Some situations need external partners (shelters, municipal contacts, outreach orgs). Partner records live under Community Partners — link people to help, not as a replacement for the case file.",
-      icon: Users,
-      navHref: "/community-partners",
-      visible: (p) => p.routes.includes("/community-partners"),
-      flowNote: "Partners support cases; the help request remains the source of truth.",
     }),
     step({
       id: "adv-inquiry-feed",

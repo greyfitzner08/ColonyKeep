@@ -137,7 +137,8 @@ export function contactFieldsToProfileUpdate(
   if (fields.full_name !== undefined) update.full_name = fields.full_name;
   if (fields.email !== undefined) update.email = fields.email ?? "";
   if (fields.phone !== undefined) update.phone = fields.phone;
-  if (fields.birthday !== undefined) update.birthday = fields.birthday;
+  // Birthday is a DATE column — empty string is invalid Postgres input.
+  if (fields.birthday !== undefined) update.birthday = fields.birthday?.trim() || null;
   if (fields.home_street !== undefined) update.home_street = fields.home_street;
   if (fields.home_city !== undefined) update.home_city = fields.home_city;
   if (fields.home_state !== undefined) update.home_state = fields.home_state;
@@ -153,7 +154,8 @@ export function contactFieldsToApplicationUpdate(
   if (fields.full_name !== undefined) update.full_name = fields.full_name ?? "";
   if (fields.email !== undefined) update.email = fields.email ?? "";
   if (fields.phone !== undefined) update.phone = fields.phone ?? "";
-  if (fields.birthday !== undefined) update.birthday = fields.birthday ?? "";
+  // Birthday is a DATE column — empty string is invalid Postgres input.
+  if (fields.birthday !== undefined) update.birthday = fields.birthday?.trim() || null;
   if (fields.home_street !== undefined) update.home_street = fields.home_street;
   if (fields.home_city !== undefined) update.home_city = fields.home_city;
   if (fields.home_state !== undefined) update.home_state = fields.home_state;

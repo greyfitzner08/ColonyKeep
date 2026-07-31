@@ -65,16 +65,20 @@ export async function syncVolunteerContactRecords(
     params.fields.home_county !== undefined;
 
   if (addressTouched && isHomeAddressComplete(mergedAddress)) {
-    const coords = await geocodeStreetAddress({
-      street: mergedAddress.home_street,
-      city: mergedAddress.home_city,
-      state: mergedAddress.home_state,
-      zip: mergedAddress.home_zip,
-      county: mergedAddress.home_county,
-    });
-    if (coords) {
-      profileUpdate.home_lat = coords.lat;
-      profileUpdate.home_lng = coords.lng;
+    try {
+      const coords = await geocodeStreetAddress({
+        street: mergedAddress.home_street,
+        city: mergedAddress.home_city,
+        state: mergedAddress.home_state,
+        zip: mergedAddress.home_zip,
+        county: mergedAddress.home_county,
+      });
+      if (coords) {
+        profileUpdate.home_lat = coords.lat;
+        profileUpdate.home_lng = coords.lng;
+      }
+    } catch (error) {
+      console.warn("[contact-sync] home address geocode failed", error);
     }
   }
 
@@ -125,13 +129,25 @@ export async function syncVolunteerContactRecords(
   }
 
   if (Object.keys(applicationUpdate).length > 0) {
-    const { error: applicationError } = await service
+    const { data: existingApplication, error: applicationLookupError } = await service
       .from("volunteer_applications")
-      .update(applicationUpdate)
-      .eq("email", params.previousEmail);
+      .select("id")
+      .eq("email", params.previousEmail)
+      .maybeSingle();
 
-    if (applicationError) {
-      return { error: applicationError.message };
+    if (applicationLookupError) {
+      return { error: applicationLookupError.message };
+    }
+
+    if (existingApplication) {
+      const { error: applicationError } = await service
+        .from("volunteer_applications")
+        .update(applicationUpdate)
+        .eq("id", existingApplication.id);
+
+      if (applicationError) {
+        return { error: applicationError.message };
+      }
     }
   }
 
