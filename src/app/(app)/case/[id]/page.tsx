@@ -6,6 +6,11 @@ import { Badge } from "@/components/ui/badge";
 import { STATUS_COLORS } from "@/lib/constants";
 import { hasActiveMedicalFlag } from "@/lib/medical-flags";
 import { getStatusLabel, getInquiryTeamStatusLabel } from "@/lib/cases/statuses";
+import {
+  canIntakeReviewerWorkCase,
+  intakeCaseRequiresClaim,
+  intakeClaimGateMessage,
+} from "@/lib/cases/intake-claim-gate";
 import { AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { canAddCaseHistoryNote } from "@/lib/cases/case-permissions";
@@ -63,6 +68,22 @@ export default async function CasePage({ params }: CasePageProps) {
 
   const isInquiryViewer = profile?.role === "inquiry_team";
   const statusLabel = isInquiryViewer ? getInquiryTeamStatusLabel(hr) : getStatusLabel(hr.status);
+  const actorEmail = profile?.email ?? "";
+  const requiresClaim = intakeCaseRequiresClaim(profile?.role, hr.status);
+  const canWorkCase = canIntakeReviewerWorkCase({
+    role: profile?.role,
+    status: hr.status,
+    claimedByEmail: hr.claimed_by_email,
+    actorEmail,
+  });
+  const claimGate =
+    requiresClaim && !canWorkCase
+      ? intakeClaimGateMessage({
+          claimedByEmail: hr.claimed_by_email,
+          claimedByName: hr.claimed_by_name,
+          actorEmail,
+        })
+      : null;
 
   return (
     <div className="space-y-6">
@@ -84,22 +105,27 @@ export default async function CasePage({ params }: CasePageProps) {
               helpRequestId={hr.id}
               status={hr.status}
               claimedByEmail={hr.claimed_by_email}
-              userEmail={profile?.email ?? ""}
+              userEmail={actorEmail}
               userRole={profile?.role ?? null}
               isAdmin={profile?.role === "admin"}
               canClaim={isCaseWorker(profile)}
+              emphasizeClaim={Boolean(claimGate?.kind === "unclaimed")}
             />
-            <CaseRouteToTrapAction
-              helpRequestId={hr.id}
-              status={hr.status}
-              colonyZip={hr.colony_zip}
-              userRole={profile?.role ?? null}
-            />
-            <CaseNeedsMoreInfoAction
-              helpRequestId={hr.id}
-              status={hr.status}
-              userRole={profile?.role ?? null}
-            />
+            {canWorkCase && (
+              <>
+                <CaseRouteToTrapAction
+                  helpRequestId={hr.id}
+                  status={hr.status}
+                  colonyZip={hr.colony_zip}
+                  userRole={profile?.role ?? null}
+                />
+                <CaseNeedsMoreInfoAction
+                  helpRequestId={hr.id}
+                  status={hr.status}
+                  userRole={profile?.role ?? null}
+                />
+              </>
+            )}
           </div>
           <div className="text-base text-muted-foreground">
             {hr.contact_name}
@@ -109,6 +135,20 @@ export default async function CasePage({ params }: CasePageProps) {
         </div>
       </div>
 
+      {claimGate && (
+        <div className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-50">
+          <p className="font-medium">
+            {claimGate.kind === "unclaimed" ? "Claim required before review" : "Case already claimed"}
+          </p>
+          <p className="mt-1">{claimGate.message}</p>
+          {isInquiryViewer && (
+            <p className="mt-2 text-xs opacity-90">
+              Intake reviews details for completeness, then routes to a trap team. Intake does not close cases.
+            </p>
+          )}
+        </div>
+      )}
+
       <CaseDetailTabs
         helpRequest={hr}
         cats={(cats ?? []) as Cat[]}
@@ -117,11 +157,14 @@ export default async function CasePage({ params }: CasePageProps) {
         clinicFixes={(clinicFixes ?? []) as ClinicFix[]}
         teams={teams ?? []}
         userRole={profile?.role ?? null}
-        canReviewMedical={profile?.role === "admin" || profile?.role === "inquiry_team"}
-        canAddHistoryNote={canAddCaseHistoryNote(profile)}
-        canLogClinicFix={canManageAppointments(profile)}
+        canReviewMedical={
+          (profile?.role === "admin" || profile?.role === "inquiry_team") && canWorkCase
+        }
+        canAddHistoryNote={canAddCaseHistoryNote(profile) && canWorkCase}
+        canLogClinicFix={canManageAppointments(profile) && canWorkCase}
         userName={profile?.full_name ?? profile?.email ?? "Team member"}
-        userEmail={profile?.email ?? ""}
+        userEmail={actorEmail}
+        readOnly={!canWorkCase && requiresClaim}
       />
     </div>
   );

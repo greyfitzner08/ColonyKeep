@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireApiRole } from "@/lib/api/auth";
+import { intakeClaimRequiredResponse } from "@/lib/cases/intake-claim-api";
 import { createServiceClient } from "@/lib/supabase/server";
 import type { HelpRequestStatus, HistoryEntry } from "@/lib/types";
 
@@ -19,7 +20,7 @@ export async function POST(request: NextRequest) {
   const service = await createServiceClient();
   const { data: existing, error: fetchError } = await service
     .from("help_requests")
-    .select("id, status, history_log")
+    .select("id, status, history_log, claimed_by_email")
     .eq("id", helpRequestId)
     .single();
 
@@ -30,10 +31,18 @@ export async function POST(request: NextRequest) {
   const status = existing.status as HelpRequestStatus;
   if (!NEEDS_INFO_FROM_STATUSES.has(status)) {
     return NextResponse.json(
-      { error: "Only new or in-review inquiry cases can be marked as needing more info." },
+      { error: "Only new or in-review inquiry cases can be marked as needing more information." },
       { status: 400 }
     );
   }
+
+  const claimBlock = intakeClaimRequiredResponse({
+    role: profile!.role,
+    status,
+    claimedByEmail: existing.claimed_by_email,
+    actorEmail: profile!.email,
+  });
+  if (claimBlock) return claimBlock;
 
   const historyEntry: HistoryEntry = {
     timestamp: new Date().toISOString(),

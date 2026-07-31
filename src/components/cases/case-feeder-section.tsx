@@ -13,6 +13,7 @@ interface CaseFeederSectionProps {
   helpRequest: HelpRequest;
   saving?: boolean;
   onChange: (next: HelpRequest) => void;
+  readOnly?: boolean;
 }
 
 function feederAddress(hr: HelpRequest) {
@@ -41,12 +42,14 @@ export function CaseFeederSection({
   helpRequest,
   saving = false,
   onChange,
+  readOnly = false,
 }: CaseFeederSectionProps) {
   const [editing, setEditing] = useState(false);
   const snapshotRef = useRef<HelpRequest | null>(null);
   const address = feederAddress(helpRequest);
 
   function startEditing() {
+    if (readOnly) return;
     snapshotRef.current = helpRequest;
     setEditing(true);
   }
@@ -69,33 +72,35 @@ export function CaseFeederSection({
       defaultOpen
     >
       <div className="space-y-4">
-        <div className="flex justify-end gap-2">
-          {editing ? (
-            <>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={cancelEditing}
-                disabled={saving}
-              >
-                <X className="h-4 w-4 mr-1" />
-                Cancel
+        {!readOnly && (
+          <div className="flex justify-end gap-2">
+            {editing ? (
+              <>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={cancelEditing}
+                  disabled={saving}
+                >
+                  <X className="h-4 w-4 mr-1" />
+                  Cancel
+                </Button>
+                <Button type="button" size="sm" onClick={doneEditing} disabled={saving}>
+                  <Check className="h-4 w-4 mr-1" />
+                  Done
+                </Button>
+              </>
+            ) : (
+              <Button type="button" variant="outline" size="sm" onClick={startEditing}>
+                <Pencil className="h-4 w-4 mr-1" />
+                Edit
               </Button>
-              <Button type="button" size="sm" onClick={doneEditing} disabled={saving}>
-                <Check className="h-4 w-4 mr-1" />
-                Done
-              </Button>
-            </>
-          ) : (
-            <Button type="button" variant="outline" size="sm" onClick={startEditing}>
-              <Pencil className="h-4 w-4 mr-1" />
-              Edit
-            </Button>
-          )}
-        </div>
+            )}
+          </div>
+        )}
 
-        {editing ? (
+        {editing && !readOnly ? (
           <>
             <CaseFeederFields
               helpRequest={helpRequest}

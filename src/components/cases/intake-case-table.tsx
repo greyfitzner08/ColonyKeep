@@ -22,6 +22,7 @@ interface IntakeCaseTableProps {
   userEmail: string;
   isAdmin?: boolean;
   statusLabelContext?: "trap" | "default";
+  claimBeforeReview?: boolean;
 }
 
 export function IntakeCaseTable({
@@ -30,6 +31,7 @@ export function IntakeCaseTable({
   userEmail,
   isAdmin = false,
   statusLabelContext = "default",
+  claimBeforeReview = false,
 }: IntakeCaseTableProps) {
   const router = useRouter();
 
@@ -52,19 +54,30 @@ export function IntakeCaseTable({
             helpRequest.medical_flag_dismissed,
             helpRequest.medical_flag_forced
           );
+          const isMine = helpRequest.claimed_by_email === userEmail;
+          const lockOpen = claimBeforeReview && !helpRequest.claimed_by_email;
           return (
             <div className="flex items-center gap-1.5">
-              <Link
-                href={`/case/${helpRequest.id}`}
-                className="font-medium text-primary hover:underline"
-              >
-                {helpRequest.case_number}
-              </Link>
+              {lockOpen ? (
+                <span className="font-medium">{helpRequest.case_number}</span>
+              ) : (
+                <Link
+                  href={`/case/${helpRequest.id}`}
+                  className="font-medium text-primary hover:underline"
+                >
+                  {helpRequest.case_number}
+                </Link>
+              )}
               <CaseFollowUpIndicator helpRequest={helpRequest} />
               {medical && (
                 <Badge variant="destructive" className="gap-1 text-xs whitespace-nowrap">
                   <AlertTriangle className="h-3 w-3" />
                   Medical
+                </Badge>
+              )}
+              {claimBeforeReview && isMine && (
+                <Badge variant="outline" className="text-xs">
+                  Yours
                 </Badge>
               )}
             </div>
@@ -140,18 +153,22 @@ export function IntakeCaseTable({
           const isUnclaimed = !helpRequest.claimed_by_email;
           const canUnclaim =
             helpRequest.claimed_by_email && (isMine || isAdmin);
+          const lockOpen = claimBeforeReview && isUnclaimed;
           return (
             <div className="flex flex-wrap gap-2">
-              <Button asChild size="sm" variant="outline">
-                <Link href={`/case/${helpRequest.id}`}>Open</Link>
-              </Button>
+              {lockOpen ? null : (
+                <Button asChild size="sm" variant="outline">
+                  <Link href={`/case/${helpRequest.id}`}>
+                    {claimBeforeReview && isMine ? "Review" : "Open"}
+                  </Link>
+                </Button>
+              )}
               {canClaim && isUnclaimed && (
                 <Button
                   size="sm"
-                  variant="secondary"
                   onClick={() => mutateCaseClaim(helpRequest.id, "claim")}
                 >
-                  Claim
+                  Claim to review
                 </Button>
               )}
               {canUnclaim && (
@@ -171,7 +188,7 @@ export function IntakeCaseTable({
         },
       },
     ];
-  }, [canClaim, userEmail, isAdmin, statusLabelContext]);
+  }, [canClaim, userEmail, isAdmin, statusLabelContext, claimBeforeReview]);
 
   return (
     <DataTable

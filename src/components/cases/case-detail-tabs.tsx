@@ -41,6 +41,8 @@ interface CaseDetailTabsProps {
   canLogClinicFix: boolean;
   userName: string;
   userEmail: string;
+  /** When true, intake must claim before editing — show read-only details. */
+  readOnly?: boolean;
 }
 
 export function CaseDetailTabs({
@@ -56,6 +58,7 @@ export function CaseDetailTabs({
   canLogClinicFix,
   userName,
   userEmail,
+  readOnly = false,
 }: CaseDetailTabsProps) {
   const router = useRouter();
   const [hr, setHr] = useState(initial);
@@ -118,6 +121,11 @@ export function CaseDetailTabs({
     medicalFlags = next.medical_flags ?? [],
     options?: { includeStatus?: boolean }
   ) {
+    if (readOnly) {
+      setSaveError("Claim this case before making changes.");
+      return false;
+    }
+
     const supabase = createClient();
     const payload = withTeamAssignment({ ...next, medical_flags: medicalFlags });
     const includeStatus = options?.includeStatus ?? userRole !== "inquiry_team";
@@ -159,6 +167,11 @@ export function CaseDetailTabs({
   }
 
   async function saveFeederInfo(next: HelpRequest) {
+    if (readOnly) {
+      setSaveError("Claim this case before making changes.");
+      return;
+    }
+
     setSavingFeeder(true);
     setSaveError(null);
     const supabase = createClient();
@@ -202,19 +215,21 @@ export function CaseDetailTabs({
 
   const handleIntakeChange = useCallback(
     (next: HelpRequest) => {
+      if (readOnly) return;
       setHr(next);
       if (skipIntakeAutosaveRef.current) return;
       debouncedSaveIntake(next);
     },
-    [debouncedSaveIntake]
+    [debouncedSaveIntake, readOnly]
   );
 
   const handleFeederChange = useCallback(
     (next: HelpRequest) => {
+      if (readOnly) return;
       setHr(next);
       debouncedSaveFeeder(next);
     },
-    [debouncedSaveFeeder]
+    [debouncedSaveFeeder, readOnly]
   );
 
   function addCat(cat: Cat) {
@@ -299,25 +314,38 @@ export function CaseDetailTabs({
   }
 
   async function closeCase() {
-    if (!showCloseCase) return;
-    setIntakeSaveState("saving");
-    const medicalFlags = mergeMedicalFlags(
-      hr.medical_flags ?? [],
-      detectMedicalKeywords(`${hr.intake_notes ?? ""}\n${staffNotesText(hr.history_log)}`)
-    );
-    await persistCase(hr, medicalFlags, { includeStatus: userRole !== "inquiry_team" });
+    if (!showCloseCase || readOnly) return;
+    if (userRole === "inquiry_team") {
+      setSaveError("Intake does not close cases. Route the case to a trap team instead.");
+      return;
+    }
 
-    const supabase = createClient();
-    await supabase
-      .from("help_requests")
-      .update({
-        status: "closed",
+    setIntakeSaveState("saving");
+    setSaveError(null);
+
+    const response = await fetch("/api/help-requests/close", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        helpRequestId: hr.id,
         outcome: hr.outcome,
         closure_notes: hr.closure_notes,
-        closed_at: new Date().toISOString(),
-      })
-      .eq("id", hr.id);
-    setHr({ ...hr, status: "closed", closed_at: new Date().toISOString() });
+      }),
+    });
+    const result = await response.json().catch(() => null);
+    setIntakeSaveState("idle");
+
+    if (!response.ok) {
+      setSaveError(result?.error ?? "Unable to close case");
+      return;
+    }
+
+    setHr({
+      ...hr,
+      status: "closed",
+      closed_at: result?.closed_at ?? new Date().toISOString(),
+    });
+    markIntakeSaved();
     router.refresh();
   }
 
@@ -346,7 +374,8 @@ export function CaseDetailTabs({
           clinicFixes={clinicFixes}
           cats={cats}
           savingFeeder={savingFeeder}
-          canLogClinicFix={canLogClinicFix}
+          canLogClinicFix={canLogClinicFix && !readOnly}
+          readOnly={readOnly}
           onFeederChange={handleFeederChange}
           onCatUpdated={updateCat}
           onCatAdded={addCat}
@@ -374,6 +403,7 @@ export function CaseDetailTabs({
           onChange={handleIntakeChange}
           onCloseCase={closeCase}
           canCloseCase={showCloseCase}
+          readOnly={readOnly}
         />
       </TabsContent>
 
@@ -396,8 +426,8 @@ export function CaseDetailTabs({
       <TabsContent value="history" className="mt-4">
         <CaseHistorySection
           entries={hr.history_log ?? []}
-          canAddNote={canAddHistoryNote}
-          canResolveFollowUp={canAddHistoryNote}
+          canAddNote={canAddHistoryNote && !readOnly}
+          canResolveFollowUp={canAddHistoryNote && !readOnly}
           authorName={userName}
           authorEmail={userEmail}
           saving={savingHistory}

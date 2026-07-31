@@ -20,6 +20,7 @@ interface CaseColonyTabProps {
   cats: Cat[];
   savingFeeder?: boolean;
   canLogClinicFix: boolean;
+  readOnly?: boolean;
   onFeederChange: (next: HelpRequest) => void;
   onCatUpdated: (cat: Cat) => void;
   onCatAdded: (cat: Cat) => void;
@@ -32,6 +33,7 @@ export function CaseColonyTab({
   cats,
   savingFeeder = false,
   canLogClinicFix,
+  readOnly = false,
   onFeederChange,
   onCatUpdated,
   onCatAdded,
@@ -63,10 +65,12 @@ export function CaseColonyTab({
         title={`Cats at colony${cats.length > 0 ? ` (${cats.length})` : ""}`}
         defaultOpen
         headerAction={
-          <Button size="sm" onClick={() => setAddCatOpen(true)}>
-            <Plus className="h-4 w-4 mr-1" />
-            Add cat
-          </Button>
+          readOnly ? undefined : (
+            <Button size="sm" onClick={() => setAddCatOpen(true)}>
+              <Plus className="h-4 w-4 mr-1" />
+              Add cat
+            </Button>
+          )
         }
       >
         <CatCountSummaryDisplay counts={counts} pregnantCount={hr.pregnant_count} />
@@ -78,8 +82,13 @@ export function CaseColonyTab({
 
         {cats.length === 0 ? (
           <p className="mt-4 text-sm text-muted-foreground">
-            No individual cats tracked yet. Use <span className="font-medium">Add cat</span> to get
-            started.
+            No individual cats tracked yet.
+            {!readOnly && (
+              <>
+                {" "}
+                Use <span className="font-medium">Add cat</span> to get started.
+              </>
+            )}
           </p>
         ) : (
           <div className="mt-4 space-y-4">
@@ -90,7 +99,7 @@ export function CaseColonyTab({
                 helpRequestId={hr.id}
                 caseNumber={hr.case_number}
                 clinicFix={clinicFixByCatId.get(cat.id) ?? null}
-                canLogClinicFix={canLogClinicFix}
+                canLogClinicFix={canLogClinicFix && !readOnly}
                 onUpdated={onCatUpdated}
                 onRemoved={onCatRemoved}
               />
@@ -99,14 +108,21 @@ export function CaseColonyTab({
         )}
       </CaseCollapsibleSection>
 
-      <AddTrackedCatDialog
-        open={addCatOpen}
-        onOpenChange={setAddCatOpen}
-        helpRequestId={hr.id}
-        onAdded={onCatAdded}
-      />
+      {!readOnly && (
+        <AddTrackedCatDialog
+          open={addCatOpen}
+          onOpenChange={setAddCatOpen}
+          helpRequestId={hr.id}
+          onAdded={onCatAdded}
+        />
+      )}
 
-      <CaseFeederSection helpRequest={hr} saving={savingFeeder} onChange={onFeederChange} />
+      <CaseFeederSection
+        helpRequest={hr}
+        saving={savingFeeder}
+        onChange={onFeederChange}
+        readOnly={readOnly}
+      />
 
       {orphanClinicFixes.length > 0 && (
         <CaseCollapsibleSection title="Other clinic fixes" defaultOpen>

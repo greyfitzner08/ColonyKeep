@@ -65,6 +65,12 @@ export default async function IntakePage({ searchParams }: IntakePageProps) {
         <div>
           <h1 className="text-3xl font-bold">Inquiry Queue</h1>
           <p className="text-muted-foreground">{filtered.length} cases</p>
+          {profile?.role === "inquiry_team" && (
+            <p className="mt-1 text-sm text-muted-foreground">
+              Claim a case before reviewing details, confirm information is complete, then route it
+              to a trap team. Intake does not close cases.
+            </p>
+          )}
           <div className="mt-2 flex flex-wrap items-center gap-2">
             <ShareRequestFormLink requestFormUrl={requestFormUrl} />
             <span className="text-sm text-muted-foreground">
@@ -84,6 +90,7 @@ export default async function IntakePage({ searchParams }: IntakePageProps) {
         canClaim={canClaim}
         userEmail={profile?.email ?? ""}
         isAdmin={profile?.role === "admin"}
+        claimBeforeReview={profile?.role === "inquiry_team"}
         view={view}
         sort={sort}
         searchQuery={params.q ?? ""}

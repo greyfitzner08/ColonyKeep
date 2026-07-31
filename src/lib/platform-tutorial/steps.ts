@@ -69,7 +69,7 @@ export const PLATFORM_TUTORIAL_STEPS: PlatformTutorialStep[] = [
     id: "inquiry-queue",
     title: "Inquiry queue",
     description:
-      "New help requests land here. Intake volunteers review details, contact caretakers, and claim cases.",
+      "New help requests land here. Claim a case before reviewing details, confirm information is complete, then route it to a trap team — intake does not close cases.",
     icon: Inbox,
     navHref: "/intake",
     visible: (p) => p.canViewIntakeQueue,

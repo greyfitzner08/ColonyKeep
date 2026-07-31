@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireApiRole } from "@/lib/api/auth";
 import { applyTrapTeamAssignment } from "@/lib/cases/assign-team-by-zip";
 import { releaseIntakeAssignmentFields } from "@/lib/cases/case-assignment";
+import { intakeClaimRequiredResponse } from "@/lib/cases/intake-claim-api";
 import { INTAKE_QUEUE_STATUSES } from "@/lib/cases/statuses";
 import { createServiceClient } from "@/lib/supabase/server";
 import type { HelpRequestStatus, HistoryEntry } from "@/lib/types";
@@ -37,6 +38,14 @@ export async function POST(request: NextRequest) {
       { status: 400 }
     );
   }
+
+  const claimBlock = intakeClaimRequiredResponse({
+    role: profile!.role,
+    status,
+    claimedByEmail: existing.claimed_by_email,
+    actorEmail: profile!.email,
+  });
+  if (claimBlock) return claimBlock;
 
   const { data: teams } = await service
     .from("trap_teams")

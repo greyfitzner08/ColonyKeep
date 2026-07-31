@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireCaseWorker } from "@/lib/api/auth";
+import { intakeClaimRequiredResponse } from "@/lib/cases/intake-claim-api";
 import {
   activeFollowUpNotes,
   normalizeHistoryLog,
   resolveFollowUpInHistory,
 } from "@/lib/cases/history-log";
 import { createServiceClient } from "@/lib/supabase/server";
+import type { HelpRequestStatus } from "@/lib/types";
 
 export async function POST(request: NextRequest) {
   const { profile, response } = await requireCaseWorker();
@@ -31,7 +33,7 @@ export async function POST(request: NextRequest) {
   const service = await createServiceClient();
   const { data: existing, error: loadError } = await service
     .from("help_requests")
-    .select("history_log, follow_up_due_date")
+    .select("history_log, follow_up_due_date, status, claimed_by_email")
     .eq("id", helpRequestId)
     .single();
 
@@ -41,6 +43,14 @@ export async function POST(request: NextRequest) {
       { status: loadError ? 400 : 404 }
     );
   }
+
+  const claimBlock = intakeClaimRequiredResponse({
+    role: profile!.role,
+    status: existing.status as HelpRequestStatus,
+    claimedByEmail: existing.claimed_by_email,
+    actorEmail: profile!.email,
+  });
+  if (claimBlock) return claimBlock;
 
   const history_log = resolveFollowUpInHistory(
     existing.history_log,

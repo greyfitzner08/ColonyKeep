@@ -13,6 +13,7 @@ interface IntakeQueueViewProps {
   canClaim: boolean;
   userEmail: string;
   isAdmin?: boolean;
+  claimBeforeReview?: boolean;
   view: CaseViewMode;
   sort: IntakeSortKey;
   searchQuery?: string;
@@ -23,6 +24,7 @@ export function IntakeQueueView({
   canClaim,
   userEmail,
   isAdmin = false,
+  claimBeforeReview = false,
   view,
   sort,
   searchQuery = "",
@@ -47,6 +49,7 @@ export function IntakeQueueView({
         canClaim={canClaim}
         userEmail={userEmail}
         isAdmin={isAdmin}
+        claimBeforeReview={claimBeforeReview}
       />
     );
   }
@@ -58,6 +61,7 @@ export function IntakeQueueView({
         canClaim={canClaim}
         userEmail={userEmail}
         isAdmin={isAdmin}
+        claimBeforeReview={claimBeforeReview}
       />
     </div>
   );

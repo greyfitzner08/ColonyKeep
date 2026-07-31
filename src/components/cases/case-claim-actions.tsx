@@ -14,6 +14,8 @@ interface CaseClaimActionsProps {
   userRole: UserRole | null;
   isAdmin: boolean;
   canClaim: boolean;
+  /** Make Claim the primary CTA when intake must claim before reviewing. */
+  emphasizeClaim?: boolean;
 }
 
 export function CaseClaimActions({
@@ -24,6 +26,7 @@ export function CaseClaimActions({
   userRole,
   isAdmin,
   canClaim,
+  emphasizeClaim = false,
 }: CaseClaimActionsProps) {
   const router = useRouter();
   const showClaimControls = canShowIntakeClaimActions(userRole, status);
@@ -46,8 +49,11 @@ export function CaseClaimActions({
   return (
     <div className="flex flex-wrap gap-2">
       {canShowClaim && (
-        <Button size="sm" onClick={() => mutate("claim")}>
-          Claim case
+        <Button
+          size={emphasizeClaim ? "default" : "sm"}
+          onClick={() => mutate("claim")}
+        >
+          {emphasizeClaim ? "Claim to review" : "Claim case"}
         </Button>
       )}
       {canUnclaim && (

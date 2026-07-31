@@ -162,27 +162,27 @@ const INQUIRY_TRACK: AdvancedTutorialTrack = {
       id: "adv-inquiry-welcome",
       title: "Your role on inquiry",
       description:
-        "You own first contact. This walkthrough follows one case from the Inquiry Queue through routing, appointments, and what trap teams see next.",
+        "You qualify new requests — you do not close cases. Claim first so nobody else works the same case, confirm details are complete, then route to a trap team.",
       icon: Sparkles,
     }),
     step({
       id: "adv-inquiry-intake",
-      title: "Claim and qualify in Inquiry Queue",
+      title: "Claim before you review",
       description:
-        "Open a new request, confirm contact and colony details, and update status as you learn more. Claiming tells the team who is owning follow-up.",
+        "In the Inquiry Queue, claim an unassigned case first. That locks it to you. Only after claiming should you open the full case to check contact, colony, and notes.",
       icon: Inbox,
       navHref: "/intake",
-      flowNote: "Action: claim → contact caretaker → update status / notes on the case.",
+      flowNote: "Action: Claim to review → Review details → Route to trap team (never Close).",
     }),
     step({
       id: "adv-inquiry-route",
-      title: "Route work to trap teams",
+      title: "Route when details are complete",
       description:
-        "When a colony needs field help, assign or route the case so it appears for the right trap team. That handoff is what moves work out of pure intake.",
+        "If information is missing, mark Needs more info. When the case is ready for field work, use Route to trap team. Closing is for trap leads/admins after field outcomes — not intake.",
       icon: ArrowRightLeft,
       navHref: "/intake",
       navigateOnStep: false,
-      flowNote: "Inquiry ownership → assigned team → Trap Queue visibility.",
+      flowNote: "Intake owns qualification · Trap teams own field work and closure.",
     }),
     step({
       id: "adv-inquiry-trap",

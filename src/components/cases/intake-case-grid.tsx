@@ -10,6 +10,7 @@ interface IntakeCaseGridProps {
   canClaim: boolean;
   userEmail: string;
   isAdmin?: boolean;
+  claimBeforeReview?: boolean;
 }
 
 export function IntakeCaseGrid({
@@ -17,6 +18,7 @@ export function IntakeCaseGrid({
   canClaim,
   userEmail,
   isAdmin = false,
+  claimBeforeReview = false,
 }: IntakeCaseGridProps) {
   const router = useRouter();
 
@@ -41,6 +43,7 @@ export function IntakeCaseGrid({
         <CaseCard
           key={helpRequest.id}
           helpRequest={helpRequest}
+          claimBeforeReview={claimBeforeReview}
           claim={
             canClaim || isAdmin || helpRequest.claimed_by_email === userEmail
               ? {

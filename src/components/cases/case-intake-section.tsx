@@ -44,6 +44,7 @@ interface CaseIntakeSectionProps {
   onChange: (next: HelpRequest) => void;
   onCloseCase: () => void;
   canCloseCase: boolean;
+  readOnly?: boolean;
 }
 
 function SaveIndicator({ state }: { state: SaveState }) {
@@ -78,6 +79,7 @@ export function CaseIntakeSection({
   onChange,
   onCloseCase,
   canCloseCase,
+  readOnly = false,
 }: CaseIntakeSectionProps) {
   const isInquiryTeam = userRole === "inquiry_team";
   const statusOptions = getStatusOptionsForRole(userRole);
@@ -86,10 +88,14 @@ export function CaseIntakeSection({
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-end gap-3 rounded-lg border bg-muted/30 px-4 py-2">
-        <SaveIndicator state={saveState} />
+        {readOnly ? (
+          <p className="text-xs text-muted-foreground">Claim this case to edit intake fields.</p>
+        ) : (
+          <SaveIndicator state={saveState} />
+        )}
       </div>
 
-      {canReviewMedical && (
+      {canReviewMedical && !readOnly && (
         <CaseCollapsibleSection title="Medical review" defaultOpen={false}>
           <MedicalReviewActions helpRequest={hr} />
         </CaseCollapsibleSection>
@@ -107,7 +113,8 @@ export function CaseIntakeSection({
                   </Badge>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Updated when you claim, mark needs more info, or route to trap team.
+                  Claim first, confirm details are complete, then route to a trap team.
+                  Intake does not close cases.
                 </p>
               </div>
             ) : (
@@ -116,6 +123,7 @@ export function CaseIntakeSection({
                 <Select
                   value={hr.status}
                   onValueChange={(v) => onChange({ ...hr, status: v as HelpRequestStatus })}
+                  disabled={readOnly}
                 >
                   <SelectTrigger>
                     <SelectValue />
@@ -142,7 +150,7 @@ export function CaseIntakeSection({
                     assigned_team_name: team?.name ?? null,
                   });
                 }}
-                disabled={userRole === "inquiry_team"}
+                disabled={userRole === "inquiry_team" || readOnly}
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -185,8 +193,8 @@ export function CaseIntakeSection({
 
       <CaseHistorySection
         entries={hr.history_log ?? []}
-        canAddNote={canAddNote}
-        canResolveFollowUp={canResolveFollowUp}
+        canAddNote={canAddNote && !readOnly}
+        canResolveFollowUp={canResolveFollowUp && !readOnly}
         authorName={noteAuthorName}
         authorEmail={noteAuthorEmail}
         saving={savingNote}
@@ -197,7 +205,7 @@ export function CaseIntakeSection({
         onResolveFollowUp={onResolveFollowUp}
       />
 
-      {canCloseCase && (
+      {canCloseCase && !readOnly && (
         <CaseCollapsibleSection title="Close case" defaultOpen={false}>
           <div className="space-y-4">
             <div className="space-y-2 max-w-sm">
