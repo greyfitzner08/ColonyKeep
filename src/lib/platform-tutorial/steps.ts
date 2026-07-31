@@ -32,6 +32,8 @@ export interface PlatformTutorialStep {
   highlightSidebar?: boolean;
   /** Navigate to navHref when the step is shown. Defaults to true when navHref is set. */
   navigateOnStep?: boolean;
+  /** Short callout explaining how this step connects to other parts of the system. */
+  flowNote?: string;
   visible?: (permissions: ProfilePermissions) => boolean;
 }
 

@@ -11,6 +11,10 @@ import {
   tutorialStepsForPermissions,
   type PlatformTutorialStep,
 } from "@/lib/platform-tutorial/steps";
+import {
+  tutorialStepsForMode,
+  type TutorialMode,
+} from "@/lib/platform-tutorial/tracks";
 import { useTutorialNavigation } from "@/components/platform-tutorial/tutorial-navigation-context";
 import { Z_INDEX } from "@/lib/z-index";
 import { cn } from "@/lib/utils";
@@ -21,6 +25,8 @@ interface PlatformTutorialModalProps {
   onOpenChange: (open: boolean) => void;
   profile: Profile | null;
   userName?: string | null;
+  /** Quick page tour (default) or advanced role workflow track. */
+  mode?: TutorialMode;
   /** When true, closing the dialog marks the tutorial complete (first sign-in flow). */
   markCompleteOnClose?: boolean;
   onCompleted?: () => void;
@@ -31,6 +37,7 @@ export function PlatformTutorialModal({
   onOpenChange,
   profile,
   userName,
+  mode = "quick",
   markCompleteOnClose = false,
   onCompleted,
 }: PlatformTutorialModalProps) {
@@ -38,7 +45,11 @@ export function PlatformTutorialModal({
   const [mounted, setMounted] = useState(false);
   const { setHighlightedNav, setTourActive } = useTutorialNavigation();
   const permissions = useMemo(() => getProfilePermissions(profile), [profile]);
-  const steps = useMemo(() => tutorialStepsForPermissions(permissions), [permissions]);
+  const quickSteps = useMemo(() => tutorialStepsForPermissions(permissions), [permissions]);
+  const { steps, track } = useMemo(
+    () => tutorialStepsForMode(mode, profile, quickSteps),
+    [mode, profile, quickSteps]
+  );
   const [stepIndex, setStepIndex] = useState(0);
   const [completing, setCompleting] = useState(false);
 
@@ -46,6 +57,10 @@ export function PlatformTutorialModal({
   const isFirst = stepIndex === 0;
   const isLast = stepIndex === steps.length - 1;
   const description = step ? stepDescription(step, permissions) : "";
+  const tourLabel =
+    mode === "advanced"
+      ? `${track?.roleLabel ?? permissions?.label ?? "Role"} advanced`
+      : `${permissions?.label ?? "Platform"} walkthrough`;
 
   useEffect(() => {
     setMounted(true);
@@ -53,7 +68,7 @@ export function PlatformTutorialModal({
 
   useEffect(() => {
     if (open) setStepIndex(0);
-  }, [open]);
+  }, [open, mode]);
 
   useEffect(() => {
     setTourActive(open);
@@ -124,7 +139,7 @@ export function PlatformTutorialModal({
         aria-modal="false"
         aria-labelledby="platform-tutorial-title"
         className={cn(
-          "fixed flex max-h-[min(28rem,80vh)] w-[min(24rem,calc(100vw-2rem))] flex-col overflow-hidden rounded-lg border bg-background shadow-2xl",
+          "fixed flex max-h-[min(32rem,85vh)] w-[min(26rem,calc(100vw-2rem))] flex-col overflow-hidden rounded-lg border bg-background shadow-2xl",
           "bottom-4 left-4 max-lg:right-4 lg:left-[17rem] lg:right-auto"
         )}
         style={{ zIndex: Z_INDEX.tutorialPanel }}
@@ -137,8 +152,7 @@ export function PlatformTutorialModal({
               </div>
               <div className="min-w-0 space-y-1">
                 <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                  {permissions?.label ?? "Platform"} walkthrough · Step {stepIndex + 1} of{" "}
-                  {steps.length}
+                  {tourLabel} · Step {stepIndex + 1} of {steps.length}
                 </p>
                 <h2 id="platform-tutorial-title" className="text-lg font-semibold leading-tight">
                   {step.title}
@@ -161,15 +175,27 @@ export function PlatformTutorialModal({
               <>
                 Hi {userName}! {description}
               </>
+            ) : step.id.endsWith("-welcome") && userName ? (
+              <>
+                Hi {userName}! {description}
+              </>
             ) : (
               description
             )}
           </p>
+          {step.flowNote && (
+            <p className="mt-3 rounded-md border border-primary/20 bg-primary/5 px-3 py-2 text-xs leading-relaxed text-foreground">
+              <span className="font-medium text-primary">How it connects: </span>
+              {step.flowNote}
+            </p>
+          )}
           {(step.navHref || step.highlightSidebar) && (
             <p className="mt-2 text-xs font-medium text-primary">
               {step.highlightSidebar
                 ? "Watch the sidebar — your menu items are highlighted."
-                : `Opened ${step.title} — look for the highlighted item in the sidebar.`}
+                : step.navigateOnStep === false
+                  ? `Stay on this page — ${step.title} is highlighted in the sidebar.`
+                  : `Opened ${step.title} — look for the highlighted item in the sidebar.`}
             </p>
           )}
         </div>
@@ -200,7 +226,7 @@ export function PlatformTutorialModal({
             </Button>
             {isLast ? (
               <Button type="button" size="sm" disabled={completing} onClick={() => void handleFinish()}>
-                {completing ? "Saving…" : "Get started"}
+                {completing ? "Saving…" : mode === "advanced" ? "Done" : "Get started"}
               </Button>
             ) : (
               <Button
