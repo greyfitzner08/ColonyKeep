@@ -94,8 +94,8 @@ export function getInquiryTeamStatusLabel(
 ): string {
   if (hr.status === "routed_to_trap_team") return "Routed to trap team";
   if (hr.status === "needs_more_info") return "Needs more info";
-  if (hr.claimed_by_email || hr.status === "under_review") return "Claimed";
-  if (hr.status === "new_intake") return "New intake";
+  if (hr.claimed_by_email?.trim()) return "Claimed";
+  if (hr.status === "new_intake" || hr.status === "under_review") return "Unclaimed";
   return getStatusLabel(hr.status);
 }
 

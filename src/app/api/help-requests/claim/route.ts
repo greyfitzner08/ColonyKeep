@@ -60,8 +60,12 @@ export async function POST(request: NextRequest) {
       claimed_by_name: null,
     };
 
+    // Releasing a claim must also release the stage it implied, or the case looks
+    // "in review" / "claimed" with nobody working it.
     if (existing.status === "claimed") {
-      updates.status = existing.assigned_team_id ? "routed_to_trap_team" : "under_review";
+      updates.status = "routed_to_trap_team";
+    } else if (existing.status === "under_review") {
+      updates.status = "new_intake";
     }
 
     const { error } = await service.from("help_requests").update(updates).eq("id", helpRequestId);
