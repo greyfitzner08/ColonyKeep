@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { resolveCountyFromAutocomplete } from "@/lib/counties";
-import { getGoogleMapsApiKey } from "@/lib/google-maps";
+import { formatGoogleMapsApiError, getGoogleMapsApiKey } from "@/lib/google-maps";
 
 function getComponent(
   components: Array<{ long_name: string; short_name: string; types: string[] }>,
@@ -30,7 +30,18 @@ export async function GET(request: NextRequest) {
   const result = data.result;
 
   if (!result) {
-    return NextResponse.json({ address: "", city: "", state: "", county: "", zip: "" });
+    const error =
+      data?.status === "REQUEST_DENIED"
+        ? formatGoogleMapsApiError(data?.status, data?.error_message)
+        : undefined;
+    return NextResponse.json({
+      address: "",
+      city: "",
+      state: "",
+      county: "",
+      zip: "",
+      ...(error ? { error } : {}),
+    });
   }
 
   const components = result.address_components ?? [];

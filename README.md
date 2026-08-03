@@ -16,7 +16,7 @@ A full-stack platform for volunteer rescue organizations managing Trap-Neuter-Va
 
 - Node.js **20+**
 - A [Supabase](https://supabase.com) project
-- Optional: Resend API key, Google Maps API key
+- Optional: Resend API key, Google Maps API key (server key without HTTP referrer restrictions)
 
 ## Setup
 

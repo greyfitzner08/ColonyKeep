@@ -1,4 +1,5 @@
 import { canonicalServiceCounty, isKnownServiceCounty } from "@/lib/counties";
+import { getGoogleMapsApiKey } from "@/lib/google-maps";
 
 export interface GeocodeResult {
   lat: number;
@@ -164,7 +165,7 @@ export async function geocodeAddress(parts: GeocodeAddressParts): Promise<Geocod
   const queries = buildGeocodeQueries(parts);
   if (queries.length === 0) return null;
 
-  const googleKey = process.env.GOOGLE_MAPS_API_KEY;
+  const googleKey = getGoogleMapsApiKey();
   if (googleKey) {
     for (const query of queries) {
       const coords = await geocodeWithGoogle(query, googleKey);

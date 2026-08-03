@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getGoogleMapsApiKey } from "@/lib/google-maps";
+import { formatGoogleMapsApiError, getGoogleMapsApiKey } from "@/lib/google-maps";
 
 export async function GET(request: NextRequest) {
   const input = request.nextUrl.searchParams.get("input")?.trim() ?? "";
@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       predictions: [],
       error:
-        "Address suggestions are not configured. Set a real GOOGLE_MAPS_API_KEY in .env.local (and Vercel) with Places API enabled.",
+        "Address suggestions are not configured. Set GOOGLE_MAPS_SERVER_API_KEY (Places + Geocoding, no referrer restrictions) in .env.local and Vercel.",
     });
   }
 
@@ -28,9 +28,7 @@ export async function GET(request: NextRequest) {
   if (!data || data.status === "REQUEST_DENIED" || data.status === "INVALID_REQUEST") {
     return NextResponse.json({
       predictions: [],
-      error:
-        data?.error_message ??
-        `Google Places autocomplete failed (${data?.status ?? "unknown"}). Check the API key and enable Places API.`,
+      error: formatGoogleMapsApiError(data?.status, data?.error_message),
     });
   }
 
