@@ -195,12 +195,12 @@ const INQUIRY_TRACK: AdvancedTutorialTrack = {
     }),
     step({
       id: "adv-inquiry-feed",
-      title: "Broadcast only what’s needed",
+      title: "Share on Team Feed",
       description:
-        "Team Feed is for team-wide updates. Keep caretaker conversations and medical/case detail on the case so trap teams have one place to look.",
+        "Think of Team Feed as the team’s social board — share fun moments, successes, celebrations, and life updates with everyone.",
       icon: MessageSquare,
       navHref: "/team-feed",
-      flowNote: "Feed for awareness · Case record for decisions.",
+      flowNote: "Feed is for community · Case details stay on the case.",
     }),
     step({
       id: "adv-inquiry-profile",
