@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireApiRole } from "@/lib/api/auth";
 import { createServiceClient } from "@/lib/supabase/server";
+import { tryAutoAssignTrapTeamForProfile } from "@/lib/volunteers/assign-team-by-home-zip";
 
 const ALLOWED_FIELDS = [
   "shadow_completed",
@@ -31,6 +32,19 @@ export async function POST(request: NextRequest) {
   }
 
   const service = await createServiceClient();
+  const { data: application, error: loadError } = await service
+    .from("volunteer_applications")
+    .select("id, email")
+    .eq("id", applicationId)
+    .single();
+
+  if (loadError || !application) {
+    return NextResponse.json(
+      { error: loadError?.message ?? "Application not found" },
+      { status: 404 }
+    );
+  }
+
   const { error } = await service
     .from("volunteer_applications")
     .update({
@@ -42,6 +56,21 @@ export async function POST(request: NextRequest) {
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 400 });
+  }
+
+  if (value && (field === "shadow_completed" || field === "tnvr_certificate_uploaded")) {
+    try {
+      const { data: volunteerProfile } = await service
+        .from("profiles")
+        .select("id")
+        .eq("email", application.email.toLowerCase())
+        .maybeSingle();
+      if (volunteerProfile?.id) {
+        await tryAutoAssignTrapTeamForProfile(service, volunteerProfile.id);
+      }
+    } catch (assignError) {
+      console.warn("[update-application] trap team auto-assign failed", assignError);
+    }
   }
 
   return NextResponse.json({ success: true });

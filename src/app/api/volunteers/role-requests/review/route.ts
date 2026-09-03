@@ -11,6 +11,7 @@ import {
   syncApplicationForRoleRequests,
 } from "@/lib/volunteers/role-expansion";
 import { missingAdminVerifiableRequirementsForRole, requirementLabel } from "@/lib/volunteers/role-requirements";
+import { tryAutoAssignTrapTeamForProfile } from "@/lib/volunteers/assign-team-by-home-zip";
 
 export async function POST(request: NextRequest) {
   const { profile, response } = await requireApiRole(["admin"]);
@@ -223,6 +224,12 @@ export async function POST(request: NextRequest) {
       roleRequest.email,
       mergedRoles
     );
+  }
+
+  try {
+    await tryAutoAssignTrapTeamForProfile(service, roleRequest.profile_id);
+  } catch (assignError) {
+    console.warn("[role-requests/review] trap team auto-assign failed", assignError);
   }
 
   return NextResponse.json({

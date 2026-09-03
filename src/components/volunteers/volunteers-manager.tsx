@@ -38,6 +38,7 @@ import {
 } from "@/lib/volunteers/role-catalog";
 import { volunteerRequirementSource } from "@/lib/volunteers/requirement-source";
 import { canAssignVolunteerToTeam, getTeamEligibleVolunteers, hasTrapTeamMemberRoles } from "@/lib/volunteers/eligibility";
+import { findTrapTeamForZip } from "@/lib/cases/assign-team-by-zip";
 import {
   applicationMatchesFilter,
   attentionPriority,
@@ -301,14 +302,21 @@ export function VolunteersManager({
 
   useEffect(() => {
     const profile = reviewingContext?.linkedProfile;
+    const app = reviewingApplication;
     if (!profile) {
       setReviewPlatformRole("volunteer");
-      setReviewTeamId("none");
+      const zipMatch = app ? findTrapTeamForZip(app.home_zip, teams) : null;
+      setReviewTeamId(zipMatch?.id ?? "none");
       return;
     }
     setReviewPlatformRole(isKnownUserRole(profile.role) ? profile.role : "volunteer");
-    setReviewTeamId(profile.team_id ?? "none");
-  }, [reviewingContext?.linkedProfile, reviewingApplication?.id]);
+    if (profile.team_id) {
+      setReviewTeamId(profile.team_id);
+      return;
+    }
+    const zipMatch = findTrapTeamForZip(profile.home_zip ?? app?.home_zip, teams);
+    setReviewTeamId(zipMatch?.id ?? "none");
+  }, [reviewingContext?.linkedProfile, reviewingApplication, teams]);
 
   const attentionCount = useMemo(
     () =>
@@ -900,15 +908,15 @@ export function VolunteersManager({
       assigningTrapTeam,
     });
     const selectableApprovalRoles = filterSignupRoleDescriptions(applicationRoleOptions, app.birthday);
-    const teamAssignReady = isRoleExpansion
-      ? true
-      : reviewTeamId === "none" || canAssignVolunteerToTeam(app, linkedProfile);
     const trapTeamRolesSelected = hasTrapTeamMemberRoles(linkedProfile, {
       roles_requested: selectedApprovalRoles,
     });
     const trapTeamEligible = linkedProfile
       ? teamEligibleProfiles.some((entry) => entry.profile.id === linkedProfile.id)
-      : trapTeamRolesSelected;
+      : canAssignVolunteerToTeam(app, { volunteer_roles: selectedApprovalRoles });
+    const teamAssignReady = isRoleExpansion
+      ? true
+      : reviewTeamId === "none" || trapTeamEligible;
     const certificateUrl =
       context.pendingRoleRequests[0]?.tnvr_certificate_url ??
       app.tnvr_certificate_url ??
@@ -1154,7 +1162,7 @@ export function VolunteersManager({
               disabled={
                 reviewPlatformRole === "none" ||
                 !trapTeamRolesSelected ||
-                (linkedProfile ? !trapTeamEligible : false)
+                !trapTeamEligible
               }
             >
               <SelectTrigger>
@@ -1171,7 +1179,13 @@ export function VolunteersManager({
             </Select>
             {!linkedProfile && (
               <p className="text-xs text-muted-foreground">
-                Optional on approve — applied when their login account is created.
+                Prefills from home ZIP when a trap team covers that area. Change or clear before
+                approving if needed.
+              </p>
+            )}
+            {linkedProfile && !linkedProfile.team_id && reviewTeamId !== "none" && (
+              <p className="text-xs text-muted-foreground">
+                Suggested from home ZIP. Save changes to assign them to this team.
               </p>
             )}
             {linkedProfile && !trapTeamEligible && trapTeamRolesSelected && (

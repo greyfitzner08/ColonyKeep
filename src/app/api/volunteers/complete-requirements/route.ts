@@ -4,6 +4,7 @@ import {
   getMissingUserCompletableRequirements,
   isExemptFromVolunteerApplication,
 } from "@/lib/volunteers/application-requirements";
+import { tryAutoAssignTrapTeamForProfile } from "@/lib/volunteers/assign-team-by-home-zip";
 
 export async function POST(request: NextRequest) {
   const supabase = await createClient();
@@ -109,6 +110,12 @@ export async function POST(request: NextRequest) {
         tnvr_certificate_url: nextApplication.tnvr_certificate_url,
       })
       .eq("id", profile.id);
+  }
+
+  try {
+    await tryAutoAssignTrapTeamForProfile(service, profile.id);
+  } catch (error) {
+    console.warn("[complete-requirements] trap team auto-assign failed", error);
   }
 
   return NextResponse.json({ success: true });

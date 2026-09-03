@@ -9,6 +9,7 @@ import {
   missingAdminVerifiableRequirementsForRole,
   requirementLabel,
 } from "@/lib/volunteers/role-requirements";
+import { tryAutoAssignTrapTeamForProfile } from "@/lib/volunteers/assign-team-by-home-zip";
 
 function errorResponse(message: string, status = 400) {
   return NextResponse.json({ error: message }, { status });
@@ -42,7 +43,7 @@ export async function POST(request: NextRequest) {
 
   const { data: volunteerProfile, error: profileError } = await service
     .from("profiles")
-    .select("id, email, volunteer_roles, tnvr_certificate_uploaded, tnvr_certificate_url")
+    .select("id, email, volunteer_roles, tnvr_certificate_uploaded, tnvr_certificate_url, team_id, home_zip")
     .eq("email", application.email.toLowerCase())
     .maybeSingle();
 
@@ -150,6 +151,12 @@ export async function POST(request: NextRequest) {
 
   if (applicationUpdateError) {
     return errorResponse(applicationUpdateError.message);
+  }
+
+  try {
+    await tryAutoAssignTrapTeamForProfile(service, volunteerProfile.id);
+  } catch (assignError) {
+    console.warn("[grant-roles] trap team auto-assign failed", assignError);
   }
 
   return NextResponse.json({

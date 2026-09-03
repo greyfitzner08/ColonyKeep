@@ -3,6 +3,7 @@ import { requireApiRole } from "@/lib/api/auth";
 import { createServiceClient } from "@/lib/supabase/server";
 import { isHomeAddressComplete, parseVolunteerContactUpdate } from "@/lib/volunteers/contact-fields";
 import { syncVolunteerContactRecords } from "@/lib/volunteers/contact-sync";
+import { tryAutoAssignTrapTeamForProfile } from "@/lib/volunteers/assign-team-by-home-zip";
 import type { UserRole, VolunteerRole } from "@/lib/types";
 
 export async function POST(request: NextRequest) {
@@ -108,6 +109,16 @@ export async function POST(request: NextRequest) {
         .from("volunteer_applications")
         .update({ roles_requested: volunteer_roles })
         .eq("email", existingProfile.email.toLowerCase());
+    }
+  }
+
+  // Fill empty team from home ZIP when roles/training make them eligible
+  // (skip when admin explicitly set team_id, including clearing it).
+  if (teamId === undefined) {
+    try {
+      await tryAutoAssignTrapTeamForProfile(service, userId);
+    } catch (assignError) {
+      console.warn("[admin/profiles/update] trap team auto-assign failed", assignError);
     }
   }
 

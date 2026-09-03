@@ -7,6 +7,7 @@ import {
   isHomeAddressComplete,
   type VolunteerContactUpdate,
 } from "@/lib/volunteers/contact-fields";
+import { tryAutoAssignTrapTeamForProfile } from "@/lib/volunteers/assign-team-by-home-zip";
 
 export async function syncVolunteerContactRecords(
   service: SupabaseClient,
@@ -148,6 +149,14 @@ export async function syncVolunteerContactRecords(
       if (applicationError) {
         return { error: applicationError.message };
       }
+    }
+  }
+
+  if (addressTouched && mergedAddress.home_zip) {
+    try {
+      await tryAutoAssignTrapTeamForProfile(service, params.userId);
+    } catch (error) {
+      console.warn("[contact-sync] trap team auto-assign failed", error);
     }
   }
 

@@ -3,7 +3,13 @@ import { requireApiRole } from "@/lib/api/auth";
 import { createServiceClient } from "@/lib/supabase/server";
 import { getRequestAppUrl } from "@/lib/app-url";
 import { getEmailValidationError, parsePrimaryEmail } from "@/lib/email-utils";
+import { syncProfileTeamMembership } from "@/lib/admin/team-members";
 import { ensureVolunteerAuthUser } from "@/lib/volunteers/approve-auth";
+import {
+  isEligibleForTrapTeamAutoAssign,
+  loadActiveTrapTeamsForZipMatch,
+} from "@/lib/volunteers/assign-team-by-home-zip";
+import { findTrapTeamForZip } from "@/lib/cases/assign-team-by-zip";
 import { canAssignVolunteerToTeam, hasTrapTeamMemberRoles } from "@/lib/volunteers/eligibility";
 import { isUnder18, isRoleAllowedOnSignup } from "@/lib/volunteers/age-eligibility";
 import { isKnownUserRole } from "@/lib/constants";
@@ -106,11 +112,33 @@ export async function POST(request: NextRequest) {
       return errorResponse("Select at least one volunteer role to approve.");
     }
 
-    if (teamId) {
-      const approvalProfile = {
-        volunteer_roles: applicationRoles,
-        roles_requested: applicationRoles,
-      };
+    const approvalProfile = {
+      volunteer_roles: applicationRoles,
+      roles_requested: applicationRoles,
+    };
+
+    const teams = await loadActiveTrapTeamsForZipMatch(service);
+    let resolvedTeamId: string | null = null;
+
+    if (typeof teamId === "string" && teamId.trim()) {
+      resolvedTeamId = teamId.trim();
+    } else if (teamId === undefined) {
+      // No team sent (API clients) — assign from home ZIP when eligible.
+      const zipMatch = findTrapTeamForZip(application.home_zip, teams);
+      if (
+        zipMatch &&
+        isEligibleForTrapTeamAutoAssign(applicationRoles, {
+          roles_requested: applicationRoles,
+          tnvr_certificate_uploaded: Boolean(application.tnvr_certificate_uploaded),
+          shadow_completed: Boolean(application.shadow_completed),
+        })
+      ) {
+        resolvedTeamId = zipMatch.id;
+      }
+    }
+    // Explicit null means admin chose "No team" — do not override.
+
+    if (resolvedTeamId) {
       if (!hasTrapTeamMemberRoles(approvalProfile, { roles_requested: applicationRoles })) {
         return errorResponse(
           "Trap team assignment requires a trapping, transport, recovery, or colony support role."
@@ -137,6 +165,8 @@ export async function POST(request: NextRequest) {
     const resolvedPlatformRole: UserRole =
       platformRole && isKnownUserRole(platformRole) ? platformRole : "volunteer";
 
+    const profileId = existingProfile?.id ?? userId;
+
     if (existingProfile) {
       const { error: profileUpdateError } = await service
         .from("profiles")
@@ -145,7 +175,6 @@ export async function POST(request: NextRequest) {
             platformRole && isKnownUserRole(platformRole)
               ? platformRole
               : existingProfile.role || "volunteer",
-          ...(teamId ? { team_id: teamId } : {}),
           full_name: application.full_name,
           birthday: application.birthday ?? null,
           phone: application.phone ?? null,
@@ -181,7 +210,7 @@ export async function POST(request: NextRequest) {
         home_zip: application.home_zip ?? null,
         home_county: application.home_county ?? null,
         role: resolvedPlatformRole,
-        team_id: teamId ?? null,
+        team_id: null,
         volunteer_roles: mergedVolunteerRoles,
         tnvr_certificate_uploaded: application.tnvr_certificate_uploaded ?? false,
         tnvr_certificate_url: application.tnvr_certificate_url ?? null,
@@ -193,27 +222,23 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    if (teamId) {
-      const { data: team, error: teamError } = await service
-        .from("trap_teams")
-        .select("members")
-        .eq("id", teamId)
-        .single();
-
-      if (teamError) {
-        return errorResponse(`Could not load trap team: ${teamError.message}`);
-      }
-
-      const members = team?.members ?? [];
-      if (!members.includes(volunteerEmail)) {
-        const { error: teamUpdateError } = await service
-          .from("trap_teams")
-          .update({ members: [...members, volunteerEmail] })
-          .eq("id", teamId);
-
-        if (teamUpdateError) {
-          return errorResponse(`Could not add volunteer to team: ${teamUpdateError.message}`);
-        }
+    if (resolvedTeamId) {
+      try {
+        await syncProfileTeamMembership(
+          service,
+          {
+            id: profileId,
+            email: volunteerEmail,
+            team_id: existingProfile?.team_id ?? null,
+          },
+          resolvedTeamId
+        );
+      } catch (teamError) {
+        return errorResponse(
+          teamError instanceof Error
+            ? `Could not add volunteer to team: ${teamError.message}`
+            : "Could not add volunteer to team"
+        );
       }
     }
 
@@ -235,6 +260,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       is_new_user: isNewUser,
+      team_id: resolvedTeamId,
     });
   } catch (error) {
     const message =
