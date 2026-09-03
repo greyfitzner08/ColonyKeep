@@ -64,6 +64,17 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  if (spots.some((spot) => !spot.cat_name?.trim())) {
+    return NextResponse.json({ error: "Each cat needs a name." }, { status: 400 });
+  }
+
+  if (spots.some((spot) => !spot.cat_gender?.trim())) {
+    return NextResponse.json(
+      { error: "Select Male, Female, or Unknown for each cat." },
+      { status: 400 }
+    );
+  }
+
   const confirmExpires = new Date();
   confirmExpires.setHours(confirmExpires.getHours() + 24);
 

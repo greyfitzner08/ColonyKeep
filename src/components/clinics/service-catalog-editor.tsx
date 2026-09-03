@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { NumberInput } from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -189,13 +190,15 @@ export function ServiceCatalogEditor({
           addons.map((addon, index) => (
             <div key={`addon-${addon.name}-${index}`} className="flex gap-2 items-center">
               <span className="min-w-0 flex-1 rounded-md border px-3 py-2 text-sm">{addon.name}</span>
-              <Input
-                type="number"
+              <NumberInput
                 step="0.01"
+                min={0}
                 className="w-28"
                 placeholder="Price"
                 value={addon.price}
-                onChange={(e) => updateAddon(index, { price: parseFloat(e.target.value) || 0 })}
+                onValueChange={(value) => {
+                  if (typeof value === "number") updateAddon(index, { price: value });
+                }}
               />
               <span className="text-sm text-muted-foreground w-20 shrink-0">
                 {formatCurrency(addon.price)}

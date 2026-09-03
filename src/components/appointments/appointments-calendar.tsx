@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
+import { NumberInput } from "@/components/ui/number-input";
 import { ClaimAppointmentDialog } from "@/components/appointments/claim-appointment-dialog";
 import { AppointmentDetailDialog } from "@/components/appointments/appointment-detail-dialog";
 import { APPOINTMENT_STATUS_COLORS } from "@/lib/constants";
@@ -404,7 +405,18 @@ export function AppointmentsCalendar({
               </Select>
             </div>
             <div className="space-y-2"><Label>Date</Label><Input type="date" value={bulkForm.date} onChange={(e) => setBulkForm({ ...bulkForm, date: e.target.value })} /></div>
-            <div className="space-y-2"><Label>Number of Slots</Label><Input type="number" min={1} value={bulkForm.count} onChange={(e) => setBulkForm({ ...bulkForm, count: parseInt(e.target.value) || 1 })} /></div>
+            <div className="space-y-2">
+              <Label>Number of Slots</Label>
+              <NumberInput
+                integer
+                min={1}
+                emptyValue={1}
+                value={bulkForm.count}
+                onValueChange={(value) => {
+                  if (typeof value === "number") setBulkForm({ ...bulkForm, count: value });
+                }}
+              />
+            </div>
             {bulkError && <p className="text-sm text-destructive">{bulkError}</p>}
             <Button onClick={bulkCreate} className="w-full" disabled={savingBulk}>
               {savingBulk ? "Creating..." : "Create Slots"}

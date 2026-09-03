@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Cat, ChevronLeft, ChevronRight, CheckCircle, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { NumberInput } from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -643,36 +644,36 @@ export function ColonyIntakeForm() {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Cats over 8 weeks</Label>
-                    <Input
-                      type="number"
+                    <NumberInput
+                      integer
                       min={0}
                       value={form.cats_over_8_weeks}
-                      onChange={(e) =>
-                        update("cats_over_8_weeks", Math.max(0, Number(e.target.value) || 0))
-                      }
+                      onValueChange={(value) => {
+                        if (typeof value === "number") update("cats_over_8_weeks", value);
+                      }}
                     />
                   </div>
                   <div className="space-y-2">
                     <Label>Kittens under 8 weeks</Label>
-                    <Input
-                      type="number"
+                    <NumberInput
+                      integer
                       min={0}
                       value={form.kittens_under_8_weeks}
-                      onChange={(e) =>
-                        update("kittens_under_8_weeks", Math.max(0, Number(e.target.value) || 0))
-                      }
+                      onValueChange={(value) => {
+                        if (typeof value === "number") update("kittens_under_8_weeks", value);
+                      }}
                     />
                   </div>
                 </div>
                 <div className="space-y-2">
                   <Label>Number you suspect are pregnant</Label>
-                  <Input
-                    type="number"
+                  <NumberInput
+                    integer
                     min={0}
                     value={form.pregnant_count}
-                    onChange={(e) =>
-                      update("pregnant_count", Math.max(0, Number(e.target.value) || 0))
-                    }
+                    onValueChange={(value) => {
+                      if (typeof value === "number") update("pregnant_count", value);
+                    }}
                   />
                 </div>
                 <div className="space-y-2">

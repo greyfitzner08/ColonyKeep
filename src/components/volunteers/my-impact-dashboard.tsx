@@ -6,6 +6,7 @@ import { Pencil, Trash2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { NumberInput } from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -101,14 +102,14 @@ function HourFormFields({
       </div>
       <div className="space-y-2">
         <Label>Hours</Label>
-        <Input
-          type="number"
+        <NumberInput
           step={0.5}
           min={0.5}
+          emptyValue={0.5}
           value={form.hours}
-          onChange={(event) =>
-            onChange({ ...form, hours: parseFloat(event.target.value) || 0 })
-          }
+          onValueChange={(value) => {
+            if (typeof value === "number") onChange({ ...form, hours: value });
+          }}
         />
       </div>
       <div className="space-y-2">

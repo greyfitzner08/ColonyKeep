@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { NumberInput } from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -167,7 +168,17 @@ export function ClinicsManager({ clinics: initial }: ClinicsManagerProps) {
                 ))}
               </div>
             </div>
-            <div className="space-y-2"><Label>Slots per Day</Label><Input type="number" value={form.slots_per_day} onChange={(e) => setForm({ ...form, slots_per_day: parseInt(e.target.value) || 0 })} /></div>
+            <div className="space-y-2">
+              <Label>Slots per Day</Label>
+              <NumberInput
+                integer
+                min={0}
+                value={form.slots_per_day}
+                onValueChange={(value) => {
+                  if (typeof value === "number") setForm({ ...form, slots_per_day: value });
+                }}
+              />
+            </div>
 
             <div className="space-y-2">
               <div className="flex items-center justify-between">
@@ -189,15 +200,16 @@ export function ClinicsManager({ clinics: initial }: ClinicsManagerProps) {
                         setForm({ ...form, packages });
                       }}
                     />
-                    <Input
-                      type="number"
+                    <NumberInput
                       step="0.01"
+                      min={0}
                       className="w-24"
                       placeholder="Price"
                       value={pkg.price}
-                      onChange={(e) => {
+                      onValueChange={(value) => {
+                        if (typeof value !== "number") return;
                         const packages = [...form.packages];
-                        packages[index] = { ...pkg, price: parseFloat(e.target.value) || 0 };
+                        packages[index] = { ...pkg, price: value };
                         setForm({ ...form, packages });
                       }}
                     />

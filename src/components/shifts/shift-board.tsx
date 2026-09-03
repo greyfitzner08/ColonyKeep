@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { NumberInput } from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -651,15 +652,17 @@ export function ShiftBoard({ shifts: initial, userEmail, isAdmin }: ShiftBoardPr
                           </div>
                           <div className="space-y-1">
                             <Label>Volunteers needed</Label>
-                            <Input
-                              type="number"
+                            <NumberInput
+                              integer
                               min={1}
+                              emptyValue={1}
                               value={slot.volunteers_needed}
-                              onChange={(e) =>
+                              onValueChange={(value) => {
+                                if (typeof value !== "number") return;
                                 updateSlot(position.key, slot.key, {
-                                  volunteers_needed: parseInt(e.target.value, 10) || 1,
-                                })
-                              }
+                                  volunteers_needed: value,
+                                });
+                              }}
                             />
                           </div>
                         </div>
@@ -821,16 +824,15 @@ export function ShiftBoard({ shifts: initial, userEmail, isAdmin }: ShiftBoardPr
             />
             <div className="space-y-1">
               <Label>Volunteers Needed</Label>
-              <Input
-                type="number"
+              <NumberInput
+                integer
                 min={1}
+                emptyValue={1}
                 value={editForm.volunteers_needed}
-                onChange={(e) =>
-                  setEditForm({
-                    ...editForm,
-                    volunteers_needed: parseInt(e.target.value, 10) || 1,
-                  })
-                }
+                onValueChange={(value) => {
+                  if (typeof value !== "number") return;
+                  setEditForm({ ...editForm, volunteers_needed: value });
+                }}
               />
             </div>
             <div className="space-y-1">

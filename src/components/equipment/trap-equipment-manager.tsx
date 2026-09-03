@@ -7,6 +7,7 @@ import { Plus, Pencil, Trash2, QrCode, Loader2, ArrowDown, ArrowUp, ArrowUpDown 
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { NumberInput } from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -938,14 +939,15 @@ export function TrapEquipmentManager({
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Quantity</Label>
-                <Input
-                  type="number"
+                <NumberInput
+                  integer
                   min={1}
+                  emptyValue={1}
                   value={form.quantity}
                   disabled={form.is_labeled}
-                  onChange={(e) =>
-                    setForm({ ...form, quantity: Math.max(1, Number(e.target.value) || 1) })
-                  }
+                  onValueChange={(value) => {
+                    if (typeof value === "number") setForm({ ...form, quantity: value });
+                  }}
                 />
               </div>
               <div className="space-y-2">

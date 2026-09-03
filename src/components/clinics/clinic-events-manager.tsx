@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { NumberInput } from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
@@ -280,8 +281,28 @@ export function ClinicEventsManager({ events, clinics, bookings }: ClinicEventsM
       <div className="space-y-1"><Label>Title</Label><Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} /></div>
       <div className="space-y-1"><Label>Date</Label><Input type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} /></div>
       <div className="space-y-1"><Label>Location</Label><Input value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} /></div>
-      <div className="space-y-1"><Label>Total Spots</Label><Input type="number" value={form.total_spots} onChange={(e) => setForm({ ...form, total_spots: parseInt(e.target.value) || 0 })} /></div>
-      <div className="space-y-1"><Label>Base Price (per cat)</Label><Input type="number" step="0.01" value={form.base_price} onChange={(e) => setForm({ ...form, base_price: parseFloat(e.target.value) || 0 })} /></div>
+      <div className="space-y-1">
+        <Label>Total Spots</Label>
+        <NumberInput
+          integer
+          min={0}
+          value={form.total_spots}
+          onValueChange={(value) => {
+            if (typeof value === "number") setForm({ ...form, total_spots: value });
+          }}
+        />
+      </div>
+      <div className="space-y-1">
+        <Label>Base Price (per cat)</Label>
+        <NumberInput
+          step="0.01"
+          min={0}
+          value={form.base_price}
+          onValueChange={(value) => {
+            if (typeof value === "number") setForm({ ...form, base_price: value });
+          }}
+        />
+      </div>
       <ServiceCatalogEditor
         value={form.service_catalog}
         onChange={(service_catalog) => setForm({ ...form, service_catalog })}

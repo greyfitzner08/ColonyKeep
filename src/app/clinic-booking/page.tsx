@@ -2,10 +2,18 @@
 
 import { useState, useEffect, useCallback, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import { Cat, CheckCircle, AlertTriangle } from "lucide-react";
+import { Cat, CheckCircle, AlertTriangle, ChevronDown, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { NumberInput } from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -28,6 +36,7 @@ interface SpotForm {
   cat_gender: string;
   has_injuries: boolean;
   injury_details: string;
+  has_notes: boolean;
   selected_addons: string[];
   notes: string;
 }
@@ -38,6 +47,7 @@ const emptySpot = (): SpotForm => ({
   cat_gender: "",
   has_injuries: false,
   injury_details: "",
+  has_notes: false,
   selected_addons: [],
   notes: "",
 });
@@ -71,6 +81,7 @@ function ClinicBookingContent() {
     contact_phone: "",
   });
   const [spots, setSpots] = useState<SpotForm[]>([emptySpot()]);
+  const [expandedCats, setExpandedCats] = useState<Set<number>>(new Set([0]));
 
   const releaseHold = useCallback(async (sessionId: string) => {
     await fetch("/api/clinic-booking/release-hold", {
@@ -184,13 +195,23 @@ function ClinicBookingContent() {
 
     setHoldSessionId(result.session_id);
     setHoldExpiresAt(result.expires_at);
-    setSpots(Array.from({ length: result.spot_count }, () => emptySpot()));
+    const nextSpots = Array.from({ length: result.spot_count }, () => emptySpot());
+    setSpots(nextSpots);
+    setExpandedCats(new Set(nextSpots.map((_, index) => index)));
     setStep(1);
   }
 
   async function handleSubmit() {
     if (!selectedEvent || !holdSessionId) return;
     setSubmitError(null);
+    if (spots.some((spot) => !spot.cat_name.trim())) {
+      setSubmitError("Each cat needs a name.");
+      return;
+    }
+    if (spots.some((spot) => !spot.cat_gender)) {
+      setSubmitError("Select Male, Female, or Unknown for each cat.");
+      return;
+    }
     setSubmitEmailWarning(null);
     setSubmitting(true);
 
@@ -202,6 +223,7 @@ function ClinicBookingContent() {
         spots: spots.map((spot) => ({
           ...contact,
           ...spot,
+          notes: spot.has_notes ? spot.notes : "",
           total_price: calculateSpotTotal(spot),
         })),
       }),
@@ -384,26 +406,14 @@ function ClinicBookingContent() {
               <CardContent className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="spot-count">Number of spots to request</Label>
-                  <Input
+                  <NumberInput
                     id="spot-count"
-                    type="number"
-                    inputMode="numeric"
+                    integer
                     min={1}
                     max={maxSpotRequest(selectedEvent)}
+                    emptyValue={1}
                     value={spotCount}
-                    onChange={(e) => {
-                      const raw = e.target.value;
-                      if (raw === "") {
-                        setSpotCount("");
-                        return;
-                      }
-                      const parsed = parseInt(raw, 10);
-                      if (Number.isNaN(parsed)) return;
-                      setSpotCount(Math.min(Math.max(parsed, 0), maxSpotRequest(selectedEvent)));
-                    }}
-                    onBlur={() => {
-                      if (spotCount === "" || spotCount < 1) setSpotCount(1);
-                    }}
+                    onValueChange={setSpotCount}
                   />
                 </div>
                 {submitError && <p className="text-sm text-destructive">{submitError}</p>}
@@ -462,52 +472,175 @@ function ClinicBookingContent() {
                   </div>
                 )}
 
-                {step === 2 && spots.map((spot, index) => (
-                  <div key={index} className="rounded-lg border p-4 space-y-4">
-                    <h3 className="font-semibold">Cat {index + 1} of {spots.length}</h3>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div className="space-y-2"><Label>Cat name (if known)</Label><Input value={spot.cat_name} onChange={(e) => { const next = [...spots]; next[index] = { ...spot, cat_name: e.target.value }; setSpots(next); }} /></div>
-                      <div className="space-y-2"><Label>Gender</Label><Input value={spot.cat_gender} onChange={(e) => { const next = [...spots]; next[index] = { ...spot, cat_gender: e.target.value }; setSpots(next); }} placeholder="M/F/Unknown" /></div>
-                    </div>
-                    <div className="space-y-2"><Label>Colors / markings</Label><Input value={spot.cat_colors} onChange={(e) => { const next = [...spots]; next[index] = { ...spot, cat_colors: e.target.value }; setSpots(next); }} /></div>
-                    <div className="flex items-center gap-2">
-                      <Checkbox checked={spot.has_injuries} onCheckedChange={(v) => { const next = [...spots]; next[index] = { ...spot, has_injuries: !!v }; setSpots(next); }} />
-                      <Label>Cat has injuries or medical concerns</Label>
-                    </div>
-                    {spot.has_injuries && (
-                      <div className="space-y-2"><Label>Injury details</Label><Textarea value={spot.injury_details} onChange={(e) => { const next = [...spots]; next[index] = { ...spot, injury_details: e.target.value }; setSpots(next); }} /></div>
-                    )}
-                    {selectedEvent && getAddonOptions(getEventCatalog(selectedEvent)).length > 0 && (
-                      <div className="space-y-3">
-                        <Label>Optional add-on services</Label>
-                        <p className="text-xs text-muted-foreground">Select any extras you want for this cat.</p>
-                        {getAddonOptions(getEventCatalog(selectedEvent)).map((addon) => (
-                          <div key={addon.name} className="flex items-center justify-between gap-3 rounded-md border px-3 py-2">
-                            <div className="flex items-center gap-2">
-                              <Checkbox
-                                checked={spot.selected_addons.includes(addon.name)}
-                                onCheckedChange={(v) => {
+                {step === 2 && spots.map((spot, index) => {
+                  const expanded = expandedCats.has(index);
+                  const summaryBits = [
+                    spot.cat_name.trim() || "Needs a name",
+                    spot.cat_gender || "Gender not selected",
+                  ];
+                  return (
+                    <div key={index} className="rounded-lg border">
+                      <button
+                        type="button"
+                        className="flex w-full items-center gap-2 px-4 py-3 text-left"
+                        onClick={() => {
+                          setExpandedCats((current) => {
+                            const next = new Set(current);
+                            if (next.has(index)) next.delete(index);
+                            else next.add(index);
+                            return next;
+                          });
+                        }}
+                        aria-expanded={expanded}
+                      >
+                        {expanded ? (
+                          <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
+                        ) : (
+                          <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+                        )}
+                        <span className="min-w-0 flex-1">
+                          <span className="font-semibold">Cat {index + 1} of {spots.length}</span>
+                          {!expanded && (
+                            <span className="mt-0.5 block truncate text-sm text-muted-foreground">
+                              {summaryBits.join(" · ")}
+                            </span>
+                          )}
+                        </span>
+                        <span className="shrink-0 text-sm text-muted-foreground">
+                          {formatCurrency(calculateSpotTotal(spot))}
+                        </span>
+                      </button>
+
+                      {expanded && (
+                        <div className="space-y-4 border-t p-4">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <Label>Cat name</Label>
+                              <Input
+                                value={spot.cat_name}
+                                onChange={(e) => {
                                   const next = [...spots];
-                                  next[index] = {
-                                    ...spot,
-                                    selected_addons: v
-                                      ? [...spot.selected_addons, addon.name]
-                                      : spot.selected_addons.filter((a) => a !== addon.name),
-                                  };
+                                  next[index] = { ...spot, cat_name: e.target.value };
                                   setSpots(next);
                                 }}
                               />
-                              <Label className="font-normal">{addon.name}</Label>
                             </div>
-                            <span className="text-sm font-medium">{formatCurrency(addon.price)}</span>
+                            <div className="space-y-2">
+                              <Label>Gender</Label>
+                              <Select
+                                value={spot.cat_gender || undefined}
+                                onValueChange={(value) => {
+                                  const next = [...spots];
+                                  next[index] = { ...spot, cat_gender: value };
+                                  setSpots(next);
+                                }}
+                              >
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select gender" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="Male">Male</SelectItem>
+                                  <SelectItem value="Female">Female</SelectItem>
+                                  <SelectItem value="Unknown">Unknown</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
                           </div>
-                        ))}
-                      </div>
-                    )}
-                    <div className="space-y-2"><Label>Notes</Label><Textarea value={spot.notes} onChange={(e) => { const next = [...spots]; next[index] = { ...spot, notes: e.target.value }; setSpots(next); }} /></div>
-                    <p className="text-sm text-muted-foreground">Estimated total: {formatCurrency(calculateSpotTotal(spot))}</p>
-                  </div>
-                ))}
+                          <div className="space-y-2">
+                            <Label>Colors / markings</Label>
+                            <Input
+                              value={spot.cat_colors}
+                              onChange={(e) => {
+                                const next = [...spots];
+                                next[index] = { ...spot, cat_colors: e.target.value };
+                                setSpots(next);
+                              }}
+                            />
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Checkbox
+                              checked={spot.has_injuries}
+                              onCheckedChange={(v) => {
+                                const next = [...spots];
+                                next[index] = { ...spot, has_injuries: !!v };
+                                setSpots(next);
+                              }}
+                            />
+                            <Label>Cat has injuries or medical concerns</Label>
+                          </div>
+                          {spot.has_injuries && (
+                            <div className="space-y-2">
+                              <Label>Injury details</Label>
+                              <Textarea
+                                value={spot.injury_details}
+                                onChange={(e) => {
+                                  const next = [...spots];
+                                  next[index] = { ...spot, injury_details: e.target.value };
+                                  setSpots(next);
+                                }}
+                              />
+                            </div>
+                          )}
+                          {selectedEvent && getAddonOptions(getEventCatalog(selectedEvent)).length > 0 && (
+                            <div className="space-y-3">
+                              <Label>Optional add-on services</Label>
+                              <p className="text-xs text-muted-foreground">Select any extras you want for this cat.</p>
+                              {getAddonOptions(getEventCatalog(selectedEvent)).map((addon) => (
+                                <div key={addon.name} className="flex items-center justify-between gap-3 rounded-md border px-3 py-2">
+                                  <div className="flex items-center gap-2">
+                                    <Checkbox
+                                      checked={spot.selected_addons.includes(addon.name)}
+                                      onCheckedChange={(v) => {
+                                        const next = [...spots];
+                                        next[index] = {
+                                          ...spot,
+                                          selected_addons: v
+                                            ? [...spot.selected_addons, addon.name]
+                                            : spot.selected_addons.filter((a) => a !== addon.name),
+                                        };
+                                        setSpots(next);
+                                      }}
+                                    />
+                                    <Label className="font-normal">{addon.name}</Label>
+                                  </div>
+                                  <span className="text-sm font-medium">{formatCurrency(addon.price)}</span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          <div className="flex items-center gap-2">
+                            <Checkbox
+                              checked={spot.has_notes}
+                              onCheckedChange={(v) => {
+                                const next = [...spots];
+                                next[index] = { ...spot, has_notes: !!v };
+                                setSpots(next);
+                              }}
+                            />
+                            <Label>Add a note for this cat</Label>
+                          </div>
+                          {spot.has_notes && (
+                            <div className="space-y-2">
+                              <Label>Notes</Label>
+                              <Textarea
+                                rows={3}
+                                value={spot.notes}
+                                onChange={(e) => {
+                                  const next = [...spots];
+                                  next[index] = { ...spot, notes: e.target.value };
+                                  setSpots(next);
+                                }}
+                              />
+                            </div>
+                          )}
+                          <p className="text-sm text-muted-foreground">
+                            Estimated total: {formatCurrency(calculateSpotTotal(spot))}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
 
                 {step === 2 && (
                   <>
@@ -553,7 +686,13 @@ function ClinicBookingContent() {
                       Next
                     </Button>
                   ) : (
-                    <Button onClick={handleSubmit} disabled={submitting}>
+                    <Button
+                      onClick={handleSubmit}
+                      disabled={
+                        submitting ||
+                        spots.some((spot) => !spot.cat_name.trim() || !spot.cat_gender)
+                      }
+                    >
                       {submitting ? "Submitting…" : `Submit request (${spots.length} cat${spots.length === 1 ? "" : "s"})`}
                     </Button>
                   )}
