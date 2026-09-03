@@ -24,6 +24,10 @@
     --input: 162 20% 88%;
     --ring: 162 63% 35%;
     --radius: 0.5rem;
+    --sidebar: 162 40% 12%;
+    --sidebar-foreground: 162 20% 90%;
+    --sidebar-accent: 162 35% 18%;
+    --sidebar-border: 162 30% 20%;
   }
 }
 

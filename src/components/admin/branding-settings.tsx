@@ -2,17 +2,72 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ImagePlus, Trash2 } from "lucide-react";
+import { ImagePlus, RotateCcw, Trash2 } from "lucide-react";
 import { BrandMark } from "@/components/branding/brand-mark";
+import { brandingStyleProps } from "@/components/branding/branding-provider";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import type { PlatformBranding } from "@/lib/branding";
+import {
+  DEFAULT_PRIMARY_COLOR,
+  DEFAULT_SIDEBAR_COLOR,
+  isValidHexColor,
+  normalizeHexColor,
+  type PlatformBranding,
+} from "@/lib/branding";
 import { createClient } from "@/lib/supabase/client";
 
 interface BrandingSettingsProps {
   branding: PlatformBranding;
+}
+
+type BrandingPayload = {
+  app_name: string;
+  logo_url: string | null;
+  primary_color: string;
+  sidebar_color: string;
+};
+
+function ColorField({
+  id,
+  label,
+  description,
+  value,
+  onChange,
+}: {
+  id: string;
+  label: string;
+  description: string;
+  value: string;
+  onChange: (next: string) => void;
+}) {
+  const hexValue = isValidHexColor(value) ? normalizeHexColor(value, value) : value;
+
+  return (
+    <div className="space-y-2">
+      <Label htmlFor={id}>{label}</Label>
+      <div className="flex items-center gap-3">
+        <input
+          id={`${id}-swatch`}
+          type="color"
+          value={isValidHexColor(hexValue) ? hexValue : "#000000"}
+          onChange={(event) => onChange(event.target.value.toUpperCase())}
+          className="h-10 w-12 cursor-pointer rounded border bg-transparent p-1"
+          aria-label={`${label} color picker`}
+        />
+        <Input
+          id={id}
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          placeholder="#21966B"
+          className="font-mono uppercase"
+          maxLength={7}
+        />
+      </div>
+      <p className="text-xs text-muted-foreground">{description}</p>
+    </div>
+  );
 }
 
 export function BrandingSettings({ branding }: BrandingSettingsProps) {
@@ -20,12 +75,25 @@ export function BrandingSettings({ branding }: BrandingSettingsProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [appName, setAppName] = useState(branding.app_name);
   const [logoUrl, setLogoUrl] = useState<string | null>(branding.logo_url);
+  const [primaryColor, setPrimaryColor] = useState(branding.primary_color);
+  const [sidebarColor, setSidebarColor] = useState(branding.sidebar_color);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [savedMessage, setSavedMessage] = useState<string | null>(null);
 
-  async function saveBranding(next: { app_name: string; logo_url: string | null }) {
+  const draftPrimary = isValidHexColor(primaryColor)
+    ? normalizeHexColor(primaryColor, DEFAULT_PRIMARY_COLOR)
+    : branding.primary_color;
+  const draftSidebar = isValidHexColor(sidebarColor)
+    ? normalizeHexColor(sidebarColor, DEFAULT_SIDEBAR_COLOR)
+    : branding.sidebar_color;
+  const previewStyle = brandingStyleProps({
+    primary_color: draftPrimary,
+    sidebar_color: draftSidebar,
+  });
+
+  async function saveBranding(next: BrandingPayload) {
     setSaving(true);
     setError(null);
     setSavedMessage(null);
@@ -46,14 +114,37 @@ export function BrandingSettings({ branding }: BrandingSettingsProps) {
     if (saved) {
       setAppName(saved.app_name);
       setLogoUrl(saved.logo_url);
+      setPrimaryColor(saved.primary_color);
+      setSidebarColor(saved.sidebar_color);
     }
-    setSavedMessage("Branding saved. Refresh public pages to see the update everywhere.");
+    setSavedMessage("Branding saved. Theme colors apply across the app after refresh.");
     router.refresh();
     return true;
   }
 
+  function currentPayload(overrides: Partial<BrandingPayload> = {}): BrandingPayload | null {
+    if (!appName.trim()) return null;
+    if (!isValidHexColor(primaryColor) || !isValidHexColor(sidebarColor)) return null;
+    return {
+      app_name: appName.trim(),
+      logo_url: logoUrl,
+      primary_color: normalizeHexColor(primaryColor, DEFAULT_PRIMARY_COLOR),
+      sidebar_color: normalizeHexColor(sidebarColor, DEFAULT_SIDEBAR_COLOR),
+      ...overrides,
+    };
+  }
+
   async function handleSave() {
-    await saveBranding({ app_name: appName, logo_url: logoUrl });
+    if (!isValidHexColor(primaryColor) || !isValidHexColor(sidebarColor)) {
+      setError("Theme colors must be hex values like #21966B.");
+      return;
+    }
+    const payload = currentPayload();
+    if (!payload) {
+      setError("Enter an app name and valid theme colors.");
+      return;
+    }
+    await saveBranding(payload);
   }
 
   async function handleLogoUpload(file: File) {
@@ -83,9 +174,17 @@ export function BrandingSettings({ branding }: BrandingSettingsProps) {
       const { data } = supabase.storage.from("branding").getPublicUrl(path);
       const nextLogoUrl = data.publicUrl;
       setLogoUrl(nextLogoUrl);
-      const ok = await saveBranding({ app_name: appName.trim() || branding.app_name, logo_url: nextLogoUrl });
+      const payload = currentPayload({
+        app_name: appName.trim() || branding.app_name,
+        logo_url: nextLogoUrl,
+      });
+      if (!payload) {
+        setError("Logo uploaded, but theme colors are invalid. Fix colors and save.");
+        return;
+      }
+      const ok = await saveBranding(payload);
       if (!ok) {
-        setError("Logo uploaded, but saving the URL failed. Try Save again.");
+        setError("Logo uploaded, but saving failed. Try Save again.");
       }
     } catch (uploadError) {
       setError(uploadError instanceof Error ? uploadError.message : "Unable to upload logo");
@@ -97,19 +196,29 @@ export function BrandingSettings({ branding }: BrandingSettingsProps) {
 
   async function handleRemoveLogo() {
     setLogoUrl(null);
-    await saveBranding({ app_name: appName, logo_url: null });
+    const payload = currentPayload({ logo_url: null });
+    if (!payload) {
+      setError("Fix theme colors before saving.");
+      return;
+    }
+    await saveBranding(payload);
+  }
+
+  function resetThemeColors() {
+    setPrimaryColor(DEFAULT_PRIMARY_COLOR);
+    setSidebarColor(DEFAULT_SIDEBAR_COLOR);
   }
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_280px]">
+    <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_300px]">
       <Card>
         <CardHeader>
           <CardTitle>App branding</CardTitle>
           <CardDescription>
-            Set the name and logo shown in the sidebar, login, signup, and public forms.
+            Set the name, logo, and theme colors used across the sidebar, buttons, and public pages.
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-6">
           <div className="space-y-2">
             <Label htmlFor="branding-app-name">App name</Label>
             <Input
@@ -160,10 +269,57 @@ export function BrandingSettings({ branding }: BrandingSettingsProps) {
             </p>
           </div>
 
+          <div className="space-y-4 rounded-lg border p-4">
+            <div className="flex flex-wrap items-start justify-between gap-2">
+              <div>
+                <p className="text-sm font-medium">Theme colors</p>
+                <p className="text-xs text-muted-foreground">
+                  Primary drives buttons and links. Sidebar sets the navigation background.
+                </p>
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                disabled={saving || uploading}
+                onClick={resetThemeColors}
+              >
+                <RotateCcw className="h-3.5 w-3.5" />
+                Reset defaults
+              </Button>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <ColorField
+                id="branding-primary"
+                label="Primary"
+                description="Buttons, links, and focus rings"
+                value={primaryColor}
+                onChange={setPrimaryColor}
+              />
+              <ColorField
+                id="branding-sidebar"
+                label="Sidebar"
+                description="Main navigation background"
+                value={sidebarColor}
+                onChange={setSidebarColor}
+              />
+            </div>
+          </div>
+
           {error && <p className="text-sm text-destructive">{error}</p>}
           {savedMessage && <p className="text-sm text-muted-foreground">{savedMessage}</p>}
 
-          <Button type="button" disabled={saving || uploading || !appName.trim()} onClick={() => void handleSave()}>
+          <Button
+            type="button"
+            disabled={
+              saving ||
+              uploading ||
+              !appName.trim() ||
+              !isValidHexColor(primaryColor) ||
+              !isValidHexColor(sidebarColor)
+            }
+            onClick={() => void handleSave()}
+          >
             {saving ? "Saving…" : "Save branding"}
           </Button>
         </CardContent>
@@ -174,7 +330,10 @@ export function BrandingSettings({ branding }: BrandingSettingsProps) {
           <CardTitle className="text-base">Preview</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="rounded-lg border bg-sidebar p-4 text-sidebar-foreground">
+          <div
+            className="rounded-lg border bg-sidebar p-4 text-sidebar-foreground"
+            style={previewStyle}
+          >
             <BrandMark
               appName={appName.trim() || branding.app_name}
               logoUrl={logoUrl}
@@ -182,6 +341,14 @@ export function BrandingSettings({ branding }: BrandingSettingsProps) {
               subtitle="Colony Management"
               subtitleClassName="text-sidebar-foreground/60"
             />
+            <div className="mt-4 flex flex-wrap gap-2">
+              <Button size="sm" type="button">
+                Primary button
+              </Button>
+              <Button size="sm" type="button" variant="secondary">
+                Secondary
+              </Button>
+            </div>
             <p className="mt-3 text-xs text-muted-foreground">
               Preview updates as you edit. Save to apply site-wide.
             </p>

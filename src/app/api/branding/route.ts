@@ -1,6 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireApiRole } from "@/lib/api/auth";
-import { normalizePlatformBranding, type PlatformBranding } from "@/lib/branding";
+import {
+  DEFAULT_PRIMARY_COLOR,
+  DEFAULT_SIDEBAR_COLOR,
+  isValidHexColor,
+  normalizeHexColor,
+  normalizePlatformBranding,
+  type PlatformBranding,
+} from "@/lib/branding";
 import { createServiceClient } from "@/lib/supabase/server";
 
 const MAX_NAME_LENGTH = 80;
@@ -27,12 +34,21 @@ function validateLogoUrl(logoUrl: unknown): string | null | undefined {
   }
 }
 
+function validateThemeColor(value: unknown, fallback: string): string | null {
+  if (value === null || value === undefined || value === "") return fallback;
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  const withHash = trimmed.startsWith("#") ? trimmed : `#${trimmed}`;
+  if (!isValidHexColor(withHash)) return null;
+  return normalizeHexColor(withHash, fallback);
+}
+
 export async function GET() {
   try {
     const service = await createServiceClient();
     const { data, error } = await service
       .from("platform_branding")
-      .select("app_name, logo_url")
+      .select("app_name, logo_url, primary_color, sidebar_color")
       .eq("id", 1)
       .maybeSingle();
 
@@ -71,18 +87,42 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Logo URL must be a valid http(s) link." }, { status: 400 });
   }
 
+  const primaryColor = validateThemeColor(
+    (body as { primary_color?: unknown }).primary_color,
+    DEFAULT_PRIMARY_COLOR
+  );
+  if (!primaryColor) {
+    return NextResponse.json(
+      { error: "Primary color must be a hex value like #21966B." },
+      { status: 400 }
+    );
+  }
+
+  const sidebarColor = validateThemeColor(
+    (body as { sidebar_color?: unknown }).sidebar_color,
+    DEFAULT_SIDEBAR_COLOR
+  );
+  if (!sidebarColor) {
+    return NextResponse.json(
+      { error: "Sidebar color must be a hex value like #142E26." },
+      { status: 400 }
+    );
+  }
+
   const service = await createServiceClient();
   const payload = {
     id: 1,
     app_name: appName,
     logo_url: logoResult === undefined ? null : logoResult,
+    primary_color: primaryColor,
+    sidebar_color: sidebarColor,
     updated_by: profile!.id,
   };
 
   const { data, error } = await service
     .from("platform_branding")
     .upsert(payload, { onConflict: "id" })
-    .select("app_name, logo_url")
+    .select("app_name, logo_url, primary_color, sidebar_color")
     .single();
 
   if (error) {

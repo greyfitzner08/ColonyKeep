@@ -51,10 +51,10 @@ const config: Config = {
           foreground: "hsl(var(--card-foreground))",
         },
         sidebar: {
-          DEFAULT: "hsl(162 40% 12%)",
-          foreground: "hsl(162 20% 90%)",
-          accent: "hsl(162 35% 18%)",
-          border: "hsl(162 30% 20%)",
+          DEFAULT: "hsl(var(--sidebar))",
+          foreground: "hsl(var(--sidebar-foreground))",
+          accent: "hsl(var(--sidebar-accent))",
+          border: "hsl(var(--sidebar-border))",
         },
       },
       borderRadius: {
