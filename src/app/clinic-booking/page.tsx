@@ -694,9 +694,11 @@ function ClinicBookingContent() {
                   <Button
                     disabled={!contactReady()}
                     onClick={() => {
+                      if (!holdSessionId || !contactReady()) return;
                       setContactConfirmed(true);
                       setExpandedCats(new Set([0]));
-                      openSection("cats");
+                      setSection("cats");
+                      setSubmitError(null);
                     }}
                   >
                     Continue to cat details
