@@ -6,7 +6,7 @@ import { formatDistanceToNowStrict } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { formatDate } from "@/lib/utils";
+import { formatDate, formatTimeRange } from "@/lib/utils";
 import { getShiftStart, getShiftTiming } from "@/lib/shifts/countdown";
 import type { Shift } from "@/lib/types";
 import { CalendarDays, Clock } from "lucide-react";
@@ -72,7 +72,7 @@ export function MyShiftsCard({ shifts }: MyShiftsCardProps) {
                       <p className="text-sm">{shift.position_name.trim()}</p>
                     )}
                     <p className="text-sm text-muted-foreground">
-                      {formatDate(shift.date)} · {shift.start_time} - {shift.end_time}
+                      {formatDate(shift.date)} · {formatTimeRange(shift.start_time, shift.end_time)}
                     </p>
                     {shift.location && (
                       <p className="text-xs text-muted-foreground">{shift.location}</p>
