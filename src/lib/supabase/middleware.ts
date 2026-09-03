@@ -8,7 +8,15 @@ import {
 import { canAccessRoute } from "@/lib/permissions";
 import type { Profile } from "@/lib/types";
 
-const PUBLIC_ROUTES = ["/request", "/volunteer-signup", "/clinic-booking", "/login", "/auth", "/set-password"];
+const PUBLIC_ROUTES = [
+  "/request",
+  "/volunteer-signup",
+  "/clinic-booking",
+  "/login",
+  "/forgot-password",
+  "/auth",
+  "/set-password",
+];
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });

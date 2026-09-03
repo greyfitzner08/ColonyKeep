@@ -68,7 +68,15 @@ export function LoginForm() {
               <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
             </div>
             <div className="space-y-2">
-              <Label>Password</Label>
+              <div className="flex items-center justify-between gap-2">
+                <Label>Password</Label>
+                <Link
+                  href="/forgot-password"
+                  className="text-xs text-primary underline underline-offset-2"
+                >
+                  Forgot password?
+                </Link>
+              </div>
               <PasswordInput value={password} onChange={(e) => setPassword(e.target.value)} required />
             </div>
             {error && <p className="text-sm text-destructive">{error}</p>}

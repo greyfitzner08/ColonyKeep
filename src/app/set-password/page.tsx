@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { CheckCircle2 } from "lucide-react";
 import Link from "next/link";
 import { BrandMark } from "@/components/branding/brand-mark";
@@ -11,13 +11,15 @@ import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 import { createClient } from "@/lib/supabase/client";
 
-export default function SetPasswordPage() {
+function SetPasswordForm() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const fromReset = searchParams.get("from") === "reset";
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -78,10 +80,11 @@ export default function SetPasswordPage() {
             </>
           ) : (
             <>
-              <CardTitle>Create Your Password</CardTitle>
+              <CardTitle>{fromReset ? "Choose a new password" : "Create Your Password"}</CardTitle>
               <CardDescription>
-                Choose a new password to replace your temporary one. You must do this before using the
-                portal.
+                {fromReset
+                  ? "Enter a new password for your account. You’ll use this the next time you sign in."
+                  : "Choose a new password to replace your temporary one. You must do this before using the portal."}
               </CardDescription>
             </>
           )}
@@ -99,6 +102,7 @@ export default function SetPasswordPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
+                  autoComplete="new-password"
                 />
               </div>
               <div className="space-y-2">
@@ -107,16 +111,31 @@ export default function SetPasswordPage() {
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   required
+                  autoComplete="new-password"
                 />
               </div>
               {error && <p className="text-sm text-destructive">{error}</p>}
               <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? "Saving..." : "Create Password"}
+                {loading ? "Saving..." : fromReset ? "Update password" : "Create Password"}
               </Button>
             </form>
           )}
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+export default function SetPasswordPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center bg-muted/30 p-4">
+          <p className="text-muted-foreground">Loading...</p>
+        </div>
+      }
+    >
+      <SetPasswordForm />
+    </Suspense>
   );
 }
