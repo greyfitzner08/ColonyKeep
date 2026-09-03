@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import type { PublicClinicEvent } from "@/lib/types";
 import { normalizeServiceCatalog } from "@/lib/clinics/service-catalog";
 import { ServiceCatalogDisplay } from "@/components/clinics/service-catalog-display";
@@ -36,6 +36,9 @@ export function EventDetailsSummary({
   defaultExpanded = true,
 }: EventDetailsSummaryProps) {
   const [expanded, setExpanded] = useState(defaultExpanded);
+  useEffect(() => {
+    setExpanded(defaultExpanded);
+  }, [defaultExpanded]);
   const catalog = normalizeServiceCatalog(
     event.service_catalog,
     event.included_services,

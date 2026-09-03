@@ -502,7 +502,7 @@ function ClinicBookingContent() {
               )}
               showTrapReadyWarning
               collapsible
-              defaultExpanded={false}
+              defaultExpanded={!holdSessionId}
             />
 
             <BookingAccordionSection
