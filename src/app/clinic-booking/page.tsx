@@ -473,9 +473,11 @@ function ClinicBookingContent() {
                       role="alert"
                       className="rounded-lg border border-amber-400 bg-amber-50 px-4 py-3 text-sm text-amber-950"
                     >
-                      By submitting, you are requesting a spot — not confirming one. You will receive
-                      email at <strong>{contact.contact_email || "your address"}</strong> when our
-                      team reviews your request.
+                      Only claim spots once you for certain have a cat in a humane trap. Claiming
+                      appointments and not showing up will revoke privileges to use future clinic
+                      spots. You will receive email at{" "}
+                      <strong>{contact.contact_email || "your address"}</strong> when our team
+                      reviews your request.
                     </div>
                   </>
                 )}

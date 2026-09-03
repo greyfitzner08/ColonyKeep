@@ -32,10 +32,12 @@ export function EventDetailsSummary({
           role="alert"
           className="rounded-lg border-2 border-amber-500 bg-amber-50 dark:bg-amber-950/30 px-4 py-3 text-sm text-amber-950 dark:text-amber-100"
         >
-          <p className="font-semibold">This does not guarantee your spot</p>
+          <p className="font-semibold">
+            Only claim a spot once you for certain have a cat in a humane trap
+          </p>
           <p className="mt-1 text-amber-900/90 dark:text-amber-100/90">
-            Submitting a request is not a confirmation. You are not booked until you receive a
-            confirmation email from our team.
+            Claiming appointments and not showing up will revoke privileges to use future clinic
+            spots.
           </p>
         </div>
       )}
