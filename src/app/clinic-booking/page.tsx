@@ -299,6 +299,19 @@ function ClinicBookingContent() {
                 </CardContent>
               </Card>
             )}
+            {events.length > 0 && (
+              <div
+                role="alert"
+                className="flex gap-2 rounded-md border border-amber-400/80 bg-amber-50 px-3 py-2 text-sm text-amber-950"
+              >
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+                <p>
+                  <span className="font-semibold">Cats must already be in a trap. </span>
+                  Only claim a spot once you for certain have them secured. No-shows lose future
+                  clinic privileges.
+                </p>
+              </div>
+            )}
             {events.map((event) => {
               const remaining = available[event.id] ?? event.total_spots;
               const pastDate = isEventPastDate(event.date);
@@ -308,25 +321,27 @@ function ClinicBookingContent() {
                   className={remaining <= 0 ? "opacity-60" : "cursor-pointer hover:shadow-md transition-shadow"}
                   onClick={() => remaining > 0 && setSelectedEvent(event)}
                 >
-                  <CardHeader>
+                  <CardHeader className="pb-2">
                     <div className="flex justify-between items-start gap-3">
                       <div className="min-w-0">
                         <CardTitle className="text-lg">{event.title}</CardTitle>
                         <CardDescription className="mt-1">{event.clinic_name}</CardDescription>
                       </div>
-                      {pastDate && (
-                        <Badge variant="outline" className="shrink-0 text-xs">
-                          Past event date
-                        </Badge>
-                      )}
+                      <div className="flex shrink-0 flex-col items-end gap-2">
+                        <SpotsLeftCounter remaining={remaining} />
+                        {pastDate && (
+                          <Badge variant="outline" className="text-xs">
+                            Past event date
+                          </Badge>
+                        )}
+                      </div>
                     </div>
                   </CardHeader>
-                  <CardContent className="space-y-4">
-                    <SpotsLeftCounter remaining={remaining} size="featured" />
+                  <CardContent>
                     <EventDetailsSummary
                       event={event}
                       checkInDetails={event.check_in_details}
-                      showTrapReadyWarning
+                      hideTitle
                     />
                   </CardContent>
                 </Card>
@@ -381,8 +396,6 @@ function ClinicBookingContent() {
               event={selectedEvent}
               checkInDetails={selectedEvent.check_in_details}
               spotsAvailable={available[selectedEvent.id] ?? selectedEvent.total_spots}
-              showTimeLimit
-              showTrapReadyWarning
             />
 
             <Card>
@@ -392,6 +405,9 @@ function ClinicBookingContent() {
                     <CardTitle>Complete your request</CardTitle>
                     <CardDescription>
                       {spots.length} spot{spots.length === 1 ? "" : "s"} · step {step} of 2
+                      {secondsLeft > 0
+                        ? ` · finish within ${Math.floor(secondsLeft / 60)}:${String(secondsLeft % 60).padStart(2, "0")}`
+                        : ""}
                     </CardDescription>
                   </div>
                   {secondsLeft > 0 && (
