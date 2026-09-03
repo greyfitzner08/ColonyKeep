@@ -43,7 +43,7 @@ export function AdminRolePreviewBanner({ previewKey, previewLabel }: AdminRolePr
   return (
     <div
       role="status"
-      className="fixed top-0 left-0 right-0 border-b border-amber-300 bg-amber-50 py-2.5 pl-14 pr-4 text-sm text-amber-950 shadow-sm sm:pl-4 lg:left-64"
+      className="fixed left-0 right-0 top-14 border-b border-amber-300 bg-amber-50 py-2.5 px-4 text-sm text-amber-950 shadow-sm lg:left-64 lg:top-0"
       style={{ zIndex: Z_INDEX.previewBanner }}
     >
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">

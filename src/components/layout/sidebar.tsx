@@ -244,17 +244,26 @@ export function Sidebar({
 
   return (
     <>
-      <Button
-        variant="ghost"
-        size="icon"
-        className="fixed left-4 top-4 bg-background/90 shadow-sm backdrop-blur lg:hidden"
+      <header
+        className="fixed inset-x-0 top-0 flex h-14 items-center gap-3 border-b bg-background px-3 lg:hidden"
         style={{ zIndex: Z_INDEX.mobileMenuButton }}
-        onClick={() => setMobileOpen(!mobileOpen)}
-        aria-expanded={mobileOpen}
-        aria-label={mobileOpen ? "Close menu" : "Open menu"}
       >
-        {mobileOpen ? <X /> : <Menu />}
-      </Button>
+        <Button
+          variant="outline"
+          size="icon"
+          className="h-9 w-9 shrink-0 bg-background shadow-sm"
+          onClick={() => setMobileOpen(!mobileOpen)}
+          aria-expanded={mobileOpen}
+          aria-label={mobileOpen ? "Close menu" : "Open menu"}
+        >
+          {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+        </Button>
+        <BrandMark
+          className="min-w-0"
+          iconClassName="h-7 w-7"
+          nameClassName="truncate text-sm"
+        />
+      </header>
 
       <aside
         className={cn(
@@ -275,7 +284,7 @@ export function Sidebar({
             aria-hidden
           />
           <aside
-            className="fixed inset-y-0 left-0 flex w-64 max-w-[85vw] flex-col border-r border-sidebar-border bg-sidebar shadow-xl lg:hidden"
+            className="fixed bottom-0 left-0 top-14 flex w-64 max-w-[85vw] flex-col border-r border-sidebar-border bg-sidebar shadow-xl lg:hidden"
             style={{ zIndex: Z_INDEX.mobileNavPanel }}
           >
             {nav}

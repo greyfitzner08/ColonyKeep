@@ -60,7 +60,7 @@ export function AppShellFrame({
         <main
           className={cn(
             "lg:pl-64",
-            previewActive ? "pt-14" : "pt-16 lg:pt-8"
+            previewActive ? "pt-[7.5rem] lg:pt-14" : "pt-14 lg:pt-8"
           )}
         >
           <div className="container mx-auto p-4 sm:p-6 lg:p-8 max-w-[100vw] overflow-x-hidden">{children}</div>
