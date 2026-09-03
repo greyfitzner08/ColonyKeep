@@ -28,8 +28,6 @@ interface SpotForm {
   cat_colors: string;
   cat_gender: string;
   has_injuries: boolean;
-  injury_details: string;
-  has_notes: boolean;
   selected_addons: string[];
   notes: string;
 }
@@ -39,8 +37,6 @@ const emptySpot = (): SpotForm => ({
   cat_colors: "",
   cat_gender: "",
   has_injuries: false,
-  injury_details: "",
-  has_notes: false,
   selected_addons: [],
   notes: "",
 });
@@ -288,7 +284,9 @@ function ClinicBookingContent() {
         spots: spots.map((spot) => ({
           ...contact,
           ...spot,
-          notes: spot.has_notes ? spot.notes : "",
+          has_injuries: spot.has_injuries,
+          injury_details: spot.has_injuries ? spot.notes : "",
+          notes: spot.has_injuries ? spot.notes : "",
           total_price: calculateSpotTotal(spot),
         })),
       }),
@@ -326,6 +324,20 @@ function ClinicBookingContent() {
     if (index > 0 && !spots.slice(0, index).every(spotReady)) return;
     setExpandedCats(new Set([index]));
   }
+
+  const expandedCatIndex = [...expandedCats][0];
+
+  useEffect(() => {
+    if (section !== "cats" || expandedCatIndex == null) return;
+    const timeout = window.setTimeout(() => {
+      document.getElementById(`cat-card-${expandedCatIndex}`)?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+      document.getElementById(`cat-name-${expandedCatIndex}`)?.focus();
+    }, 80);
+    return () => window.clearTimeout(timeout);
+  }, [section, expandedCatIndex]);
 
   const pendingMessage =
     selectedEvent?.pending_email_message?.trim() || DEFAULT_PENDING_MESSAGE;
@@ -621,7 +633,11 @@ function ClinicBookingContent() {
                     spot.cat_gender || "Gender not selected",
                   ];
                   return (
-                    <div key={index} className={`rounded-lg border ${lockedCat ? "opacity-70" : ""}`}>
+                    <div
+                      key={index}
+                      id={`cat-card-${index}`}
+                      className={`scroll-mt-28 rounded-lg border ${lockedCat ? "opacity-70" : ""}`}
+                    >
                       <button
                         type="button"
                         className="flex w-full items-center gap-2 px-4 py-3 text-left disabled:cursor-not-allowed"

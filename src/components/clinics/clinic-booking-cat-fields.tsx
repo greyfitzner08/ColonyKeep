@@ -19,8 +19,6 @@ export interface ClinicBookingSpotFields {
   cat_colors: string;
   cat_gender: string;
   has_injuries: boolean;
-  injury_details: string;
-  has_notes: boolean;
   selected_addons: string[];
   notes: string;
 }
@@ -86,24 +84,24 @@ export function ClinicBookingCatFields({
       <Separator />
 
       <section className="space-y-3">
-        <h4 className="text-sm font-semibold">Health</h4>
         <div className="flex items-center gap-2">
           <Checkbox
-            id={`cat-injuries-${index}`}
+            id={`cat-extra-${index}`}
             checked={spot.has_injuries}
             onCheckedChange={(v) => onPatch({ has_injuries: !!v })}
           />
-          <Label htmlFor={`cat-injuries-${index}`} className="font-normal">
-            Injuries or medical concerns
+          <Label htmlFor={`cat-extra-${index}`} className="font-normal">
+            Injuries, medical concerns, or notes
           </Label>
         </div>
         {spot.has_injuries && (
           <div className="space-y-2 pl-6">
-            <Label htmlFor={`cat-injury-details-${index}`}>Injury details</Label>
+            <Label htmlFor={`cat-extra-details-${index}`}>Details</Label>
             <Textarea
-              id={`cat-injury-details-${index}`}
-              value={spot.injury_details}
-              onChange={(e) => onPatch({ injury_details: e.target.value })}
+              id={`cat-extra-details-${index}`}
+              rows={3}
+              value={spot.notes}
+              onChange={(e) => onPatch({ notes: e.target.value })}
             />
           </div>
         )}
@@ -151,33 +149,6 @@ export function ClinicBookingCatFields({
           </section>
         </>
       )}
-
-      <Separator />
-
-      <section className="space-y-3">
-        <h4 className="text-sm font-semibold">Notes</h4>
-        <div className="flex items-center gap-2">
-          <Checkbox
-            id={`cat-notes-${index}`}
-            checked={spot.has_notes}
-            onCheckedChange={(v) => onPatch({ has_notes: !!v })}
-          />
-          <Label htmlFor={`cat-notes-${index}`} className="font-normal">
-            Add a note for this cat
-          </Label>
-        </div>
-        {spot.has_notes && (
-          <div className="space-y-2 pl-6">
-            <Label htmlFor={`cat-notes-text-${index}`}>Notes</Label>
-            <Textarea
-              id={`cat-notes-text-${index}`}
-              rows={3}
-              value={spot.notes}
-              onChange={(e) => onPatch({ notes: e.target.value })}
-            />
-          </div>
-        )}
-      </section>
 
       <p className="border-t pt-3 text-sm font-medium">
         Estimated total for this cat: {formatCurrency(total)}
