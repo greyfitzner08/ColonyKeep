@@ -1,4 +1,5 @@
 import { detectMedicalKeywords } from "@/lib/medical-flags";
+import { applyReporterAsFeederIfNeeded } from "@/lib/cases/feeder-from-reporter";
 import type { HelpRequestStatus } from "@/lib/types";
 
 export const CASE_IMPORT_HEADERS = [
@@ -377,7 +378,11 @@ export function mapImportRowToHelpRequest(
     record.created_at = createdAt;
   }
 
-  return { record };
+  return {
+    record: applyReporterAsFeederIfNeeded(
+      record as Parameters<typeof applyReporterAsFeederIfNeeded>[0]
+    ) as Record<string, unknown>,
+  };
 }
 
 export function buildCaseImportTemplateCsv() {

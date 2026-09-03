@@ -1,5 +1,14 @@
 import { detectMedicalKeywords } from "@/lib/medical-flags";
 import { mapImportRowToHelpRequest } from "@/lib/cases/import-mapper";
+import { applyReporterAsFeederIfNeeded } from "@/lib/cases/feeder-from-reporter";
+
+export {
+  applyReporterAsFeederIfNeeded,
+  buildFeederFieldsFromIntake,
+  reporterIsColonyFeeder,
+  type IntakeFeederFields,
+  type IntakeFeederSource,
+} from "@/lib/cases/feeder-from-reporter";
 
 /** Maps public intake API / form fields to the same normalized keys used by CSV import. */
 const SUBMISSION_FIELD_MAP: Record<string, string> = {
@@ -69,72 +78,6 @@ export interface CommunityIntakeSubmission {
   consent_communications: boolean;
 }
 
-export interface IntakeFeederSource {
-  contact_first_name?: string | null;
-  contact_last_name?: string | null;
-  contact_phone?: string | null;
-  contact_email?: string | null;
-  contact_street?: string | null;
-  contact_city?: string | null;
-  contact_state?: string | null;
-  contact_zip?: string | null;
-  contact_county?: string | null;
-  colony_address?: string | null;
-  colony_city?: string | null;
-  colony_state?: string | null;
-  colony_zip?: string | null;
-  colony_county?: string | null;
-  feeding_cats?: string | null;
-  relationship_to_cats?: string | null;
-}
-
-export interface IntakeFeederFields {
-  feeder_name: string | null;
-  feeder_phone: string | null;
-  feeder_email: string | null;
-  feeder_street: string | null;
-  feeder_city: string | null;
-  feeder_state: string | null;
-  feeder_zip: string | null;
-  feeder_county: string | null;
-}
-
-function emptyToNull(value: string | undefined | null) {
-  const trimmed = String(value ?? "").trim();
-  return trimmed || null;
-}
-
-export function reporterIsColonyFeeder(input: {
-  feeding_cats?: string | null;
-  relationship_to_cats?: string | null;
-}) {
-  if (input.feeding_cats === "Yes") return true;
-  return /\bfeeder\b/i.test(String(input.relationship_to_cats ?? ""));
-}
-
-/** Copy reporter contact + colony location into map feeder fields when they are the feeder. */
-export function buildFeederFieldsFromIntake(body: IntakeFeederSource): IntakeFeederFields | null {
-  if (!reporterIsColonyFeeder(body)) return null;
-
-  const name =
-    [body.contact_first_name, body.contact_last_name].filter(Boolean).join(" ").trim() || null;
-  const colonyStreet = String(body.colony_address ?? "").trim();
-  const useColonyAddress = colonyStreet.length > 0;
-
-  return {
-    feeder_name: name,
-    feeder_phone: emptyToNull(body.contact_phone),
-    feeder_email: emptyToNull(body.contact_email),
-    feeder_street: useColonyAddress ? colonyStreet : emptyToNull(body.contact_street),
-    feeder_city: useColonyAddress ? emptyToNull(body.colony_city) : emptyToNull(body.contact_city),
-    feeder_state: useColonyAddress ? emptyToNull(body.colony_state) : emptyToNull(body.contact_state),
-    feeder_zip: useColonyAddress ? emptyToNull(body.colony_zip) : emptyToNull(body.contact_zip),
-    feeder_county: useColonyAddress
-      ? emptyToNull(body.colony_county)
-      : emptyToNull(body.contact_county),
-  };
-}
-
 export function submissionToImportRow(
   body: Record<string, unknown>
 ): Record<string, unknown> {
@@ -180,9 +123,10 @@ export function mapCommunityIntakeToHelpRequest(
   const record = {
     ...mapped.record,
     status: "new_intake",
-    colony_lat: body.colony_lat ?? null,
-    colony_lng: body.colony_lng ?? null,
-    ...(buildFeederFieldsFromIntake(body as IntakeFeederSource) ?? {}),
+    colony_lat:
+      typeof body.colony_lat === "number" ? body.colony_lat : null,
+    colony_lng:
+      typeof body.colony_lng === "number" ? body.colony_lng : null,
     medical_flags: detectMedicalKeywords(String(mapped.record.intake_notes ?? "")),
     history_log: [
       {
@@ -195,5 +139,7 @@ export function mapCommunityIntakeToHelpRequest(
     ],
   };
 
-  return { record };
+  return {
+    record: applyReporterAsFeederIfNeeded(record) as Record<string, unknown>,
+  };
 }

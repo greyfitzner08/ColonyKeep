@@ -68,7 +68,11 @@ export function CaseFeederSection({
   return (
     <CaseCollapsibleSection
       title="Colony feeder"
-      description="Contact for the person feeding the colony when they are not the reporter."
+      description={
+        helpRequest.feeding_cats
+          ? "Reporter said they feed these cats — contact details copy from the reporter when blank."
+          : "Contact for the person feeding the colony when they are not the reporter."
+      }
       defaultOpen
     >
       <div className="space-y-4">

@@ -10,6 +10,7 @@ import { detectMedicalKeywords, mergeMedicalFlags } from "@/lib/medical-flags";
 import { canCloseCase } from "@/lib/cases/case-permissions";
 import { normalizeHistoryLog, staffNotesText } from "@/lib/cases/history-log";
 import { feederPayload, geocodeFeederIfNeeded } from "@/lib/cases/feeder-fields";
+import { applyReporterAsFeederIfNeeded } from "@/lib/cases/feeder-from-reporter";
 import type {
   HelpRequest,
   Cat,
@@ -70,6 +71,7 @@ export function CaseDetailTabs({
   const [resolvingFollowUp, setResolvingFollowUp] = useState(false);
   const skipIntakeAutosaveRef = useRef(true);
   const savedIndicatorTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const feederBackfillCaseIdRef = useRef<string | null>(null);
 
   const showCloseCase = canCloseCase(userRole);
 
@@ -88,6 +90,35 @@ export function CaseDetailTabs({
   useEffect(() => {
     setCats(initialCats);
   }, [initialCats]);
+
+  useEffect(() => {
+    if (readOnly) return;
+    if (feederBackfillCaseIdRef.current === hr.id) return;
+
+    const next = applyReporterAsFeederIfNeeded(hr);
+    const changed =
+      next.feeder_name !== hr.feeder_name ||
+      next.feeder_phone !== hr.feeder_phone ||
+      next.feeder_email !== hr.feeder_email ||
+      next.feeder_street !== hr.feeder_street ||
+      next.feeder_city !== hr.feeder_city ||
+      next.feeder_state !== hr.feeder_state ||
+      next.feeder_zip !== hr.feeder_zip ||
+      next.feeder_county !== hr.feeder_county;
+
+    feederBackfillCaseIdRef.current = hr.id;
+    if (!changed) return;
+
+    setHr(next);
+    void (async () => {
+      setSavingFeeder(true);
+      const supabase = createClient();
+      const payload = await geocodeFeederIfNeeded(next);
+      await supabase.from("help_requests").update(feederPayload(payload)).eq("id", next.id);
+      setHr(payload);
+      setSavingFeeder(false);
+    })();
+  }, [hr, readOnly]);
 
   useEffect(
     () => () => {
