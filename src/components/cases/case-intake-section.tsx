@@ -183,11 +183,12 @@ export function CaseIntakeSection({
           </div>
           <dl>
             <InfoRow label="Case #" value={hr.case_number} alwaysShow />
-            <InfoRow label="Claimed by" value={hr.claimed_by_name ?? hr.claimed_by_email} />
+            <InfoRow
+              label="Claimed by"
+              value={hr.claimed_by_name ?? hr.claimed_by_email}
+            />
             <InfoRow label="Opened" value={formatDateTime(hr.created_at)} alwaysShow />
             <InfoRow label="Closed" value={hr.closed_at ? formatDateTime(hr.closed_at) : null} />
-            <InfoRow label="Assigned to (legacy)" value={hr.assigned_to} />
-            <InfoRow label="Trapper / trap loaner" value={hr.trapper_trap_loaner} />
           </dl>
         </div>
       </CaseCollapsibleSection>
