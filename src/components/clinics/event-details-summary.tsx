@@ -1,6 +1,7 @@
 import type { PublicClinicEvent } from "@/lib/types";
 import { normalizeServiceCatalog } from "@/lib/clinics/service-catalog";
 import { ServiceCatalogDisplay } from "@/components/clinics/service-catalog-display";
+import { SpotsLeftCounter } from "@/components/clinics/spots-left-counter";
 import { formatDate } from "@/lib/utils";
 
 interface EventDetailsSummaryProps {
@@ -51,6 +52,10 @@ export function EventDetailsSummary({
         </div>
       )}
 
+      {spotsAvailable != null && (
+        <SpotsLeftCounter remaining={spotsAvailable} size="featured" />
+      )}
+
       <div className="rounded-lg border bg-card p-4 space-y-4 text-sm">
         <div>
           <p className="text-xs uppercase tracking-wide text-muted-foreground">Clinic</p>
@@ -77,12 +82,6 @@ export function EventDetailsSummary({
             <p className="font-medium mb-1">Check-in details</p>
             <p className="text-muted-foreground whitespace-pre-wrap">{checkInDetails}</p>
           </div>
-        )}
-
-        {spotsAvailable != null && (
-          <p className="text-muted-foreground pt-1 border-t">
-            {spotsAvailable} spot{spotsAvailable === 1 ? "" : "s"} currently available
-          </p>
         )}
       </div>
     </div>

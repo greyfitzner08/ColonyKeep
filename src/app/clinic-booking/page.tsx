@@ -11,6 +11,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { EventDetailsSummary } from "@/components/clinics/event-details-summary";
+import { SpotsLeftCounter } from "@/components/clinics/spots-left-counter";
 import {
   calculateBookingTotal,
   getAddonOptions,
@@ -308,12 +309,13 @@ function ClinicBookingContent() {
                   onClick={() => remaining > 0 && setSelectedEvent(event)}
                 >
                   <CardHeader>
-                    <div className="flex justify-between items-start gap-2">
-                      <CardTitle className="text-lg">{event.title}</CardTitle>
-                      <div className="flex flex-col items-end gap-1">
-                        <Badge variant={remaining > 0 ? "default" : "secondary"}>
-                          {remaining} spots left
-                        </Badge>
+                    <div className="flex justify-between items-start gap-3">
+                      <div className="min-w-0">
+                        <CardTitle className="text-lg">{event.title}</CardTitle>
+                        <CardDescription className="mt-1">{event.clinic_name}</CardDescription>
+                      </div>
+                      <div className="flex shrink-0 flex-col items-end gap-1">
+                        <SpotsLeftCounter remaining={remaining} />
                         {pastDate && (
                           <Badge variant="outline" className="text-xs">
                             Past event date
@@ -321,7 +323,6 @@ function ClinicBookingContent() {
                         )}
                       </div>
                     </div>
-                    <CardDescription>{event.clinic_name}</CardDescription>
                   </CardHeader>
                   <CardContent>
                     <EventDetailsSummary
