@@ -19,7 +19,7 @@ import {
   startOfWeekSunday,
   type BirthdayPerson,
 } from "@/lib/team-feed/birthdays";
-import { cn } from "@/lib/utils";
+import { cn, formatDate } from "@/lib/utils";
 
 type CalendarView = "month" | "week";
 
@@ -52,10 +52,7 @@ export function BirthdayCalendarDialog({
   });
 
   const weekDays = useMemo(() => getWeekDays(weekCursor), [weekCursor]);
-  const weekLabel = `${weekDays[0].toLocaleDateString(undefined, {
-    month: "short",
-    day: "numeric",
-  })} – ${weekDays[6].toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}`;
+  const weekLabel = `${formatDate(weekDays[0])} – ${formatDate(weekDays[6])}`;
 
   const monthGrid = useMemo(
     () => getMonthGrid(monthCursor.getFullYear(), monthCursor.getMonth()),
@@ -224,7 +221,7 @@ export function BirthdayCalendarDialog({
                     {day.toLocaleDateString(undefined, { weekday: "short" })}
                   </p>
                   <p className={cn("text-sm font-semibold", isToday(day) && "text-pink-700")}>
-                    {day.toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+                    {formatDate(day)}
                   </p>
                   <div className="mt-2 space-y-1">
                     {dayBirthdays.length === 0 ? (

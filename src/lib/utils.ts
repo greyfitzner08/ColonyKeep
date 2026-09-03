@@ -22,22 +22,26 @@ function toDisplayDate(date: string | Date): Date {
   return new Date(date);
 }
 
+function pad2(value: number): string {
+  return String(value).padStart(2, "0");
+}
+
+/** Display dates as MM-DD-YYYY app-wide. */
 export function formatDate(date: string | Date): string {
-  return toDisplayDate(date).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
+  const d = toDisplayDate(date);
+  if (Number.isNaN(d.getTime())) return "";
+  return `${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}-${d.getFullYear()}`;
 }
 
 export function formatDateTime(date: string | Date): string {
-  return new Date(date).toLocaleString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
+  const d = new Date(date);
+  if (Number.isNaN(d.getTime())) return "";
+  const datePart = `${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}-${d.getFullYear()}`;
+  const timePart = d.toLocaleTimeString("en-US", {
     hour: "numeric",
     minute: "2-digit",
   });
+  return `${datePart} ${timePart}`;
 }
 
 export function formatCurrency(amount: number): string {

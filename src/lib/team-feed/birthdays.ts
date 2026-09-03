@@ -34,11 +34,16 @@ export function formatBirthdayMonthDay(
   birthday: string,
   options?: Intl.DateTimeFormatOptions
 ): string {
-  return new Date(`${birthday}T12:00:00`).toLocaleDateString(undefined, {
-    month: "short",
-    day: "numeric",
-    ...options,
-  });
+  const d = new Date(`${birthday}T12:00:00`);
+  if (Number.isNaN(d.getTime())) return "";
+  if (options && Object.keys(options).length > 0) {
+    return d.toLocaleDateString(undefined, {
+      month: "short",
+      day: "numeric",
+      ...options,
+    });
+  }
+  return `${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
 export function sortByUpcomingBirthday(
