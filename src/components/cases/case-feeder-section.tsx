@@ -66,15 +66,7 @@ export function CaseFeederSection({
   }
 
   return (
-    <CaseCollapsibleSection
-      title="Colony feeder"
-      description={
-        helpRequest.feeding_cats
-          ? "Reporter said they feed these cats — contact details copy from the reporter when blank."
-          : "Contact for the person feeding the colony when they are not the reporter."
-      }
-      defaultOpen
-    >
+    <CaseCollapsibleSection title="Colony feeder" defaultOpen>
       <div className="space-y-4">
         {!readOnly && (
           <div className="flex justify-end gap-2">
@@ -113,28 +105,14 @@ export function CaseFeederSection({
             />
             {saving && <p className="text-xs text-muted-foreground">Saving feeder info…</p>}
           </>
-        ) : (
-          <>
-            {hasFeederDetails(helpRequest) ? (
-              <dl>
-                <InfoRow label="Name" value={helpRequest.feeder_name} alwaysShow />
-                <InfoRow label="Phone" value={helpRequest.feeder_phone} alwaysShow />
-                <InfoRow label="Email" value={helpRequest.feeder_email} alwaysShow />
-                <InfoRow label="Address" value={address} alwaysShow />
-              </dl>
-            ) : (
-              <p className="text-sm text-muted-foreground">No feeder details recorded yet.</p>
-            )}
-            {helpRequest.feeder_if_not && (
-              <div className="rounded-md border bg-muted/40 p-3">
-                <p className="text-sm font-medium">Original intake note</p>
-                <p className="mt-1 text-sm text-muted-foreground whitespace-pre-wrap">
-                  {helpRequest.feeder_if_not}
-                </p>
-              </div>
-            )}
-          </>
-        )}
+        ) : hasFeederDetails(helpRequest) ? (
+          <dl>
+            <InfoRow label="Name" value={helpRequest.feeder_name} alwaysShow />
+            <InfoRow label="Phone" value={helpRequest.feeder_phone} alwaysShow />
+            <InfoRow label="Email" value={helpRequest.feeder_email} alwaysShow />
+            <InfoRow label="Address" value={address} alwaysShow />
+          </dl>
+        ) : null}
       </div>
     </CaseCollapsibleSection>
   );

@@ -102,12 +102,6 @@ export function CaseFeederFields({
           onChange={(value) => onChange({ ...hr, feeder_county: value || null })}
         />
       </div>
-      {hr.feeder_if_not && !hr.feeder_name && (
-        <div className="space-y-2 sm:col-span-2 rounded-md border bg-muted/40 p-3">
-          <Label>Original intake note</Label>
-          <p className="text-sm text-muted-foreground whitespace-pre-wrap">{hr.feeder_if_not}</p>
-        </div>
-      )}
     </div>
   );
 }
