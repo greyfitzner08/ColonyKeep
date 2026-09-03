@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ServiceCatalogEditor } from "@/components/clinics/service-catalog-editor";
+import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import { countOccupiedSpots } from "@/lib/clinic-events/availability";
 import { eventBookingStatusLabel } from "@/lib/clinic-events/visibility";
 import {
@@ -79,7 +80,13 @@ function statusLabel(status: string) {
   return STATUS_LABEL[status] ?? status;
 }
 
-type BookingSort = "person" | "cat" | "newest";
+const STATUS_SORT_ORDER: Record<string, number> = {
+  pending: 0,
+  waitlist: 1,
+  confirmed: 2,
+  cancelled: 3,
+  expired: 4,
+};
 
 function bookingSearchText(booking: PublicBooking) {
   return [
@@ -91,22 +98,11 @@ function bookingSearchText(booking: PublicBooking) {
     booking.cat_gender,
     booking.notes,
     booking.injury_details,
+    booking.selected_addons.join(" "),
+    statusLabel(booking.status),
   ]
     .filter(Boolean)
-    .join(" ")
-    .toLowerCase();
-}
-
-function compareBookings(a: PublicBooking, b: PublicBooking, sort: BookingSort) {
-  if (sort === "cat") {
-    return (a.cat_name ?? "").localeCompare(b.cat_name ?? "", undefined, { sensitivity: "base" });
-  }
-  if (sort === "newest") {
-    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-  }
-  const byPerson = a.contact_name.localeCompare(b.contact_name, undefined, { sensitivity: "base" });
-  if (byPerson !== 0) return byPerson;
-  return (a.cat_name ?? "").localeCompare(b.cat_name ?? "", undefined, { sensitivity: "base" });
+    .join(" ");
 }
 
 export function ClinicEventsManager({ events, clinics, bookings }: ClinicEventsManagerProps) {
@@ -121,8 +117,6 @@ export function ClinicEventsManager({ events, clinics, bookings }: ClinicEventsM
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [emailsCopied, setEmailsCopied] = useState(false);
   const [updatingBookingId, setUpdatingBookingId] = useState<string | null>(null);
-  const [bookingQuery, setBookingQuery] = useState("");
-  const [bookingSort, setBookingSort] = useState<BookingSort>("person");
 
   function catalogForClinic(clinicId: string): ClinicServiceOption[] {
     const clinic = clinics.find((c) => c.id === clinicId);
@@ -282,30 +276,128 @@ export function ClinicEventsManager({ events, clinics, bookings }: ClinicEventsM
     if (response.ok) router.refresh();
   }
 
-  useEffect(() => {
-    setBookingQuery("");
-    setBookingSort("person");
-  }, [selectedEvent]);
-
   const selectedEventData = events.find((e) => e.id === selectedEvent);
   const allEventBookings = useMemo(() => {
     if (!selectedEvent) return [];
     return bookings.filter((b) => b.event_id === selectedEvent && b.contact_email !== "hold@pending.local");
   }, [bookings, selectedEvent]);
-  const visibleBookings = useMemo(() => {
-    const query = bookingQuery.trim().toLowerCase();
-    return allEventBookings
-      .filter((b) => !query || bookingSearchText(b).includes(query))
-      .sort((a, b) => compareBookings(a, b, bookingSort));
-  }, [allEventBookings, bookingQuery, bookingSort]);
 
-  const pendingBookings = visibleBookings.filter((b) => b.status === "pending");
-  const confirmedBookings = visibleBookings.filter((b) => b.status === "confirmed");
-  const waitlistBookings = visibleBookings.filter((b) => b.status === "waitlist");
-  const cancelledBookings = visibleBookings.filter((b) => b.status === "cancelled");
-  const otherBookings = visibleBookings.filter(
-    (b) => !["pending", "confirmed", "waitlist", "cancelled"].includes(b.status)
-  );
+  const bookingColumns = useMemo((): DataTableColumn<PublicBooking>[] => [
+    {
+      id: "cat",
+      label: "Cat",
+      wrap: true,
+      sortValue: (booking) => booking.cat_name ?? "",
+      render: (booking) => (
+        <div>
+          <p className="font-medium">{booking.cat_name ?? "Unnamed cat"}</p>
+          {(booking.cat_colors || booking.cat_gender) && (
+            <p className="text-xs text-muted-foreground">
+              {[booking.cat_colors, booking.cat_gender].filter(Boolean).join(" · ")}
+            </p>
+          )}
+        </div>
+      ),
+    },
+    {
+      id: "person",
+      label: "Person",
+      wrap: true,
+      sortValue: (booking) => booking.contact_name,
+      render: (booking) => <p className="font-medium">{booking.contact_name}</p>,
+    },
+    {
+      id: "email",
+      label: "Email",
+      wrap: true,
+      sortValue: (booking) => booking.contact_email,
+      render: (booking) => (
+        <a href={`mailto:${booking.contact_email}`} className="text-primary hover:underline">
+          {booking.contact_email}
+        </a>
+      ),
+    },
+    {
+      id: "phone",
+      label: "Phone",
+      sortValue: (booking) => booking.contact_phone,
+      render: (booking) =>
+        booking.contact_phone ? (
+          <a href={`tel:${booking.contact_phone}`} className="whitespace-nowrap text-primary hover:underline">
+            {booking.contact_phone}
+          </a>
+        ) : (
+          "—"
+        ),
+    },
+    {
+      id: "status",
+      label: "Status",
+      sortValue: (booking) => STATUS_SORT_ORDER[booking.status] ?? 99,
+      render: (booking) => (
+        <Badge variant={STATUS_VARIANT[booking.status] ?? "secondary"}>{statusLabel(booking.status)}</Badge>
+      ),
+    },
+    {
+      id: "total",
+      label: "Total",
+      sortValue: (booking) => booking.total_price,
+      render: (booking) => formatCurrency(booking.total_price),
+    },
+    {
+      id: "notes",
+      label: "Notes",
+      wrap: true,
+      sortValue: (booking) => booking.notes ?? booking.injury_details ?? "",
+      render: (booking) => (
+        <p className="max-w-xs text-muted-foreground">
+          {booking.notes || booking.injury_details || "—"}
+        </p>
+      ),
+    },
+    {
+      id: "addons",
+      label: "Add-ons",
+      wrap: true,
+      sortValue: (booking) => booking.selected_addons.join(" "),
+      render: (booking) =>
+        booking.selected_addons.length === 0 ? (
+          <span className="text-muted-foreground">—</span>
+        ) : (
+          <div className="space-y-1">
+            {booking.selected_addons.map((addon) => {
+              const paid = booking.addon_payments?.[addon] ?? false;
+              return (
+                <div key={addon} className="flex items-center gap-2">
+                  <Checkbox
+                    checked={paid}
+                    disabled={updatingBookingId === booking.id}
+                    onCheckedChange={(checked) => toggleAddonPayment(booking.id, addon, !!checked)}
+                  />
+                  <Label className="font-normal">
+                    {addon} {paid ? "· Paid" : "· Unpaid"}
+                  </Label>
+                </div>
+              );
+            })}
+          </div>
+        ),
+    },
+    {
+      id: "actions",
+      label: "Actions",
+      wrap: true,
+      render: (booking) => (
+        <BookingActions
+          booking={booking}
+          updatingId={updatingBookingId}
+          onConfirm={(id) => updateBookingStatus(id, "confirmed")}
+          onWaitlist={(id) => updateBookingStatus(id, "waitlist")}
+          onCancel={(id) => updateBookingStatus(id, "cancelled")}
+        />
+      ),
+    },
+  ], [updatingBookingId, toggleAddonPayment, updateBookingStatus]);
 
   const formFields = (
     <div className="space-y-3">
@@ -439,93 +531,42 @@ export function ClinicEventsManager({ events, clinics, bookings }: ClinicEventsM
 
       {selectedEvent && selectedEventData && (
         <Card>
-          <CardHeader className="flex flex-col gap-4">
+          <CardHeader>
             <div className="flex flex-row items-start justify-between gap-4">
               <div>
                 <CardTitle>Manage bookings — {selectedEventData.title}</CardTitle>
                 <p className="text-sm text-muted-foreground mt-1">
-                  Confirm to approve a spot. Move to waiting list if full. Cancel to release the spot.
+                  Click a column header to sort. Confirm to approve a spot, waitlist if full, or cancel to release it.
                   Emails are sent by the team by hand — copy addresses below.
                 </p>
               </div>
-              <Button variant="ghost" size="sm" onClick={() => setSelectedEvent(null)}>
-                <X className="h-4 w-4 mr-1" />
-                Hide
-              </Button>
-            </div>
-            <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
-              <Input
-                value={bookingQuery}
-                onChange={(e) => setBookingQuery(e.target.value)}
-                placeholder="Find a person or cat…"
-                className="sm:max-w-xs"
-              />
-              <Select value={bookingSort} onValueChange={(value) => setBookingSort(value as BookingSort)}>
-                <SelectTrigger className="sm:w-48">
-                  <SelectValue placeholder="Sort" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="person">Sort by person</SelectItem>
-                  <SelectItem value="cat">Sort by cat</SelectItem>
-                  <SelectItem value="newest">Newest first</SelectItem>
-                </SelectContent>
-              </Select>
-              {visibleBookings.length > 0 && (
-                <Button variant="outline" size="sm" onClick={() => copyAllEmails(visibleBookings)}>
-                  <Copy className="h-3.5 w-3.5 mr-1" />
-                  {emailsCopied ? "Copied!" : bookingQuery.trim() ? "Copy shown emails" : "Copy all emails"}
+              <div className="flex shrink-0 items-center gap-2">
+                {allEventBookings.length > 0 && (
+                  <Button variant="outline" size="sm" onClick={() => copyAllEmails(allEventBookings)}>
+                    <Copy className="h-3.5 w-3.5 mr-1" />
+                    {emailsCopied ? "Copied!" : "Copy all emails"}
+                  </Button>
+                )}
+                <Button variant="ghost" size="sm" onClick={() => setSelectedEvent(null)}>
+                  <X className="h-4 w-4 mr-1" />
+                  Hide
                 </Button>
-              )}
+              </div>
             </div>
           </CardHeader>
-          <CardContent className="space-y-6">
+          <CardContent className="space-y-4">
             {error && <p className="text-sm text-destructive">{error}</p>}
-
-            <BookingGroup
-              title={`Pending review (${pendingBookings.length})`}
-              bookings={pendingBookings}
-              updatingId={updatingBookingId}
-              onConfirm={(id) => updateBookingStatus(id, "confirmed")}
-              onWaitlist={(id) => updateBookingStatus(id, "waitlist")}
-              onCancel={(id) => updateBookingStatus(id, "cancelled")}
-              onTogglePayment={toggleAddonPayment}
+            <DataTable
+              tableId={`clinic-event-bookings-${selectedEvent}`}
+              columns={bookingColumns}
+              rows={allEventBookings}
+              getRowKey={(booking) => booking.id}
+              getSearchText={bookingSearchText}
+              searchPlaceholder="Find a person or cat…"
+              emptyMessage="No bookings yet"
+              noSearchMatchMessage="No bookings match that search"
+              defaultSort={{ columnId: "cat", direction: "asc" }}
             />
-
-            <BookingGroup
-              title={`Confirmed (${confirmedBookings.length})`}
-              bookings={confirmedBookings}
-              updatingId={updatingBookingId}
-              onCancel={(id) => updateBookingStatus(id, "cancelled")}
-              onTogglePayment={toggleAddonPayment}
-            />
-
-            <BookingGroup
-              title={`Waiting list (${waitlistBookings.length})`}
-              bookings={waitlistBookings}
-              updatingId={updatingBookingId}
-              onConfirm={(id) => updateBookingStatus(id, "confirmed")}
-              onCancel={(id) => updateBookingStatus(id, "cancelled")}
-              onTogglePayment={toggleAddonPayment}
-            />
-
-            <BookingGroup
-              title={`Cancelled (${cancelledBookings.length})`}
-              bookings={cancelledBookings}
-              updatingId={updatingBookingId}
-              onWaitlist={(id) => updateBookingStatus(id, "waitlist")}
-              onTogglePayment={toggleAddonPayment}
-            />
-
-            {otherBookings.length > 0 && (
-              <BookingGroup title="Other" bookings={otherBookings} updatingId={updatingBookingId} />
-            )}
-
-            {allEventBookings.length === 0 && (
-              <p className="text-muted-foreground">No bookings yet</p>
-            )}
-            {allEventBookings.length > 0 && visibleBookings.length === 0 && (
-              <p className="text-muted-foreground">No bookings match that search</p>
-            )}
           </CardContent>
         </Card>
       )}
@@ -553,86 +594,43 @@ export function ClinicEventsManager({ events, clinics, bookings }: ClinicEventsM
   );
 }
 
-function BookingGroup({
-  title,
-  bookings,
+function BookingActions({
+  booking,
   updatingId,
   onConfirm,
   onWaitlist,
   onCancel,
-  onTogglePayment,
 }: {
-  title: string;
-  bookings: PublicBooking[];
+  booking: PublicBooking;
   updatingId: string | null;
-  onConfirm?: (id: string) => void;
-  onWaitlist?: (id: string) => void;
-  onCancel?: (id: string) => void;
-  onTogglePayment?: (bookingId: string, addonName: string, paid: boolean) => void;
+  onConfirm: (id: string) => void;
+  onWaitlist: (id: string) => void;
+  onCancel: (id: string) => void;
 }) {
-  if (bookings.length === 0) return null;
+  const busy = updatingId === booking.id;
+  const showConfirm = booking.status === "pending" || booking.status === "waitlist";
+  const showWaitlist = booking.status === "pending" || booking.status === "cancelled";
+  const showCancel = booking.status === "pending" || booking.status === "confirmed" || booking.status === "waitlist";
+
+  if (!showConfirm && !showWaitlist && !showCancel) return <span className="text-muted-foreground">—</span>;
 
   return (
-    <div className="space-y-2">
-      <h4 className="font-medium text-sm">{title}</h4>
-      {bookings.map((b) => (
-        <div key={b.id} className="flex flex-col gap-3 text-sm border rounded-lg p-3">
-          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
-            <div>
-              <p className="font-medium">{b.contact_name}</p>
-              <p className="text-muted-foreground">
-                {b.cat_name ?? "Unnamed cat"} · {b.contact_email} · {b.contact_phone}
-              </p>
-              {b.cat_colors && (
-                <p className="text-xs text-muted-foreground">
-                  {b.cat_colors}{b.cat_gender ? ` · ${b.cat_gender}` : ""}
-                </p>
-              )}
-              {b.notes && <p className="text-xs text-muted-foreground mt-1">{b.notes}</p>}
-            </div>
-            <div className="flex flex-wrap items-center gap-2 shrink-0">
-              <Badge variant={STATUS_VARIANT[b.status] ?? "secondary"}>{statusLabel(b.status)}</Badge>
-              <span className="text-xs text-muted-foreground">{formatCurrency(b.total_price)}</span>
-              {onConfirm && (
-                <Button size="sm" disabled={updatingId === b.id} onClick={() => onConfirm(b.id)}>
-                  Confirm
-                </Button>
-              )}
-              {onWaitlist && (
-                <Button size="sm" variant="outline" disabled={updatingId === b.id} onClick={() => onWaitlist(b.id)}>
-                  Waiting list
-                </Button>
-              )}
-              {onCancel && (
-                <Button size="sm" variant="destructive" disabled={updatingId === b.id} onClick={() => onCancel(b.id)}>
-                  Cancel
-                </Button>
-              )}
-            </div>
-          </div>
-
-          {b.selected_addons.length > 0 && (
-            <div className="rounded-md bg-muted/50 p-3 space-y-2">
-              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Add-on payment</p>
-              {b.selected_addons.map((addon) => {
-                const paid = b.addon_payments?.[addon] ?? false;
-                return (
-                  <div key={addon} className="flex items-center gap-2">
-                    <Checkbox
-                      checked={paid}
-                      disabled={updatingId === b.id}
-                      onCheckedChange={(checked) => onTogglePayment?.(b.id, addon, !!checked)}
-                    />
-                    <Label className="font-normal">
-                      {addon} {paid ? "· Paid" : "· Unpaid"}
-                    </Label>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      ))}
+    <div className="flex flex-wrap gap-1.5">
+      {showConfirm && (
+        <Button size="sm" disabled={busy} onClick={() => onConfirm(booking.id)}>
+          Confirm
+        </Button>
+      )}
+      {showWaitlist && (
+        <Button size="sm" variant="outline" disabled={busy} onClick={() => onWaitlist(booking.id)}>
+          Waiting list
+        </Button>
+      )}
+      {showCancel && (
+        <Button size="sm" variant="destructive" disabled={busy} onClick={() => onCancel(booking.id)}>
+          Cancel
+        </Button>
+      )}
     </div>
   );
 }
