@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAppointmentManager } from "@/lib/api/auth";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
-import { sendAppointmentConfirmationEmail } from "@/lib/email";
 
 export async function POST(request: NextRequest) {
   const { profile, response } = await requireAppointmentManager();
@@ -116,19 +115,6 @@ export async function POST(request: NextRequest) {
       .update({ status: "appointment_reserved" })
       .eq("id", helpRequestId);
   }
-
-  const { data: clinic } = await supabase
-    .from("clinics")
-    .select("address")
-    .eq("id", appointment.clinic_id)
-    .single();
-
-  await sendAppointmentConfirmationEmail(user.email!, profile.full_name ?? user.email!, {
-    clinic_name: appointment.clinic_name,
-    clinic_address: clinic?.address ?? "",
-    date: appointment.date,
-    cat_name: catName ?? undefined,
-  });
 
   return NextResponse.json({ success: true, catId: resolvedCatId });
 }

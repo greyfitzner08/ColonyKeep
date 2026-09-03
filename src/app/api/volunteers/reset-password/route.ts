@@ -2,9 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireApiRole } from "@/lib/api/auth";
 import { createServiceClient } from "@/lib/supabase/server";
 import { parsePrimaryEmail, getEmailValidationError } from "@/lib/email-utils";
-import { sendVolunteerPasswordResetEmail } from "@/lib/email";
 import { resetVolunteerTemporaryPassword } from "@/lib/volunteers/approve-auth";
-import { getDefaultVolunteerPassword } from "@/lib/volunteers/default-password";
 
 export async function POST(request: NextRequest) {
   const { response } = await requireApiRole(["admin"]);
@@ -52,7 +50,6 @@ export async function POST(request: NextRequest) {
   }
 
   const { userId, created } = authResult;
-  const tempPassword = getDefaultVolunteerPassword();
 
   const { data: existingProfile } = await service
     .from("profiles")
@@ -84,25 +81,11 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  let emailWarning: string | undefined;
-  const emailResult = await sendVolunteerPasswordResetEmail(
-    volunteerEmail,
-    application.full_name,
-    tempPassword
-  );
-
-  if (!emailResult.sent) {
-    emailWarning =
-      emailResult.error ??
-      "Password reset, but the notification email could not be sent. Share the temporary password manually.";
-  }
-
   return NextResponse.json({
     success: true,
     created_account: created,
-    email_warning: emailWarning,
     message: created
-      ? "Login account created with the temporary password. The volunteer must sign in and choose a new password."
-      : "Password reset to the temporary default. The volunteer must sign in and choose a new password.",
+      ? "Login account created with the temporary password. Share FeralFelines123! with the volunteer so they can sign in and choose a new password."
+      : "Password reset to the temporary default. Share FeralFelines123! with the volunteer so they can sign in and choose a new password.",
   });
 }

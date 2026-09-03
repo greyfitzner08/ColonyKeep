@@ -859,9 +859,9 @@ export function VolunteersManager({
       return;
     }
 
-    const message = result?.email_warning
-      ? `${result.message} ${result.email_warning}`
-      : (result?.message ?? "Temporary password set. The volunteer must sign in and choose a new password.");
+    const message =
+      result?.message ??
+      "Temporary password set. Share FeralFelines123! with the volunteer so they can sign in and choose a new password.";
     showActionError(message);
     router.refresh();
   }

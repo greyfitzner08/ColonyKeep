@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { sendPublicBookingPendingEmail } from "@/lib/email";
 import {
   buildInitialAddonPayments,
   calculateBookingTotal,
@@ -123,32 +122,6 @@ export async function POST(request: NextRequest) {
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 400 });
-    }
-  }
-
-  const contact = spots[0];
-
-  if (eventRow && contact) {
-    const emailResult = await sendPublicBookingPendingEmail(
-      contact.contact_email,
-      contact.contact_name,
-      {
-        title: eventRow.title,
-        clinic_name: eventRow.clinic_name,
-        date: eventRow.date,
-        location: eventRow.location,
-        pending_email_message: eventRow.pending_email_message,
-      },
-      spots.map((spot) => ({
-        cat_name: spot.cat_name,
-        total_price: eventRow
-          ? calculateBookingTotal(eventRow.base_price, catalog, spot.selected_addons ?? [])
-          : spot.total_price ?? 0,
-      }))
-    );
-
-    if (!emailResult.sent) {
-      console.error("[email] Pending booking email failed:", emailResult.error);
     }
   }
 

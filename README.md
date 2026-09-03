@@ -9,14 +9,13 @@ A full-stack platform for volunteer rescue organizations managing Trap-Neuter-Va
 - **Tailwind CSS** + **shadcn/ui** + **Lucide icons**
 - **Leaflet** for colony hotspot maps
 - **Recharts** for volunteer impact charts
-- **Resend** for transactional email
 - **Google Maps Places API** for address autocomplete
 
 ## Requirements
 
 - Node.js **20+**
 - A [Supabase](https://supabase.com) project
-- Optional: Resend API key, Google Maps API key (server key without HTTP referrer restrictions)
+- Optional: Google Maps API key (server key without HTTP referrer restrictions)
 
 ## Setup
 
@@ -33,21 +32,9 @@ npm install
 cp .env.example .env.local
 ```
 
-Fill in your Supabase URL/keys, and optionally Resend + Google Maps keys.
+Fill in your Supabase URL/keys, and optionally a Google Maps key.
 
-#### Email (Resend) — required for volunteer welcome emails, password resets, and booking notifications
-
-1. Create a free account at [resend.com](https://resend.com)
-2. Add and verify your sending domain under **Domains**
-3. Create an API key under **API Keys**
-4. Add to `.env.local` (and Vercel for production):
-
-```bash
-RESEND_API_KEY=re_xxxxxxxx
-EMAIL_FROM=TNVR Rescue <noreply@yourdomain.com>
-```
-
-Without `RESEND_API_KEY`, approvals and password resets still work — volunteers just won't receive the automatic email (you'll see a warning in the admin UI).
+The app does not send email. Copy addresses from Clinic Events → Manage bookings and send messages by hand.
 
 ### 3. Run database migration
 

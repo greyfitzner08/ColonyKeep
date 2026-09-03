@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -21,7 +21,7 @@ import {
 } from "@/lib/clinics/service-catalog";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import type { Clinic, ClinicServiceOption, PublicClinicEvent, PublicBooking } from "@/lib/types";
-import { Copy, Link2, Pencil, Plus } from "lucide-react";
+import { Copy, Link2, Pencil, Plus, X } from "lucide-react";
 
 type ClinicOption = Pick<Clinic, "id" | "name" | "service_catalog" | "included_services" | "addon_services">;
 
@@ -79,6 +79,36 @@ function statusLabel(status: string) {
   return STATUS_LABEL[status] ?? status;
 }
 
+type BookingSort = "person" | "cat" | "newest";
+
+function bookingSearchText(booking: PublicBooking) {
+  return [
+    booking.contact_name,
+    booking.contact_email,
+    booking.contact_phone,
+    booking.cat_name,
+    booking.cat_colors,
+    booking.cat_gender,
+    booking.notes,
+    booking.injury_details,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+}
+
+function compareBookings(a: PublicBooking, b: PublicBooking, sort: BookingSort) {
+  if (sort === "cat") {
+    return (a.cat_name ?? "").localeCompare(b.cat_name ?? "", undefined, { sensitivity: "base" });
+  }
+  if (sort === "newest") {
+    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+  }
+  const byPerson = a.contact_name.localeCompare(b.contact_name, undefined, { sensitivity: "base" });
+  if (byPerson !== 0) return byPerson;
+  return (a.cat_name ?? "").localeCompare(b.cat_name ?? "", undefined, { sensitivity: "base" });
+}
+
 export function ClinicEventsManager({ events, clinics, bookings }: ClinicEventsManagerProps) {
   const router = useRouter();
   const [createOpen, setCreateOpen] = useState(false);
@@ -91,6 +121,8 @@ export function ClinicEventsManager({ events, clinics, bookings }: ClinicEventsM
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [emailsCopied, setEmailsCopied] = useState(false);
   const [updatingBookingId, setUpdatingBookingId] = useState<string | null>(null);
+  const [bookingQuery, setBookingQuery] = useState("");
+  const [bookingSort, setBookingSort] = useState<BookingSort>("person");
 
   function catalogForClinic(clinicId: string): ClinicServiceOption[] {
     const clinic = clinics.find((c) => c.id === clinicId);
@@ -236,9 +268,6 @@ export function ClinicEventsManager({ events, clinics, bookings }: ClinicEventsM
       setError(result?.error ?? "Unable to update booking");
       return;
     }
-    if (result?.email_warning) {
-      setError(`Booking updated, but email failed: ${result.email_warning}`);
-    }
     router.refresh();
   }
 
@@ -253,16 +282,28 @@ export function ClinicEventsManager({ events, clinics, bookings }: ClinicEventsM
     if (response.ok) router.refresh();
   }
 
-  const selectedEventData = events.find((e) => e.id === selectedEvent);
-  const eventBookings = selectedEvent
-    ? bookings.filter((b) => b.event_id === selectedEvent && b.contact_email !== "hold@pending.local")
-    : [];
+  useEffect(() => {
+    setBookingQuery("");
+    setBookingSort("person");
+  }, [selectedEvent]);
 
-  const pendingBookings = eventBookings.filter((b) => b.status === "pending");
-  const confirmedBookings = eventBookings.filter((b) => b.status === "confirmed");
-  const waitlistBookings = eventBookings.filter((b) => b.status === "waitlist");
-  const cancelledBookings = eventBookings.filter((b) => b.status === "cancelled");
-  const otherBookings = eventBookings.filter(
+  const selectedEventData = events.find((e) => e.id === selectedEvent);
+  const allEventBookings = useMemo(() => {
+    if (!selectedEvent) return [];
+    return bookings.filter((b) => b.event_id === selectedEvent && b.contact_email !== "hold@pending.local");
+  }, [bookings, selectedEvent]);
+  const visibleBookings = useMemo(() => {
+    const query = bookingQuery.trim().toLowerCase();
+    return allEventBookings
+      .filter((b) => !query || bookingSearchText(b).includes(query))
+      .sort((a, b) => compareBookings(a, b, bookingSort));
+  }, [allEventBookings, bookingQuery, bookingSort]);
+
+  const pendingBookings = visibleBookings.filter((b) => b.status === "pending");
+  const confirmedBookings = visibleBookings.filter((b) => b.status === "confirmed");
+  const waitlistBookings = visibleBookings.filter((b) => b.status === "waitlist");
+  const cancelledBookings = visibleBookings.filter((b) => b.status === "cancelled");
+  const otherBookings = visibleBookings.filter(
     (b) => !["pending", "confirmed", "waitlist", "cancelled"].includes(b.status)
   );
 
@@ -310,7 +351,7 @@ export function ClinicEventsManager({ events, clinics, bookings }: ClinicEventsM
       <div className="space-y-1"><Label>Payment URL</Label><Input value={form.payment_url} onChange={(e) => setForm({ ...form, payment_url: e.target.value })} /></div>
       <div className="space-y-1"><Label>Description</Label><Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></div>
       <div className="space-y-1">
-        <Label>After-signup message (shown on screen + pending email)</Label>
+        <Label>After-signup message (shown on the confirmation screen)</Label>
         <Textarea
           value={form.pending_email_message}
           onChange={(e) => setForm({ ...form, pending_email_message: e.target.value })}
@@ -318,7 +359,7 @@ export function ClinicEventsManager({ events, clinics, bookings }: ClinicEventsM
         />
       </div>
       <div className="space-y-1">
-        <Label>Confirmation email message (sent when you approve a booking)</Label>
+        <Label>Notes for when you email confirmations by hand</Label>
         <Textarea
           value={form.confirmed_email_message}
           onChange={(e) => setForm({ ...form, confirmed_email_message: e.target.value })}
@@ -370,6 +411,13 @@ export function ClinicEventsManager({ events, clinics, bookings }: ClinicEventsM
                   <p>{occupied}/{event.total_spots} taken · {remaining} left · {formatCurrency(event.base_price)}</p>
                 </div>
                 <div className="flex flex-wrap gap-2">
+                  <Button
+                    variant={selectedEvent === event.id ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setSelectedEvent(event.id)}
+                  >
+                    Manage bookings
+                  </Button>
                   <Button variant="outline" size="sm" onClick={() => openEdit(event)}>
                     <Pencil className="h-3.5 w-3.5 mr-1" />
                     Edit
@@ -391,19 +439,44 @@ export function ClinicEventsManager({ events, clinics, bookings }: ClinicEventsM
 
       {selectedEvent && selectedEventData && (
         <Card>
-          <CardHeader className="flex flex-row items-start justify-between gap-4">
-            <div>
-              <CardTitle>Manage bookings — {selectedEventData.title}</CardTitle>
-              <p className="text-sm text-muted-foreground mt-1">
-                Confirm to approve and email. Move to waiting list if full. Cancel to release the spot.
-              </p>
-            </div>
-            {eventBookings.length > 0 && (
-              <Button variant="outline" size="sm" onClick={() => copyAllEmails(eventBookings)}>
-                <Copy className="h-3.5 w-3.5 mr-1" />
-                {emailsCopied ? "Copied!" : "Copy all emails"}
+          <CardHeader className="flex flex-col gap-4">
+            <div className="flex flex-row items-start justify-between gap-4">
+              <div>
+                <CardTitle>Manage bookings — {selectedEventData.title}</CardTitle>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Confirm to approve a spot. Move to waiting list if full. Cancel to release the spot.
+                  Emails are sent by the team by hand — copy addresses below.
+                </p>
+              </div>
+              <Button variant="ghost" size="sm" onClick={() => setSelectedEvent(null)}>
+                <X className="h-4 w-4 mr-1" />
+                Hide
               </Button>
-            )}
+            </div>
+            <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
+              <Input
+                value={bookingQuery}
+                onChange={(e) => setBookingQuery(e.target.value)}
+                placeholder="Find a person or cat…"
+                className="sm:max-w-xs"
+              />
+              <Select value={bookingSort} onValueChange={(value) => setBookingSort(value as BookingSort)}>
+                <SelectTrigger className="sm:w-48">
+                  <SelectValue placeholder="Sort" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="person">Sort by person</SelectItem>
+                  <SelectItem value="cat">Sort by cat</SelectItem>
+                  <SelectItem value="newest">Newest first</SelectItem>
+                </SelectContent>
+              </Select>
+              {visibleBookings.length > 0 && (
+                <Button variant="outline" size="sm" onClick={() => copyAllEmails(visibleBookings)}>
+                  <Copy className="h-3.5 w-3.5 mr-1" />
+                  {emailsCopied ? "Copied!" : bookingQuery.trim() ? "Copy shown emails" : "Copy all emails"}
+                </Button>
+              )}
+            </div>
           </CardHeader>
           <CardContent className="space-y-6">
             {error && <p className="text-sm text-destructive">{error}</p>}
@@ -447,8 +520,11 @@ export function ClinicEventsManager({ events, clinics, bookings }: ClinicEventsM
               <BookingGroup title="Other" bookings={otherBookings} updatingId={updatingBookingId} />
             )}
 
-            {eventBookings.length === 0 && (
+            {allEventBookings.length === 0 && (
               <p className="text-muted-foreground">No bookings yet</p>
+            )}
+            {allEventBookings.length > 0 && visibleBookings.length === 0 && (
+              <p className="text-muted-foreground">No bookings match that search</p>
             )}
           </CardContent>
         </Card>

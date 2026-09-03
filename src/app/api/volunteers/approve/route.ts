@@ -3,12 +3,10 @@ import { requireApiRole } from "@/lib/api/auth";
 import { createServiceClient } from "@/lib/supabase/server";
 import { getRequestAppUrl } from "@/lib/app-url";
 import { getEmailValidationError, parsePrimaryEmail } from "@/lib/email-utils";
-import { sendVolunteerApprovalEmail } from "@/lib/email";
 import { ensureVolunteerAuthUser } from "@/lib/volunteers/approve-auth";
 import { canAssignVolunteerToTeam, hasTrapTeamMemberRoles } from "@/lib/volunteers/eligibility";
 import { isUnder18, isRoleAllowedOnSignup } from "@/lib/volunteers/age-eligibility";
 import { isKnownUserRole } from "@/lib/constants";
-import { getDefaultVolunteerPassword } from "@/lib/volunteers/default-password";
 import type { UserRole, VolunteerRole } from "@/lib/types";
 
 function errorResponse(message: string, status = 400) {
@@ -234,33 +232,8 @@ export async function POST(request: NextRequest) {
       return errorResponse(`Could not mark application approved: ${approvalError.message}`);
     }
 
-    let emailWarning: string | undefined;
-    try {
-      const emailResult = await sendVolunteerApprovalEmail(
-        volunteerEmail,
-        application.full_name,
-        {
-          isNewUser,
-          tempPassword: isNewUser ? getDefaultVolunteerPassword() : undefined,
-        }
-      );
-      if (!emailResult.sent) {
-        emailWarning =
-          emailResult.error ??
-          (isNewUser
-            ? "Volunteer approved, but the welcome email could not be sent. Share the temporary login password manually."
-            : "Volunteer approved, but the welcome email could not be sent.");
-      }
-    } catch (emailError) {
-      emailWarning =
-        emailError instanceof Error
-          ? `Volunteer approved, but the welcome email failed: ${emailError.message}`
-          : "Volunteer approved, but the welcome email could not be sent.";
-    }
-
     return NextResponse.json({
       success: true,
-      warning: emailWarning,
       is_new_user: isNewUser,
     });
   } catch (error) {

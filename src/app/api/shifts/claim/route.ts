@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireShiftAccess } from "@/lib/api/auth";
 import { createClient } from "@/lib/supabase/server";
-import { sendShiftConfirmationEmail } from "@/lib/email";
 
 export async function POST(request: NextRequest) {
   const { profile, response } = await requireShiftAccess();
@@ -38,17 +37,6 @@ export async function POST(request: NextRequest) {
     .eq("id", shiftId);
 
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
-
-  if (action === "claim") {
-    await sendShiftConfirmationEmail(email, profile!.full_name ?? email, {
-      event_name: shift.event_name,
-      position_name: shift.position_name,
-      date: shift.date,
-      start_time: shift.start_time,
-      end_time: shift.end_time,
-      location: shift.location,
-    });
-  }
 
   return NextResponse.json({ success: true, signed_up_emails: signedUp });
 }
