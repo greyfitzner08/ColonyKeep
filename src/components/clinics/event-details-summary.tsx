@@ -126,7 +126,7 @@ export function EventDetailsSummary({
               <p><span className="font-medium">Location:</span> {event.location}</p>
             </div>
 
-            <ServiceCatalogDisplay catalog={catalog} basePrice={event.base_price} />
+            <ServiceCatalogDisplay catalog={catalog} pricing={event} />
 
             {event.description && (
               <div>

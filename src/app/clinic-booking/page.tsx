@@ -14,10 +14,16 @@ import { EventDetailsSummary } from "@/components/clinics/event-details-summary"
 import { ClinicBookingCatFields } from "@/components/clinics/clinic-booking-cat-fields";
 import { SpotsLeftCounter } from "@/components/clinics/spots-left-counter";
 import {
-  calculateBookingTotal,
   getAddonOptions,
   normalizeServiceCatalog,
 } from "@/lib/clinics/service-catalog";
+import {
+  calculateBookingGrandTotal,
+  calculateSpotTotals,
+  normalizePricingMode,
+  pricingSummaryLabel,
+  resolvePackagePrice,
+} from "@/lib/clinics/event-pricing";
 import type { PublicClinicEvent } from "@/lib/types";
 import { isEventPastDate } from "@/lib/clinic-events/visibility";
 import { clinicHoldMinutes, CLINIC_HOLD_EXTENSION_MINUTES, CLINIC_HOLD_MAX_EXTENSIONS } from "@/lib/clinic-events/hold-duration";
@@ -223,17 +229,28 @@ function ClinicBookingContent() {
     );
   }
 
-  function calculateSpotTotal(spot: SpotForm): number {
+  function calculateSpotTotal(index: number): number {
     if (!selectedEvent) return 0;
-    return calculateBookingTotal(
-      selectedEvent.base_price,
+    const totals = calculateSpotTotals(
+      selectedEvent,
       getEventCatalog(selectedEvent),
-      spot.selected_addons
+      spots.map((entry) => entry.selected_addons)
     );
+    return totals[index] ?? 0;
   }
 
   function calculateGrandTotal(): number {
-    return spots.reduce((sum, spot) => sum + calculateSpotTotal(spot), 0);
+    if (!selectedEvent) return 0;
+    return calculateBookingGrandTotal(
+      selectedEvent,
+      getEventCatalog(selectedEvent),
+      spots.map((spot) => spot.selected_addons)
+    );
+  }
+
+  function packagePriceForCount(count: number): number {
+    if (!selectedEvent || count < 1) return 0;
+    return resolvePackagePrice(selectedEvent, count);
   }
 
   function patchSpot(index: number, patch: Partial<SpotForm>) {
@@ -343,13 +360,13 @@ function ClinicBookingContent() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         session_id: holdSessionId,
-        spots: spots.map((spot) => ({
+        spots: spots.map((spot, index) => ({
           ...contact,
           ...spot,
           has_injuries: spot.has_injuries,
           injury_details: spot.has_injuries ? spot.notes : "",
           notes: spot.has_injuries ? spot.notes : "",
-          total_price: calculateSpotTotal(spot),
+          total_price: calculateSpotTotal(index),
         })),
       }),
     });
@@ -434,7 +451,11 @@ function ClinicBookingContent() {
 
             <p className="text-sm text-muted-foreground whitespace-pre-wrap">{pendingMessage}</p>
 
-            {selectedEvent.payment_url && (
+            {selectedEvent.payment_url &&
+              !(
+                normalizePricingMode(selectedEvent.pricing_mode) === "sponsored" &&
+                calculateGrandTotal() === 0
+              ) && (
               <div className="rounded-lg border-2 border-primary bg-primary/10 px-4 py-4 text-center space-y-3">
                 <div>
                   <p className="text-lg font-semibold">Payment</p>
@@ -454,6 +475,12 @@ function ClinicBookingContent() {
                 </Button>
               </div>
             )}
+            {normalizePricingMode(selectedEvent.pricing_mode) === "sponsored" &&
+              calculateGrandTotal() === 0 && (
+                <div className="rounded-lg border border-emerald-300 bg-emerald-50 px-4 py-3 text-sm text-emerald-950 dark:border-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-100">
+                  This clinic is sponsored — no payment is required for your appointment.
+                </div>
+              )}
           </CardContent>
         </Card>
       </div>
@@ -623,6 +650,16 @@ function ClinicBookingContent() {
                     value={spotCount}
                     onValueChange={setSpotCount}
                   />
+                  {typeof spotCount === "number" && spotCount >= 1 && (
+                    <p className="text-sm text-muted-foreground">
+                      {normalizePricingMode(selectedEvent.pricing_mode) === "sponsored"
+                        ? "This clinic is sponsored — package price is free."
+                        : `Package price for ${spotCount} cat${spotCount === 1 ? "" : "s"}: ${formatCurrency(packagePriceForCount(spotCount))}`}
+                      {normalizePricingMode(selectedEvent.pricing_mode) !== "sponsored"
+                        ? " (add-ons extra)"
+                        : ""}
+                    </p>
+                  )}
                 </div>
                 {section === "count" && submitError && (
                   <p className="text-sm text-destructive">{submitError}</p>
@@ -755,7 +792,7 @@ function ClinicBookingContent() {
                           )}
                         </span>
                         <span className="shrink-0 text-sm text-muted-foreground">
-                          {formatCurrency(calculateSpotTotal(spot))}
+                          {formatCurrency(calculateSpotTotal(index))}
                         </span>
                       </button>
                       {expanded && !lockedCat && (
@@ -764,7 +801,7 @@ function ClinicBookingContent() {
                             index={index}
                             spot={spot}
                             addons={getAddonOptions(getEventCatalog(selectedEvent))}
-                            total={calculateSpotTotal(spot)}
+                            total={calculateSpotTotal(index)}
                             onPatch={(patch) => patchSpot(index, patch)}
                           />
                           <div className="flex justify-end">
@@ -784,9 +821,15 @@ function ClinicBookingContent() {
                 })}
 
                 <div className="rounded-lg bg-muted p-4">
-                  <p className="font-semibold">Estimated grand total: {formatCurrency(calculateGrandTotal())}</p>
+                  <p className="font-semibold">
+                    Estimated grand total: {formatCurrency(calculateGrandTotal())}
+                  </p>
                   <p className="text-sm text-muted-foreground mt-1">
-                    Base price plus any selected add-ons. Payment may be collected separately.
+                    {normalizePricingMode(selectedEvent.pricing_mode) === "sponsored"
+                      ? "Sponsored package price is free; optional add-ons may still apply. Payment may be collected separately."
+                      : normalizePricingMode(selectedEvent.pricing_mode) === "matrix"
+                        ? `Package price for ${spots.length} cat${spots.length === 1 ? "" : "s"} (${pricingSummaryLabel(selectedEvent)}) plus any selected add-ons.`
+                        : "Base price plus any selected add-ons. Payment may be collected separately."}
                   </p>
                 </div>
                 <div

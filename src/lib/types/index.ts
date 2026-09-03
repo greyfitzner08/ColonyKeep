@@ -496,6 +496,15 @@ export interface TeamAnnouncement {
   updated_at: string;
 }
 
+export type ClinicEventPricingMode = "flat" | "matrix" | "sponsored";
+
+export interface ClinicEventPricingTier {
+  /** Number of cats this total applies to. */
+  cats: number;
+  /** Total package price for that many cats (before optional add-ons). */
+  total_price: number;
+}
+
 export interface PublicClinicEvent {
   id: string;
   clinic_id: string;
@@ -509,6 +518,9 @@ export interface PublicClinicEvent {
   addon_services: ClinicAddon[];
   service_catalog: ClinicServiceOption[];
   base_price: number;
+  /** flat = per-cat base_price; matrix = pricing_matrix totals; sponsored = free package. */
+  pricing_mode: ClinicEventPricingMode;
+  pricing_matrix: ClinicEventPricingTier[];
   payment_url: string | null;
   pending_email_message: string | null;
   confirmed_email_message: string | null;

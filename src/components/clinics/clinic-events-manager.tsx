@@ -12,16 +12,29 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { EventPricingEditor } from "@/components/clinics/event-pricing-editor";
 import { ServiceCatalogEditor } from "@/components/clinics/service-catalog-editor";
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import { countOccupiedSpots } from "@/lib/clinic-events/availability";
 import { eventBookingStatusLabel } from "@/lib/clinic-events/visibility";
 import {
+  normalizePricingMatrix,
+  normalizePricingMode,
+  pricingSummaryLabel,
+} from "@/lib/clinics/event-pricing";
+import {
   defaultIncludedCatalog,
   normalizeServiceCatalog,
 } from "@/lib/clinics/service-catalog";
 import { formatCurrency, formatDate } from "@/lib/utils";
-import type { Clinic, ClinicServiceOption, PublicClinicEvent, PublicBooking } from "@/lib/types";
+import type {
+  Clinic,
+  ClinicEventPricingMode,
+  ClinicEventPricingTier,
+  ClinicServiceOption,
+  PublicClinicEvent,
+  PublicBooking,
+} from "@/lib/types";
 import { Copy, Link2, Pencil, Plus, X } from "lucide-react";
 
 type ClinicOption = Pick<Clinic, "id" | "name" | "service_catalog" | "included_services" | "addon_services">;
@@ -40,6 +53,8 @@ interface EventForm {
   total_spots: number;
   description: string;
   base_price: number;
+  pricing_mode: ClinicEventPricingMode;
+  pricing_matrix: ClinicEventPricingTier[];
   payment_url: string;
   service_catalog: ClinicServiceOption[];
   pending_email_message: string;
@@ -56,6 +71,8 @@ const emptyForm = (): EventForm => ({
   total_spots: 20,
   description: "",
   base_price: 0,
+  pricing_mode: "flat",
+  pricing_matrix: [],
   payment_url: "",
   service_catalog: defaultIncludedCatalog(),
   pending_email_message: "",
@@ -179,6 +196,8 @@ export function ClinicEventsManager({ events, clinics, bookings }: ClinicEventsM
       total_spots: event.total_spots,
       description: event.description ?? "",
       base_price: event.base_price,
+      pricing_mode: normalizePricingMode(event.pricing_mode),
+      pricing_matrix: normalizePricingMatrix(event.pricing_matrix),
       payment_url: event.payment_url ?? "",
       service_catalog: normalizeServiceCatalog(
         event.service_catalog,
@@ -425,17 +444,14 @@ export function ClinicEventsManager({ events, clinics, bookings }: ClinicEventsM
           }}
         />
       </div>
-      <div className="space-y-1">
-        <Label>Base Price (per cat)</Label>
-        <NumberInput
-          step="0.01"
-          min={0}
-          value={form.base_price}
-          onValueChange={(value) => {
-            if (typeof value === "number") setForm({ ...form, base_price: value });
-          }}
-        />
-      </div>
+      <EventPricingEditor
+        value={{
+          pricing_mode: form.pricing_mode,
+          base_price: form.base_price,
+          pricing_matrix: form.pricing_matrix,
+        }}
+        onChange={(pricing) => setForm({ ...form, ...pricing })}
+      />
       <ServiceCatalogEditor
         value={form.service_catalog}
         onChange={(service_catalog) => setForm({ ...form, service_catalog })}
@@ -500,7 +516,10 @@ export function ClinicEventsManager({ events, clinics, bookings }: ClinicEventsM
               <CardContent className="text-sm space-y-3">
                 <div className="cursor-pointer" onClick={() => setSelectedEvent(event.id)}>
                   <p>{formatDate(event.date)} · {event.location}</p>
-                  <p>{occupied}/{event.total_spots} taken · {remaining} left · {formatCurrency(event.base_price)}</p>
+                  <p>
+                    {occupied}/{event.total_spots} taken · {remaining} left ·{" "}
+                    {pricingSummaryLabel(event)}
+                  </p>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   <Button

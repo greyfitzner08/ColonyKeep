@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
   buildInitialAddonPayments,
-  calculateBookingTotal,
   normalizeServiceCatalog,
 } from "@/lib/clinics/service-catalog";
+import { calculateSpotTotals } from "@/lib/clinics/event-pricing";
 import { createServiceClient } from "@/lib/supabase/server";
 import type { PublicBooking, PublicClinicEvent } from "@/lib/types";
 
@@ -90,13 +90,16 @@ export async function POST(request: NextRequest) {
     eventRow?.addon_services
   );
 
+  const selectedAddonsPerSpot = spots.map((spot) => spot.selected_addons ?? []);
+  const spotTotals = eventRow
+    ? calculateSpotTotals(eventRow, catalog, selectedAddonsPerSpot)
+    : spots.map((spot) => spot.total_price ?? 0);
+
   for (let index = 0; index < holdRows.length; index += 1) {
     const hold = holdRows[index];
     const spot = spots[index];
-    const selectedAddons = spot.selected_addons ?? [];
-    const totalPrice = eventRow
-      ? calculateBookingTotal(eventRow.base_price, catalog, selectedAddons)
-      : spot.total_price ?? 0;
+    const selectedAddons = selectedAddonsPerSpot[index];
+    const totalPrice = spotTotals[index] ?? 0;
 
     const { error } = await service
       .from("public_bookings")
