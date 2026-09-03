@@ -26,7 +26,7 @@ export const SECTION_LABELS: Record<DashboardSectionId, string> = {
   "my-cases": "My Cases",
   "my-trap-work": "My Trap Work",
   "trap-team": "Trap Team",
-  appointments: "Clinic Coordination",
+  appointments: "Clinic appointments",
   "admin-hint": "Admin Tips",
 };
 
