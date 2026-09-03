@@ -55,6 +55,7 @@ interface ConfigurableDashboardProps {
   trapTeamData: TrapTeamDashboardData | null;
   initialTrapTeamId: string | null;
   pendingAppointments: number;
+  appointmentsScope: "program" | "mine";
   pendingClinicResults: ClinicResultAppointment[];
   communityStats: CommunityStats | null;
 }
@@ -103,6 +104,7 @@ export function ConfigurableDashboard({
   trapTeamData,
   initialTrapTeamId,
   pendingAppointments,
+  appointmentsScope,
   pendingClinicResults,
   communityStats,
 }: ConfigurableDashboardProps) {
@@ -251,12 +253,18 @@ export function ConfigurableDashboard({
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Calendar className="h-5 w-5" />
-                Clinic Coordination
+                {appointmentsScope === "program"
+                  ? "Reserved clinic appointments"
+                  : "My reserved appointments"}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
               <p className="text-2xl font-bold">{pendingAppointments}</p>
-              <p className="text-sm text-muted-foreground">Reserved appointments awaiting action</p>
+              <p className="text-sm text-muted-foreground">
+                {appointmentsScope === "program"
+                  ? "Reserved slots across the program that still need follow-up (confirm, transport, or check-in)."
+                  : "Clinic slots you reserved for your cases that are still waiting on the next step."}
+              </p>
               <Button asChild variant="outline" size="sm">
                 <Link href="/appointments">Open appointments</Link>
               </Button>

@@ -13,6 +13,7 @@ import {
   canClaimShifts,
   canManageAppointments,
   canViewTrapTeamSection,
+  hasClinicCoordinationVolunteerRole,
   isCaseWorker,
 } from "@/lib/permissions";
 import type { HelpRequest, Shift } from "@/lib/types";
@@ -55,6 +56,8 @@ export default async function DashboardPage() {
       (profile.volunteer_roles ?? []).includes("intake_representative"));
   const showShifts = canClaimShifts(profile);
   const showAppointments = canManageAppointments(profile);
+  const showProgramAppointments =
+    profile.role === "admin" || hasClinicCoordinationVolunteerRole(profile);
   const showTrapTeam = canViewTrapTeamSection(profile);
 
   const { data: myShiftsRaw } = showShifts
@@ -117,10 +120,16 @@ export default async function DashboardPage() {
 
   if (showAppointments || trapWorker) {
     if (showAppointments) {
-      const { count } = await supabase
+      let reservedQuery = supabase
         .from("appointments")
         .select("*", { count: "exact", head: true })
         .eq("status", "reserved");
+
+      if (!showProgramAppointments && email) {
+        reservedQuery = reservedQuery.eq("reserved_by", email);
+      }
+
+      const { count } = await reservedQuery;
       pendingAppointments = count ?? 0;
     }
 
@@ -196,6 +205,7 @@ export default async function DashboardPage() {
       trapTeamData={trapTeamData}
       initialTrapTeamId={initialTrapTeamId}
       pendingAppointments={pendingAppointments}
+      appointmentsScope={showProgramAppointments ? "program" : "mine"}
       pendingClinicResults={pendingClinicResults}
       communityStats={communityStats}
     />
