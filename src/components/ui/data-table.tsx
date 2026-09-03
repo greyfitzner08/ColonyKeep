@@ -149,12 +149,30 @@ export function DataTable<T>({
 
   const [draggingColumnId, setDraggingColumnId] = useState<string | null>(null);
   const [dropTargetColumnId, setDropTargetColumnId] = useState<string | null>(null);
+  const [scrollContainerEl, setScrollContainerEl] = useState<HTMLDivElement | null>(null);
+  const [containerWidth, setContainerWidth] = useState(0);
   const draggingColumnIdRef = useRef<string | null>(null);
   const resizingRef = useRef<{
     columnId: string;
     startX: number;
     startWidth: number;
   } | null>(null);
+
+  useEffect(() => {
+    if (!scrollContainerEl) {
+      setContainerWidth(0);
+      return;
+    }
+
+    const updateWidth = () => {
+      setContainerWidth(scrollContainerEl.clientWidth);
+    };
+    updateWidth();
+
+    const observer = new ResizeObserver(updateWidth);
+    observer.observe(scrollContainerEl);
+    return () => observer.disconnect();
+  }, [scrollContainerEl]);
 
   useEffect(() => {
     if (!columnsMenuOpen) return;
@@ -177,14 +195,40 @@ export function DataTable<T>({
     };
   }, [columnsMenuOpen]);
 
+  const resolvedColumnWidths = useMemo(() => {
+    const widths: Record<string, number> = {};
+    for (const column of orderedColumns) {
+      widths[column.id] = columnWidths[column.id] ?? column.defaultWidth ?? 160;
+    }
+
+    if (!isFixedSizing || orderedColumns.length === 0) return widths;
+
+    const lastColumn = orderedColumns[orderedColumns.length - 1];
+    if (!lastColumn) return widths;
+
+    const otherColumnsWidth = orderedColumns
+      .slice(0, -1)
+      .reduce((sum, column) => sum + (widths[column.id] ?? 160), 0);
+    const lastMinWidth = widths[lastColumn.id] ?? lastColumn.defaultWidth ?? 160;
+
+    // Stretch the last column so the table fills the container (no empty white strip).
+    if (containerWidth > 0) {
+      widths[lastColumn.id] = Math.max(lastMinWidth, containerWidth - otherColumnsWidth);
+    }
+
+    return widths;
+  }, [columnWidths, containerWidth, isFixedSizing, orderedColumns]);
+
   const totalTableWidth = useMemo(() => {
     if (!isFixedSizing) return minTableWidth ?? 0;
     const calculated = orderedColumns.reduce(
-      (sum, column) => sum + (columnWidths[column.id] ?? column.defaultWidth ?? 160),
+      (sum, column) => sum + (resolvedColumnWidths[column.id] ?? column.defaultWidth ?? 160),
       0
     );
-    return Math.max(minTableWidth ?? 0, calculated);
-  }, [columnWidths, isFixedSizing, minTableWidth, orderedColumns]);
+    return Math.max(minTableWidth ?? 0, containerWidth, calculated);
+  }, [containerWidth, isFixedSizing, minTableWidth, orderedColumns, resolvedColumnWidths]);
+
+  const lastColumnId = orderedColumns[orderedColumns.length - 1]?.id ?? null;
 
   const toggleSort = useCallback((columnId: string) => {
     setSort((current) => {
@@ -350,7 +394,8 @@ export function DataTable<T>({
                       })}
                     </div>
                     <p className="mt-3 text-xs text-muted-foreground">
-                      Drag header edges to resize. Drag the grip to reorder.
+                      Drag header edges to resize. The last column fills leftover space. Drag the
+                      grip to reorder.
                     </p>
                   </div>
                 )}
@@ -372,7 +417,10 @@ export function DataTable<T>({
       ) : sortedRows.length === 0 ? (
         <p className="py-12 text-center text-muted-foreground">{noSearchMatchMessage}</p>
       ) : (
-        <div className={cn("overflow-x-auto rounded-lg border", className)}>
+        <div
+          ref={setScrollContainerEl}
+          className={cn("overflow-x-auto rounded-lg border", className)}
+        >
           <table
             className={cn("text-sm", isFixedSizing ? undefined : "w-full", tableClassName)}
             style={
@@ -394,7 +442,7 @@ export function DataTable<T>({
                 {orderedColumns.map((column) => (
                   <col
                     key={column.id}
-                    style={{ width: columnWidths[column.id] ?? column.defaultWidth ?? 160 }}
+                    style={{ width: resolvedColumnWidths[column.id] ?? column.defaultWidth ?? 160 }}
                   />
                 ))}
               </colgroup>
@@ -404,6 +452,7 @@ export function DataTable<T>({
                 {orderedColumns.map((column) => {
                   const isDropTarget =
                     dropTargetColumnId === column.id && draggingColumnId !== column.id;
+                  const isLastColumn = column.id === lastColumnId;
                   return (
                     <th
                       key={column.id}
@@ -442,7 +491,7 @@ export function DataTable<T>({
                       <div
                         className={cn(
                           "flex min-w-0 items-center gap-1",
-                          isFixedSizing ? "pr-3" : "pr-0"
+                          isFixedSizing && !isLastColumn ? "pr-3" : "pr-0"
                         )}
                       >
                         <span
@@ -472,7 +521,7 @@ export function DataTable<T>({
                           {renderHeaderLabel(column)}
                         </div>
                       </div>
-                      {isFixedSizing && (
+                      {isFixedSizing && !isLastColumn && (
                         <div
                           role="separator"
                           aria-orientation="vertical"
