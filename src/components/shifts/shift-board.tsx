@@ -425,11 +425,11 @@ export function ShiftBoard({ shifts: initial, userEmail, isAdmin }: ShiftBoardPr
       {groupedEvents.length === 0 ? (
         <p className="text-sm text-muted-foreground">No shifts match this filter.</p>
       ) : (
-        <div className="space-y-8">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 2xl:grid-cols-3 lg:items-start">
           {groupedEvents.map((group) => (
-            <section key={group.name} className="space-y-4">
-              <div>
-                <h2 className="text-lg font-semibold">{group.name}</h2>
+            <Card key={group.name} className="overflow-hidden">
+              <CardHeader className="space-y-1 border-b bg-muted/30 pb-4">
+                <CardTitle className="text-lg leading-snug">{group.name}</CardTitle>
                 <p className="text-sm text-muted-foreground">
                   {group.positions.length} position{group.positions.length === 1 ? "" : "s"}
                   {" · "}
@@ -438,69 +438,88 @@ export function ShiftBoard({ shifts: initial, userEmail, isAdmin }: ShiftBoardPr
                     ? ` · ${formatDate(group.shifts[0].date)} – ${formatDate(group.shifts[group.shifts.length - 1].date)}`
                     : ` · ${formatDate(group.shifts[0].date)}`}
                 </p>
-              </div>
-
-              <div className="space-y-5">
+              </CardHeader>
+              <CardContent className="space-y-5 pt-4">
                 {group.positions.map((position) => (
                   <div key={`${group.name}-${position.name}`} className="space-y-3">
                     <h3 className="text-sm font-medium text-muted-foreground">{position.name}</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 gap-3 min-[480px]:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
                       {position.shifts.map((shift) => {
                         const signedUp = shift.signed_up_emails ?? [];
                         const isSignedUp = signedUp.includes(userEmail);
                         const spotsLeft = shift.volunteers_needed - signedUp.length;
 
                         return (
-                          <Card key={shift.id}>
-                            <CardHeader>
-                              <div className="flex justify-between items-start gap-2">
-                                <CardTitle className="text-base">
-                                  {formatDate(shift.date)} · {shift.start_time.slice(0, 5)}–{shift.end_time.slice(0, 5)}
-                                </CardTitle>
-                                <div className="flex items-center gap-2">
-                                  <Badge variant="secondary">{shiftTypeLabel(shift.shift_type)}</Badge>
-                                  {isAdmin && (
-                                    <Button variant="ghost" size="icon" onClick={() => openEditDialog(shift)}>
-                                      <Pencil className="h-4 w-4" />
-                                    </Button>
-                                  )}
-                                </div>
+                          <div
+                            key={shift.id}
+                            className="flex flex-col gap-3 rounded-lg border bg-background p-3 text-sm"
+                          >
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="min-w-0 space-y-1">
+                                <p className="font-medium leading-snug">
+                                  {formatDate(shift.date)}
+                                </p>
+                                <p className="flex items-center gap-1.5 text-muted-foreground">
+                                  <Clock className="h-3.5 w-3.5 shrink-0" />
+                                  {shift.start_time.slice(0, 5)}–{shift.end_time.slice(0, 5)}
+                                </p>
+                                <p className="flex items-start gap-1.5 text-muted-foreground">
+                                  <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                                  <span className="min-w-0 break-words">{shift.location}</span>
+                                </p>
                               </div>
-                            </CardHeader>
-                            <CardContent className="space-y-3 text-sm">
-                              <div className="flex items-center gap-2 text-muted-foreground">
-                                <Clock className="h-4 w-4" />
-                                {formatDate(shift.date)} · {shift.start_time.slice(0, 5)} - {shift.end_time.slice(0, 5)}
+                              <div className="flex shrink-0 items-center gap-1">
+                                <Badge variant="secondary" className="whitespace-nowrap">
+                                  {shiftTypeLabel(shift.shift_type)}
+                                </Badge>
+                                {isAdmin && (
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8"
+                                    onClick={() => openEditDialog(shift)}
+                                  >
+                                    <Pencil className="h-4 w-4" />
+                                  </Button>
+                                )}
                               </div>
-                              <div className="flex items-center gap-2 text-muted-foreground">
-                                <MapPin className="h-4 w-4" />{shift.location}
-                              </div>
-                              <p>
-                                {signedUp.length}/{shift.volunteers_needed} volunteers signed up
-                              </p>
-                              {shift.notes && (
-                                <p className="text-muted-foreground">{shift.notes}</p>
-                              )}
-                              {isSignedUp ? (
-                                <Button variant="outline" size="sm" className="w-full" onClick={() => claimShift(shift.id, "unclaim")}>
-                                  Unclaim Shift
-                                </Button>
-                              ) : spotsLeft > 0 ? (
-                                <Button size="sm" className="w-full" onClick={() => claimShift(shift.id, "claim")}>
-                                  Sign Up
-                                </Button>
-                              ) : (
-                                <Button size="sm" className="w-full" disabled>Full</Button>
-                              )}
-                            </CardContent>
-                          </Card>
+                            </div>
+                            <p>
+                              {signedUp.length}/{shift.volunteers_needed} volunteers signed up
+                            </p>
+                            {shift.notes && (
+                              <p className="text-muted-foreground">{shift.notes}</p>
+                            )}
+                            {isSignedUp ? (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="mt-auto w-full"
+                                onClick={() => claimShift(shift.id, "unclaim")}
+                              >
+                                Unclaim Shift
+                              </Button>
+                            ) : spotsLeft > 0 ? (
+                              <Button
+                                size="sm"
+                                className="mt-auto w-full"
+                                onClick={() => claimShift(shift.id, "claim")}
+                              >
+                                Sign Up
+                              </Button>
+                            ) : (
+                              <Button size="sm" className="mt-auto w-full" disabled>
+                                Full
+                              </Button>
+                            )}
+                          </div>
                         );
                       })}
                     </div>
                   </div>
                 ))}
-              </div>
-            </section>
+              </CardContent>
+            </Card>
           ))}
         </div>
       )}

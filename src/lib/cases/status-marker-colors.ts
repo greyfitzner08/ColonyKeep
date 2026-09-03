@@ -1,4 +1,3 @@
-import { INTAKE_QUEUE_STATUSES, TRAP_KANBAN_STATUSES } from "@/lib/cases/statuses";
 import type { HelpRequestStatus } from "@/lib/types";
 
 /** High-contrast map marker colors — distinct hues for each workflow stage. */
@@ -19,15 +18,12 @@ export const STATUS_MARKER_COLORS: Record<HelpRequestStatus, string> = {
 
 export const DEFAULT_MARKER_COLOR = "#64748b";
 
-/** Single marker color for all open intake cases on the hotspots map. */
+/** Single marker color for open (non-closed) colonies on the hotspots map. */
 export const HOTSPOT_OPEN_CASE_COLOR = "#2563eb";
 
+/** Hotspots map legend — open vs closed only (no trap-workflow breakdown). */
 export const HOTSPOT_COLONY_LEGEND = [
-  { label: "Inquiry queue", color: HOTSPOT_OPEN_CASE_COLOR },
-  { label: "Routed to trap team", color: STATUS_MARKER_COLORS.routed_to_trap_team },
-  { label: "Claimed", color: STATUS_MARKER_COLORS.claimed },
-  { label: "Appointment needed", color: STATUS_MARKER_COLORS.appointment_needed },
-  { label: "Appointment scheduled", color: STATUS_MARKER_COLORS.appointment_reserved },
+  { label: "Open colony", color: HOTSPOT_OPEN_CASE_COLOR },
   { label: "Closed", color: STATUS_MARKER_COLORS.closed },
 ] as const;
 
@@ -37,9 +33,5 @@ export function statusMarkerColor(status: HelpRequestStatus): string {
 
 export function hotspotColonyMarkerColor(status: HelpRequestStatus): string {
   if (status === "closed") return STATUS_MARKER_COLORS.closed;
-  if (INTAKE_QUEUE_STATUSES.includes(status)) return HOTSPOT_OPEN_CASE_COLOR;
-  if (TRAP_KANBAN_STATUSES.includes(status)) {
-    return STATUS_MARKER_COLORS[status] ?? DEFAULT_MARKER_COLOR;
-  }
-  return DEFAULT_MARKER_COLOR;
+  return HOTSPOT_OPEN_CASE_COLOR;
 }
