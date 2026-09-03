@@ -56,11 +56,6 @@ export function AddTrackedCatDialog({
   }
 
   async function addCat() {
-    if (fixedAtClinic && !ageCategory) {
-      setError("Select adult or kitten.");
-      return;
-    }
-
     const fosterError = validateTrackedCatFosterForm(
       {
         wentToFoster,

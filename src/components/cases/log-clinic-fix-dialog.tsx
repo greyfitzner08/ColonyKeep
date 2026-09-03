@@ -108,11 +108,6 @@ export function LogClinicFixDialog({
   }
 
   async function submit() {
-    if (!ageCategory || !details.gender) {
-      setError("Select age category and gender.");
-      return;
-    }
-
     const fosterError = validateClinicFixFosterForm({
       wentToFoster,
       fosterFacility,
@@ -138,8 +133,8 @@ export function LogClinicFixDialog({
       body: JSON.stringify({
         helpRequestId,
         catId,
-        ageCategory,
-        gender: details.gender,
+        ageCategory: ageCategory || undefined,
+        gender: details.gender || undefined,
         femaleReproductiveStatus: details.femaleReproductiveStatus || undefined,
         name: details.name,
         colors: details.colors,

@@ -11,7 +11,7 @@ interface SaveTrackedCatFromClinicLogInput {
   appointmentId?: string | null;
   clinicName?: string | null;
   details: TrackedCatDetails;
-  ageCategory: "adult" | "kitten";
+  ageCategory?: "adult" | "kitten" | null;
   wentToFosterFacility: boolean;
   fosterFacility?: FosterFacility | null;
   fosterFacilityOther?: string | null;
@@ -36,7 +36,7 @@ export async function saveTrackedCatFromClinicLog(
       input.details.gender,
       input.details.femaleReproductiveStatus
     ),
-    age_category: input.ageCategory,
+    age_category: input.ageCategory ?? null,
     trapped_status: "Trapped",
     appointment_status: "Complete",
     clinic_name: input.clinicName?.trim() || null,

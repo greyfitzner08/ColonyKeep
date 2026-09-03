@@ -328,8 +328,8 @@ export interface ClinicFix {
   help_request_id: string;
   appointment_id: string | null;
   cat_id: string | null;
-  age_category: "adult" | "kitten";
-  gender: "male" | "female";
+  age_category: "adult" | "kitten" | null;
+  gender: "male" | "female" | null;
   clinic_name: string | null;
   fix_date: string;
   logged_by: string | null;

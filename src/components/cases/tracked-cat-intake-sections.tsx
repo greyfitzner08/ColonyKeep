@@ -77,7 +77,7 @@ export function TrackedCatIntakeSections({
 
       {fixedAtClinic && (
         <div className="space-y-2 max-w-sm">
-          <Label className="text-sm font-medium">Age at clinic</Label>
+          <Label className="text-sm font-medium">Age at clinic (optional)</Label>
           <Select
             value={ageCategory || "unset"}
             onValueChange={(value) =>

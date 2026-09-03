@@ -40,10 +40,13 @@ export function isTrackedCatClinicFixed(
   return FIXED_APPOINTMENT_STATUSES.has(appointment) || FIXED_TRAPPED_STATUSES.has(trapped);
 }
 
-export function parseTrackedCatGender(gender: string | null | undefined): "male" | "female" {
+export function parseTrackedCatGender(
+  gender: string | null | undefined
+): "male" | "female" | null {
   const value = gender?.trim().toLowerCase() ?? "";
-  if (value.startsWith("f") || value === "female") return "female";
-  return "male";
+  if (value === "female" || value.startsWith("f")) return "female";
+  if (value === "male" || value.startsWith("m")) return "male";
+  return null;
 }
 
 function fixDateFromCat(cat: Pick<Cat, "return_date" | "trap_date">) {
@@ -163,7 +166,7 @@ export async function syncTrackedCatFixesForCase(
           const { error } = await service
             .from("clinic_fixes")
             .update({
-              age_category: cat.age_category ?? "adult",
+              age_category: cat.age_category,
               gender: parseTrackedCatGender(cat.gender),
               clinic_name: cat.clinic_name,
               fix_date: fixDateFromCat(cat),
@@ -181,7 +184,7 @@ export async function syncTrackedCatFixesForCase(
           help_request_id: helpRequestId,
           cat_id: cat.id,
           appointment_id: cat.appointment_id,
-          age_category: cat.age_category ?? "adult",
+          age_category: cat.age_category,
           gender: parseTrackedCatGender(cat.gender),
           clinic_name: cat.clinic_name,
           fix_date: fixDateFromCat(cat),

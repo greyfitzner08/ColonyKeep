@@ -13,11 +13,20 @@ import type { ClinicFix } from "@/lib/types";
 export function ClinicFixSummary({ fix }: { fix: ClinicFix }) {
   const loggedBy = clinicFixLoggedByForDisplay(fix);
   const notes = clinicFixNotesForDisplay(fix);
+  const agePart =
+    fix.age_category === "adult" || fix.age_category === "kitten"
+      ? clinicResultAgeLabel(fix.age_category)
+      : null;
+  const genderPart =
+    fix.gender === "male" || fix.gender === "female"
+      ? clinicResultGenderLabel(fix.gender)
+      : null;
+  const identity = [agePart, genderPart].filter(Boolean).join(" · ") || "Cat";
 
   return (
     <div className="rounded-md border bg-muted/20 px-3 py-2 text-sm">
       <p className="font-medium">
-        {clinicResultAgeLabel(fix.age_category)} · {clinicResultGenderLabel(fix.gender)} fixed
+        {identity} fixed
         {fix.appointment_id ? " (appointment)" : ""}
       </p>
       <p className="text-muted-foreground">

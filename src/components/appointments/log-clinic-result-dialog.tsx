@@ -102,10 +102,6 @@ export function LogClinicResultDialog({ appointment, onOpenChange }: LogClinicRe
 
   async function submit() {
     if (!appointment) return;
-    if (!ageCategory || !details.gender) {
-      setError("Select age category and gender.");
-      return;
-    }
 
     const fosterError = validateClinicFixFosterForm({
       wentToFoster,
@@ -131,8 +127,8 @@ export function LogClinicResultDialog({ appointment, onOpenChange }: LogClinicRe
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         appointmentId: appointment.id,
-        ageCategory,
-        gender: details.gender,
+        ageCategory: ageCategory || undefined,
+        gender: details.gender || undefined,
         femaleReproductiveStatus: details.femaleReproductiveStatus || undefined,
         name: details.name,
         colors: details.colors,

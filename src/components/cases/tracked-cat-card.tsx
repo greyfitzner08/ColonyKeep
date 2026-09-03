@@ -181,11 +181,6 @@ export function TrackedCatCard({
   }
 
   async function saveCat() {
-    if (draft.fixedAtClinic && draft.age_category !== "adult" && draft.age_category !== "kitten") {
-      setError("Select adult or kitten.");
-      return;
-    }
-
     const fosterError = validateTrackedCatFosterForm(
       {
         wentToFoster: draft.wentToFoster,
@@ -318,13 +313,13 @@ export function TrackedCatCard({
             />
           </div>
           <div className="space-y-2">
-            <Label className="text-sm font-medium">Gender</Label>
+            <Label className="text-sm font-medium">Gender (optional)</Label>
             <Select
-              value={draft.gender || undefined}
+              value={draft.gender || "unset"}
               onValueChange={(value) =>
                 setDraft({
                   ...draft,
-                  gender: value as "male" | "female",
+                  gender: value === "unset" ? "" : (value as "male" | "female"),
                   femaleReproductiveStatus:
                     value === "female" ? draft.femaleReproductiveStatus : "",
                 })
@@ -334,6 +329,7 @@ export function TrackedCatCard({
                 <SelectValue placeholder="Select gender" />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="unset">Unknown / not set</SelectItem>
                 <SelectItem value="male">Male</SelectItem>
                 <SelectItem value="female">Female</SelectItem>
               </SelectContent>
@@ -400,7 +396,7 @@ export function TrackedCatCard({
 
           {draft.fixedAtClinic && (
             <div className="space-y-2">
-              <Label className="text-sm font-medium">Age at clinic</Label>
+              <Label className="text-sm font-medium">Age at clinic (optional)</Label>
               <Select
                 value={draft.age_category || "unset"}
                 onValueChange={(value) =>
@@ -532,7 +528,7 @@ export function TrackedCatCard({
         cat={cat}
         catName={cat.name}
         defaultClinicName={cat.clinic_name}
-        defaultGender={defaultGender}
+        defaultGender={defaultGender ?? ""}
       />
       {removeCatDialog}
     </Card>

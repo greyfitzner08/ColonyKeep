@@ -22,10 +22,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Missing helpRequestId" }, { status: 400 });
   }
 
-  if (fixedAtClinic && ageCategory !== "adult" && ageCategory !== "kitten") {
-    return NextResponse.json({ error: "Select adult or kitten" }, { status: 400 });
-  }
-
   const wentToFoster = (body?.wentToFoster ?? "") as "" | "yes" | "no";
   const fosterFacility = (body?.fosterFacility ?? "") as FosterFacility | "";
   const fosterFacilityOther = (body?.fosterFacilityOther ?? "") as string;
@@ -61,7 +57,8 @@ export async function POST(request: NextRequest) {
         ...(fixedAtClinic && {
           trapped_status: "Trapped",
           appointment_status: "Complete",
-          age_category: ageCategory,
+          age_category:
+            ageCategory === "adult" || ageCategory === "kitten" ? ageCategory : null,
         }),
       })
       .select("*")

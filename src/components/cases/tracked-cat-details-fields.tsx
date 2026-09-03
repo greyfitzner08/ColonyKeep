@@ -36,13 +36,14 @@ export function TrackedCatDetailsFields({
         />
       </div>
       <div className="space-y-2">
-        <Label className="text-sm font-medium">Gender</Label>
+        <Label className="text-sm font-medium">Gender (optional)</Label>
         <Select
-          value={value.gender || undefined}
+          value={value.gender || "unset"}
           onValueChange={(nextGender) =>
             onChange({
               ...value,
-              gender: nextGender as "male" | "female",
+              gender:
+                nextGender === "unset" ? "" : (nextGender as "male" | "female"),
               femaleReproductiveStatus:
                 nextGender === "female" ? value.femaleReproductiveStatus : "",
             })
@@ -52,6 +53,7 @@ export function TrackedCatDetailsFields({
             <SelectValue placeholder="Select gender" />
           </SelectTrigger>
           <SelectContent>
+            <SelectItem value="unset">Unknown / not set</SelectItem>
             <SelectItem value="male">Male</SelectItem>
             <SelectItem value="female">Female</SelectItem>
           </SelectContent>

@@ -52,16 +52,6 @@ export async function PATCH(
           appointment_status: resolvedAppointmentStatus,
         });
 
-    if (clinicFixed) {
-      const resolvedAgeCategory = fixedAtClinicProvided
-        ? ageCategory
-        : ((body?.age_category as "adult" | "kitten" | "" | undefined) ?? existing.age_category);
-
-      if (resolvedAgeCategory !== "adult" && resolvedAgeCategory !== "kitten") {
-        return NextResponse.json({ error: "Select adult or kitten." }, { status: 400 });
-      }
-    }
-
     const wentToFoster = (body?.wentToFoster ?? "") as "" | "yes" | "no";
     const fosterFacility = (body?.fosterFacility ?? "") as FosterFacility | "";
     const fosterFacilityOther = (body?.fosterFacilityOther ?? "") as string;
@@ -108,7 +98,8 @@ export async function PATCH(
       if (fixedAtClinic) {
         updatePayload.trapped_status = "Trapped";
         updatePayload.appointment_status = "Complete";
-        updatePayload.age_category = ageCategory;
+        updatePayload.age_category =
+          ageCategory === "adult" || ageCategory === "kitten" ? ageCategory : null;
       } else {
         updatePayload.trapped_status = null;
         updatePayload.appointment_status = null;
@@ -118,8 +109,13 @@ export async function PATCH(
       if (body?.trapped_status !== undefined) {
         updatePayload.trapped_status = trappedStatus;
       }
-      if (body?.age_category !== undefined) {
-        updatePayload.age_category = clinicFixed ? ageCategory : existing.age_category;
+      if (body?.age_category !== undefined || body?.ageCategory !== undefined) {
+        updatePayload.age_category =
+          ageCategory === "adult" || ageCategory === "kitten"
+            ? ageCategory
+            : ageCategory === ""
+              ? null
+              : existing.age_category;
       }
     }
 

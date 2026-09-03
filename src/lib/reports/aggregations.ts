@@ -23,7 +23,7 @@ export interface ReportClinicFix {
   cat_id: string | null;
   fix_date: string;
   clinic_name: string | null;
-  age_category: "adult" | "kitten";
+  age_category: "adult" | "kitten" | null;
   went_to_foster_facility: boolean;
   foster_facility: FosterFacility | null;
   foster_facility_other: string | null;
@@ -274,7 +274,7 @@ function collectFosterPlacements(
       helpRequestId: fix.help_request_id,
       catId: fix.cat_id,
       facilityLabel: fosterPlacementLabel(fix.foster_facility, fix.foster_facility_other),
-      ageCategory: fix.age_category,
+      ageCategory: fix.age_category ?? "—",
       placementDate: fix.fix_date,
       source: "clinic_fix",
     });

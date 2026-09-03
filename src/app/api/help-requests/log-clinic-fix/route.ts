@@ -57,14 +57,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Missing helpRequestId" }, { status: 400 });
   }
 
-  if (ageCategory !== "adult" && ageCategory !== "kitten") {
-    return NextResponse.json({ error: "Select adult or kitten" }, { status: 400 });
-  }
-
-  const resolvedGender = details.gender || gender;
-  if (resolvedGender !== "male" && resolvedGender !== "female") {
-    return NextResponse.json({ error: "Select male or female" }, { status: 400 });
-  }
+  const resolvedAgeCategory =
+    ageCategory === "adult" || ageCategory === "kitten" ? ageCategory : null;
+  const resolvedGender =
+    details.gender === "male" || details.gender === "female"
+      ? details.gender
+      : gender === "male" || gender === "female"
+        ? gender
+        : null;
 
   if (typeof wentToFosterFacility !== "boolean") {
     return NextResponse.json(
@@ -88,7 +88,7 @@ export async function POST(request: NextRequest) {
   try {
     const catDetails: TrackedCatDetails = {
       ...details,
-      gender: resolvedGender,
+      gender: resolvedGender ?? "",
     };
 
     const savedCatId = await saveTrackedCatFromClinicLog(service, {
@@ -96,7 +96,7 @@ export async function POST(request: NextRequest) {
       catId: catId ?? null,
       clinicName: clinicName?.trim() || null,
       details: catDetails,
-      ageCategory,
+      ageCategory: resolvedAgeCategory,
       wentToFosterFacility,
       fosterFacility: (fosterFacility as RecordClinicFixInput["fosterFacility"]) ?? null,
       fosterFacilityOther: fosterFacilityOther?.trim() || null,
@@ -106,7 +106,7 @@ export async function POST(request: NextRequest) {
     const { summary } = await recordClinicFix(service, {
       helpRequestId,
       catId: savedCatId,
-      ageCategory,
+      ageCategory: resolvedAgeCategory,
       gender: resolvedGender,
       clinicName: clinicName?.trim() || null,
       fixDate,

@@ -51,14 +51,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Missing appointmentId" }, { status: 400 });
   }
 
-  if (ageCategory !== "adult" && ageCategory !== "kitten") {
-    return NextResponse.json({ error: "Select adult or kitten" }, { status: 400 });
-  }
-
-  const resolvedGender = details.gender || gender;
-  if (resolvedGender !== "male" && resolvedGender !== "female") {
-    return NextResponse.json({ error: "Select male or female" }, { status: 400 });
-  }
+  const resolvedAgeCategory =
+    ageCategory === "adult" || ageCategory === "kitten" ? ageCategory : null;
+  const resolvedGender =
+    details.gender === "male" || details.gender === "female"
+      ? details.gender
+      : gender === "male" || gender === "female"
+        ? gender
+        : null;
 
   if (typeof wentToFosterFacility !== "boolean") {
     return NextResponse.json(
@@ -101,7 +101,7 @@ export async function POST(request: NextRequest) {
     const actorName = profile!.full_name ?? user.email!;
     const catDetails: TrackedCatDetails = {
       ...details,
-      gender: resolvedGender,
+      gender: resolvedGender ?? "",
     };
 
     try {
@@ -111,7 +111,7 @@ export async function POST(request: NextRequest) {
         appointmentId: appointment.id,
         clinicName: appointment.clinic_name,
         details: catDetails,
-        ageCategory,
+        ageCategory: resolvedAgeCategory,
         wentToFosterFacility,
         fosterFacility: (fosterFacility as RecordClinicFixInput["fosterFacility"]) ?? null,
         fosterFacilityOther: fosterFacilityOther?.trim() || null,
@@ -123,7 +123,7 @@ export async function POST(request: NextRequest) {
         .update({
           status: "completed",
           clinic_result_logged_at: loggedAt,
-          clinic_result_age_category: ageCategory,
+          clinic_result_age_category: resolvedAgeCategory,
           clinic_result_gender: resolvedGender,
           clinic_result_logged_by: user.email,
           clinic_result_logged_by_name: actorName,
@@ -164,7 +164,7 @@ export async function POST(request: NextRequest) {
   try {
     const catDetails: TrackedCatDetails = {
       ...details,
-      gender: resolvedGender,
+      gender: resolvedGender ?? "",
     };
 
     const savedCatId = await saveTrackedCatFromClinicLog(service, {
@@ -173,7 +173,7 @@ export async function POST(request: NextRequest) {
       appointmentId: appointment.id,
       clinicName: appointment.clinic_name,
       details: catDetails,
-      ageCategory,
+      ageCategory: resolvedAgeCategory,
       wentToFosterFacility,
       fosterFacility: (fosterFacility as RecordClinicFixInput["fosterFacility"]) ?? null,
       fosterFacilityOther: fosterFacilityOther?.trim() || null,
@@ -184,7 +184,7 @@ export async function POST(request: NextRequest) {
       helpRequestId: appointment.help_request_id,
       appointmentId: appointment.id,
       catId: savedCatId,
-      ageCategory,
+      ageCategory: resolvedAgeCategory,
       gender: resolvedGender,
       clinicName: appointment.clinic_name,
       fixDate: appointment.date,
@@ -201,7 +201,7 @@ export async function POST(request: NextRequest) {
       .update({
         status: "completed",
         clinic_result_logged_at: loggedAt,
-        clinic_result_age_category: ageCategory,
+        clinic_result_age_category: resolvedAgeCategory,
         clinic_result_gender: resolvedGender,
         clinic_result_logged_by: user.email,
         clinic_result_logged_by_name: actorName,

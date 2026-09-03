@@ -104,8 +104,18 @@ export function CaseAppointmentsSection({
                   </p>
                   {loggedSummary && (
                       <p className="text-sm text-muted-foreground">
-                        Logged: {clinicResultAgeLabel(loggedSummary.ageCategory)} ·{" "}
-                        {clinicResultGenderLabel(loggedSummary.gender)} fixed
+                        Logged:{" "}
+                        {[
+                          loggedSummary.ageCategory
+                            ? clinicResultAgeLabel(loggedSummary.ageCategory)
+                            : null,
+                          loggedSummary.gender
+                            ? clinicResultGenderLabel(loggedSummary.gender)
+                            : null,
+                        ]
+                          .filter(Boolean)
+                          .join(" · ") || "Cat"}{" "}
+                        fixed
                       </p>
                     )}
                 </div>

@@ -54,8 +54,8 @@ export function appointmentClinicResultsLogged(
 export function appointmentClinicResultSummary(
   appointment: AppointmentRef,
   clinicFixes: ClinicFixRef[] = []
-): { ageCategory: "adult" | "kitten"; gender: "male" | "female" } | null {
-  if (appointment.clinic_result_age_category && appointment.clinic_result_gender) {
+): { ageCategory: "adult" | "kitten" | null; gender: "male" | "female" | null } | null {
+  if (appointment.clinic_result_age_category || appointment.clinic_result_gender) {
     return {
       ageCategory: appointment.clinic_result_age_category,
       gender: appointment.clinic_result_gender,
@@ -88,19 +88,27 @@ export function isClinicResultDue(
 }
 
 export function formatClinicResultSummary(input: {
-  ageCategory: "adult" | "kitten";
-  gender: "male" | "female";
+  ageCategory?: "adult" | "kitten" | null;
+  gender?: "male" | "female" | null;
 }) {
-  const age = input.ageCategory === "adult" ? "adult" : "kitten";
-  return `1 ${age} ${input.gender} fixed at clinic`;
+  const parts = ["1"];
+  if (input.ageCategory === "adult") parts.push("adult");
+  else if (input.ageCategory === "kitten") parts.push("kitten");
+  if (input.gender === "male" || input.gender === "female") parts.push(input.gender);
+  parts.push("fixed at clinic");
+  return parts.join(" ");
 }
 
-export function clinicResultAgeLabel(ageCategory: "adult" | "kitten") {
-  return ageCategory === "adult" ? "Adult (8+ weeks)" : "Kitten (under 8 weeks)";
+export function clinicResultAgeLabel(ageCategory: "adult" | "kitten" | null | undefined) {
+  if (ageCategory === "adult") return "Adult (8+ weeks)";
+  if (ageCategory === "kitten") return "Kitten (under 8 weeks)";
+  return "Age unknown";
 }
 
-export function clinicResultGenderLabel(gender: "male" | "female") {
-  return gender === "male" ? "Male" : "Female";
+export function clinicResultGenderLabel(gender: "male" | "female" | null | undefined) {
+  if (gender === "male") return "Male";
+  if (gender === "female") return "Female";
+  return "Unknown gender";
 }
 
 export function canUnreserveAppointment(

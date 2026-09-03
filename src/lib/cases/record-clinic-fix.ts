@@ -15,8 +15,8 @@ export interface RecordClinicFixInput {
   helpRequestId: string;
   appointmentId?: string | null;
   catId?: string | null;
-  ageCategory: "adult" | "kitten";
-  gender: "male" | "female";
+  ageCategory?: "adult" | "kitten" | null;
+  gender?: "male" | "female" | null;
   clinicName?: string | null;
   fixDate?: string;
   notes?: string | null;
@@ -82,16 +82,16 @@ export async function recordClinicFix(
 
   const fixDate = input.fixDate ?? new Date().toISOString().split("T")[0];
   const summary = formatClinicResultSummary({
-    ageCategory: input.ageCategory,
-    gender: input.gender,
+    ageCategory: input.ageCategory ?? null,
+    gender: input.gender ?? null,
   });
 
   const fixPayload: Record<string, unknown> = {
     help_request_id: input.helpRequestId,
     appointment_id: input.appointmentId ?? null,
     cat_id: input.catId ?? null,
-    age_category: input.ageCategory,
-    gender: input.gender,
+    age_category: input.ageCategory ?? null,
+    gender: input.gender ?? null,
     clinic_name: input.clinicName ?? null,
     fix_date: fixDate,
     logged_by: input.actorEmail,
