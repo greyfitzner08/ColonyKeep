@@ -135,18 +135,6 @@ function ClinicBookingContent() {
     }).catch(() => null);
   }, []);
 
-  const refreshAvailability = useCallback(async () => {
-    const url = eventFilter
-      ? `/api/clinic-booking/events?eventId=${eventFilter}`
-      : "/api/clinic-booking/events";
-    const response = await fetch(url);
-    const result = await response.json().catch(() => null);
-    if (response.ok) {
-      setAvailable(result.available ?? {});
-      if (result.events) setEvents(result.events);
-    }
-  }, [eventFilter]);
-
   useEffect(() => {
     const url = eventFilter
       ? `/api/clinic-booking/events?eventId=${eventFilter}`
@@ -326,18 +314,6 @@ function ClinicBookingContent() {
   function openCat(index: number) {
     if (index > 0 && !spots.slice(0, index).every(spotReady)) return;
     setExpandedCats(new Set([index]));
-  }
-
-  async function cancelBooking() {
-    if (holdSessionId) await releaseHold(holdSessionId);
-    setHoldSessionId(null);
-    setHoldExpiresAt(null);
-    setSecondsLeft(0);
-    setSection("count");
-    setContactConfirmed(false);
-    setSelectedEvent(null);
-    setSubmitError(null);
-    await refreshAvailability();
   }
 
   const pendingMessage =
@@ -530,12 +506,7 @@ function ClinicBookingContent() {
                 {section === "count" && submitError && (
                   <p className="text-sm text-destructive">{submitError}</p>
                 )}
-                <div className={`flex pt-2 ${events.length > 1 && !eventFilter ? "justify-between" : "justify-end"}`}>
-                  {events.length > 1 && !eventFilter && (
-                    <Button variant="outline" onClick={() => void cancelBooking()}>
-                      Back
-                    </Button>
-                  )}
+                <div className="flex justify-end pt-2">
                   <Button
                     onClick={() => void startHold()}
                     disabled={holding || spotCount === "" || spotCount < 1}
