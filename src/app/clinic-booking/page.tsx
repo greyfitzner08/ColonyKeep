@@ -501,7 +501,7 @@ function ClinicBookingContent() {
                 typeof spotCount === "number" ? spotCount : spots.length || 1
               )}
               showTrapReadyWarning
-              collapsible
+              collapsible={Boolean(holdSessionId)}
               defaultExpanded={!holdSessionId}
             />
 
