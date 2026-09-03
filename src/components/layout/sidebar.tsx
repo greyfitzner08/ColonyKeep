@@ -157,6 +157,7 @@ export function Sidebar({
     <nav className="flex h-full min-h-0 flex-col p-4">
       <div className="mb-6 flex shrink-0 items-center gap-2 px-2">
         <BrandMark
+          surface="dark"
           nameClassName="text-sidebar-foreground"
           subtitle="Colony Management"
           subtitleClassName="text-sidebar-foreground/60"

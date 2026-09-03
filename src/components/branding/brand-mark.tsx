@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { Cat } from "lucide-react";
 import { useBranding } from "@/components/branding/branding-provider";
+import { brandingLogoForSurface } from "@/lib/branding";
 import { cn } from "@/lib/utils";
 
 interface BrandMarkProps {
@@ -10,9 +11,15 @@ interface BrandMarkProps {
   iconClassName?: string;
   nameClassName?: string;
   showName?: boolean;
+  /**
+   * Which background the mark sits on.
+   * light = login / public pages; dark = sidebar.
+   */
+  surface?: "light" | "dark";
   /** Override context values (useful for admin draft preview). */
   appName?: string;
   logoUrl?: string | null;
+  logoLightUrl?: string | null;
   /** Optional subtitle under the app name (e.g. sidebar). */
   subtitle?: string;
   subtitleClassName?: string;
@@ -23,19 +30,36 @@ export function BrandMark({
   iconClassName,
   nameClassName,
   showName = true,
+  surface = "light",
   appName,
   logoUrl,
+  logoLightUrl,
   subtitle,
   subtitleClassName,
 }: BrandMarkProps) {
   const branding = useBranding();
   const name = appName?.trim() || branding.app_name;
-  const logo = logoUrl === undefined ? branding.logo_url : logoUrl;
+  const logos = {
+    logo_url: logoUrl === undefined ? branding.logo_url : logoUrl,
+    logo_light_url: logoLightUrl === undefined ? branding.logo_light_url : logoLightUrl,
+  };
+  const logo = brandingLogoForSurface(logos, surface);
+  const usingDarkLogoOnLight =
+    surface === "light" && Boolean(logos.logo_url) && !logos.logo_light_url && logo === logos.logo_url;
+  const usingLightLogoOnDark =
+    surface === "dark" && Boolean(logos.logo_light_url) && !logos.logo_url && logo === logos.logo_light_url;
 
   return (
     <span className={cn("inline-flex items-center gap-2", className)}>
       {logo ? (
-        <span className={cn("relative h-8 w-8 shrink-0 overflow-hidden rounded-md", iconClassName)}>
+        <span
+          className={cn(
+            "relative h-8 w-8 shrink-0 overflow-hidden rounded-md",
+            usingDarkLogoOnLight && "bg-sidebar p-0.5",
+            usingLightLogoOnDark && "bg-background p-0.5",
+            iconClassName
+          )}
+        >
           <Image
             src={logo}
             alt=""

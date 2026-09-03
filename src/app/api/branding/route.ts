@@ -43,12 +43,15 @@ function validateThemeColor(value: unknown, fallback: string): string | null {
   return normalizeHexColor(withHash, fallback);
 }
 
+const BRANDING_SELECT =
+  "app_name, logo_url, logo_light_url, primary_color, sidebar_color" as const;
+
 export async function GET() {
   try {
     const service = await createServiceClient();
     const { data, error } = await service
       .from("platform_branding")
-      .select("app_name, logo_url, primary_color, sidebar_color")
+      .select(BRANDING_SELECT)
       .eq("id", 1)
       .maybeSingle();
 
@@ -87,6 +90,17 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Logo URL must be a valid http(s) link." }, { status: 400 });
   }
 
+  const logoLightResult = validateLogoUrl((body as { logo_light_url?: unknown }).logo_light_url);
+  if (
+    logoLightResult === undefined &&
+    (body as { logo_light_url?: unknown }).logo_light_url !== undefined
+  ) {
+    return NextResponse.json(
+      { error: "Light-background logo URL must be a valid http(s) link." },
+      { status: 400 }
+    );
+  }
+
   const primaryColor = validateThemeColor(
     (body as { primary_color?: unknown }).primary_color,
     DEFAULT_PRIMARY_COLOR
@@ -114,6 +128,7 @@ export async function POST(request: NextRequest) {
     id: 1,
     app_name: appName,
     logo_url: logoResult === undefined ? null : logoResult,
+    logo_light_url: logoLightResult === undefined ? null : logoLightResult,
     primary_color: primaryColor,
     sidebar_color: sidebarColor,
     updated_by: profile!.id,
@@ -122,7 +137,7 @@ export async function POST(request: NextRequest) {
   const { data, error } = await service
     .from("platform_branding")
     .upsert(payload, { onConflict: "id" })
-    .select("app_name, logo_url, primary_color, sidebar_color")
+    .select(BRANDING_SELECT)
     .single();
 
   if (error) {

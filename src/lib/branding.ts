@@ -7,7 +7,10 @@ export const DEFAULT_SIDEBAR_COLOR = "#142E26";
 
 export interface PlatformBranding {
   app_name: string;
+  /** Logo for dark surfaces (sidebar). */
   logo_url: string | null;
+  /** Logo for light surfaces (login, public pages). Falls back to logo_url. */
+  logo_light_url: string | null;
   primary_color: string;
   sidebar_color: string;
 }
@@ -16,6 +19,7 @@ export function defaultPlatformBranding(): PlatformBranding {
   return {
     app_name: DEFAULT_APP_NAME,
     logo_url: null,
+    logo_light_url: null,
     primary_color: DEFAULT_PRIMARY_COLOR,
     sidebar_color: DEFAULT_SIDEBAR_COLOR,
   };
@@ -40,6 +44,7 @@ export function normalizePlatformBranding(
     | {
         app_name?: string | null;
         logo_url?: string | null;
+        logo_light_url?: string | null;
         primary_color?: string | null;
         sidebar_color?: string | null;
       }
@@ -48,12 +53,25 @@ export function normalizePlatformBranding(
 ): PlatformBranding {
   const name = row?.app_name?.trim();
   const logo = row?.logo_url?.trim();
+  const logoLight = row?.logo_light_url?.trim();
   return {
     app_name: name || DEFAULT_APP_NAME,
     logo_url: logo || null,
+    logo_light_url: logoLight || null,
     primary_color: normalizeHexColor(row?.primary_color, DEFAULT_PRIMARY_COLOR),
     sidebar_color: normalizeHexColor(row?.sidebar_color, DEFAULT_SIDEBAR_COLOR),
   };
+}
+
+/** Pick the best logo URL for a given surface. */
+export function brandingLogoForSurface(
+  branding: Pick<PlatformBranding, "logo_url" | "logo_light_url">,
+  surface: "light" | "dark"
+): string | null {
+  if (surface === "light") {
+    return branding.logo_light_url || branding.logo_url;
+  }
+  return branding.logo_url || branding.logo_light_url;
 }
 
 export interface HslColor {

@@ -25,9 +25,12 @@ interface BrandingSettingsProps {
 type BrandingPayload = {
   app_name: string;
   logo_url: string | null;
+  logo_light_url: string | null;
   primary_color: string;
   sidebar_color: string;
 };
+
+type LogoSlot = "dark" | "light";
 
 function ColorField({
   id,
@@ -72,13 +75,15 @@ function ColorField({
 
 export function BrandingSettings({ branding }: BrandingSettingsProps) {
   const router = useRouter();
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const darkLogoInputRef = useRef<HTMLInputElement>(null);
+  const lightLogoInputRef = useRef<HTMLInputElement>(null);
   const [appName, setAppName] = useState(branding.app_name);
   const [logoUrl, setLogoUrl] = useState<string | null>(branding.logo_url);
+  const [logoLightUrl, setLogoLightUrl] = useState<string | null>(branding.logo_light_url);
   const [primaryColor, setPrimaryColor] = useState(branding.primary_color);
   const [sidebarColor, setSidebarColor] = useState(branding.sidebar_color);
   const [saving, setSaving] = useState(false);
-  const [uploading, setUploading] = useState(false);
+  const [uploadingSlot, setUploadingSlot] = useState<LogoSlot | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [savedMessage, setSavedMessage] = useState<string | null>(null);
 
@@ -114,6 +119,7 @@ export function BrandingSettings({ branding }: BrandingSettingsProps) {
     if (saved) {
       setAppName(saved.app_name);
       setLogoUrl(saved.logo_url);
+      setLogoLightUrl(saved.logo_light_url);
       setPrimaryColor(saved.primary_color);
       setSidebarColor(saved.sidebar_color);
     }
@@ -128,6 +134,7 @@ export function BrandingSettings({ branding }: BrandingSettingsProps) {
     return {
       app_name: appName.trim(),
       logo_url: logoUrl,
+      logo_light_url: logoLightUrl,
       primary_color: normalizeHexColor(primaryColor, DEFAULT_PRIMARY_COLOR),
       sidebar_color: normalizeHexColor(sidebarColor, DEFAULT_SIDEBAR_COLOR),
       ...overrides,
@@ -147,7 +154,7 @@ export function BrandingSettings({ branding }: BrandingSettingsProps) {
     await saveBranding(payload);
   }
 
-  async function handleLogoUpload(file: File) {
+  async function handleLogoUpload(slot: LogoSlot, file: File) {
     if (!file.type.startsWith("image/")) {
       setError("Choose an image file (PNG, JPG, SVG, or WebP).");
       return;
@@ -157,14 +164,14 @@ export function BrandingSettings({ branding }: BrandingSettingsProps) {
       return;
     }
 
-    setUploading(true);
+    setUploadingSlot(slot);
     setError(null);
     setSavedMessage(null);
 
     try {
       const supabase = createClient();
       const extension = file.name.split(".").pop()?.toLowerCase() || "png";
-      const path = `logo-${Date.now()}.${extension}`;
+      const path = `logo-${slot}-${Date.now()}.${extension}`;
       const { error: uploadError } = await supabase.storage.from("branding").upload(path, file, {
         upsert: true,
         contentType: file.type,
@@ -173,10 +180,12 @@ export function BrandingSettings({ branding }: BrandingSettingsProps) {
 
       const { data } = supabase.storage.from("branding").getPublicUrl(path);
       const nextLogoUrl = data.publicUrl;
-      setLogoUrl(nextLogoUrl);
+      if (slot === "dark") setLogoUrl(nextLogoUrl);
+      else setLogoLightUrl(nextLogoUrl);
+
       const payload = currentPayload({
         app_name: appName.trim() || branding.app_name,
-        logo_url: nextLogoUrl,
+        ...(slot === "dark" ? { logo_url: nextLogoUrl } : { logo_light_url: nextLogoUrl }),
       });
       if (!payload) {
         setError("Logo uploaded, but theme colors are invalid. Fix colors and save.");
@@ -189,14 +198,18 @@ export function BrandingSettings({ branding }: BrandingSettingsProps) {
     } catch (uploadError) {
       setError(uploadError instanceof Error ? uploadError.message : "Unable to upload logo");
     } finally {
-      setUploading(false);
-      if (fileInputRef.current) fileInputRef.current.value = "";
+      setUploadingSlot(null);
+      if (slot === "dark" && darkLogoInputRef.current) darkLogoInputRef.current.value = "";
+      if (slot === "light" && lightLogoInputRef.current) lightLogoInputRef.current.value = "";
     }
   }
 
-  async function handleRemoveLogo() {
-    setLogoUrl(null);
-    const payload = currentPayload({ logo_url: null });
+  async function handleRemoveLogo(slot: LogoSlot) {
+    if (slot === "dark") setLogoUrl(null);
+    else setLogoLightUrl(null);
+    const payload = currentPayload(
+      slot === "dark" ? { logo_url: null } : { logo_light_url: null }
+    );
     if (!payload) {
       setError("Fix theme colors before saving.");
       return;
@@ -209,13 +222,15 @@ export function BrandingSettings({ branding }: BrandingSettingsProps) {
     setSidebarColor(DEFAULT_SIDEBAR_COLOR);
   }
 
+  const busy = saving || uploadingSlot != null;
+
   return (
     <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_300px]">
       <Card>
         <CardHeader>
           <CardTitle>App branding</CardTitle>
           <CardDescription>
-            Set the name, logo, and theme colors used across the sidebar, buttons, and public pages.
+            Set the name, logos for light and dark surfaces, and theme colors used across the app.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -230,43 +245,99 @@ export function BrandingSettings({ branding }: BrandingSettingsProps) {
             />
           </div>
 
-          <div className="space-y-2">
-            <Label>Logo / icon</Label>
-            <div className="flex flex-wrap items-center gap-2">
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/png,image/jpeg,image/webp,image/svg+xml,image/gif"
-                className="hidden"
-                onChange={(event) => {
-                  const file = event.target.files?.[0];
-                  if (file) void handleLogoUpload(file);
-                }}
-              />
-              <Button
-                type="button"
-                variant="outline"
-                disabled={uploading || saving}
-                onClick={() => fileInputRef.current?.click()}
-              >
-                <ImagePlus className="h-4 w-4" />
-                {uploading ? "Uploading…" : logoUrl ? "Replace logo" : "Upload logo"}
-              </Button>
-              {logoUrl && (
+          <div className="space-y-4 rounded-lg border p-4">
+            <div>
+              <p className="text-sm font-medium">Logos</p>
+              <p className="text-xs text-muted-foreground">
+                Use a light logo for the dark sidebar, and a dark logo for login and other light
+                pages. Square PNG or SVG works best.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Logo on dark backgrounds</Label>
+              <div className="flex flex-wrap items-center gap-2">
+                <input
+                  ref={darkLogoInputRef}
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp,image/svg+xml,image/gif"
+                  className="hidden"
+                  onChange={(event) => {
+                    const file = event.target.files?.[0];
+                    if (file) void handleLogoUpload("dark", file);
+                  }}
+                />
                 <Button
                   type="button"
-                  variant="ghost"
-                  disabled={uploading || saving}
-                  onClick={() => void handleRemoveLogo()}
+                  variant="outline"
+                  disabled={busy}
+                  onClick={() => darkLogoInputRef.current?.click()}
                 >
-                  <Trash2 className="h-4 w-4" />
-                  Remove logo
+                  <ImagePlus className="h-4 w-4" />
+                  {uploadingSlot === "dark"
+                    ? "Uploading…"
+                    : logoUrl
+                      ? "Replace dark logo"
+                      : "Upload dark logo"}
                 </Button>
-              )}
+                {logoUrl && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    disabled={busy}
+                    onClick={() => void handleRemoveLogo("dark")}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    Remove
+                  </Button>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground">Shown in the sidebar (typically a light/white mark).</p>
             </div>
-            <p className="text-xs text-muted-foreground">
-              Square PNG or SVG works best. Without a logo, the default cat icon is used.
-            </p>
+
+            <div className="space-y-2">
+              <Label>Logo on light backgrounds</Label>
+              <div className="flex flex-wrap items-center gap-2">
+                <input
+                  ref={lightLogoInputRef}
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp,image/svg+xml,image/gif"
+                  className="hidden"
+                  onChange={(event) => {
+                    const file = event.target.files?.[0];
+                    if (file) void handleLogoUpload("light", file);
+                  }}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={busy}
+                  onClick={() => lightLogoInputRef.current?.click()}
+                >
+                  <ImagePlus className="h-4 w-4" />
+                  {uploadingSlot === "light"
+                    ? "Uploading…"
+                    : logoLightUrl
+                      ? "Replace light logo"
+                      : "Upload light logo"}
+                </Button>
+                {logoLightUrl && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    disabled={busy}
+                    onClick={() => void handleRemoveLogo("light")}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    Remove
+                  </Button>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Shown on login and public pages (typically a dark/color mark). If missing, the dark
+                logo is shown on a dark plate so it stays visible.
+              </p>
+            </div>
           </div>
 
           <div className="space-y-4 rounded-lg border p-4">
@@ -281,7 +352,7 @@ export function BrandingSettings({ branding }: BrandingSettingsProps) {
                 type="button"
                 variant="ghost"
                 size="sm"
-                disabled={saving || uploading}
+                disabled={busy}
                 onClick={resetThemeColors}
               >
                 <RotateCcw className="h-3.5 w-3.5" />
@@ -312,8 +383,7 @@ export function BrandingSettings({ branding }: BrandingSettingsProps) {
           <Button
             type="button"
             disabled={
-              saving ||
-              uploading ||
+              busy ||
               !appName.trim() ||
               !isValidHexColor(primaryColor) ||
               !isValidHexColor(sidebarColor)
@@ -334,9 +404,14 @@ export function BrandingSettings({ branding }: BrandingSettingsProps) {
             className="rounded-lg border bg-sidebar p-4 text-sidebar-foreground"
             style={previewStyle}
           >
+            <p className="mb-2 text-[11px] font-medium uppercase tracking-wide text-sidebar-foreground/60">
+              Dark surface
+            </p>
             <BrandMark
+              surface="dark"
               appName={appName.trim() || branding.app_name}
               logoUrl={logoUrl}
+              logoLightUrl={logoLightUrl}
               nameClassName="text-sidebar-foreground"
               subtitle="Colony Management"
               subtitleClassName="text-sidebar-foreground/60"
@@ -349,14 +424,22 @@ export function BrandingSettings({ branding }: BrandingSettingsProps) {
                 Secondary
               </Button>
             </div>
-            <p className="mt-3 text-xs text-muted-foreground">
-              Preview updates as you edit. Save to apply site-wide.
-            </p>
           </div>
-          {logoUrl && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={logoUrl} alt="Current logo" className="h-16 w-16 rounded-md border object-contain p-1" />
-          )}
+          <div className="rounded-lg border bg-background p-4" style={previewStyle}>
+            <p className="mb-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+              Light surface
+            </p>
+            <BrandMark
+              surface="light"
+              appName={appName.trim() || branding.app_name}
+              logoUrl={logoUrl}
+              logoLightUrl={logoLightUrl}
+              nameClassName="text-primary"
+            />
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Preview updates as you edit. Save to apply site-wide.
+          </p>
         </CardContent>
       </Card>
     </div>
