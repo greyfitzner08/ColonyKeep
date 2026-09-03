@@ -7,19 +7,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { NumberInput } from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { EventDetailsSummary } from "@/components/clinics/event-details-summary";
+import { ClinicBookingCatFields } from "@/components/clinics/clinic-booking-cat-fields";
 import { SpotsLeftCounter } from "@/components/clinics/spots-left-counter";
 import {
   calculateBookingTotal,
@@ -54,6 +45,57 @@ const emptySpot = (): SpotForm => ({
   notes: "",
 });
 
+type BookingSection = "count" | "contact" | "cats";
+
+function BookingAccordionSection({
+  stepLabel,
+  title,
+  summary,
+  open,
+  locked,
+  onSelect,
+  children,
+}: {
+  stepLabel: string;
+  title: string;
+  summary?: string;
+  open: boolean;
+  locked: boolean;
+  onSelect: () => void;
+  children?: React.ReactNode;
+}) {
+  return (
+    <Card className={locked ? "opacity-70" : undefined}>
+      <button
+        type="button"
+        className="flex w-full items-start gap-3 px-4 py-3 text-left disabled:cursor-not-allowed"
+        disabled={locked}
+        onClick={onSelect}
+        aria-expanded={open}
+      >
+        {open ? (
+          <ChevronDown className="mt-1 h-4 w-4 shrink-0 text-muted-foreground" />
+        ) : (
+          <ChevronRight className="mt-1 h-4 w-4 shrink-0 text-muted-foreground" />
+        )}
+        <span className="min-w-0 flex-1">
+          <span className="block text-xs uppercase tracking-wide text-muted-foreground">{stepLabel}</span>
+          <span className="font-semibold">{title}</span>
+          {summary && !open && (
+            <span className="mt-0.5 block truncate text-sm text-muted-foreground">{summary}</span>
+          )}
+          {locked && (
+            <span className="mt-0.5 block text-xs text-muted-foreground">
+              Finish the previous section first
+            </span>
+          )}
+        </span>
+      </button>
+      {open && !locked && <div className="border-t px-4 py-4">{children}</div>}
+    </Card>
+  );
+}
+
 const DEFAULT_PENDING_MESSAGE =
   "We received your request and will review it shortly. Your spot is not confirmed until you receive a confirmation email from our team.";
 
@@ -69,7 +111,8 @@ function ClinicBookingContent() {
   const [holdSessionId, setHoldSessionId] = useState<string | null>(null);
   const [holdExpiresAt, setHoldExpiresAt] = useState<string | null>(null);
   const [secondsLeft, setSecondsLeft] = useState(0);
-  const [step, setStep] = useState(0);
+  const [section, setSection] = useState<BookingSection>("count");
+  const [contactConfirmed, setContactConfirmed] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [holding, setHolding] = useState(false);
   const [submitted, setSubmitted] = useState(false);
@@ -134,7 +177,8 @@ function ClinicBookingContent() {
         releaseHold(holdSessionId);
         setHoldSessionId(null);
         setHoldExpiresAt(null);
-        setStep(0);
+        setSection("count");
+        setContactConfirmed(false);
       }
     };
     tick();
@@ -219,8 +263,9 @@ function ClinicBookingContent() {
     setHoldExpiresAt(result.expires_at);
     const nextSpots = Array.from({ length: result.spot_count }, () => emptySpot());
     setSpots(nextSpots);
-    setExpandedCats(new Set(nextSpots.map((_, index) => index)));
-    setStep(1);
+    setExpandedCats(new Set([0]));
+    setContactConfirmed(false);
+    setSection("contact");
   }
 
   async function handleSubmit() {
@@ -261,14 +306,26 @@ function ClinicBookingContent() {
     setHoldSessionId(null);
   }
 
-  async function returnToSpotCount() {
-    if (holdSessionId) await releaseHold(holdSessionId);
-    setHoldSessionId(null);
-    setHoldExpiresAt(null);
-    setSecondsLeft(0);
-    setStep(0);
+  function contactReady() {
+    return Boolean(
+      contact.contact_name.trim() && contact.contact_email.trim() && contact.contact_phone.trim()
+    );
+  }
+
+  function spotReady(spot: SpotForm) {
+    return Boolean(spot.cat_name.trim() && spot.cat_gender);
+  }
+
+  function openSection(next: BookingSection) {
+    if (next === "contact" && !holdSessionId) return;
+    if (next === "cats" && (!holdSessionId || !contactConfirmed)) return;
+    setSection(next);
     setSubmitError(null);
-    await refreshAvailability();
+  }
+
+  function openCat(index: number) {
+    if (index > 0 && !spots.slice(0, index).every(spotReady)) return;
+    setExpandedCats(new Set([index]));
   }
 
   async function cancelBooking() {
@@ -276,7 +333,8 @@ function ClinicBookingContent() {
     setHoldSessionId(null);
     setHoldExpiresAt(null);
     setSecondsLeft(0);
-    setStep(0);
+    setSection("count");
+    setContactConfirmed(false);
     setSelectedEvent(null);
     setSubmitError(null);
     await refreshAvailability();
@@ -387,7 +445,12 @@ function ClinicBookingContent() {
                 <Card
                   key={event.id}
                   className={remaining <= 0 ? "opacity-60" : "cursor-pointer hover:shadow-md transition-shadow"}
-                  onClick={() => remaining > 0 && setSelectedEvent(event)}
+                  onClick={() => {
+                    if (remaining <= 0) return;
+                    setSection("count");
+                    setContactConfirmed(false);
+                    setSelectedEvent(event);
+                  }}
                 >
                   <CardHeader className="pb-2">
                     <div className="flex justify-between items-start gap-3">
@@ -416,24 +479,45 @@ function ClinicBookingContent() {
               );
             })}
           </div>
-        ) : step === 0 ? (
+        ) : (
           <div className="space-y-4">
+            <div className="flex items-start justify-between gap-3">
+              <Button variant="outline" size="sm" onClick={() => void cancelBooking()}>
+                Choose a different clinic
+              </Button>
+              {secondsLeft > 0 && (
+                <Badge variant="destructive" className="shrink-0 text-sm px-3 py-1">
+                  {Math.floor(secondsLeft / 60)}:{String(secondsLeft % 60).padStart(2, "0")} left
+                </Badge>
+              )}
+            </div>
+
             <EventDetailsSummary
               event={selectedEvent}
               checkInDetails={selectedEvent.check_in_details}
               spotsAvailable={available[selectedEvent.id] ?? selectedEvent.total_spots}
               showTimeLimit
-              holdMinutes={clinicHoldMinutes(typeof spotCount === "number" ? spotCount : 1)}
+              holdMinutes={clinicHoldMinutes(
+                typeof spotCount === "number" ? spotCount : spots.length || 1
+              )}
               showTrapReadyWarning
               collapsible
               defaultExpanded={false}
             />
 
-            <Card>
-              <CardHeader>
-                <CardTitle>How many cats?</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+            <BookingAccordionSection
+              stepLabel="Step 1"
+              title="How many cats?"
+              summary={
+                typeof spotCount === "number"
+                  ? `${spotCount} cat${spotCount === 1 ? "" : "s"}`
+                  : undefined
+              }
+              open={section === "count"}
+              locked={false}
+              onSelect={() => openSection("count")}
+            >
+              <div className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="spot-count">Number of spots to request</Label>
                   <NumberInput
@@ -446,11 +530,12 @@ function ClinicBookingContent() {
                     onValueChange={setSpotCount}
                   />
                 </div>
-                {submitError && <p className="text-sm text-destructive">{submitError}</p>}
-                <div className="flex justify-between pt-2">
-                  <Button variant="outline" onClick={() => void cancelBooking()}>Back</Button>
+                {section === "count" && submitError && (
+                  <p className="text-sm text-destructive">{submitError}</p>
+                )}
+                <div className="flex justify-end">
                   <Button
-                    onClick={startHold}
+                    onClick={() => void startHold()}
                     disabled={holding || spotCount === "" || spotCount < 1}
                   >
                     {holding
@@ -460,69 +545,101 @@ function ClinicBookingContent() {
                         : `Continue (${spotCount} spot${spotCount === 1 ? "" : "s"})`}
                   </Button>
                 </div>
-              </CardContent>
-            </Card>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            <EventDetailsSummary
-              event={selectedEvent}
-              checkInDetails={selectedEvent.check_in_details}
-              spotsAvailable={available[selectedEvent.id] ?? selectedEvent.total_spots}
-              collapsible
-              defaultExpanded={false}
-            />
+              </div>
+            </BookingAccordionSection>
 
-            <Card>
-              <CardHeader>
-                <div className="flex justify-between items-start gap-4">
-                  <div>
-                    <CardTitle>Complete your request</CardTitle>
-                    <CardDescription>
-                      {spots.length} spot{spots.length === 1 ? "" : "s"} · step {step} of 2
-                      {secondsLeft > 0
-                        ? ` · finish within ${Math.floor(secondsLeft / 60)}:${String(secondsLeft % 60).padStart(2, "0")}`
-                        : ""}
-                    </CardDescription>
+            <BookingAccordionSection
+              stepLabel="Step 2"
+              title="Your contact information"
+              summary={
+                contactConfirmed && contact.contact_name
+                  ? contact.contact_name
+                  : undefined
+              }
+              open={section === "contact"}
+              locked={!holdSessionId}
+              onSelect={() => openSection("contact")}
+            >
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="contact-name">Name</Label>
+                    <Input
+                      id="contact-name"
+                      value={contact.contact_name}
+                      onChange={(e) => setContact({ ...contact, contact_name: e.target.value })}
+                      required
+                    />
                   </div>
-                  {secondsLeft > 0 && (
-                    <Badge variant="destructive" className="shrink-0 text-sm px-3 py-1">
-                      {Math.floor(secondsLeft / 60)}:{String(secondsLeft % 60).padStart(2, "0")} left
-                    </Badge>
-                  )}
+                  <div className="space-y-2">
+                    <Label htmlFor="contact-email">Email</Label>
+                    <Input
+                      id="contact-email"
+                      type="email"
+                      value={contact.contact_email}
+                      onChange={(e) => setContact({ ...contact, contact_email: e.target.value })}
+                      required
+                    />
+                  </div>
                 </div>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                {step === 1 && (
-                  <div className="space-y-4">
-                    <h3 className="font-semibold">Your contact information</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="space-y-2"><Label>Name</Label><Input value={contact.contact_name} onChange={(e) => setContact({ ...contact, contact_name: e.target.value })} required /></div>
-                      <div className="space-y-2"><Label>Email</Label><Input type="email" value={contact.contact_email} onChange={(e) => setContact({ ...contact, contact_email: e.target.value })} required /></div>
-                    </div>
-                    <div className="space-y-2"><Label>Phone</Label><Input type="tel" value={contact.contact_phone} onChange={(e) => setContact({ ...contact, contact_phone: e.target.value })} required /></div>
-                  </div>
+                <div className="space-y-2">
+                  <Label htmlFor="contact-phone">Phone</Label>
+                  <Input
+                    id="contact-phone"
+                    type="tel"
+                    value={contact.contact_phone}
+                    onChange={(e) => setContact({ ...contact, contact_phone: e.target.value })}
+                    required
+                  />
+                </div>
+                {section === "contact" && submitError && (
+                  <p className="text-sm text-destructive">{submitError}</p>
                 )}
+                <div className="flex justify-between">
+                  <Button variant="outline" onClick={() => openSection("count")}>
+                    Back
+                  </Button>
+                  <Button
+                    disabled={!contactReady()}
+                    onClick={() => {
+                      setContactConfirmed(true);
+                      setExpandedCats(new Set([0]));
+                      openSection("cats");
+                    }}
+                  >
+                    Continue to cat details
+                  </Button>
+                </div>
+              </div>
+            </BookingAccordionSection>
 
-                {step === 2 && spots.map((spot, index) => {
+            <BookingAccordionSection
+              stepLabel="Step 3"
+              title="Cat details"
+              summary={
+                contactConfirmed
+                  ? `${spots.length} cat${spots.length === 1 ? "" : "s"}`
+                  : undefined
+              }
+              open={section === "cats"}
+              locked={!holdSessionId || !contactConfirmed}
+              onSelect={() => openSection("cats")}
+            >
+              <div className="space-y-4">
+                {spots.map((spot, index) => {
                   const expanded = expandedCats.has(index);
+                  const lockedCat = index > 0 && !spots.slice(0, index).every(spotReady);
                   const summaryBits = [
                     spot.cat_name.trim() || "Needs a name",
                     spot.cat_gender || "Gender not selected",
                   ];
                   return (
-                    <div key={index} className="rounded-lg border">
+                    <div key={index} className={`rounded-lg border ${lockedCat ? "opacity-70" : ""}`}>
                       <button
                         type="button"
-                        className="flex w-full items-center gap-2 px-4 py-3 text-left"
-                        onClick={() => {
-                          setExpandedCats((current) => {
-                            const next = new Set(current);
-                            if (next.has(index)) next.delete(index);
-                            else next.add(index);
-                            return next;
-                          });
-                        }}
+                        className="flex w-full items-center gap-2 px-4 py-3 text-left disabled:cursor-not-allowed"
+                        disabled={lockedCat}
+                        onClick={() => openCat(index)}
                         aria-expanded={expanded}
                       >
                         {expanded ? (
@@ -534,7 +651,7 @@ function ClinicBookingContent() {
                           <span className="font-semibold">Cat {index + 1} of {spots.length}</span>
                           {!expanded && (
                             <span className="mt-0.5 block truncate text-sm text-muted-foreground">
-                              {summaryBits.join(" · ")}
+                              {lockedCat ? "Finish the previous cat first" : summaryBits.join(" · ")}
                             </span>
                           )}
                         </span>
@@ -542,209 +659,68 @@ function ClinicBookingContent() {
                           {formatCurrency(calculateSpotTotal(spot))}
                         </span>
                       </button>
-
-                      {expanded && (
-                        <div className="space-y-5 border-t p-4">
-                          <section className="space-y-3">
-                            <h4 className="text-sm font-semibold">About this cat</h4>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                              <div className="space-y-2">
-                                <Label htmlFor={`cat-name-${index}`}>Cat name</Label>
-                                <Input
-                                  id={`cat-name-${index}`}
-                                  value={spot.cat_name}
-                                  onChange={(e) => patchSpot(index, { cat_name: e.target.value })}
-                                />
-                              </div>
-                              <div className="space-y-2">
-                                <Label htmlFor={`cat-gender-${index}`}>Gender</Label>
-                                <Select
-                                  value={spot.cat_gender || undefined}
-                                  onValueChange={(value) => patchSpot(index, { cat_gender: value })}
-                                >
-                                  <SelectTrigger id={`cat-gender-${index}`}>
-                                    <SelectValue placeholder="Select gender" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="Male">Male</SelectItem>
-                                    <SelectItem value="Female">Female</SelectItem>
-                                    <SelectItem value="Unknown">Unknown</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                              </div>
-                            </div>
-                            <div className="space-y-2">
-                              <Label htmlFor={`cat-colors-${index}`}>Colors / markings</Label>
-                              <Input
-                                id={`cat-colors-${index}`}
-                                value={spot.cat_colors}
-                                onChange={(e) => patchSpot(index, { cat_colors: e.target.value })}
-                              />
-                            </div>
-                          </section>
-
-                          <Separator />
-
-                          <section className="space-y-3">
-                            <h4 className="text-sm font-semibold">Health</h4>
-                            <div className="flex items-center gap-2">
-                              <Checkbox
-                                id={`cat-injuries-${index}`}
-                                checked={spot.has_injuries}
-                                onCheckedChange={(v) => patchSpot(index, { has_injuries: !!v })}
-                              />
-                              <Label htmlFor={`cat-injuries-${index}`} className="font-normal">
-                                Injuries or medical concerns
-                              </Label>
-                            </div>
-                            {spot.has_injuries && (
-                              <div className="space-y-2 pl-6">
-                                <Label htmlFor={`cat-injury-details-${index}`}>Injury details</Label>
-                                <Textarea
-                                  id={`cat-injury-details-${index}`}
-                                  value={spot.injury_details}
-                                  onChange={(e) => patchSpot(index, { injury_details: e.target.value })}
-                                />
-                              </div>
-                            )}
-                          </section>
-
-                          {selectedEvent && getAddonOptions(getEventCatalog(selectedEvent)).length > 0 && (
-                            <>
-                              <Separator />
-                              <section className="space-y-3 rounded-md bg-muted/50 p-3">
-                                <div>
-                                  <h4 className="text-sm font-semibold">Add-on services</h4>
-                                  <p className="text-xs text-muted-foreground mt-0.5">
-                                    Optional extras for this cat only. Included clinic services are already covered.
-                                  </p>
-                                </div>
-                                <ul className="divide-y rounded-md border bg-background">
-                                  {getAddonOptions(getEventCatalog(selectedEvent)).map((addon) => {
-                                    const checked = spot.selected_addons.includes(addon.name);
-                                    const addonId = `cat-${index}-addon-${addon.name}`;
-                                    return (
-                                      <li key={addon.name} className="flex items-center justify-between gap-3 px-3 py-2.5">
-                                        <div className="flex min-w-0 items-center gap-2">
-                                          <Checkbox
-                                            id={addonId}
-                                            checked={checked}
-                                            onCheckedChange={(v) =>
-                                              patchSpot(index, {
-                                                selected_addons: v
-                                                  ? [...spot.selected_addons, addon.name]
-                                                  : spot.selected_addons.filter((a) => a !== addon.name),
-                                              })
-                                            }
-                                          />
-                                          <Label htmlFor={addonId} className="font-normal">
-                                            {addon.name}
-                                          </Label>
-                                        </div>
-                                        <span className="shrink-0 text-sm tabular-nums text-muted-foreground">
-                                          {formatCurrency(addon.price)}
-                                        </span>
-                                      </li>
-                                    );
-                                  })}
-                                </ul>
-                              </section>
-                            </>
-                          )}
-
-                          <Separator />
-
-                          <section className="space-y-3">
-                            <h4 className="text-sm font-semibold">Notes</h4>
-                            <div className="flex items-center gap-2">
-                              <Checkbox
-                                id={`cat-notes-${index}`}
-                                checked={spot.has_notes}
-                                onCheckedChange={(v) => patchSpot(index, { has_notes: !!v })}
-                              />
-                              <Label htmlFor={`cat-notes-${index}`} className="font-normal">
-                                Add a note for this cat
-                              </Label>
-                            </div>
-                            {spot.has_notes && (
-                              <div className="space-y-2 pl-6">
-                                <Label htmlFor={`cat-notes-text-${index}`}>Notes</Label>
-                                <Textarea
-                                  id={`cat-notes-text-${index}`}
-                                  rows={3}
-                                  value={spot.notes}
-                                  onChange={(e) => patchSpot(index, { notes: e.target.value })}
-                                />
-                              </div>
-                            )}
-                          </section>
-
-                          <p className="border-t pt-3 text-sm font-medium">
-                            Estimated total for this cat: {formatCurrency(calculateSpotTotal(spot))}
-                          </p>
+                      {expanded && !lockedCat && (
+                        <div className="space-y-4 border-t p-4">
+                          <ClinicBookingCatFields
+                            index={index}
+                            spot={spot}
+                            addons={getAddonOptions(getEventCatalog(selectedEvent))}
+                            total={calculateSpotTotal(spot)}
+                            onPatch={(patch) => patchSpot(index, patch)}
+                          />
+                          <div className="flex justify-end">
+                            {index < spots.length - 1 ? (
+                              <Button
+                                disabled={!spotReady(spot)}
+                                onClick={() => openCat(index + 1)}
+                              >
+                                Continue to cat {index + 2}
+                              </Button>
+                            ) : null}
+                          </div>
                         </div>
                       )}
                     </div>
                   );
                 })}
 
-                {step === 2 && (
-                  <>
-                    <div className="rounded-lg bg-muted p-4">
-                      <p className="font-semibold">Estimated grand total: {formatCurrency(calculateGrandTotal())}</p>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        Base price plus any selected add-ons. Payment may be collected separately.
-                      </p>
-                    </div>
-                    <div
-                      role="alert"
-                      className="rounded-lg border-2 border-amber-500 bg-amber-50 px-4 py-3 text-sm text-amber-950"
-                    >
-                      <p className="font-semibold">
-                        Cats must already be in a trap before you claim a spot
-                      </p>
-                      <p className="mt-1">
-                        Only submit once you for certain have the cat(s) secured in a humane trap.
-                        Claiming a spot and not showing up will revoke privileges to use future
-                        clinic appointments.
-                      </p>
-                    </div>
-                  </>
+                <div className="rounded-lg bg-muted p-4">
+                  <p className="font-semibold">Estimated grand total: {formatCurrency(calculateGrandTotal())}</p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Base price plus any selected add-ons. Payment may be collected separately.
+                  </p>
+                </div>
+                <div
+                  role="alert"
+                  className="rounded-lg border-2 border-amber-500 bg-amber-50 px-4 py-3 text-sm text-amber-950"
+                >
+                  <p className="font-semibold">
+                    Cats must already be in a trap before you claim a spot
+                  </p>
+                  <p className="mt-1">
+                    Only submit once you for certain have the cat(s) secured in a humane trap.
+                    Claiming a spot and not showing up will revoke privileges to use future
+                    clinic appointments.
+                  </p>
+                </div>
+                {section === "cats" && submitError && (
+                  <p className="text-sm text-destructive">{submitError}</p>
                 )}
-
-                {submitError && <p className="text-sm text-destructive">{submitError}</p>}
-
-                <div className="flex justify-between pt-4">
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      if (step === 1) void returnToSpotCount();
-                      else setStep(step - 1);
-                    }}
-                  >
+                <div className="flex justify-between pt-2">
+                  <Button variant="outline" onClick={() => openSection("contact")}>
                     Back
                   </Button>
-                  {step < 2 ? (
-                    <Button
-                      onClick={() => setStep(step + 1)}
-                      disabled={step === 1 && (!contact.contact_name || !contact.contact_email || !contact.contact_phone)}
-                    >
-                      Next
-                    </Button>
-                  ) : (
-                    <Button
-                      onClick={handleSubmit}
-                      disabled={
-                        submitting ||
-                        spots.some((spot) => !spot.cat_name.trim() || !spot.cat_gender)
-                      }
-                    >
-                      {submitting ? "Submitting…" : `Submit request (${spots.length} cat${spots.length === 1 ? "" : "s"})`}
-                    </Button>
-                  )}
+                  <Button
+                    onClick={() => void handleSubmit()}
+                    disabled={submitting || spots.some((spot) => !spotReady(spot))}
+                  >
+                    {submitting
+                      ? "Submitting…"
+                      : `Submit request (${spots.length} cat${spots.length === 1 ? "" : "s"})`}
+                  </Button>
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </BookingAccordionSection>
           </div>
         )}
       </div>
