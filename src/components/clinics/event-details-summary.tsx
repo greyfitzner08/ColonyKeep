@@ -74,8 +74,8 @@ export function EventDetailsSummary({
           <p className="flex items-start gap-2 text-xs text-muted-foreground">
             <Clock className="mt-0.5 h-3.5 w-3.5 shrink-0" />
             <span>
-              After you continue, spots are held for <strong>10 minutes</strong> while you finish the
-              form.
+              Spots are held for <strong>10 minutes</strong> while you finish filling out your
+              request.
             </span>
           </p>
         )}
