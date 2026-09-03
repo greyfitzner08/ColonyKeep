@@ -17,6 +17,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { EventDetailsSummary } from "@/components/clinics/event-details-summary";
 import { SpotsLeftCounter } from "@/components/clinics/spots-left-counter";
@@ -168,6 +169,10 @@ function ClinicBookingContent() {
 
   function calculateGrandTotal(): number {
     return spots.reduce((sum, spot) => sum + calculateSpotTotal(spot), 0);
+  }
+
+  function patchSpot(index: number, patch: Partial<SpotForm>) {
+    setSpots((current) => current.map((spot, i) => (i === index ? { ...spot, ...patch } : spot)));
   }
 
   function maxSpotRequest(event: PublicClinicEvent) {
@@ -539,129 +544,143 @@ function ClinicBookingContent() {
                       </button>
 
                       {expanded && (
-                        <div className="space-y-4 border-t p-4">
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="space-y-5 border-t p-4">
+                          <section className="space-y-3">
+                            <h4 className="text-sm font-semibold">About this cat</h4>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                              <div className="space-y-2">
+                                <Label htmlFor={`cat-name-${index}`}>Cat name</Label>
+                                <Input
+                                  id={`cat-name-${index}`}
+                                  value={spot.cat_name}
+                                  onChange={(e) => patchSpot(index, { cat_name: e.target.value })}
+                                />
+                              </div>
+                              <div className="space-y-2">
+                                <Label htmlFor={`cat-gender-${index}`}>Gender</Label>
+                                <Select
+                                  value={spot.cat_gender || undefined}
+                                  onValueChange={(value) => patchSpot(index, { cat_gender: value })}
+                                >
+                                  <SelectTrigger id={`cat-gender-${index}`}>
+                                    <SelectValue placeholder="Select gender" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="Male">Male</SelectItem>
+                                    <SelectItem value="Female">Female</SelectItem>
+                                    <SelectItem value="Unknown">Unknown</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            </div>
                             <div className="space-y-2">
-                              <Label>Cat name</Label>
+                              <Label htmlFor={`cat-colors-${index}`}>Colors / markings</Label>
                               <Input
-                                value={spot.cat_name}
-                                onChange={(e) => {
-                                  const next = [...spots];
-                                  next[index] = { ...spot, cat_name: e.target.value };
-                                  setSpots(next);
-                                }}
+                                id={`cat-colors-${index}`}
+                                value={spot.cat_colors}
+                                onChange={(e) => patchSpot(index, { cat_colors: e.target.value })}
                               />
                             </div>
-                            <div className="space-y-2">
-                              <Label>Gender</Label>
-                              <Select
-                                value={spot.cat_gender || undefined}
-                                onValueChange={(value) => {
-                                  const next = [...spots];
-                                  next[index] = { ...spot, cat_gender: value };
-                                  setSpots(next);
-                                }}
-                              >
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Select gender" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="Male">Male</SelectItem>
-                                  <SelectItem value="Female">Female</SelectItem>
-                                  <SelectItem value="Unknown">Unknown</SelectItem>
-                                </SelectContent>
-                              </Select>
-                            </div>
-                          </div>
-                          <div className="space-y-2">
-                            <Label>Colors / markings</Label>
-                            <Input
-                              value={spot.cat_colors}
-                              onChange={(e) => {
-                                const next = [...spots];
-                                next[index] = { ...spot, cat_colors: e.target.value };
-                                setSpots(next);
-                              }}
-                            />
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Checkbox
-                              checked={spot.has_injuries}
-                              onCheckedChange={(v) => {
-                                const next = [...spots];
-                                next[index] = { ...spot, has_injuries: !!v };
-                                setSpots(next);
-                              }}
-                            />
-                            <Label>Cat has injuries or medical concerns</Label>
-                          </div>
-                          {spot.has_injuries && (
-                            <div className="space-y-2">
-                              <Label>Injury details</Label>
-                              <Textarea
-                                value={spot.injury_details}
-                                onChange={(e) => {
-                                  const next = [...spots];
-                                  next[index] = { ...spot, injury_details: e.target.value };
-                                  setSpots(next);
-                                }}
+                          </section>
+
+                          <Separator />
+
+                          <section className="space-y-3">
+                            <h4 className="text-sm font-semibold">Health</h4>
+                            <div className="flex items-center gap-2">
+                              <Checkbox
+                                id={`cat-injuries-${index}`}
+                                checked={spot.has_injuries}
+                                onCheckedChange={(v) => patchSpot(index, { has_injuries: !!v })}
                               />
+                              <Label htmlFor={`cat-injuries-${index}`} className="font-normal">
+                                Injuries or medical concerns
+                              </Label>
                             </div>
-                          )}
+                            {spot.has_injuries && (
+                              <div className="space-y-2 pl-6">
+                                <Label htmlFor={`cat-injury-details-${index}`}>Injury details</Label>
+                                <Textarea
+                                  id={`cat-injury-details-${index}`}
+                                  value={spot.injury_details}
+                                  onChange={(e) => patchSpot(index, { injury_details: e.target.value })}
+                                />
+                              </div>
+                            )}
+                          </section>
+
                           {selectedEvent && getAddonOptions(getEventCatalog(selectedEvent)).length > 0 && (
-                            <div className="space-y-3">
-                              <Label>Optional add-on services</Label>
-                              <p className="text-xs text-muted-foreground">Select any extras you want for this cat.</p>
-                              {getAddonOptions(getEventCatalog(selectedEvent)).map((addon) => (
-                                <div key={addon.name} className="flex items-center justify-between gap-3 rounded-md border px-3 py-2">
-                                  <div className="flex items-center gap-2">
-                                    <Checkbox
-                                      checked={spot.selected_addons.includes(addon.name)}
-                                      onCheckedChange={(v) => {
-                                        const next = [...spots];
-                                        next[index] = {
-                                          ...spot,
-                                          selected_addons: v
-                                            ? [...spot.selected_addons, addon.name]
-                                            : spot.selected_addons.filter((a) => a !== addon.name),
-                                        };
-                                        setSpots(next);
-                                      }}
-                                    />
-                                    <Label className="font-normal">{addon.name}</Label>
-                                  </div>
-                                  <span className="text-sm font-medium">{formatCurrency(addon.price)}</span>
+                            <>
+                              <Separator />
+                              <section className="space-y-3 rounded-md bg-muted/50 p-3">
+                                <div>
+                                  <h4 className="text-sm font-semibold">Add-on services</h4>
+                                  <p className="text-xs text-muted-foreground mt-0.5">
+                                    Optional extras for this cat only. Included clinic services are already covered.
+                                  </p>
                                 </div>
-                              ))}
-                            </div>
+                                <ul className="divide-y rounded-md border bg-background">
+                                  {getAddonOptions(getEventCatalog(selectedEvent)).map((addon) => {
+                                    const checked = spot.selected_addons.includes(addon.name);
+                                    const addonId = `cat-${index}-addon-${addon.name}`;
+                                    return (
+                                      <li key={addon.name} className="flex items-center justify-between gap-3 px-3 py-2.5">
+                                        <div className="flex min-w-0 items-center gap-2">
+                                          <Checkbox
+                                            id={addonId}
+                                            checked={checked}
+                                            onCheckedChange={(v) =>
+                                              patchSpot(index, {
+                                                selected_addons: v
+                                                  ? [...spot.selected_addons, addon.name]
+                                                  : spot.selected_addons.filter((a) => a !== addon.name),
+                                              })
+                                            }
+                                          />
+                                          <Label htmlFor={addonId} className="font-normal">
+                                            {addon.name}
+                                          </Label>
+                                        </div>
+                                        <span className="shrink-0 text-sm tabular-nums text-muted-foreground">
+                                          {formatCurrency(addon.price)}
+                                        </span>
+                                      </li>
+                                    );
+                                  })}
+                                </ul>
+                              </section>
+                            </>
                           )}
-                          <div className="flex items-center gap-2">
-                            <Checkbox
-                              checked={spot.has_notes}
-                              onCheckedChange={(v) => {
-                                const next = [...spots];
-                                next[index] = { ...spot, has_notes: !!v };
-                                setSpots(next);
-                              }}
-                            />
-                            <Label>Add a note for this cat</Label>
-                          </div>
-                          {spot.has_notes && (
-                            <div className="space-y-2">
-                              <Label>Notes</Label>
-                              <Textarea
-                                rows={3}
-                                value={spot.notes}
-                                onChange={(e) => {
-                                  const next = [...spots];
-                                  next[index] = { ...spot, notes: e.target.value };
-                                  setSpots(next);
-                                }}
+
+                          <Separator />
+
+                          <section className="space-y-3">
+                            <h4 className="text-sm font-semibold">Notes</h4>
+                            <div className="flex items-center gap-2">
+                              <Checkbox
+                                id={`cat-notes-${index}`}
+                                checked={spot.has_notes}
+                                onCheckedChange={(v) => patchSpot(index, { has_notes: !!v })}
                               />
+                              <Label htmlFor={`cat-notes-${index}`} className="font-normal">
+                                Add a note for this cat
+                              </Label>
                             </div>
-                          )}
-                          <p className="text-sm text-muted-foreground">
-                            Estimated total: {formatCurrency(calculateSpotTotal(spot))}
+                            {spot.has_notes && (
+                              <div className="space-y-2 pl-6">
+                                <Label htmlFor={`cat-notes-text-${index}`}>Notes</Label>
+                                <Textarea
+                                  id={`cat-notes-text-${index}`}
+                                  rows={3}
+                                  value={spot.notes}
+                                  onChange={(e) => patchSpot(index, { notes: e.target.value })}
+                                />
+                              </div>
+                            )}
+                          </section>
+
+                          <p className="border-t pt-3 text-sm font-medium">
+                            Estimated total for this cat: {formatCurrency(calculateSpotTotal(spot))}
                           </p>
                         </div>
                       )}
