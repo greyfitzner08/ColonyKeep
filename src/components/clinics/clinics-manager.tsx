@@ -9,9 +9,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ClinicPartnersTable } from "@/components/clinics/clinic-partners-table";
-import { ClinicPackageServicesEditor } from "@/components/clinics/clinic-package-services-editor";
+import { ClinicPackagesEditor } from "@/components/clinics/clinic-packages-editor";
 import { ServiceCatalogEditor } from "@/components/clinics/service-catalog-editor";
-import { ClinicPackagesDisplay } from "@/components/clinics/clinic-packages-display";
 import {
   AddressAutocomplete,
   formatAddressPartsLine,
@@ -21,8 +20,8 @@ import {
   hasVisibleClinicPackages,
   normalizeServiceCatalog,
 } from "@/lib/clinics/service-catalog";
-import type { Clinic, ClinicServiceOption } from "@/lib/types";
-import { Plus, Trash2 } from "lucide-react";
+import type { Clinic, ClinicPackage, ClinicServiceOption } from "@/lib/types";
+import { Plus } from "lucide-react";
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
@@ -38,7 +37,7 @@ const emptyClinic = {
   slots_per_day: 10,
   slots_by_day: {} as Record<string, number>,
   service_catalog: defaultIncludedCatalog() as ClinicServiceOption[],
-  packages: [] as { name: string; price: number; services: string[] }[],
+  packages: [] as ClinicPackage[],
   check_in_details: "",
   notes: "",
   is_active: true,
@@ -116,20 +115,7 @@ export function ClinicsManager({ clinics: initial }: ClinicsManagerProps) {
     });
   }
 
-  function updatePackageServices(index: number, services: string[]) {
-    const packages = [...form.packages];
-    packages[index] = { ...packages[index], services };
-    setForm({ ...form, packages });
-  }
-
   const usesPackagePricing = hasVisibleClinicPackages(form.packages);
-
-  function addPackage() {
-    setForm({
-      ...form,
-      packages: [...form.packages, { name: "", price: 0, services: [] }],
-    });
-  }
 
   return (
     <>
@@ -140,7 +126,7 @@ export function ClinicsManager({ clinics: initial }: ClinicsManagerProps) {
       <ClinicPartnersTable clinics={initial} onEdit={openEdit} />
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editing ? "Edit Clinic" : "Add Clinic"}</DialogTitle>
           </DialogHeader>
@@ -180,58 +166,10 @@ export function ClinicsManager({ clinics: initial }: ClinicsManagerProps) {
               />
             </div>
 
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label>Packages</Label>
-                <Button type="button" variant="outline" size="sm" onClick={addPackage}>Add package</Button>
-              </div>
-              <p className="text-sm text-muted-foreground">
-                Each package has a price and any services you choose — they do not need to match the add-on catalog below.
-              </p>
-              {form.packages.map((pkg, index) => (
-                <div key={index} className="rounded border p-3 space-y-2">
-                  <div className="flex gap-2">
-                    <Input
-                      placeholder="Package name"
-                      value={pkg.name}
-                      onChange={(e) => {
-                        const packages = [...form.packages];
-                        packages[index] = { ...pkg, name: e.target.value };
-                        setForm({ ...form, packages });
-                      }}
-                    />
-                    <NumberInput
-                      step="0.01"
-                      min={0}
-                      className="w-24"
-                      placeholder="Price"
-                      value={pkg.price}
-                      onValueChange={(value) => {
-                        if (typeof value !== "number") return;
-                        const packages = [...form.packages];
-                        packages[index] = { ...pkg, price: value };
-                        setForm({ ...form, packages });
-                      }}
-                    />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => setForm({ ...form, packages: form.packages.filter((_, i) => i !== index) })}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                  <ClinicPackageServicesEditor
-                    services={pkg.services}
-                    onChange={(services) => updatePackageServices(index, services)}
-                  />
-                </div>
-              ))}
-              {form.packages.length > 0 && (
-                <ClinicPackagesDisplay packages={form.packages} />
-              )}
-            </div>
+            <ClinicPackagesEditor
+              packages={form.packages}
+              onChange={(packages) => setForm({ ...form, packages })}
+            />
 
             <ServiceCatalogEditor
               value={form.service_catalog}

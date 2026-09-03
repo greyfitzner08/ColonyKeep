@@ -66,7 +66,16 @@ function PackagesSummary({ clinic }: { clinic: Clinic }) {
             <span className="font-normal text-muted-foreground"> · {formatCurrency(pkg.price)}</span>
           </div>
           {pkg.services.length > 0 && (
-            <p className="text-xs text-muted-foreground leading-snug">{pkg.services.join(", ")}</p>
+            <div className="mt-1 flex flex-wrap gap-1">
+              {pkg.services.map((service) => (
+                <span
+                  key={service}
+                  className="rounded border bg-muted/40 px-1.5 py-0.5 text-xs text-muted-foreground"
+                >
+                  {service}
+                </span>
+              ))}
+            </div>
           )}
         </li>
       ))}

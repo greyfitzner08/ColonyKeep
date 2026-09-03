@@ -13,23 +13,30 @@ export function ClinicPackagesDisplay({ packages }: ClinicPackagesDisplayProps) 
 
   return (
     <div className="space-y-3">
-      <p className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Packages</p>
+      <p className="text-sm font-medium">Packages</p>
       <div className="space-y-3">
         {visiblePackages.map((pkg, index) => (
-          <div key={`${pkg.name}-${index}`} className="rounded-md border bg-muted/20 p-3 space-y-2">
-            <div className="flex items-start justify-between gap-3">
+          <div key={`${pkg.name}-${index}`} className="rounded-md border bg-muted/20 p-3 space-y-3">
+            <div className="flex items-baseline justify-between gap-3">
               <p className="font-medium leading-snug">{pkg.name.trim() || "Unnamed package"}</p>
-              <p className="shrink-0 font-semibold">{formatCurrency(pkg.price)}</p>
+              <p className="shrink-0 text-base font-semibold tabular-nums">
+                {formatCurrency(pkg.price)}
+              </p>
             </div>
 
             {pkg.services.length > 0 ? (
-              <ul className="rounded-md border bg-background px-3 py-2 text-sm space-y-1">
+              <div className="flex flex-wrap gap-1.5">
                 {pkg.services.map((serviceName) => (
-                  <li key={serviceName}>{serviceName}</li>
+                  <span
+                    key={serviceName}
+                    className="rounded-md border bg-background px-2 py-0.5 text-sm text-muted-foreground"
+                  >
+                    {serviceName}
+                  </span>
                 ))}
-              </ul>
+              </div>
             ) : (
-              <p className="text-sm text-muted-foreground">No services listed for this package.</p>
+              <p className="text-sm text-muted-foreground">No services listed.</p>
             )}
           </div>
         ))}
