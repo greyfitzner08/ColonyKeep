@@ -568,10 +568,7 @@ function ClinicBookingContent() {
                 {section === "contact" && submitError && (
                   <p className="text-sm text-destructive">{submitError}</p>
                 )}
-                <div className="flex justify-between">
-                  <Button variant="outline" onClick={() => openSection("count")}>
-                    Back
-                  </Button>
+                <div className="flex justify-end">
                   <Button
                     disabled={!contactReady()}
                     onClick={() => {
@@ -679,10 +676,7 @@ function ClinicBookingContent() {
                 {section === "cats" && submitError && (
                   <p className="text-sm text-destructive">{submitError}</p>
                 )}
-                <div className="flex justify-between pt-2">
-                  <Button variant="outline" onClick={() => openSection("contact")}>
-                    Back
-                  </Button>
+                <div className="flex justify-end pt-2">
                   <Button
                     onClick={() => void handleSubmit()}
                     disabled={submitting || spots.some((spot) => !spotReady(spot))}
