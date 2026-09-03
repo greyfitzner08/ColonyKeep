@@ -16,6 +16,7 @@ import {
   type TutorialMode,
 } from "@/lib/platform-tutorial/tracks";
 import { useTutorialNavigation } from "@/components/platform-tutorial/tutorial-navigation-context";
+import { useAppName } from "@/components/branding/branding-provider";
 import { Z_INDEX } from "@/lib/z-index";
 import { cn } from "@/lib/utils";
 import type { Profile } from "@/lib/types";
@@ -42,6 +43,7 @@ export function PlatformTutorialModal({
   onCompleted,
 }: PlatformTutorialModalProps) {
   const router = useRouter();
+  const appName = useAppName();
   const [mounted, setMounted] = useState(false);
   const { setHighlightedNav, setTourActive } = useTutorialNavigation();
   const permissions = useMemo(() => getProfilePermissions(profile), [profile]);
@@ -54,6 +56,8 @@ export function PlatformTutorialModal({
   const [completing, setCompleting] = useState(false);
 
   const step = steps[stepIndex];
+  const stepTitle =
+    step?.id === "welcome" ? `Welcome to ${appName}` : (step?.title ?? "");
   const isFirst = stepIndex === 0;
   const isLast = stepIndex === steps.length - 1;
   const description = step ? stepDescription(step, permissions) : "";
@@ -155,7 +159,7 @@ export function PlatformTutorialModal({
                   {tourLabel} · Step {stepIndex + 1} of {steps.length}
                 </p>
                 <h2 id="platform-tutorial-title" className="text-lg font-semibold leading-tight">
-                  {step.title}
+                  {stepTitle}
                 </h2>
               </div>
             </div>

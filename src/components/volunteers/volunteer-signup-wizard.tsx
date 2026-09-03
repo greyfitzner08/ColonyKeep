@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
-  Cat,
   CheckCircle,
   ChevronLeft,
   ChevronRight,
@@ -11,6 +10,7 @@ import {
   HandHeart,
   User,
 } from "lucide-react";
+import { BrandMark } from "@/components/branding/brand-mark";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -592,9 +592,8 @@ export function VolunteerSignupWizard({
     <div className="min-h-screen bg-muted/30 py-8 px-4">
       <div className="max-w-2xl mx-auto">
         <div className="text-center mb-8">
-          <Link href="/" className="inline-flex items-center gap-2 text-primary mb-4">
-            <Cat className="h-8 w-8" />
-            <span className="text-xl font-semibold">TNVR Rescue</span>
+          <Link href="/" className="mb-4 inline-flex justify-center text-primary">
+            <BrandMark nameClassName="text-xl text-primary" />
           </Link>
           <h1 className="text-2xl font-bold">Volunteer Application</h1>
           <p className="text-muted-foreground mt-1">Join our team helping community cats</p>

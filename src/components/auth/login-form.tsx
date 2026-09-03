@@ -2,12 +2,12 @@
 
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Cat } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { BrandMark } from "@/components/branding/brand-mark";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
 
@@ -55,9 +55,8 @@ export function LoginForm() {
     <div className="min-h-screen flex items-center justify-center bg-muted/30 p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <Link href="/" className="inline-flex items-center justify-center gap-2 text-primary mb-2">
-            <Cat className="h-8 w-8" />
-            <span className="text-xl font-semibold">TNVR Rescue</span>
+          <Link href="/" className="mb-2 inline-flex justify-center text-primary">
+            <BrandMark nameClassName="text-xl text-primary" />
           </Link>
           <CardTitle>Volunteer Login</CardTitle>
           <CardDescription>Sign in to access the volunteer portal</CardDescription>

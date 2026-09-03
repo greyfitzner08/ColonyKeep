@@ -2,9 +2,11 @@
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AdminUsersManager } from "@/components/admin/admin-users-manager";
+import { BrandingSettings } from "@/components/admin/branding-settings";
 import { RoleDescriptionsManager } from "@/components/admin/role-descriptions-manager";
 import { TrapTeamsManager } from "@/components/admin/trap-teams-manager";
 import { VolunteerImporter } from "@/components/volunteers/volunteer-importer";
+import type { PlatformBranding } from "@/lib/branding";
 import type { Profile, TrapTeam, RoleDescription, VolunteerApplication, VolunteerRole } from "@/lib/types";
 
 interface AdminPanelProps {
@@ -13,6 +15,7 @@ interface AdminPanelProps {
   roleDescriptions: RoleDescription[];
   disabledRoleIds: VolunteerRole[];
   applications: VolunteerApplication[];
+  branding: PlatformBranding;
   currentUserId: string;
 }
 
@@ -22,6 +25,7 @@ export function AdminPanel({
   roleDescriptions,
   disabledRoleIds,
   applications,
+  branding,
   currentUserId,
 }: AdminPanelProps) {
   return (
@@ -30,6 +34,7 @@ export function AdminPanel({
         <TabsTrigger value="users">Users</TabsTrigger>
         <TabsTrigger value="teams">Trap Teams</TabsTrigger>
         <TabsTrigger value="roles">Volunteer Roles</TabsTrigger>
+        <TabsTrigger value="branding">Branding</TabsTrigger>
         <TabsTrigger value="imports">Data Import</TabsTrigger>
       </TabsList>
 
@@ -52,6 +57,10 @@ export function AdminPanel({
           roleDescriptions={roleDescriptions}
           disabledRoleIds={disabledRoleIds}
         />
+      </TabsContent>
+
+      <TabsContent value="branding" className="mt-4">
+        <BrandingSettings branding={branding} />
       </TabsContent>
 
       <TabsContent value="imports" className="mt-4 space-y-4">

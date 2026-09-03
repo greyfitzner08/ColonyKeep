@@ -20,7 +20,6 @@ import {
   Handshake,
   Menu,
   X,
-  Cat,
   BookOpen,
   Package,
   UserRound,
@@ -33,6 +32,7 @@ import { Z_INDEX } from "@/lib/z-index";
 import type { Profile, RoleDescription } from "@/lib/types";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
+import { BrandMark } from "@/components/branding/brand-mark";
 import { LogoutButton } from "@/components/layout/logout-button";
 import { AdminRolePreviewControl } from "@/components/admin/admin-role-preview";
 import { PlatformTutorialTrigger } from "@/components/platform-tutorial/platform-tutorial-trigger";
@@ -156,11 +156,11 @@ export function Sidebar({
   const nav = (
     <nav className="flex h-full min-h-0 flex-col p-4">
       <div className="mb-6 flex shrink-0 items-center gap-2 px-2">
-        <Cat className="h-8 w-8 text-primary" />
-        <div>
-          <p className="font-semibold text-sidebar-foreground">TNVR Rescue</p>
-          <p className="text-xs text-sidebar-foreground/60">Colony Management</p>
-        </div>
+        <BrandMark
+          nameClassName="text-sidebar-foreground"
+          subtitle="Colony Management"
+          subtitleClassName="text-sidebar-foreground/60"
+        />
       </div>
 
       <div

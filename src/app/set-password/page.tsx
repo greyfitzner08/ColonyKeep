@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Cat, CheckCircle2 } from "lucide-react";
+import { CheckCircle2 } from "lucide-react";
 import Link from "next/link";
+import { BrandMark } from "@/components/branding/brand-mark";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { PasswordInput } from "@/components/ui/password-input";
@@ -62,9 +63,8 @@ export default function SetPasswordPage() {
     <div className="min-h-screen flex items-center justify-center bg-muted/30 p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <Link href="/" className="inline-flex items-center justify-center gap-2 text-primary mb-2">
-            <Cat className="h-8 w-8" />
-            <span className="text-xl font-semibold">TNVR Rescue</span>
+          <Link href="/" className="mb-2 inline-flex justify-center text-primary">
+            <BrandMark nameClassName="text-xl text-primary" />
           </Link>
           {success ? (
             <>

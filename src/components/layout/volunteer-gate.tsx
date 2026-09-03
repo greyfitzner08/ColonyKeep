@@ -1,9 +1,14 @@
+"use client";
+
 import { Cat, Clock, LogIn } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useAppName } from "@/components/branding/branding-provider";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 
 export function VolunteerGate() {
+  const appName = useAppName();
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-muted/30 p-4">
       <Card className="max-w-md w-full">
@@ -13,7 +18,8 @@ export function VolunteerGate() {
           </div>
           <CardTitle>Application Under Review</CardTitle>
           <CardDescription>
-            Thank you for applying to volunteer with TNVR Rescue. Your application is being reviewed by our team.
+            Thank you for applying to volunteer with {appName}. Your application is being reviewed by
+            our team.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4 text-center">
