@@ -12,6 +12,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  CAT_COLOR_MARKINGS,
+  CAT_COLOR_OTHER,
+  catColorOtherText,
+  catColorSelectValue,
+} from "@/lib/cats/colors";
 import { formatCurrency } from "@/lib/utils";
 
 export interface ClinicBookingSpotFields {
@@ -73,11 +79,32 @@ export function ClinicBookingCatFields({
         </div>
         <div className="space-y-2">
           <Label htmlFor={`cat-colors-${index}`}>Colors / markings</Label>
-          <Input
-            id={`cat-colors-${index}`}
-            value={spot.cat_colors}
-            onChange={(e) => onPatch({ cat_colors: e.target.value })}
-          />
+          <Select
+            value={catColorSelectValue(spot.cat_colors)}
+            onValueChange={(value) =>
+              onPatch({ cat_colors: value === CAT_COLOR_OTHER ? CAT_COLOR_OTHER : value })
+            }
+          >
+            <SelectTrigger id={`cat-colors-${index}`}>
+              <SelectValue placeholder="Select colors / markings" />
+            </SelectTrigger>
+            <SelectContent>
+              {CAT_COLOR_MARKINGS.map((color) => (
+                <SelectItem key={color} value={color}>
+                  {color}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {catColorSelectValue(spot.cat_colors) === CAT_COLOR_OTHER && (
+            <Input
+              id={`cat-colors-other-${index}`}
+              value={catColorOtherText(spot.cat_colors)}
+              onChange={(e) => onPatch({ cat_colors: e.target.value.trim() ? e.target.value : CAT_COLOR_OTHER })}
+              placeholder="Describe colors / markings"
+              aria-label="Describe other colors or markings"
+            />
+          )}
         </div>
       </section>
 
