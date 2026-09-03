@@ -3,13 +3,15 @@ import { normalizeServiceCatalog } from "@/lib/clinics/service-catalog";
 import { ServiceCatalogDisplay } from "@/components/clinics/service-catalog-display";
 import { SpotsLeftCounter } from "@/components/clinics/spots-left-counter";
 import { formatDate } from "@/lib/utils";
+import { AlertTriangle } from "lucide-react";
 
 interface EventDetailsSummaryProps {
   event: PublicClinicEvent;
   checkInDetails?: string | null;
   spotsAvailable?: number;
   showTimeLimit?: boolean;
-  showNotConfirmedWarning?: boolean;
+  /** Yellow banner: cats must already be trapped before claiming a spot. */
+  showTrapReadyWarning?: boolean;
 }
 
 export function EventDetailsSummary({
@@ -17,7 +19,7 @@ export function EventDetailsSummary({
   checkInDetails,
   spotsAvailable,
   showTimeLimit,
-  showNotConfirmedWarning,
+  showTrapReadyWarning,
 }: EventDetailsSummaryProps) {
   const catalog = normalizeServiceCatalog(
     event.service_catalog,
@@ -27,18 +29,24 @@ export function EventDetailsSummary({
 
   return (
     <div className="space-y-4">
-      {showNotConfirmedWarning && (
+      {showTrapReadyWarning && (
         <div
           role="alert"
           className="rounded-lg border-2 border-amber-500 bg-amber-50 dark:bg-amber-950/30 px-4 py-3 text-sm text-amber-950 dark:text-amber-100"
         >
-          <p className="font-semibold">
-            Only claim a spot once you for certain have a cat in a humane trap
-          </p>
-          <p className="mt-1 text-amber-900/90 dark:text-amber-100/90">
-            Claiming appointments and not showing up will revoke privileges to use future clinic
-            spots.
-          </p>
+          <div className="flex gap-3">
+            <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600 dark:text-amber-300" />
+            <div>
+              <p className="font-semibold">
+                Cats must already be in a trap before you claim a spot
+              </p>
+              <p className="mt-1 text-amber-900/90 dark:text-amber-100/90">
+                Only request an appointment once you for certain have the cat(s) secured in a humane
+                trap. Claiming a spot and not showing up will revoke privileges to use future clinic
+                appointments.
+              </p>
+            </div>
+          </div>
         </div>
       )}
 

@@ -314,21 +314,19 @@ function ClinicBookingContent() {
                         <CardTitle className="text-lg">{event.title}</CardTitle>
                         <CardDescription className="mt-1">{event.clinic_name}</CardDescription>
                       </div>
-                      <div className="flex shrink-0 flex-col items-end gap-1">
-                        <SpotsLeftCounter remaining={remaining} />
-                        {pastDate && (
-                          <Badge variant="outline" className="text-xs">
-                            Past event date
-                          </Badge>
-                        )}
-                      </div>
+                      {pastDate && (
+                        <Badge variant="outline" className="shrink-0 text-xs">
+                          Past event date
+                        </Badge>
+                      )}
                     </div>
                   </CardHeader>
-                  <CardContent>
+                  <CardContent className="space-y-4">
+                    <SpotsLeftCounter remaining={remaining} size="featured" />
                     <EventDetailsSummary
                       event={event}
                       checkInDetails={event.check_in_details}
-                      showNotConfirmedWarning
+                      showTrapReadyWarning
                     />
                   </CardContent>
                 </Card>
@@ -342,7 +340,7 @@ function ClinicBookingContent() {
               checkInDetails={selectedEvent.check_in_details}
               spotsAvailable={available[selectedEvent.id] ?? selectedEvent.total_spots}
               showTimeLimit
-              showNotConfirmedWarning
+              showTrapReadyWarning
             />
 
             <Card>
@@ -382,8 +380,9 @@ function ClinicBookingContent() {
             <EventDetailsSummary
               event={selectedEvent}
               checkInDetails={selectedEvent.check_in_details}
+              spotsAvailable={available[selectedEvent.id] ?? selectedEvent.total_spots}
               showTimeLimit
-              showNotConfirmedWarning
+              showTrapReadyWarning
             />
 
             <Card>
@@ -471,13 +470,16 @@ function ClinicBookingContent() {
                     </div>
                     <div
                       role="alert"
-                      className="rounded-lg border border-amber-400 bg-amber-50 px-4 py-3 text-sm text-amber-950"
+                      className="rounded-lg border-2 border-amber-500 bg-amber-50 px-4 py-3 text-sm text-amber-950"
                     >
-                      Only claim spots once you for certain have a cat in a humane trap. Claiming
-                      appointments and not showing up will revoke privileges to use future clinic
-                      spots. You will receive email at{" "}
-                      <strong>{contact.contact_email || "your address"}</strong> when our team
-                      reviews your request.
+                      <p className="font-semibold">
+                        Cats must already be in a trap before you claim a spot
+                      </p>
+                      <p className="mt-1">
+                        Only submit once you for certain have the cat(s) secured in a humane trap.
+                        Claiming a spot and not showing up will revoke privileges to use future
+                        clinic appointments.
+                      </p>
                     </div>
                   </>
                 )}
