@@ -69,7 +69,7 @@ export async function updateSession(request: NextRequest) {
   if (pathname !== "/set-password" && !pathname.startsWith("/auth")) {
     const { data: profile } = await supabase
       .from("profiles")
-      .select("role, volunteer_roles, must_change_password")
+      .select("role, volunteer_roles, must_change_password, birthday, team_id")
       .eq("id", user.id)
       .maybeSingle();
 
