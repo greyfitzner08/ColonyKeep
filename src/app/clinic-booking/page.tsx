@@ -328,7 +328,6 @@ function ClinicBookingContent() {
                     <EventDetailsSummary
                       event={event}
                       checkInDetails={event.check_in_details}
-                      spotsAvailable={remaining}
                       showNotConfirmedWarning
                     />
                   </CardContent>
