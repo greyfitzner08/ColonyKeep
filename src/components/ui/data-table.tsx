@@ -40,7 +40,7 @@ export interface DataTableProps<T> {
   className?: string;
   tableClassName?: string;
   minTableWidth?: number;
-  /** When true, cell content is clipped to column width. Default false shows full content with wrapping. */
+  /** When true with fixed sizing, force max-w-0 clipping on cells. Fixed tables always contain overflow. */
   clipCellContent?: boolean;
   /**
    * `fixed` (default) uses resizable pixel widths — drag header edges to resize.
@@ -481,8 +481,9 @@ export function DataTable<T>({
                       }}
                       className={cn(
                         "relative px-3 py-3 font-medium align-middle",
+                        isFixedSizing && "overflow-hidden",
                         !isFixedSizing && "whitespace-nowrap",
-                        clipCellContent && isFixedSizing && "max-w-0 overflow-hidden",
+                        clipCellContent && isFixedSizing && "max-w-0",
                         draggingColumnId === column.id && "opacity-50",
                         isDropTarget && "bg-primary/10 ring-1 ring-inset ring-primary/30",
                         column.headerClassName
@@ -490,7 +491,7 @@ export function DataTable<T>({
                     >
                       <div
                         className={cn(
-                          "flex min-w-0 items-center gap-1",
+                          "flex min-w-0 max-w-full items-center gap-1",
                           isFixedSizing && !isLastColumn ? "pr-3" : "pr-0"
                         )}
                       >
@@ -514,8 +515,8 @@ export function DataTable<T>({
                         </span>
                         <div
                           className={cn(
-                            "min-w-0 flex-1",
-                            clipCellContent && isFixedSizing ? "truncate" : "whitespace-normal"
+                            "min-w-0 flex-1 overflow-hidden",
+                            isFixedSizing || clipCellContent ? "truncate" : "whitespace-normal"
                           )}
                         >
                           {renderHeaderLabel(column)}
@@ -547,16 +548,19 @@ export function DataTable<T>({
                       key={column.id}
                       className={cn(
                         "px-3 py-3 align-top",
+                        isFixedSizing && "overflow-hidden",
                         !isFixedSizing && !column.wrap && "whitespace-nowrap",
-                        clipCellContent && isFixedSizing && "max-w-0 overflow-hidden",
+                        clipCellContent && isFixedSizing && "max-w-0",
                         column.cellClassName
                       )}
                     >
                       <div
                         className={cn(
-                          "min-w-0",
-                          clipCellContent && isFixedSizing
-                            ? "overflow-hidden"
+                          "min-w-0 max-w-full",
+                          isFixedSizing
+                            ? column.wrap
+                              ? "overflow-hidden whitespace-normal break-words"
+                              : "truncate"
                             : column.wrap
                               ? "whitespace-normal break-words"
                               : "whitespace-nowrap"

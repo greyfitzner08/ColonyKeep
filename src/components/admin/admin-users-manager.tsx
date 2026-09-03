@@ -125,22 +125,27 @@ export function AdminUsersManager({
         id: "name",
         label: "Name",
         defaultWidth: 180,
+        wrap: true,
         sortValue: (user) => user.full_name?.trim() || user.email,
         render: (user) => (
-          <span className="truncate font-medium">{user.full_name?.trim() || "—"}</span>
+          <span className="block break-words font-medium">{user.full_name?.trim() || "—"}</span>
         ),
       },
       {
         id: "email",
         label: "Email",
         defaultWidth: 220,
+        wrap: true,
         sortValue: (user) => user.email,
-        render: (user) => <span className="truncate text-muted-foreground">{user.email}</span>,
+        render: (user) => (
+          <span className="block break-all text-muted-foreground">{user.email}</span>
+        ),
       },
       {
         id: "platform_role",
         label: "Platform role",
         defaultWidth: 180,
+        wrap: true,
         sortValue: (user) =>
           isKnownUserRole(user.role) ? ROLE_PERMISSIONS[user.role].label : "No role",
         render: (user) => {
@@ -161,7 +166,7 @@ export function AdminUsersManager({
               disabled={isUpdating}
               onValueChange={(value) => updateUserRole(user.id, value as UserRole)}
             >
-              <SelectTrigger className="h-8 w-full max-w-[170px]">
+              <SelectTrigger className="h-8 w-full max-w-full">
                 <SelectValue placeholder={isUpdating ? "Saving…" : "No role"} />
               </SelectTrigger>
               <SelectContent>
@@ -179,9 +184,10 @@ export function AdminUsersManager({
         id: "team",
         label: "Team",
         defaultWidth: 120,
+        wrap: true,
         sortValue: (user) => (user.team_id ? teamById.get(user.team_id) ?? "" : ""),
         render: (user) => (
-          <span className="text-muted-foreground">
+          <span className="block break-words text-muted-foreground">
             {user.team_id ? teamById.get(user.team_id) ?? "—" : "—"}
           </span>
         ),
@@ -190,6 +196,7 @@ export function AdminUsersManager({
         id: "volunteer_roles",
         label: "Volunteer interests",
         defaultWidth: 220,
+        wrap: true,
         sortValue: (user) =>
           (user.volunteer_roles ?? [])
             .map((role) => volunteerRoleLabel(role, roleCatalog))
@@ -202,9 +209,9 @@ export function AdminUsersManager({
             return <span className="text-xs text-muted-foreground">None</span>;
           }
           return (
-            <div className="flex flex-wrap gap-1">
+            <div className="flex max-w-full flex-wrap gap-1 overflow-hidden">
               {visibleRoles.map((role) => (
-                <Badge key={role} variant="secondary" className="text-[11px]">
+                <Badge key={role} variant="secondary" className="max-w-full truncate text-[11px]">
                   {volunteerRoleLabel(role, roleCatalog)}
                 </Badge>
               ))}
@@ -224,6 +231,7 @@ export function AdminUsersManager({
         minWidth: 80,
         headerClassName: "text-right",
         cellClassName: "text-right",
+        hideable: false,
         render: (user) => (
           <div className="flex justify-end gap-1">
             <Button
