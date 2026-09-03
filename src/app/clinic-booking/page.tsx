@@ -481,16 +481,13 @@ function ClinicBookingContent() {
           </div>
         ) : (
           <div className="space-y-4">
-            <div className="flex items-start justify-between gap-3">
-              <Button variant="outline" size="sm" onClick={() => void cancelBooking()}>
-                Choose a different clinic
-              </Button>
-              {secondsLeft > 0 && (
+            {secondsLeft > 0 && (
+              <div className="flex justify-end">
                 <Badge variant="destructive" className="shrink-0 text-sm px-3 py-1">
                   {Math.floor(secondsLeft / 60)}:{String(secondsLeft % 60).padStart(2, "0")} left
                 </Badge>
-              )}
-            </div>
+              </div>
+            )}
 
             <EventDetailsSummary
               event={selectedEvent}
@@ -533,7 +530,12 @@ function ClinicBookingContent() {
                 {section === "count" && submitError && (
                   <p className="text-sm text-destructive">{submitError}</p>
                 )}
-                <div className="flex justify-end">
+                <div className={`flex pt-2 ${events.length > 1 && !eventFilter ? "justify-between" : "justify-end"}`}>
+                  {events.length > 1 && !eventFilter && (
+                    <Button variant="outline" onClick={() => void cancelBooking()}>
+                      Back
+                    </Button>
+                  )}
                   <Button
                     onClick={() => void startHold()}
                     disabled={holding || spotCount === "" || spotCount < 1}
