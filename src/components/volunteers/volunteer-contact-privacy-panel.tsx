@@ -65,6 +65,7 @@ export function VolunteerContactPrivacyPanel({ profile }: VolunteerContactPrivac
     const body: Record<string, boolean> = {
       showOnHotspotsMap: next.show_on_hotspots_map,
       showPhoneInDirectory: next.show_phone_in_directory,
+      showEmailInDirectory: next.show_email_in_directory,
       showAddressInDirectory: next.show_address_in_directory,
       showPhoneOnHotspotsMap: next.show_phone_on_hotspots_map,
       showAddressOnHotspotsMap: next.show_address_on_hotspots_map,
@@ -104,10 +105,18 @@ export function VolunteerContactPrivacyPanel({ profile }: VolunteerContactPrivac
           <PrivacyToggle
             id="show-phone-directory"
             label="Show phone number"
-            description="When off, your phone is hidden from the team directory. Email and name are always shown."
+            description="When off, your phone is hidden from the team directory."
             checked={settings.show_phone_in_directory}
             disabled={savingField === "show_phone_in_directory"}
             onCheckedChange={(checked) => updateSetting("show_phone_in_directory", checked)}
+          />
+          <PrivacyToggle
+            id="show-email-directory"
+            label="Show email"
+            description="When off, your email is hidden from the team directory. Your name stays visible."
+            checked={settings.show_email_in_directory}
+            disabled={savingField === "show_email_in_directory"}
+            onCheckedChange={(checked) => updateSetting("show_email_in_directory", checked)}
           />
           <PrivacyToggle
             id="show-address-directory"

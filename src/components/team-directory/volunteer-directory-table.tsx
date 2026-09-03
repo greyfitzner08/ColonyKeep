@@ -43,8 +43,9 @@ function uniqueEmails(entries: VolunteerDirectoryEntry[]): string[] {
   const seen = new Set<string>();
   const emails: string[] = [];
   for (const entry of entries) {
+    if (!entry.email?.trim()) continue;
     const normalized = entry.email.trim().toLowerCase();
-    if (!normalized || seen.has(normalized)) continue;
+    if (seen.has(normalized)) continue;
     seen.add(normalized);
     emails.push(entry.email.trim());
   }
@@ -93,7 +94,7 @@ export function VolunteerDirectoryTable({ entries, teams }: VolunteerDirectoryTa
         id: "name",
         label: "Name",
         defaultWidth: 160,
-        sortValue: (entry) => entry.full_name ?? entry.email,
+        sortValue: (entry) => entry.full_name ?? entry.email ?? "",
         render: (entry) => <span className="font-medium">{entry.full_name ?? "—"}</span>,
       },
       {
@@ -140,31 +141,34 @@ export function VolunteerDirectoryTable({ entries, teams }: VolunteerDirectoryTa
         id: "email",
         label: "Email",
         defaultWidth: 240,
-        sortValue: (entry) => entry.email,
-        render: (entry) => (
-          <div className="flex min-w-0 items-center gap-1">
-            <a
-              href={`mailto:${entry.email}`}
-              className="min-w-0 flex-1 break-all text-primary hover:underline select-text"
-            >
-              {entry.email}
-            </a>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7 shrink-0"
-              aria-label={`Copy ${entry.email}`}
-              onClick={() => copyEmail(entry.email)}
-            >
-              {copiedEmail === entry.email ? (
-                <Check className="h-3.5 w-3.5 text-primary" />
-              ) : (
-                <ClipboardCopy className="h-3.5 w-3.5" />
-              )}
-            </Button>
-          </div>
-        ),
+        sortValue: (entry) => entry.email ?? "",
+        render: (entry) =>
+          entry.email ? (
+            <div className="flex min-w-0 items-center gap-1">
+              <a
+                href={`mailto:${entry.email}`}
+                className="min-w-0 flex-1 break-all text-primary hover:underline select-text"
+              >
+                {entry.email}
+              </a>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 shrink-0"
+                aria-label={`Copy ${entry.email}`}
+                onClick={() => copyEmail(entry.email!)}
+              >
+                {copiedEmail === entry.email ? (
+                  <Check className="h-3.5 w-3.5 text-primary" />
+                ) : (
+                  <ClipboardCopy className="h-3.5 w-3.5" />
+                )}
+              </Button>
+            </div>
+          ) : (
+            "—"
+          ),
       },
       {
         id: "address",

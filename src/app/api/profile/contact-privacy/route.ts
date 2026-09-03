@@ -32,6 +32,11 @@ export async function POST(request: NextRequest) {
     updates.show_phone_in_directory = showPhoneInDirectory;
   }
 
+  const showEmailInDirectory = readBoolean(body, "showEmailInDirectory", "show_email_in_directory");
+  if (showEmailInDirectory !== undefined) {
+    updates.show_email_in_directory = showEmailInDirectory;
+  }
+
   const showAddressInDirectory = readBoolean(
     body,
     "showAddressInDirectory",

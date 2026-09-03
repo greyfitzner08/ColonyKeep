@@ -16,6 +16,9 @@ export async function updateProfileContactPrivacy(
   if (updates.show_phone_in_directory !== undefined) {
     payload.show_phone_in_directory = updates.show_phone_in_directory;
   }
+  if (updates.show_email_in_directory !== undefined) {
+    payload.show_email_in_directory = updates.show_email_in_directory;
+  }
   if (updates.show_address_in_directory !== undefined) {
     payload.show_address_in_directory = updates.show_address_in_directory;
   }

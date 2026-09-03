@@ -7,7 +7,7 @@ import type { UserRole, VolunteerRole } from "@/lib/types";
 export interface VolunteerDirectoryEntry {
   id: string;
   full_name: string | null;
-  email: string;
+  email: string | null;
   phone: string | null;
   volunteer_roles: VolunteerRole[];
   platform_role: UserRole;
@@ -19,9 +19,12 @@ export interface VolunteerDirectoryEntry {
 }
 
 const PROFILE_FIELDS =
-  "id, full_name, email, phone, volunteer_roles, role, team_id, home_street, home_city, home_state, home_zip, home_county, show_phone_in_directory, show_address_in_directory";
+  "id, full_name, email, phone, volunteer_roles, role, team_id, home_street, home_city, home_state, home_zip, home_county, show_phone_in_directory, show_email_in_directory, show_address_in_directory";
 
 const PROFILE_FIELDS_LEGACY =
+  "id, full_name, email, phone, volunteer_roles, role, team_id, home_street, home_city, home_state, home_zip, home_county, show_phone_in_directory, show_address_in_directory";
+
+const PROFILE_FIELDS_MINIMAL =
   "id, full_name, email, phone, volunteer_roles, role, team_id, home_street, home_city, home_state, home_zip, home_county";
 
 interface DirectoryProfileRow {
@@ -38,6 +41,7 @@ interface DirectoryProfileRow {
   home_zip: string | null;
   home_county: string | null;
   show_phone_in_directory?: boolean | null;
+  show_email_in_directory?: boolean | null;
   show_address_in_directory?: boolean | null;
 }
 
@@ -64,7 +68,17 @@ export async function loadVolunteerDirectory(service: SupabaseClient): Promise<{
       .select(PROFILE_FIELDS_LEGACY)
       .not("role", "is", null)
       .order("full_name");
-    profileRows = (legacyResult.data ?? []) as DirectoryProfileRow[];
+
+    if (legacyResult.error && isMissingColumnError(legacyResult.error.message)) {
+      const minimalResult = await service
+        .from("profiles")
+        .select(PROFILE_FIELDS_MINIMAL)
+        .not("role", "is", null)
+        .order("full_name");
+      profileRows = (minimalResult.data ?? []) as DirectoryProfileRow[];
+    } else {
+      profileRows = (legacyResult.data ?? []) as DirectoryProfileRow[];
+    }
   }
 
   const teamNameById = new Map((teams ?? []).map((team) => [team.id, team.name]));
@@ -90,15 +104,15 @@ export async function loadVolunteerDirectory(service: SupabaseClient): Promise<{
   const entries = profileRows
     .filter((profile) => profile.role)
     .map((profile): VolunteerDirectoryEntry => {
-      const email = profile.email.toLowerCase();
+      const emailKey = profile.email.toLowerCase();
       const privacy = resolveContactPrivacy(profile);
-      const rawPhone = phonesByEmail.get(email) ?? profile.phone ?? null;
+      const rawPhone = phonesByEmail.get(emailKey) ?? profile.phone ?? null;
       const rawAddress = formatHomeAddress(profile);
 
       return {
         id: profile.id,
         full_name: profile.full_name,
-        email: profile.email,
+        email: privacy.show_email_in_directory ? profile.email : null,
         phone: privacy.show_phone_in_directory ? rawPhone : null,
         volunteer_roles: (profile.volunteer_roles ?? []) as VolunteerRole[],
         platform_role: profile.role as UserRole,
@@ -110,7 +124,7 @@ export async function loadVolunteerDirectory(service: SupabaseClient): Promise<{
       };
     })
     .sort((left, right) =>
-      (left.full_name ?? left.email).localeCompare(right.full_name ?? right.email, undefined, {
+      (left.full_name ?? left.email ?? "").localeCompare(right.full_name ?? right.email ?? "", undefined, {
         sensitivity: "base",
       })
     );
