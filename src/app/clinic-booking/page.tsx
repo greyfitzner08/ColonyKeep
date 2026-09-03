@@ -47,6 +47,10 @@ const emptySpot = (): SpotForm => ({
 
 type BookingSection = "count" | "contact" | "cats";
 
+function formatHoldClock(seconds: number) {
+  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
+}
+
 function BookingAccordionSection({
   stepLabel,
   title,
@@ -54,6 +58,7 @@ function BookingAccordionSection({
   open,
   locked,
   onSelect,
+  timerLabel,
   children,
 }: {
   stepLabel: string;
@@ -62,6 +67,7 @@ function BookingAccordionSection({
   open: boolean;
   locked: boolean;
   onSelect: () => void;
+  timerLabel?: string;
   children?: React.ReactNode;
 }) {
   return (
@@ -90,6 +96,11 @@ function BookingAccordionSection({
             </span>
           )}
         </span>
+        {timerLabel && open && !locked && (
+          <Badge variant="destructive" className="shrink-0 text-sm px-3 py-1">
+            {timerLabel}
+          </Badge>
+        )}
       </button>
       {open && !locked && <div className="border-t px-4 py-4">{children}</div>}
     </Card>
@@ -458,10 +469,13 @@ function ClinicBookingContent() {
         ) : (
           <div className="space-y-4">
             {secondsLeft > 0 && (
-              <div className="flex justify-end">
-                <Badge variant="destructive" className="shrink-0 text-sm px-3 py-1">
-                  {Math.floor(secondsLeft / 60)}:{String(secondsLeft % 60).padStart(2, "0")} left
-                </Badge>
+              <div className="sticky top-0 z-30 -mx-1 rounded-lg border-2 border-destructive bg-destructive px-4 py-3 text-destructive-foreground shadow-md">
+                <p className="text-center text-base font-semibold tabular-nums">
+                  {formatHoldClock(secondsLeft)} left to finish
+                </p>
+                <p className="mt-0.5 text-center text-xs text-destructive-foreground/90">
+                  Your spots will be released if this timer runs out.
+                </p>
               </div>
             )}
 
@@ -489,6 +503,7 @@ function ClinicBookingContent() {
               open={section === "count"}
               locked={false}
               onSelect={() => openSection("count")}
+              timerLabel={secondsLeft > 0 ? `${formatHoldClock(secondsLeft)} left` : undefined}
             >
               <div className="space-y-4">
                 <div className="space-y-2">
@@ -532,6 +547,7 @@ function ClinicBookingContent() {
               open={section === "contact"}
               locked={!holdSessionId}
               onSelect={() => openSection("contact")}
+              timerLabel={secondsLeft > 0 ? `${formatHoldClock(secondsLeft)} left` : undefined}
             >
               <div className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -594,6 +610,7 @@ function ClinicBookingContent() {
               open={section === "cats"}
               locked={!holdSessionId || !contactConfirmed}
               onSelect={() => openSection("cats")}
+              timerLabel={secondsLeft > 0 ? `${formatHoldClock(secondsLeft)} left` : undefined}
             >
               <div className="space-y-4">
                 {spots.map((spot, index) => {
