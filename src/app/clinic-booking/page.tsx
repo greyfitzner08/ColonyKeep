@@ -27,6 +27,7 @@ import {
 } from "@/lib/clinics/service-catalog";
 import type { PublicClinicEvent } from "@/lib/types";
 import { isEventPastDate } from "@/lib/clinic-events/visibility";
+import { clinicHoldMinutes } from "@/lib/clinic-events/hold-duration";
 import { formatCurrency } from "@/lib/utils";
 import Link from "next/link";
 
@@ -417,6 +418,7 @@ function ClinicBookingContent() {
               checkInDetails={selectedEvent.check_in_details}
               spotsAvailable={available[selectedEvent.id] ?? selectedEvent.total_spots}
               showTimeLimit
+              holdMinutes={clinicHoldMinutes(typeof spotCount === "number" ? spotCount : 1)}
               showTrapReadyWarning
               collapsible
               defaultExpanded={false}

@@ -12,8 +12,9 @@ interface EventDetailsSummaryProps {
   event: PublicClinicEvent;
   checkInDetails?: string | null;
   spotsAvailable?: number;
-  /** Compact note inside the event card (not a separate banner). */
   showTimeLimit?: boolean;
+  /** Minutes the hold lasts; shown even when clinic details are collapsed. */
+  holdMinutes?: number;
   /** Yellow notice: cats must already be trapped before claiming a spot. */
   showTrapReadyWarning?: boolean;
   /** Hide clinic/title block when the parent card already shows them. */
@@ -28,6 +29,7 @@ export function EventDetailsSummary({
   checkInDetails,
   spotsAvailable,
   showTimeLimit,
+  holdMinutes = 10,
   showTrapReadyWarning,
   hideTitle = false,
   collapsible = false,
@@ -106,8 +108,8 @@ export function EventDetailsSummary({
           <p className="flex items-start gap-2 border-t px-4 py-2 text-xs text-muted-foreground">
             <Clock className="mt-0.5 h-3.5 w-3.5 shrink-0" />
             <span>
-              Spots are held for <strong>10 minutes</strong> while you finish filling out your
-              request.
+              Spots are held for <strong>{holdMinutes} minute{holdMinutes === 1 ? "" : "s"}</strong>{" "}
+              while you finish filling out your request.
             </span>
           </p>
         )}

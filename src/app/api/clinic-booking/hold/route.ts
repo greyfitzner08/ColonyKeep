@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { availableSpots } from "@/lib/clinic-events/availability";
+import { clinicHoldDurationMs } from "@/lib/clinic-events/hold-duration";
 import { createServiceClient } from "@/lib/supabase/server";
 import type { PublicBooking } from "@/lib/types";
 
@@ -41,7 +42,7 @@ export async function POST(request: NextRequest) {
   }
 
   const sessionId = crypto.randomUUID();
-  const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+  const expiresAt = new Date(Date.now() + clinicHoldDurationMs(spotCount));
 
   const rows = Array.from({ length: spotCount }, () => ({
     event_id: eventId,
