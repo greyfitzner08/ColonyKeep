@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import { Cat, CheckCircle, AlertTriangle, ChevronDown, ChevronRight } from "lucide-react";
+import { Cat, CheckCircle, AlertTriangle, ChevronDown, ChevronRight, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { NumberInput } from "@/components/ui/number-input";
@@ -73,7 +73,6 @@ function ClinicBookingContent() {
   const [submitted, setSubmitted] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const [submitEmailWarning, setSubmitEmailWarning] = useState<string | null>(null);
 
   const [contact, setContact] = useState({
     contact_name: "",
@@ -212,7 +211,6 @@ function ClinicBookingContent() {
       setSubmitError("Select Male, Female, or Unknown for each cat.");
       return;
     }
-    setSubmitEmailWarning(null);
     setSubmitting(true);
 
     const response = await fetch("/api/clinic-booking/complete", {
@@ -238,9 +236,6 @@ function ClinicBookingContent() {
 
     setSubmitted(true);
     setHoldSessionId(null);
-    if (result?.email_warning) {
-      setSubmitEmailWarning(result.email_warning);
-    }
   }
 
   async function cancelBooking() {
@@ -285,28 +280,25 @@ function ClinicBookingContent() {
 
             <p className="text-sm text-muted-foreground whitespace-pre-wrap">{pendingMessage}</p>
 
-            {submitEmailWarning && (
-              <div
-                role="alert"
-                className="rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive"
-              >
-                We saved your request, but the confirmation email could not be sent ({submitEmailWarning}).
-                If you do not hear from us within a few days, contact the clinic team directly.
-              </div>
-            )}
-
             {selectedEvent.payment_url && (
-              <p className="text-sm">
-                When confirmed, you may need to complete payment:{" "}
-                <a
-                  href={selectedEvent.payment_url}
-                  className="text-primary underline"
-                  target="_blank"
-                  rel="noopener"
-                >
-                  payment link
-                </a>
-              </p>
+              <div className="rounded-lg border-2 border-primary bg-primary/10 px-4 py-4 text-center space-y-3">
+                <div>
+                  <p className="text-lg font-semibold">Payment</p>
+                  <p className="mt-1 text-sm">
+                    When your spot is confirmed, complete payment through our Givebutter campaign.
+                  </p>
+                </div>
+                <Button asChild className="w-full sm:w-auto" size="lg">
+                  <a
+                    href={selectedEvent.payment_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Open payment page
+                    <ExternalLink className="ml-2 h-4 w-4" />
+                  </a>
+                </Button>
+              </div>
             )}
           </CardContent>
         </Card>

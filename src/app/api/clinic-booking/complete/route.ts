@@ -149,11 +149,6 @@ export async function POST(request: NextRequest) {
 
     if (!emailResult.sent) {
       console.error("[email] Pending booking email failed:", emailResult.error);
-      return NextResponse.json({
-        success: true,
-        booking_count: holdRows.length,
-        email_warning: emailResult.error ?? "Confirmation email could not be sent",
-      });
     }
   }
 
