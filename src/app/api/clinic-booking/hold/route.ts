@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { availableSpots } from "@/lib/clinic-events/availability";
-import { clinicHoldDurationMs } from "@/lib/clinic-events/hold-duration";
+import { clinicHoldDurationMs, holdExtensionNotes } from "@/lib/clinic-events/hold-duration";
 import { createServiceClient } from "@/lib/supabase/server";
 import type { PublicBooking } from "@/lib/types";
 
@@ -54,6 +54,7 @@ export async function POST(request: NextRequest) {
     contact_phone: "000",
     cat_name: "Pending",
     total_price: 0,
+    notes: holdExtensionNotes(0),
   }));
 
   const { error: insertError } = await service.from("public_bookings").insert(rows);

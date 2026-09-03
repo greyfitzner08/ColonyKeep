@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, Suspense } from "react";
+import { useState, useEffect, useCallback, useRef, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { Cat, CheckCircle, AlertTriangle, ChevronDown, ChevronRight, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -19,7 +19,7 @@ import {
 } from "@/lib/clinics/service-catalog";
 import type { PublicClinicEvent } from "@/lib/types";
 import { isEventPastDate } from "@/lib/clinic-events/visibility";
-import { clinicHoldMinutes } from "@/lib/clinic-events/hold-duration";
+import { clinicHoldMinutes, CLINIC_HOLD_EXTENSION_MINUTES, CLINIC_HOLD_MAX_EXTENSIONS } from "@/lib/clinic-events/hold-duration";
 import { formatCurrency } from "@/lib/utils";
 import Link from "next/link";
 
@@ -118,6 +118,10 @@ function ClinicBookingContent() {
   const [holdSessionId, setHoldSessionId] = useState<string | null>(null);
   const [holdExpiresAt, setHoldExpiresAt] = useState<string | null>(null);
   const [secondsLeft, setSecondsLeft] = useState(0);
+  const [holdPaused, setHoldPaused] = useState(false);
+  const [holdExtensionsUsed, setHoldExtensionsUsed] = useState(0);
+  const [extendingHold, setExtendingHold] = useState(false);
+  const finalExpiryStarted = useRef(false);
   const [section, setSection] = useState<BookingSection>("count");
   const [contactConfirmed, setContactConfirmed] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -142,6 +146,46 @@ function ClinicBookingContent() {
     }).catch(() => null);
   }, []);
 
+  const expireHoldForGood = useCallback(
+    async (sessionId: string) => {
+      await releaseHold(sessionId);
+      setHoldSessionId(null);
+      setHoldExpiresAt(null);
+      setHoldPaused(false);
+      setSecondsLeft(0);
+      setSection("count");
+      setContactConfirmed(false);
+      setSubmitError(
+        "Your time ran out and your spots were released. Continue from How many cats? to hold spots again."
+      );
+    },
+    [releaseHold]
+  );
+
+  useEffect(() => {
+    if (!holdExpiresAt) return;
+    const tick = () => {
+      const left = Math.max(0, Math.floor((new Date(holdExpiresAt).getTime() - Date.now()) / 1000));
+      setSecondsLeft(left);
+      if (left > 0) {
+        setHoldPaused(false);
+        return;
+      }
+      if (!holdSessionId) return;
+      if (holdExtensionsUsed >= CLINIC_HOLD_MAX_EXTENSIONS) {
+        if (!finalExpiryStarted.current) {
+          finalExpiryStarted.current = true;
+          void expireHoldForGood(holdSessionId);
+        }
+        return;
+      }
+      setHoldPaused(true);
+    };
+    tick();
+    const interval = setInterval(tick, 1000);
+    return () => clearInterval(interval);
+  }, [holdExpiresAt, holdSessionId, holdExtensionsUsed, expireHoldForGood]);
+
   useEffect(() => {
     const url = eventFilter
       ? `/api/clinic-booking/events?eventId=${eventFilter}`
@@ -161,25 +205,6 @@ function ClinicBookingContent() {
       })
       .catch((error) => setLoadError(error.message));
   }, [eventFilter]);
-
-  useEffect(() => {
-    if (!holdExpiresAt) return;
-    const tick = () => {
-      const left = Math.max(0, Math.floor((new Date(holdExpiresAt).getTime() - Date.now()) / 1000));
-      setSecondsLeft(left);
-      if (left === 0 && holdSessionId) {
-        setSubmitError("Your hold expired. Please start again.");
-        releaseHold(holdSessionId);
-        setHoldSessionId(null);
-        setHoldExpiresAt(null);
-        setSection("count");
-        setContactConfirmed(false);
-      }
-    };
-    tick();
-    const interval = setInterval(tick, 1000);
-    return () => clearInterval(interval);
-  }, [holdExpiresAt, holdSessionId, releaseHold]);
 
   useEffect(() => {
     return () => {
@@ -256,15 +281,51 @@ function ClinicBookingContent() {
 
     setHoldSessionId(result.session_id);
     setHoldExpiresAt(result.expires_at);
-    const nextSpots = Array.from({ length: result.spot_count }, () => emptySpot());
-    setSpots(nextSpots);
-    setExpandedCats(new Set([0]));
-    setContactConfirmed(false);
+    setHoldPaused(false);
+    setHoldExtensionsUsed(0);
+    finalExpiryStarted.current = false;
+    if (spots.length !== result.spot_count) {
+      setSpots(Array.from({ length: result.spot_count }, () => emptySpot()));
+      setExpandedCats(new Set([0]));
+      setContactConfirmed(false);
+    }
     setSection("contact");
+  }
+
+  async function resumeHold() {
+    if (!holdSessionId) return;
+    setExtendingHold(true);
+    setSubmitError(null);
+    const response = await fetch("/api/clinic-booking/extend-hold", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ session_id: holdSessionId }),
+    });
+    const result = await response.json().catch(() => null);
+    setExtendingHold(false);
+
+    if (!response.ok) {
+      finalExpiryStarted.current = true;
+      setHoldSessionId(null);
+      setHoldExpiresAt(null);
+      setHoldPaused(false);
+      setSection("count");
+      setContactConfirmed(false);
+      setSubmitError(result?.error ?? "Unable to resume the timer.");
+      return;
+    }
+
+    setHoldExpiresAt(result.expires_at);
+    setHoldExtensionsUsed(result.extensions_used ?? holdExtensionsUsed + 1);
+    setHoldPaused(false);
   }
 
   async function handleSubmit() {
     if (!selectedEvent || !holdSessionId) return;
+    if (holdPaused) {
+      setSubmitError("Resume the timer before submitting your request.");
+      return;
+    }
     setSubmitError(null);
     if (spots.some((spot) => !spot.cat_name.trim())) {
       setSubmitError("Each cat needs a name.");
@@ -480,14 +541,47 @@ function ClinicBookingContent() {
           </div>
         ) : (
           <div className="space-y-4">
-            {secondsLeft > 0 && (
-              <div className="sticky top-0 z-30 -mx-1 rounded-lg border-2 border-destructive bg-destructive px-4 py-3 text-destructive-foreground shadow-md">
-                <p className="text-center text-base font-semibold tabular-nums">
-                  {formatHoldClock(secondsLeft)} left to finish
-                </p>
-                <p className="mt-0.5 text-center text-xs text-destructive-foreground/90">
-                  Your spots will be released if this timer runs out.
-                </p>
+            {(secondsLeft > 0 || holdPaused) && (
+              <div
+                className={`sticky top-0 z-30 -mx-1 rounded-lg border-2 px-4 py-3 shadow-md ${
+                  holdPaused
+                    ? "border-amber-500 bg-amber-50 text-amber-950"
+                    : "border-destructive bg-destructive text-destructive-foreground"
+                }`}
+              >
+                {holdPaused ? (
+                  <div className="space-y-2 text-center">
+                    <p className="text-base font-semibold">Time ran out</p>
+                    <p className="text-sm">
+                      Resume for {CLINIC_HOLD_EXTENSION_MINUTES} more minutes. You can do this{" "}
+                      {CLINIC_HOLD_MAX_EXTENSIONS - holdExtensionsUsed} more time
+                      {CLINIC_HOLD_MAX_EXTENSIONS - holdExtensionsUsed === 1 ? "" : "s"}.
+                    </p>
+                    <Button
+                      type="button"
+                      onClick={() => void resumeHold()}
+                      disabled={extendingHold}
+                    >
+                      {extendingHold ? "Resuming…" : "Resume timer"}
+                    </Button>
+                  </div>
+                ) : (
+                  <>
+                    <p className="text-center text-base font-semibold tabular-nums">
+                      {formatHoldClock(secondsLeft)} left to finish
+                    </p>
+                    <p className="mt-0.5 text-center text-xs text-destructive-foreground/90">
+                      Your spots will be released if this timer runs out
+                      {holdExtensionsUsed < CLINIC_HOLD_MAX_EXTENSIONS
+                        ? ` (${CLINIC_HOLD_MAX_EXTENSIONS - holdExtensionsUsed} extra ${
+                            CLINIC_HOLD_MAX_EXTENSIONS - holdExtensionsUsed === 1
+                              ? "extension"
+                              : "extensions"
+                          } left)`
+                        : " (no more extensions)"}.
+                    </p>
+                  </>
+                )}
               </div>
             )}
 
@@ -712,7 +806,7 @@ function ClinicBookingContent() {
                 <div className="flex justify-end pt-2">
                   <Button
                     onClick={() => void handleSubmit()}
-                    disabled={submitting || spots.some((spot) => !spotReady(spot))}
+                    disabled={submitting || holdPaused || spots.some((spot) => !spotReady(spot))}
                   >
                     {submitting
                       ? "Submitting…"
