@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { BrandingProvider } from "@/components/branding/branding-provider";
-import { getPlatformBranding } from "@/lib/branding";
+import { getPlatformBranding } from "@/lib/branding-server";
 import "./globals.css";
 
 const inter = Inter({

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { getPlatformBranding } from "@/lib/branding";
+import { getPlatformBranding } from "@/lib/branding-server";
 
 export async function generateMetadata(): Promise<Metadata> {
   const branding = await getPlatformBranding();

@@ -2,7 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getAppProfile } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { AdminPanel } from "@/components/admin/admin-panel";
-import { getPlatformBranding } from "@/lib/branding";
+import { getPlatformBranding } from "@/lib/branding-server";
 import { fetchVolunteerRoleCatalogInputs } from "@/lib/volunteers/load-role-catalog";
 import type { Profile, TrapTeam, VolunteerApplication } from "@/lib/types";
 
