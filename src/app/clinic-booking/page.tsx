@@ -90,6 +90,18 @@ function ClinicBookingContent() {
     }).catch(() => null);
   }, []);
 
+  const refreshAvailability = useCallback(async () => {
+    const url = eventFilter
+      ? `/api/clinic-booking/events?eventId=${eventFilter}`
+      : "/api/clinic-booking/events";
+    const response = await fetch(url);
+    const result = await response.json().catch(() => null);
+    if (response.ok) {
+      setAvailable(result.available ?? {});
+      if (result.events) setEvents(result.events);
+    }
+  }, [eventFilter]);
+
   useEffect(() => {
     const url = eventFilter
       ? `/api/clinic-booking/events?eventId=${eventFilter}`
@@ -179,6 +191,11 @@ function ClinicBookingContent() {
     if (spot_count !== count) setSpotCount(spot_count);
 
     setHolding(true);
+    if (holdSessionId) {
+      await releaseHold(holdSessionId);
+      setHoldSessionId(null);
+      setHoldExpiresAt(null);
+    }
     const response = await fetch("/api/clinic-booking/hold", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -238,13 +255,25 @@ function ClinicBookingContent() {
     setHoldSessionId(null);
   }
 
+  async function returnToSpotCount() {
+    if (holdSessionId) await releaseHold(holdSessionId);
+    setHoldSessionId(null);
+    setHoldExpiresAt(null);
+    setSecondsLeft(0);
+    setStep(0);
+    setSubmitError(null);
+    await refreshAvailability();
+  }
+
   async function cancelBooking() {
     if (holdSessionId) await releaseHold(holdSessionId);
     setHoldSessionId(null);
     setHoldExpiresAt(null);
+    setSecondsLeft(0);
     setStep(0);
     setSelectedEvent(null);
     setSubmitError(null);
+    await refreshAvailability();
   }
 
   const pendingMessage =
@@ -410,7 +439,7 @@ function ClinicBookingContent() {
                 </div>
                 {submitError && <p className="text-sm text-destructive">{submitError}</p>}
                 <div className="flex justify-between pt-2">
-                  <Button variant="outline" onClick={() => setSelectedEvent(null)}>Back</Button>
+                  <Button variant="outline" onClick={() => void cancelBooking()}>Back</Button>
                   <Button
                     onClick={startHold}
                     disabled={holding || spotCount === "" || spotCount < 1}
@@ -664,7 +693,7 @@ function ClinicBookingContent() {
                   <Button
                     variant="outline"
                     onClick={() => {
-                      if (step === 1) cancelBooking();
+                      if (step === 1) void returnToSpotCount();
                       else setStep(step - 1);
                     }}
                   >
