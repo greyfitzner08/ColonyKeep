@@ -11,11 +11,17 @@ import { CaseHistorySection } from "@/components/cases/case-history-section";
 import { InfoRow } from "@/components/cases/case-detail-fields";
 import { MedicalReviewActions } from "@/components/cases/medical-review-actions";
 import { displayColonyNotes } from "@/lib/cases/colony-notes";
-import { getInquiryTeamStatusLabel, getStatusOptionsForRole } from "@/lib/cases/statuses";
-import { STATUS_COLORS } from "@/lib/constants";
+import {
+  applyCaseLifecycleStatus,
+  CASE_LIFECYCLE_STATUSES,
+  getCaseLifecycleLabel,
+  LIFECYCLE_STATUS_COLORS,
+  toCaseLifecycleStatus,
+  type CaseLifecycleStatus,
+} from "@/lib/cases/statuses";
 import { sortTrapTeams } from "@/lib/trap-teams/sort-teams";
 import { formatDateTime, cn } from "@/lib/utils";
-import type { HelpRequest, HelpRequestStatus, HistoryNoteColor, HistoryEntry, UserRole } from "@/lib/types";
+import type { HelpRequest, HistoryNoteColor, HistoryEntry, UserRole } from "@/lib/types";
 import { Trash2 } from "lucide-react";
 
 type SaveState = "idle" | "saving" | "saved" | "error";
@@ -82,7 +88,7 @@ export function CaseIntakeSection({
   readOnly = false,
 }: CaseIntakeSectionProps) {
   const isInquiryTeam = userRole === "inquiry_team";
-  const statusOptions = getStatusOptionsForRole(userRole);
+  const lifecycle = toCaseLifecycleStatus(hr);
   const reporterNotes = displayColonyNotes(hr.intake_notes, hr);
 
   return (
@@ -108,8 +114,8 @@ export function CaseIntakeSection({
               <div className="space-y-2">
                 <Label>Status</Label>
                 <div className="flex h-10 items-center">
-                  <Badge className={cn("text-sm", STATUS_COLORS[hr.status])}>
-                    {getInquiryTeamStatusLabel(hr)}
+                  <Badge className={cn("text-sm", LIFECYCLE_STATUS_COLORS[lifecycle])}>
+                    {getCaseLifecycleLabel(hr)}
                   </Badge>
                 </div>
                 <p className="text-xs text-muted-foreground">
@@ -121,21 +127,30 @@ export function CaseIntakeSection({
               <div className="space-y-2">
                 <Label>Status</Label>
                 <Select
-                  value={hr.status}
-                  onValueChange={(v) => onChange({ ...hr, status: v as HelpRequestStatus })}
+                  value={lifecycle}
+                  onValueChange={(v) =>
+                    onChange({
+                      ...hr,
+                      status: applyCaseLifecycleStatus(hr.status, v as CaseLifecycleStatus),
+                    })
+                  }
                   disabled={readOnly}
                 >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {statusOptions.map((s) => (
+                    {CASE_LIFECYCLE_STATUSES.map((s) => (
                       <SelectItem key={s.value} value={s.value}>
                         {s.label}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
+                <p className="text-xs text-muted-foreground">
+                  Open, in progress, on hold, or closed. Appointment / trap steps stay on the
+                  trap board.
+                </p>
               </div>
             )}
             <div className="space-y-2">

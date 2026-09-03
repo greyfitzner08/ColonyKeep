@@ -5,7 +5,12 @@ import { CaseDetailTabs } from "@/components/cases/case-detail-tabs";
 import { Badge } from "@/components/ui/badge";
 import { STATUS_COLORS } from "@/lib/constants";
 import { hasActiveMedicalFlag } from "@/lib/medical-flags";
-import { getStatusLabel, getInquiryTeamStatusLabel } from "@/lib/cases/statuses";
+import {
+  getCaseLifecycleLabel,
+  getStatusLabel,
+  LIFECYCLE_STATUS_COLORS,
+  toCaseLifecycleStatus,
+} from "@/lib/cases/statuses";
 import {
   canIntakeReviewerWorkCase,
   intakeCaseRequiresClaim,
@@ -67,7 +72,15 @@ export default async function CasePage({ params }: CasePageProps) {
   );
 
   const isInquiryViewer = profile?.role === "inquiry_team";
-  const statusLabel = isInquiryViewer ? getInquiryTeamStatusLabel(hr) : getStatusLabel(hr.status);
+  const isTrapViewer =
+    profile?.role === "trap_team_lead" || profile?.role === "volunteer";
+  const lifecycle = toCaseLifecycleStatus(hr);
+  const statusLabel = isTrapViewer
+    ? getStatusLabel(hr.status, "trap")
+    : getCaseLifecycleLabel(hr);
+  const statusColor = isTrapViewer
+    ? STATUS_COLORS[hr.status]
+    : LIFECYCLE_STATUS_COLORS[lifecycle];
   const actorEmail = profile?.email ?? "";
   const requiresClaim = intakeCaseRequiresClaim(profile?.role, hr.status);
   const canWorkCase = canIntakeReviewerWorkCase({
@@ -90,7 +103,7 @@ export default async function CasePage({ params }: CasePageProps) {
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-wrap items-center gap-3">
           <h1 className="text-2xl font-bold sm:text-3xl">{hr.case_number}</h1>
-          <Badge className={cn("text-sm", STATUS_COLORS[hr.status])}>
+          <Badge className={cn("text-sm", statusColor)}>
             {statusLabel}
           </Badge>
           {medical && (

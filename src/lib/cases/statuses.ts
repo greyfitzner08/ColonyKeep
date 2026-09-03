@@ -1,6 +1,77 @@
 import { CASE_STATUSES } from "@/lib/constants";
 import type { HelpRequest, HelpRequestStatus, UserRole } from "@/lib/types";
 
+/** Case management lifecycle — separate from trap workflow stages. */
+export type CaseLifecycleStatus = "open" | "in_progress" | "on_hold" | "closed";
+
+export const CASE_LIFECYCLE_STATUSES: { value: CaseLifecycleStatus; label: string }[] = [
+  { value: "open", label: "Open" },
+  { value: "in_progress", label: "In progress" },
+  { value: "on_hold", label: "On hold" },
+  { value: "closed", label: "Closed" },
+];
+
+export const LIFECYCLE_STATUS_COLORS: Record<CaseLifecycleStatus, string> = {
+  open: "bg-sky-100 text-sky-800",
+  in_progress: "bg-amber-100 text-amber-900",
+  on_hold: "bg-orange-100 text-orange-900",
+  closed: "bg-slate-200 text-slate-700",
+};
+
+const TRAP_WORKFLOW_STATUSES = new Set<HelpRequestStatus>([
+  "claimed",
+  "routed_to_trap_team",
+  "appointment_needed",
+  "appointment_reserved",
+  "cat_trapped",
+  "transported",
+  "checked_in",
+]);
+
+/** Map stored workflow status → case-management lifecycle. */
+export function toCaseLifecycleStatus(
+  hr: Pick<HelpRequest, "status" | "claimed_by_email"> | HelpRequestStatus
+): CaseLifecycleStatus {
+  const status = typeof hr === "string" ? hr : hr.status;
+  const claimedByEmail = typeof hr === "string" ? null : hr.claimed_by_email;
+
+  if (status === "closed" || status === "completed") return "closed";
+  if (status === "needs_more_info") return "on_hold";
+  if (TRAP_WORKFLOW_STATUSES.has(status)) return "in_progress";
+  if (claimedByEmail?.trim()) return "in_progress";
+  return "open";
+}
+
+export function getCaseLifecycleLabel(
+  hr: Pick<HelpRequest, "status" | "claimed_by_email"> | HelpRequestStatus
+): string {
+  const lifecycle = toCaseLifecycleStatus(hr);
+  return CASE_LIFECYCLE_STATUSES.find((entry) => entry.value === lifecycle)?.label ?? lifecycle;
+}
+
+/**
+ * Apply a lifecycle choice onto the stored status.
+ * Preserves trap workflow detail when staying in "in progress".
+ */
+export function applyCaseLifecycleStatus(
+  current: HelpRequestStatus,
+  next: CaseLifecycleStatus
+): HelpRequestStatus {
+  if (toCaseLifecycleStatus(current) === next) return current;
+
+  switch (next) {
+    case "open":
+      return "under_review";
+    case "in_progress":
+      if (TRAP_WORKFLOW_STATUSES.has(current)) return current;
+      return "claimed";
+    case "on_hold":
+      return "needs_more_info";
+    case "closed":
+      return "closed";
+  }
+}
+
 /** Statuses shown on the inquiry queue by default (pre-trap workflow). */
 export const INTAKE_QUEUE_STATUSES: HelpRequestStatus[] = [
   "new_intake",
@@ -88,15 +159,11 @@ export function getStatusLabel(status: HelpRequestStatus, context: "trap" | "def
   return CASE_STATUSES.find((entry) => entry.value === status)?.label ?? status.replace(/_/g, " ");
 }
 
-/** Simplified status labels for inquiry team — status is set by actions, not a dropdown. */
+/** Case detail / inquiry status — lifecycle only (not trap workflow milestones). */
 export function getInquiryTeamStatusLabel(
   hr: Pick<HelpRequest, "status" | "claimed_by_email">
 ): string {
-  if (hr.status === "routed_to_trap_team") return "Routed to trap team";
-  if (hr.status === "needs_more_info") return "Needs more info";
-  if (hr.claimed_by_email?.trim()) return "Claimed";
-  if (hr.status === "new_intake" || hr.status === "under_review") return "Unclaimed";
-  return getStatusLabel(hr.status);
+  return getCaseLifecycleLabel(hr);
 }
 
 export function inquiryTeamManagesStatus(status: HelpRequestStatus) {
@@ -117,9 +184,7 @@ export function getStatusOptionsForRole(role: UserRole | null | undefined) {
   if (role === "trap_team_lead" || role === "volunteer") {
     return filterStatusOptions(TRAP_EDITABLE_STATUSES);
   }
-  return CASE_STATUSES.filter(
-    (entry) => !deprecated.has(entry.value)
-  );
+  return CASE_STATUSES.filter((entry) => !deprecated.has(entry.value));
 }
 
 function filterStatusOptions(statuses: HelpRequestStatus[]) {

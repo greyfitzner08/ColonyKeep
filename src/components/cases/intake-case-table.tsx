@@ -10,7 +10,12 @@ import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import { STATUS_COLORS } from "@/lib/constants";
 import { hasActiveMedicalFlag } from "@/lib/medical-flags";
 import { CaseFollowUpIndicator } from "@/components/cases/case-follow-up-indicator";
-import { getStatusLabel } from "@/lib/cases/statuses";
+import {
+  getCaseLifecycleLabel,
+  getStatusLabel,
+  LIFECYCLE_STATUS_COLORS,
+  toCaseLifecycleStatus,
+} from "@/lib/cases/statuses";
 import { formatDateTime } from "@/lib/utils";
 import { postCaseClaim } from "@/lib/cases/case-claim-api";
 import type { HelpRequest } from "@/lib/types";
@@ -87,12 +92,29 @@ export function IntakeCaseTable({
       {
         id: "status",
         label: "Status",
-        sortValue: (helpRequest) => getStatusLabel(helpRequest.status, statusLabelContext),
-        render: (helpRequest) => (
-          <Badge className={cn("text-xs whitespace-nowrap", STATUS_COLORS[helpRequest.status])}>
-            {getStatusLabel(helpRequest.status, statusLabelContext)}
-          </Badge>
-        ),
+        sortValue: (helpRequest) =>
+          statusLabelContext === "trap"
+            ? getStatusLabel(helpRequest.status, "trap")
+            : getCaseLifecycleLabel(helpRequest),
+        render: (helpRequest) => {
+          if (statusLabelContext === "trap") {
+            return (
+              <Badge
+                className={cn("text-xs whitespace-nowrap", STATUS_COLORS[helpRequest.status])}
+              >
+                {getStatusLabel(helpRequest.status, "trap")}
+              </Badge>
+            );
+          }
+          const lifecycle = toCaseLifecycleStatus(helpRequest);
+          return (
+            <Badge
+              className={cn("text-xs whitespace-nowrap", LIFECYCLE_STATUS_COLORS[lifecycle])}
+            >
+              {getCaseLifecycleLabel(helpRequest)}
+            </Badge>
+          );
+        },
       },
       {
         id: "location",
