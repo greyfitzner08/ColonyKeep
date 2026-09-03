@@ -1,6 +1,8 @@
 export interface ColumnLayoutState {
   order: string[];
   widths: Record<string, number>;
+  /** Column ids that are currently hidden. */
+  hidden: string[];
 }
 
 export interface ColumnLayoutDefinition {
@@ -33,19 +35,18 @@ export function loadColumnLayout(
   );
 
   if (typeof window === "undefined") {
-    return { order: defaultOrder, widths: defaultWidths };
+    return { order: defaultOrder, widths: defaultWidths, hidden: [] };
   }
 
   try {
     const raw = window.localStorage.getItem(`${STORAGE_PREFIX}${tableId}`);
-    if (!raw) return { order: defaultOrder, widths: defaultWidths };
+    if (!raw) return { order: defaultOrder, widths: defaultWidths, hidden: [] };
 
     const parsed = JSON.parse(raw) as Partial<ColumnLayoutState>;
-    const savedOrder = Array.isArray(parsed.order) ? parsed.order.filter((id) => definitionById.has(id)) : [];
-    const order = [
-      ...savedOrder,
-      ...defaultOrder.filter((id) => !savedOrder.includes(id)),
-    ];
+    const savedOrder = Array.isArray(parsed.order)
+      ? parsed.order.filter((id) => definitionById.has(id))
+      : [];
+    const order = [...savedOrder, ...defaultOrder.filter((id) => !savedOrder.includes(id))];
 
     const widths = { ...defaultWidths };
     if (parsed.widths && typeof parsed.widths === "object") {
@@ -56,9 +57,18 @@ export function loadColumnLayout(
       }
     }
 
-    return { order, widths };
+    const hidden = Array.isArray(parsed.hidden)
+      ? parsed.hidden.filter((id) => definitionById.has(id))
+      : [];
+
+    // Keep at least one column visible.
+    if (hidden.length >= definitions.length && definitions.length > 0) {
+      return { order, widths, hidden: hidden.filter((id) => id !== definitions[0].id) };
+    }
+
+    return { order, widths, hidden };
   } catch {
-    return { order: defaultOrder, widths: defaultWidths };
+    return { order: defaultOrder, widths: defaultWidths, hidden: [] };
   }
 }
 

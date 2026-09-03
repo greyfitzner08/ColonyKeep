@@ -27,7 +27,16 @@ function mergeLayoutWithDefinitions(
     }
   }
 
-  return { order, widths };
+  const hidden = (layout.hidden ?? []).filter((id) => knownIds.has(id));
+  if (hidden.length >= definitions.length && definitions.length > 0) {
+    return {
+      order,
+      widths,
+      hidden: hidden.filter((id) => id !== definitions[0].id),
+    };
+  }
+
+  return { order, widths, hidden };
 }
 
 export function useColumnLayout(tableId: string, definitions: ColumnLayoutDefinition[]) {
@@ -56,11 +65,14 @@ export function useColumnLayout(tableId: string, definitions: ColumnLayoutDefini
     [definitions]
   );
 
-  const orderedColumnIds = useMemo(() => {
-    return mergeLayoutWithDefinitions(layout, definitions).order;
-  }, [definitions, layout]);
+  const merged = useMemo(
+    () => mergeLayoutWithDefinitions(layout, definitions),
+    [definitions, layout]
+  );
 
-  const columnWidths = layout.widths;
+  const orderedColumnIds = merged.order;
+  const columnWidths = merged.widths;
+  const hiddenColumnIds = merged.hidden;
 
   const setColumnWidth = useCallback(
     (columnId: string, width: number) => {
@@ -85,10 +97,43 @@ export function useColumnLayout(tableId: string, definitions: ColumnLayoutDefini
     }));
   }, []);
 
+  const setColumnHidden = useCallback(
+    (columnId: string, hidden: boolean) => {
+      if (!definitionById.has(columnId)) return;
+
+      setLayout((current) => {
+        const nextHidden = new Set(current.hidden ?? []);
+        if (hidden) nextHidden.add(columnId);
+        else nextHidden.delete(columnId);
+
+        const visibleCount = definitionsRef.current.filter(
+          (definition) => !nextHidden.has(definition.id)
+        ).length;
+        if (visibleCount === 0) return current;
+
+        return {
+          ...current,
+          hidden: [...nextHidden],
+        };
+      });
+    },
+    [definitionById]
+  );
+
+  const showAllColumns = useCallback(() => {
+    setLayout((current) => ({
+      ...current,
+      hidden: [],
+    }));
+  }, []);
+
   return {
     orderedColumnIds,
     columnWidths,
+    hiddenColumnIds,
     setColumnWidth,
     moveColumn,
+    setColumnHidden,
+    showAllColumns,
   };
 }

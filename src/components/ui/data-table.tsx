@@ -1,8 +1,11 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState, type ReactNode } from "react";
-import { ArrowDown, ArrowUp, ArrowUpDown, GripVertical, Search } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { ArrowDown, ArrowUp, ArrowUpDown, Columns3, GripVertical, Search } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { useColumnLayout } from "@/hooks/use-column-layout";
 import { buildDataTableSearchText, compareSortValues, type SortDirection } from "@/lib/sort-values";
 import { cn } from "@/lib/utils";
@@ -10,13 +13,17 @@ import { cn } from "@/lib/utils";
 export interface DataTableColumn<T> {
   id: string;
   label: ReactNode;
+  /** Plain-text label for the Columns menu when `label` is not a string. */
+  labelText?: string;
   header?: ReactNode;
   defaultWidth?: number;
   minWidth?: number;
   headerClassName?: string;
   cellClassName?: string;
-  /** Allow cell text to wrap when using content-based column sizing. */
+  /** Allow cell text to wrap. */
   wrap?: boolean;
+  /** When false, the column cannot be hidden. Defaults to true. */
+  hideable?: boolean;
   /** When provided, the column header becomes sortable (A-Z / min-max). */
   sortValue?: (row: T) => string | number | null | undefined;
   render: (row: T) => ReactNode;
@@ -35,15 +42,28 @@ export interface DataTableProps<T> {
   minTableWidth?: number;
   /** When true, cell content is clipped to column width. Default false shows full content with wrapping. */
   clipCellContent?: boolean;
-  /** `content` sizes columns to fit cell data; `fixed` uses resizable pixel widths. */
+  /**
+   * `fixed` (default) uses resizable pixel widths — drag header edges to resize.
+   * `content` sizes columns to fit cell data without resize handles.
+   */
   columnSizing?: "fixed" | "content";
   /** Initial sort applied when the table mounts. */
   defaultSort?: { columnId: string; direction: SortDirection };
   /** Show a search field above the table. Defaults to true. */
   enableSearch?: boolean;
+  /** Show a Columns menu to hide/show columns. Defaults to true. */
+  enableColumnVisibility?: boolean;
   searchPlaceholder?: string;
   /** Custom searchable text. Defaults to values from column sortValue functions. */
   getSearchText?: (row: T) => string;
+}
+
+function columnMenuLabel<T>(column: DataTableColumn<T>): string {
+  if (column.labelText) return column.labelText;
+  if (typeof column.label === "string") return column.label;
+  return column.id
+    .replace(/[_-]+/g, " ")
+    .replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
 export function DataTable<T>({
@@ -58,9 +78,10 @@ export function DataTable<T>({
   tableClassName,
   minTableWidth,
   clipCellContent = false,
-  columnSizing = "content",
+  columnSizing = "fixed",
   defaultSort,
   enableSearch = true,
+  enableColumnVisibility = true,
   searchPlaceholder = "Search table…",
   getSearchText,
 }: DataTableProps<T>) {
@@ -69,6 +90,8 @@ export function DataTable<T>({
     defaultSort ?? null
   );
   const [searchQuery, setSearchQuery] = useState("");
+  const [columnsMenuOpen, setColumnsMenuOpen] = useState(false);
+  const columnsMenuRef = useRef<HTMLDivElement>(null);
 
   const columnDefinitions = useMemo(
     () =>
@@ -80,15 +103,23 @@ export function DataTable<T>({
     [columns]
   );
 
-  const { orderedColumnIds, columnWidths, setColumnWidth, moveColumn } = useColumnLayout(
-    tableId,
-    columnDefinitions
-  );
+  const {
+    orderedColumnIds,
+    columnWidths,
+    hiddenColumnIds,
+    setColumnWidth,
+    moveColumn,
+    setColumnHidden,
+    showAllColumns,
+  } = useColumnLayout(tableId, columnDefinitions);
+
+  const hiddenSet = useMemo(() => new Set(hiddenColumnIds), [hiddenColumnIds]);
 
   const columnById = useMemo(() => new Map(columns.map((column) => [column.id, column])), [columns]);
   const orderedColumns = orderedColumnIds
     .map((id) => columnById.get(id))
-    .filter((column): column is DataTableColumn<T> => Boolean(column));
+    .filter((column): column is DataTableColumn<T> => Boolean(column))
+    .filter((column) => !hiddenSet.has(column.id));
 
   const resolveSearchText = useCallback(
     (row: T) => {
@@ -124,6 +155,27 @@ export function DataTable<T>({
     startX: number;
     startWidth: number;
   } | null>(null);
+
+  useEffect(() => {
+    if (!columnsMenuOpen) return;
+
+    function handlePointerDown(event: MouseEvent) {
+      if (!columnsMenuRef.current?.contains(event.target as Node)) {
+        setColumnsMenuOpen(false);
+      }
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") setColumnsMenuOpen(false);
+    }
+
+    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [columnsMenuOpen]);
 
   const totalTableWidth = useMemo(() => {
     if (!isFixedSizing) return minTableWidth ?? 0;
@@ -211,27 +263,99 @@ export function DataTable<T>({
     );
   }
 
+  const searchActive = enableSearch && searchQuery.trim().length > 0;
+  const showingCount = sortedRows.length;
+  const totalCount = rows.length;
+  const showToolbar = enableSearch || enableColumnVisibility;
+
   if (rows.length === 0) {
     return <p className="py-12 text-center text-muted-foreground">{emptyMessage}</p>;
   }
 
-  const searchActive = enableSearch && searchQuery.trim().length > 0;
-  const showingCount = sortedRows.length;
-  const totalCount = rows.length;
-
   return (
     <div className="space-y-3">
-      {enableSearch && (
+      {showToolbar && (
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <div className="relative max-w-md flex-1">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={searchQuery}
-              onChange={(event) => setSearchQuery(event.target.value)}
-              placeholder={searchPlaceholder}
-              className="pl-9"
-              aria-label={searchPlaceholder}
-            />
+          <div className="flex flex-1 flex-col gap-2 sm:flex-row sm:items-center">
+            {enableSearch && (
+              <div className="relative max-w-md flex-1">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={searchQuery}
+                  onChange={(event) => setSearchQuery(event.target.value)}
+                  placeholder={searchPlaceholder}
+                  className="pl-9"
+                  aria-label={searchPlaceholder}
+                />
+              </div>
+            )}
+            {enableColumnVisibility && (
+              <div className="relative" ref={columnsMenuRef}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setColumnsMenuOpen((open) => !open)}
+                  aria-expanded={columnsMenuOpen}
+                  aria-haspopup="menu"
+                >
+                  <Columns3 className="h-4 w-4" />
+                  Columns
+                </Button>
+                {columnsMenuOpen && (
+                  <div
+                    role="menu"
+                    className="absolute left-0 z-20 mt-2 w-56 rounded-md border bg-popover p-3 text-popover-foreground shadow-md"
+                  >
+                    <div className="mb-2 flex items-center justify-between gap-2">
+                      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                        Show columns
+                      </p>
+                      {hiddenColumnIds.length > 0 && (
+                        <button
+                          type="button"
+                          className="text-xs text-primary hover:underline"
+                          onClick={showAllColumns}
+                        >
+                          Show all
+                        </button>
+                      )}
+                    </div>
+                    <div className="space-y-2">
+                      {orderedColumnIds.map((columnId) => {
+                        const column = columnById.get(columnId);
+                        if (!column) return null;
+                        const hideable = column.hideable !== false;
+                        const checked = !hiddenSet.has(column.id);
+                        const onlyVisible =
+                          checked && orderedColumns.length === 1;
+                        return (
+                          <div key={column.id} className="flex items-center gap-2">
+                            <Checkbox
+                              id={`${tableId}-col-${column.id}`}
+                              checked={checked}
+                              disabled={!hideable || onlyVisible}
+                              onCheckedChange={(value) =>
+                                setColumnHidden(column.id, value !== true)
+                              }
+                            />
+                            <Label
+                              htmlFor={`${tableId}-col-${column.id}`}
+                              className="font-normal"
+                            >
+                              {columnMenuLabel(column)}
+                            </Label>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <p className="mt-3 text-xs text-muted-foreground">
+                      Drag header edges to resize. Drag the grip to reorder.
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
           {searchActive && (
             <p className="text-sm text-muted-foreground">
@@ -241,7 +365,11 @@ export function DataTable<T>({
         </div>
       )}
 
-      {sortedRows.length === 0 ? (
+      {orderedColumns.length === 0 ? (
+        <p className="py-12 text-center text-muted-foreground">
+          All columns are hidden. Use Columns to show some again.
+        </p>
+      ) : sortedRows.length === 0 ? (
         <p className="py-12 text-center text-muted-foreground">{noSearchMatchMessage}</p>
       ) : (
         <div className={cn("overflow-x-auto rounded-lg border", className)}>
@@ -314,7 +442,7 @@ export function DataTable<T>({
                       <div
                         className={cn(
                           "flex min-w-0 items-center gap-1",
-                          isFixedSizing && clipCellContent ? "pr-4" : "pr-0"
+                          isFixedSizing ? "pr-3" : "pr-0"
                         )}
                       >
                         <span
@@ -348,7 +476,8 @@ export function DataTable<T>({
                         <div
                           role="separator"
                           aria-orientation="vertical"
-                          aria-label={`Resize ${String(column.label)} column`}
+                          aria-label={`Resize ${columnMenuLabel(column)} column`}
+                          title="Drag to resize"
                           className="absolute right-0 top-0 z-10 h-full w-3 cursor-col-resize touch-none hover:bg-primary/30"
                           onPointerDown={(event) => startResize(event, column.id)}
                         />
