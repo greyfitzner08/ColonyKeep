@@ -52,7 +52,8 @@ function ClinicBookingContent() {
   const [events, setEvents] = useState<PublicClinicEvent[]>([]);
   const [available, setAvailable] = useState<Record<string, number>>({});
   const [selectedEvent, setSelectedEvent] = useState<PublicClinicEvent | null>(null);
-  const [spotCount, setSpotCount] = useState(1);
+  /** Empty string while typing so users can clear and enter a new number. */
+  const [spotCount, setSpotCount] = useState<number | "">(1);
   const [holdSessionId, setHoldSessionId] = useState<string | null>(null);
   const [holdExpiresAt, setHoldExpiresAt] = useState<string | null>(null);
   const [secondsLeft, setSecondsLeft] = useState(0);
@@ -146,14 +147,32 @@ function ClinicBookingContent() {
     return spots.reduce((sum, spot) => sum + calculateSpotTotal(spot), 0);
   }
 
+  function maxSpotRequest(event: PublicClinicEvent) {
+    return Math.min(20, available[event.id] ?? event.total_spots);
+  }
+
+  function parsedSpotCount(): number | null {
+    if (spotCount === "") return null;
+    return spotCount;
+  }
+
   async function startHold() {
     if (!selectedEvent) return;
     setSubmitError(null);
+    const max = maxSpotRequest(selectedEvent);
+    const count = parsedSpotCount();
+    if (count == null || count < 1) {
+      setSubmitError("Enter how many cats you need spots for.");
+      return;
+    }
+    const spot_count = Math.min(count, max);
+    if (spot_count !== count) setSpotCount(spot_count);
+
     setHolding(true);
     const response = await fetch("/api/clinic-booking/hold", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ event_id: selectedEvent.id, spot_count: spotCount }),
+      body: JSON.stringify({ event_id: selectedEvent.id, spot_count }),
     });
     const result = await response.json().catch(() => null);
     setHolding(false);
@@ -364,27 +383,41 @@ function ClinicBookingContent() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  <Label>Number of spots to request</Label>
+                  <Label htmlFor="spot-count">Number of spots to request</Label>
                   <Input
+                    id="spot-count"
                     type="number"
+                    inputMode="numeric"
                     min={1}
-                    max={Math.min(20, available[selectedEvent.id] ?? selectedEvent.total_spots)}
+                    max={maxSpotRequest(selectedEvent)}
                     value={spotCount}
-                    onChange={(e) =>
-                      setSpotCount(
-                        Math.min(
-                          Math.max(parseInt(e.target.value, 10) || 1, 1),
-                          Math.min(20, available[selectedEvent.id] ?? selectedEvent.total_spots)
-                        )
-                      )
-                    }
+                    onChange={(e) => {
+                      const raw = e.target.value;
+                      if (raw === "") {
+                        setSpotCount("");
+                        return;
+                      }
+                      const parsed = parseInt(raw, 10);
+                      if (Number.isNaN(parsed)) return;
+                      setSpotCount(Math.min(Math.max(parsed, 0), maxSpotRequest(selectedEvent)));
+                    }}
+                    onBlur={() => {
+                      if (spotCount === "" || spotCount < 1) setSpotCount(1);
+                    }}
                   />
                 </div>
                 {submitError && <p className="text-sm text-destructive">{submitError}</p>}
                 <div className="flex justify-between pt-2">
                   <Button variant="outline" onClick={() => setSelectedEvent(null)}>Back</Button>
-                  <Button onClick={startHold} disabled={holding}>
-                    {holding ? "Starting…" : `Continue (${spotCount} spot${spotCount === 1 ? "" : "s"})`}
+                  <Button
+                    onClick={startHold}
+                    disabled={holding || spotCount === "" || spotCount < 1}
+                  >
+                    {holding
+                      ? "Starting…"
+                      : spotCount === "" || spotCount < 1
+                        ? "Continue"
+                        : `Continue (${spotCount} spot${spotCount === 1 ? "" : "s"})`}
                   </Button>
                 </div>
               </CardContent>
