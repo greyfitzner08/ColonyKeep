@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { Plus, Pencil, Trash2, QrCode, Loader2, ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
@@ -28,6 +28,7 @@ import { parseEquipmentQrPayload } from "@/lib/equipment/qr-parse";
 import { sortTrapTeams } from "@/lib/trap-teams/sort-teams";
 import { volunteerDisplayName } from "@/lib/equipment/volunteers";
 import {
+  EQUIPMENT_STATUS_COLORS,
   TRAP_EQUIPMENT_STATUSES,
   TRAP_EQUIPMENT_TYPES,
   equipmentTypeLabel,
@@ -41,6 +42,7 @@ import type {
   TrapTeam,
 } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 
 const EquipmentQrScanner = dynamic(
@@ -78,14 +80,7 @@ const emptyForm = {
 
 const UNASSIGNED = "__unassigned__";
 
-type EquipmentSortKey =
-  | "item"
-  | "type"
-  | "quantity"
-  | "status"
-  | "team"
-  | "custodian"
-  | "location";
+type EquipmentSortKey = "item" | "status" | "assigned" | "loaned";
 
 type SortDirection = "asc" | "desc";
 
@@ -108,21 +103,16 @@ export function TrapEquipmentManager({
   const [rowError, setRowError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [scanNotice, setScanNotice] = useState<string | null>(null);
-  const [sortKey, setSortKey] = useState<EquipmentSortKey>("team");
+  const [sortKey, setSortKey] = useState<EquipmentSortKey>("assigned");
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
   const [filterTeamId, setFilterTeamId] = useState("all");
   const [filterType, setFilterType] = useState("all");
   const [filterStatus, setFilterStatus] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
-  const rowsRef = useRef(rows);
 
   useEffect(() => {
     setRows(initialItems);
   }, [initialItems]);
-
-  useEffect(() => {
-    rowsRef.current = rows;
-  }, [rows]);
 
   const teamNameById = useMemo(
     () => new Map(teams.map((team) => [team.id, team.name])),
@@ -408,16 +398,6 @@ export function TrapEquipmentManager({
         case "item":
           comparison = itemTitle(a).localeCompare(itemTitle(b), undefined, { sensitivity: "base" });
           break;
-        case "type":
-          comparison = equipmentTypeLabel(a.equipment_type).localeCompare(
-            equipmentTypeLabel(b.equipment_type),
-            undefined,
-            { sensitivity: "base" }
-          );
-          break;
-        case "quantity":
-          comparison = a.quantity - b.quantity;
-          break;
         case "status":
           comparison = equipmentStatusLabel(a.status).localeCompare(
             equipmentStatusLabel(b.status),
@@ -425,16 +405,14 @@ export function TrapEquipmentManager({
             { sensitivity: "base" }
           );
           break;
-        case "team":
-          comparison = teamLabel(a).localeCompare(teamLabel(b), undefined, { sensitivity: "base" });
+        case "assigned": {
+          const aAssigned = `${custodianLabel(a)} ${teamLabel(a)} ${a.location ?? ""}`;
+          const bAssigned = `${custodianLabel(b)} ${teamLabel(b)} ${b.location ?? ""}`;
+          comparison = aAssigned.localeCompare(bAssigned, undefined, { sensitivity: "base" });
           break;
-        case "custodian":
-          comparison = custodianLabel(a).localeCompare(custodianLabel(b), undefined, {
-            sensitivity: "base",
-          });
-          break;
-        case "location":
-          comparison = (a.location ?? "").localeCompare(b.location ?? "", undefined, {
+        }
+        case "loaned":
+          comparison = (a.borrower_name ?? "").localeCompare(b.borrower_name ?? "", undefined, {
             sensitivity: "base",
           });
           break;
@@ -465,87 +443,13 @@ export function TrapEquipmentManager({
     setSearchQuery("");
   }
 
-  function saveBorrowerFields(itemId: string) {
-    const row = rowsRef.current.find((entry) => entry.id === itemId);
-    if (!row) return;
-    void updateRow(itemId, {
-      borrower_name: row.borrower_name,
-      borrower_email: row.borrower_email,
-      borrower_phone: row.borrower_phone,
-    });
-  }
-
-  function renderBorrowerContact(item: TrapEquipmentItem, isSaving: boolean) {
-    if (item.status !== "loaned") {
-      return <span className="text-muted-foreground">—</span>;
-    }
-
-    return (
-      <div className="space-y-1.5 min-w-[180px]">
-        <Input
-          className="h-9"
-          placeholder="Borrower name"
-          disabled={isSaving}
-          value={item.borrower_name ?? ""}
-          onChange={(e) =>
-            setRows((prev) =>
-              prev.map((row) =>
-                row.id === item.id ? { ...row, borrower_name: e.target.value } : row
-              )
-            )
-          }
-          onBlur={() => saveBorrowerFields(item.id)}
-        />
-        <Input
-          className="h-9"
-          placeholder="Phone"
-          type="tel"
-          disabled={isSaving}
-          value={item.borrower_phone ?? ""}
-          onChange={(e) =>
-            setRows((prev) =>
-              prev.map((row) =>
-                row.id === item.id ? { ...row, borrower_phone: e.target.value } : row
-              )
-            )
-          }
-          onBlur={() => saveBorrowerFields(item.id)}
-        />
-        <Input
-          className="h-9"
-          placeholder="Email"
-          type="email"
-          disabled={isSaving}
-          value={item.borrower_email ?? ""}
-          onChange={(e) =>
-            setRows((prev) =>
-              prev.map((row) =>
-                row.id === item.id ? { ...row, borrower_email: e.target.value } : row
-              )
-            )
-          }
-          onBlur={() => saveBorrowerFields(item.id)}
-        />
-      </div>
-    );
-  }
-
-  function renderCustodian(item: TrapEquipmentItem) {
-    const volunteer = item.assigned_to_profile_id
-      ? volunteerById.get(item.assigned_to_profile_id)
-      : null;
-    if (!volunteer) return null;
-    return (
-      <p className="text-sm text-muted-foreground mt-1">
-        {volunteer.phone ? (
-          <a href={`tel:${volunteer.phone}`} className="text-primary hover:underline">
-            {volunteer.phone}
-          </a>
-        ) : (
-          volunteer.email
-        )}
-      </p>
-    );
+  function borrowerSummary(item: TrapEquipmentItem) {
+    if (item.status !== "loaned") return null;
+    const contact = [item.borrower_phone, item.borrower_email].filter(Boolean).join(" · ");
+    return {
+      name: item.borrower_name?.trim() || "Name needed",
+      contact: contact || null,
+    };
   }
 
   const renderSortHeader = useCallback(
@@ -559,7 +463,7 @@ export function TrapEquipmentManager({
           onClick={() => handleSort(key)}
         >
           {label}
-          <Icon className="h-4 w-4 shrink-0" aria-hidden />
+          <Icon className="h-3.5 w-3.5 shrink-0" aria-hidden />
         </button>
       );
     },
@@ -572,38 +476,37 @@ export function TrapEquipmentManager({
         id: "item",
         label: "Item",
         header: renderSortHeader("Item", "item"),
-        defaultWidth: 180,
-        render: (item) => (
-          <>
-            <div className="font-medium">{itemTitle(item)}</div>
-            {item.description && (
-              <p className="mt-0.5 text-sm text-muted-foreground">{item.description}</p>
-            )}
-          </>
-        ),
-      },
-      {
-        id: "type",
-        label: "Type",
-        header: renderSortHeader("Type", "type"),
-        defaultWidth: 120,
-        render: (item) => (
-          <span className="text-muted-foreground">{equipmentTypeLabel(item.equipment_type)}</span>
-        ),
-      },
-      {
-        id: "quantity",
-        label: "Qty",
-        header: renderSortHeader("Qty", "quantity"),
-        defaultWidth: 72,
-        minWidth: 56,
-        render: (item) => item.quantity,
+        defaultWidth: 240,
+        wrap: true,
+        render: (item) => {
+          const title = itemTitle(item);
+          const typeLabel = equipmentTypeLabel(item.equipment_type);
+          const showType = title !== typeLabel;
+          return (
+            <div className="min-w-0 space-y-0.5">
+              <div className="flex items-baseline gap-1.5">
+                <span className="font-medium leading-snug">{title}</span>
+                {item.quantity > 1 && (
+                  <Badge variant="secondary" className="shrink-0 px-1.5 py-0 text-[11px] font-medium">
+                    ×{item.quantity}
+                  </Badge>
+                )}
+              </div>
+              <p className="truncate text-xs text-muted-foreground">
+                {[showType ? typeLabel : null, item.description?.trim() || null]
+                  .filter(Boolean)
+                  .join(" · ") || "—"}
+              </p>
+            </div>
+          );
+        },
       },
       {
         id: "status",
         label: "Status",
         header: renderSortHeader("Status", "status"),
-        defaultWidth: 160,
+        defaultWidth: 140,
+        minWidth: 120,
         render: (item) => {
           const isSaving = savingRowId === item.id;
           return (
@@ -612,7 +515,12 @@ export function TrapEquipmentManager({
               disabled={isSaving}
               onValueChange={(value) => updateRow(item.id, { status: value as TrapEquipmentStatus })}
             >
-              <SelectTrigger className="h-9 w-[140px]">
+              <SelectTrigger
+                className={cn(
+                  "h-8 w-full border font-medium shadow-none",
+                  EQUIPMENT_STATUS_COLORS[item.status]
+                )}
+              >
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -627,72 +535,75 @@ export function TrapEquipmentManager({
         },
       },
       {
-        id: "team",
-        label: "Trap team",
-        header: renderSortHeader("Trap team", "team"),
-        defaultWidth: 130,
-        render: (item) => teamLabel(item),
-      },
-      {
-        id: "custodian",
-        label: "Keeps equipment",
-        header: renderSortHeader("Keeps equipment", "custodian"),
+        id: "assigned",
+        label: "With",
+        header: renderSortHeader("With", "assigned"),
         defaultWidth: 200,
+        wrap: true,
         render: (item) => {
-          const isSaving = savingRowId === item.id;
+          const custodian = custodianLabel(item);
+          const team = teamLabel(item);
+          const location = item.location?.trim();
+          const meta = [team !== "—" ? team : null, location || null].filter(Boolean).join(" · ");
+          const volunteer = item.assigned_to_profile_id
+            ? volunteerById.get(item.assigned_to_profile_id)
+            : null;
+          const contact = volunteer?.phone || volunteer?.email || null;
+
           return (
-            <>
-              <Select
-                value={item.assigned_to_profile_id ?? UNASSIGNED}
-                disabled={isSaving}
-                onValueChange={(value) =>
-                  updateRow(item.id, {
-                    assigned_to_profile_id: value === UNASSIGNED ? null : value,
-                  })
-                }
-              >
-                <SelectTrigger className="h-9 min-w-[160px]">
-                  <SelectValue placeholder="TNVR volunteer" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={UNASSIGNED}>Unassigned</SelectItem>
-                  {volunteers.map((volunteer) => (
-                    <SelectItem key={volunteer.id} value={volunteer.id}>
-                      {volunteerDisplayName(volunteer)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {renderCustodian(item)}
-              {volunteers.length === 0 && (
-                <p className="mt-1 text-sm text-muted-foreground">No TNVR volunteers found</p>
+            <div className="min-w-0 space-y-0.5">
+              <p className={cn("truncate text-sm", custodian === "Unassigned" && "text-muted-foreground")}>
+                {custodian}
+              </p>
+              {meta && <p className="truncate text-xs text-muted-foreground">{meta}</p>}
+              {contact && (
+                <p className="truncate text-xs text-muted-foreground">
+                  {volunteer?.phone ? (
+                    <a href={`tel:${volunteer.phone}`} className="text-primary hover:underline">
+                      {volunteer.phone}
+                    </a>
+                  ) : (
+                    contact
+                  )}
+                </p>
               )}
-            </>
+            </div>
           );
         },
       },
       {
-        id: "borrower",
-        label: "Public borrower",
-        defaultWidth: 200,
-        render: (item) => renderBorrowerContact(item, savingRowId === item.id),
-      },
-      {
-        id: "location",
-        label: "Location",
-        header: renderSortHeader("Location", "location"),
-        defaultWidth: 150,
-        render: (item) => <span className="text-muted-foreground">{item.location ?? "—"}</span>,
+        id: "loaned",
+        label: "Loaned to",
+        header: renderSortHeader("Loaned to", "loaned"),
+        defaultWidth: 180,
+        wrap: true,
+        render: (item) => {
+          const borrower = borrowerSummary(item);
+          if (!borrower) {
+            return <span className="text-muted-foreground">—</span>;
+          }
+          return (
+            <div className="min-w-0 space-y-0.5">
+              <p className="truncate text-sm font-medium">{borrower.name}</p>
+              {borrower.contact ? (
+                <p className="truncate text-xs text-muted-foreground">{borrower.contact}</p>
+              ) : (
+                <p className="truncate text-xs text-muted-foreground">Add contact in Edit</p>
+              )}
+            </div>
+          );
+        },
       },
       {
         id: "actions",
         label: "Actions",
-        defaultWidth: 110,
-        minWidth: 96,
+        defaultWidth: 96,
+        minWidth: 88,
+        hideable: false,
         render: (item) => {
           const isSaving = savingRowId === item.id;
           return (
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-0.5">
               {isSaving && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
               <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(item)}>
                 <Pencil className="h-4 w-4" />
@@ -712,11 +623,12 @@ export function TrapEquipmentManager({
       },
     ];
   }, [
+    custodianLabel,
     deletingId,
     renderSortHeader,
     savingRowId,
     teamLabel,
-    volunteers,
+    volunteerById,
   ]);
 
   return (
@@ -743,76 +655,65 @@ export function TrapEquipmentManager({
         </Card>
       ) : (
         <div className="space-y-3">
-          <div className="flex flex-wrap items-end gap-3 rounded-lg border bg-muted/20 p-3">
-            <div className="space-y-1.5 min-w-[200px] flex-1">
-              <Label htmlFor="equipment-search">Search</Label>
-              <Input
-                id="equipment-search"
-                placeholder="Label, location, volunteer, borrower..."
-                value={searchQuery}
-                onChange={(event) => setSearchQuery(event.target.value)}
-              />
-            </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Input
+              id="equipment-search"
+              className="h-9 min-w-[200px] flex-1"
+              placeholder="Search label, location, volunteer, borrower…"
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+            />
             {isAdmin && teams.length > 0 && (
-              <div className="space-y-1.5 min-w-[180px]">
-                <Label>Trap team</Label>
-                <Select value={filterTeamId} onValueChange={setFilterTeamId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="All teams" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All teams</SelectItem>
-                    {sortTrapTeams(teams).map((team) => (
-                      <SelectItem key={team.id} value={team.id}>
-                        {team.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              <Select value={filterTeamId} onValueChange={setFilterTeamId}>
+                <SelectTrigger className="h-9 w-[160px]">
+                  <SelectValue placeholder="All teams" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All teams</SelectItem>
+                  {sortTrapTeams(teams).map((team) => (
+                    <SelectItem key={team.id} value={team.id}>
+                      {team.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             )}
-            <div className="space-y-1.5 min-w-[180px]">
-              <Label>Equipment type</Label>
-              <Select value={filterType} onValueChange={setFilterType}>
-                <SelectTrigger>
-                  <SelectValue placeholder="All types" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All types</SelectItem>
-                  {TRAP_EQUIPMENT_TYPES.map((entry) => (
-                    <SelectItem key={entry.value} value={entry.value}>
-                      {entry.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5 min-w-[180px]">
-              <Label>Status</Label>
-              <Select value={filterStatus} onValueChange={setFilterStatus}>
-                <SelectTrigger>
-                  <SelectValue placeholder="All statuses" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All statuses</SelectItem>
-                  {TRAP_EQUIPMENT_STATUSES.map((entry) => (
-                    <SelectItem key={entry.value} value={entry.value}>
-                      {entry.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            <Select value={filterType} onValueChange={setFilterType}>
+              <SelectTrigger className="h-9 w-[160px]">
+                <SelectValue placeholder="All types" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All types</SelectItem>
+                {TRAP_EQUIPMENT_TYPES.map((entry) => (
+                  <SelectItem key={entry.value} value={entry.value}>
+                    {entry.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={filterStatus} onValueChange={setFilterStatus}>
+              <SelectTrigger className="h-9 w-[150px]">
+                <SelectValue placeholder="All statuses" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All statuses</SelectItem>
+                {TRAP_EQUIPMENT_STATUSES.map((entry) => (
+                  <SelectItem key={entry.value} value={entry.value}>
+                    {entry.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             {filtersActive && (
-              <Button variant="ghost" onClick={clearFilters}>
-                Clear filters
+              <Button variant="ghost" className="h-9" onClick={clearFilters}>
+                Clear
               </Button>
             )}
           </div>
 
-          <p className="text-sm text-muted-foreground">
-            Showing {displayRows.length} of {rows.length} items
-            {filtersActive ? " (filtered)" : ""}
+          <p className="text-xs text-muted-foreground">
+            {displayRows.length} of {rows.length} items
+            {filtersActive ? " · filtered" : ""}
           </p>
 
           {displayRows.length === 0 ? (
@@ -826,14 +727,15 @@ export function TrapEquipmentManager({
             </Card>
           ) : (
             <DataTable
-              tableId="trap-equipment"
+              tableId="trap-equipment-v2"
               columns={equipmentColumns}
               rows={displayRows}
               getRowKey={(item) => item.id}
               getRowClassName={(item) => (savingRowId === item.id ? "opacity-70" : undefined)}
               emptyMessage="No equipment matches your filters."
-              minTableWidth={1050}
+              minTableWidth={760}
               enableSearch={false}
+              clipCellContent
             />
           )}
         </div>
