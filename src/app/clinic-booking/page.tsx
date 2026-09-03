@@ -418,6 +418,8 @@ function ClinicBookingContent() {
               spotsAvailable={available[selectedEvent.id] ?? selectedEvent.total_spots}
               showTimeLimit
               showTrapReadyWarning
+              collapsible
+              defaultExpanded={false}
             />
 
             <Card>

@@ -102,30 +102,24 @@ export function EventDetailsSummary({
           )
         )}
 
+        {showTimeLimit && (
+          <p className="flex items-start gap-2 border-t px-4 py-2 text-xs text-muted-foreground">
+            <Clock className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+            <span>
+              Spots are held for <strong>10 minutes</strong> while you finish filling out your
+              request.
+            </span>
+          </p>
+        )}
+
         {showBody && (
-          <div className="space-y-4 p-4">
-            {!collapsible && (
-              <div className="grid gap-1">
+          <div className="space-y-4 border-t p-4">
+            <div className="grid gap-1">
+              {!collapsible && (
                 <p><span className="font-medium">Date:</span> {formatDate(event.date)}</p>
-                <p><span className="font-medium">Location:</span> {event.location}</p>
-              </div>
-            )}
-
-            {collapsible && (
-              <div className="grid gap-1">
-                <p><span className="font-medium">Location:</span> {event.location}</p>
-              </div>
-            )}
-
-            {showTimeLimit && (
-              <p className="flex items-start gap-2 text-xs text-muted-foreground">
-                <Clock className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                <span>
-                  Spots are held for <strong>10 minutes</strong> while you finish filling out your
-                  request.
-                </span>
-              </p>
-            )}
+              )}
+              <p><span className="font-medium">Location:</span> {event.location}</p>
+            </div>
 
             <ServiceCatalogDisplay catalog={catalog} basePrice={event.base_price} />
 
