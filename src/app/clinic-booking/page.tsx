@@ -460,6 +460,8 @@ function ClinicBookingContent() {
               event={selectedEvent}
               checkInDetails={selectedEvent.check_in_details}
               spotsAvailable={available[selectedEvent.id] ?? selectedEvent.total_spots}
+              collapsible
+              defaultExpanded={false}
             />
 
             <Card>

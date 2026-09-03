@@ -1,9 +1,12 @@
+"use client";
+
+import { useState } from "react";
 import type { PublicClinicEvent } from "@/lib/types";
 import { normalizeServiceCatalog } from "@/lib/clinics/service-catalog";
 import { ServiceCatalogDisplay } from "@/components/clinics/service-catalog-display";
 import { SpotsLeftCounter } from "@/components/clinics/spots-left-counter";
 import { formatDate } from "@/lib/utils";
-import { AlertTriangle, Clock } from "lucide-react";
+import { AlertTriangle, ChevronDown, ChevronRight, Clock } from "lucide-react";
 
 interface EventDetailsSummaryProps {
   event: PublicClinicEvent;
@@ -15,6 +18,9 @@ interface EventDetailsSummaryProps {
   showTrapReadyWarning?: boolean;
   /** Hide clinic/title block when the parent card already shows them. */
   hideTitle?: boolean;
+  /** Start collapsed so later signup steps don't repeat the full clinic card. */
+  collapsible?: boolean;
+  defaultExpanded?: boolean;
 }
 
 export function EventDetailsSummary({
@@ -24,12 +30,16 @@ export function EventDetailsSummary({
   showTimeLimit,
   showTrapReadyWarning,
   hideTitle = false,
+  collapsible = false,
+  defaultExpanded = true,
 }: EventDetailsSummaryProps) {
+  const [expanded, setExpanded] = useState(defaultExpanded);
   const catalog = normalizeServiceCatalog(
     event.service_catalog,
     event.included_services,
     event.addon_services
   );
+  const showBody = !collapsible || expanded;
 
   return (
     <div className="space-y-3">
@@ -47,52 +57,91 @@ export function EventDetailsSummary({
         </div>
       )}
 
-      <div className="rounded-lg border bg-card p-4 space-y-4 text-sm">
-        {(spotsAvailable != null || !hideTitle) && (
-          <div className="flex items-start justify-between gap-4">
-            {!hideTitle ? (
-              <div className="min-w-0">
-                <p className="text-xs uppercase tracking-wide text-muted-foreground">Clinic</p>
-                <p className="font-semibold text-base">{event.clinic_name}</p>
-                <p className="text-lg font-medium mt-1">{event.title}</p>
-              </div>
+      <div className="rounded-lg border bg-card text-sm">
+        {collapsible ? (
+          <button
+            type="button"
+            className="flex w-full items-start gap-3 px-4 py-3 text-left"
+            onClick={() => setExpanded((current) => !current)}
+            aria-expanded={expanded}
+          >
+            {expanded ? (
+              <ChevronDown className="mt-1 h-4 w-4 shrink-0 text-muted-foreground" />
             ) : (
-              <div className="min-w-0" />
+              <ChevronRight className="mt-1 h-4 w-4 shrink-0 text-muted-foreground" />
             )}
+            <div className="min-w-0 flex-1">
+              <p className="font-semibold">{event.clinic_name}</p>
+              <p className="text-muted-foreground">
+                {event.title} · {formatDate(event.date)}
+              </p>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                {expanded ? "Hide clinic details" : "Show clinic details"}
+              </p>
+            </div>
             {spotsAvailable != null && (
               <SpotsLeftCounter remaining={spotsAvailable} size="compact" className="shrink-0" />
             )}
-          </div>
+          </button>
+        ) : (
+          (spotsAvailable != null || !hideTitle) && (
+            <div className="flex items-start justify-between gap-4 p-4 pb-0">
+              {!hideTitle ? (
+                <div className="min-w-0">
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Clinic</p>
+                  <p className="font-semibold text-base">{event.clinic_name}</p>
+                  <p className="text-lg font-medium mt-1">{event.title}</p>
+                </div>
+              ) : (
+                <div className="min-w-0" />
+              )}
+              {spotsAvailable != null && (
+                <SpotsLeftCounter remaining={spotsAvailable} size="compact" className="shrink-0" />
+              )}
+            </div>
+          )
         )}
 
-        <div className="grid gap-1">
-          <p><span className="font-medium">Date:</span> {formatDate(event.date)}</p>
-          <p><span className="font-medium">Location:</span> {event.location}</p>
-        </div>
+        {showBody && (
+          <div className="space-y-4 p-4">
+            {!collapsible && (
+              <div className="grid gap-1">
+                <p><span className="font-medium">Date:</span> {formatDate(event.date)}</p>
+                <p><span className="font-medium">Location:</span> {event.location}</p>
+              </div>
+            )}
 
-        {showTimeLimit && (
-          <p className="flex items-start gap-2 text-xs text-muted-foreground">
-            <Clock className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-            <span>
-              Spots are held for <strong>10 minutes</strong> while you finish filling out your
-              request.
-            </span>
-          </p>
-        )}
+            {collapsible && (
+              <div className="grid gap-1">
+                <p><span className="font-medium">Location:</span> {event.location}</p>
+              </div>
+            )}
 
-        <ServiceCatalogDisplay catalog={catalog} basePrice={event.base_price} />
+            {showTimeLimit && (
+              <p className="flex items-start gap-2 text-xs text-muted-foreground">
+                <Clock className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                <span>
+                  Spots are held for <strong>10 minutes</strong> while you finish filling out your
+                  request.
+                </span>
+              </p>
+            )}
 
-        {event.description && (
-          <div>
-            <p className="font-medium mb-1">About this clinic</p>
-            <p className="text-muted-foreground whitespace-pre-wrap">{event.description}</p>
-          </div>
-        )}
+            <ServiceCatalogDisplay catalog={catalog} basePrice={event.base_price} />
 
-        {checkInDetails && (
-          <div>
-            <p className="font-medium mb-1">Check-in details</p>
-            <p className="text-muted-foreground whitespace-pre-wrap">{checkInDetails}</p>
+            {event.description && (
+              <div>
+                <p className="font-medium mb-1">About this clinic</p>
+                <p className="text-muted-foreground whitespace-pre-wrap">{event.description}</p>
+              </div>
+            )}
+
+            {checkInDetails && (
+              <div>
+                <p className="font-medium mb-1">Check-in details</p>
+                <p className="text-muted-foreground whitespace-pre-wrap">{checkInDetails}</p>
+              </div>
+            )}
           </div>
         )}
       </div>
