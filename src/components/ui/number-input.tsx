@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
 
 type NumberInputProps = Omit<
   React.ComponentProps<typeof Input>,
@@ -38,6 +39,7 @@ export const NumberInput = React.forwardRef<HTMLInputElement, NumberInputProps>(
       max,
       emptyValue,
       onBlur,
+      className,
       ...props
     },
     ref
@@ -45,15 +47,32 @@ export const NumberInput = React.forwardRef<HTMLInputElement, NumberInputProps>(
     const [draft, setDraft] = React.useState<string | null>(null);
     const display = draft ?? (value === "" ? "" : String(value));
     const fallback = emptyValue ?? min ?? 0;
+    const localRef = React.useRef<HTMLInputElement>(null);
+
+    React.useImperativeHandle(ref, () => localRef.current as HTMLInputElement);
+
+    React.useEffect(() => {
+      const input = localRef.current;
+      if (!input) return;
+      const blockWheel = (event: WheelEvent) => {
+        if (document.activeElement === input) event.preventDefault();
+      };
+      input.addEventListener("wheel", blockWheel, { passive: false });
+      return () => input.removeEventListener("wheel", blockWheel);
+    }, []);
 
     return (
       <Input
         {...props}
-        ref={ref}
+        ref={localRef}
         type="number"
         inputMode={integer ? "numeric" : "decimal"}
         min={min}
         max={max}
+        className={cn(
+          "[appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none",
+          className
+        )}
         value={display}
         onChange={(event) => {
           const raw = event.target.value;
@@ -72,6 +91,12 @@ export const NumberInput = React.forwardRef<HTMLInputElement, NumberInputProps>(
           onValueChange(clamp(parsed ?? fallback, min, max));
           setDraft(null);
           onBlur?.(event);
+        }}
+        onKeyDown={(event) => {
+          if (event.key === "ArrowUp" || event.key === "ArrowDown") {
+            event.preventDefault();
+          }
+          props.onKeyDown?.(event);
         }}
       />
     );
