@@ -10,7 +10,6 @@ import { CaseFollowUpAlert } from "@/components/cases/case-follow-up-alert";
 import { CaseHistorySection } from "@/components/cases/case-history-section";
 import { InfoRow } from "@/components/cases/case-detail-fields";
 import { MedicalReviewActions } from "@/components/cases/medical-review-actions";
-import { displayColonyNotes } from "@/lib/cases/colony-notes";
 import {
   applyCaseLifecycleStatus,
   CASE_LIFECYCLE_STATUSES,
@@ -89,7 +88,6 @@ export function CaseIntakeSection({
 }: CaseIntakeSectionProps) {
   const isInquiryTeam = userRole === "inquiry_team";
   const lifecycle = toCaseLifecycleStatus(hr);
-  const reporterNotes = displayColonyNotes(hr.intake_notes, hr);
 
   return (
     <div className="space-y-4">
@@ -192,12 +190,6 @@ export function CaseIntakeSection({
           </dl>
         </div>
       </CaseCollapsibleSection>
-
-      {reporterNotes && (
-        <CaseCollapsibleSection title="Reporter notes at intake" defaultOpen={false}>
-          <p className="whitespace-pre-wrap text-sm text-muted-foreground">{reporterNotes}</p>
-        </CaseCollapsibleSection>
-      )}
 
       {onResolveAllFollowUps && (
         <CaseFollowUpAlert

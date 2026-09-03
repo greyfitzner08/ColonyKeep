@@ -18,7 +18,7 @@ export function CaseReporterSection({ helpRequest: hr }: { helpRequest: HelpRequ
     hr.contact_zip,
     hr.contact_county,
   ]);
-  const colonyNotes = displayColonyNotes(hr.intake_notes, hr);
+  const intakeNotes = displayColonyNotes(hr.intake_notes, hr);
 
   return (
     <div className="space-y-4">
@@ -28,6 +28,12 @@ export function CaseReporterSection({ helpRequest: hr }: { helpRequest: HelpRequ
         <InfoRow label="Email" value={hr.contact_email} alwaysShow />
         <InfoRow label="Address" value={reporterAddress} alwaysShow />
       </InfoCard>
+
+      {intakeNotes && (
+        <InfoCard title="Notes from intake" defaultOpen>
+          <p className="whitespace-pre-wrap text-sm text-muted-foreground">{intakeNotes}</p>
+        </InfoCard>
+      )}
 
       <InfoCard title="Background" defaultOpen={false}>
         <InfoRow label="Relationship to cats" value={hr.relationship_to_cats} />
@@ -45,7 +51,6 @@ export function CaseReporterSection({ helpRequest: hr }: { helpRequest: HelpRequ
         <InfoRow label="Willing to trap & transport" value={hr.willing_to_trap_transport} />
         <InfoRow label="Able to trap & transport" value={hr.able_to_trap_transport} />
         <InfoRow label="Recovery space" value={hr.has_recovery_space} />
-        {colonyNotes && <InfoRow label="Additional notes" value={colonyNotes} />}
       </InfoCard>
     </div>
   );
