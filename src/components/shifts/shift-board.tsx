@@ -25,9 +25,9 @@ import {
 } from "@/components/forms/address-autocomplete";
 import { isAppointmentDatePast } from "@/lib/appointments/slot-date";
 import { SHIFT_REQUIRED_ROLES, SHIFT_TYPES } from "@/lib/constants";
-import { formatDate, formatTimeRange } from "@/lib/utils";
+import { formatDate, formatTimeRange, cn } from "@/lib/utils";
 import type { Shift, ShiftRequiredRole, ShiftType } from "@/lib/types";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { ChevronDown, Plus, Pencil, Trash2 } from "lucide-react";
 
 function shiftIdentityKey(input: {
   event_name: string;
@@ -189,6 +189,7 @@ export function ShiftBoard({
   const [lockingEventName, setLockingEventName] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<PendingDestructiveAction | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [openEvents, setOpenEvents] = useState<Set<string>>(() => new Set());
 
   const filtered = typeFilter === "all"
     ? initial
@@ -250,6 +251,15 @@ export function ShiftBoard({
       })
       .sort((a, b) => a.startDate.localeCompare(b.startDate));
   }, [filtered]);
+
+  function toggleEvent(name: string) {
+    setOpenEvents((current) => {
+      const next = new Set(current);
+      if (next.has(name)) next.delete(name);
+      else next.add(name);
+      return next;
+    });
+  }
 
   function openCreateDialog() {
     setEventName("");
@@ -885,39 +895,63 @@ export function ShiftBoard({
       {groupedEvents.length === 0 ? (
         <p className="text-sm text-muted-foreground">No shifts match this filter.</p>
       ) : (
-        <div className="space-y-6">
-          {groupedEvents.map((event) => (
-            <article
-              key={event.name}
-              className="overflow-hidden rounded-2xl border bg-background shadow-sm"
-            >
-              {/* Event header — name + when are the primary signals */}
-              <header className="space-y-3 border-b bg-muted/30 px-4 py-4 sm:px-5 sm:py-5">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                  <div className="min-w-0 space-y-1.5">
-                    <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                      Event
-                    </p>
-                    <h2 className="text-xl font-bold leading-tight tracking-tight sm:text-2xl">
-                      {event.name}
-                    </h2>
-                    <p className="text-base font-medium text-foreground sm:text-lg">
-                      {event.whenLabel}
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      {event.positions.length} position
-                      {event.positions.length === 1 ? "" : "s"} · {event.shifts.length}{" "}
-                      shift
-                      {event.shifts.length === 1 ? "" : "s"} · {event.filled}/{event.needed}{" "}
-                      filled
-                    </p>
-                  </div>
+        <div className="space-y-4 sm:space-y-5">
+          {groupedEvents.map((event) => {
+            const isOpen = openEvents.has(event.name);
+            return (
+              <article
+                key={event.name}
+                className={cn(
+                  "overflow-hidden rounded-2xl border border-primary/20 bg-background shadow-sm",
+                  "border-l-4 border-l-primary"
+                )}
+              >
+                <div
+                  className={cn(
+                    "flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-start sm:justify-between sm:px-5",
+                    isOpen ? "bg-primary/10" : "bg-primary/5"
+                  )}
+                >
+                  <button
+                    type="button"
+                    className="flex min-w-0 flex-1 items-start gap-3 rounded-lg text-left outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    onClick={() => toggleEvent(event.name)}
+                    aria-expanded={isOpen}
+                  >
+                    <div className="min-w-0 flex-1 space-y-1">
+                      <p className="text-[11px] font-semibold uppercase tracking-wider text-primary">
+                        Event
+                      </p>
+                      <h2 className="text-xl font-bold leading-tight tracking-tight sm:text-2xl">
+                        {event.name}
+                      </h2>
+                      <p className="text-base font-semibold text-primary sm:text-lg">
+                        {event.whenLabel}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        {event.positions.length} position
+                        {event.positions.length === 1 ? "" : "s"} · {event.shifts.length}{" "}
+                        shift
+                        {event.shifts.length === 1 ? "" : "s"} · {event.filled}/{event.needed}{" "}
+                        filled
+                        {!isOpen ? " · tap to view shifts" : ""}
+                      </p>
+                    </div>
+                    <ChevronDown
+                      className={cn(
+                        "mt-1 h-5 w-5 shrink-0 text-primary transition-transform",
+                        isOpen && "rotate-180"
+                      )}
+                    />
+                  </button>
+
                   {isAdmin && (
-                    <div className="flex shrink-0 flex-wrap gap-2">
+                    <div className="flex shrink-0 flex-wrap gap-2 sm:pt-0.5">
                       <Button
                         type="button"
                         variant="outline"
                         size="sm"
+                        className="border-primary/30 bg-background"
                         onClick={() => openAddShiftsToEvent(event.name, event.shifts)}
                       >
                         <Plus className="mr-1 h-4 w-4" />
@@ -936,110 +970,143 @@ export function ShiftBoard({
                     </div>
                   )}
                 </div>
-              </header>
 
-              <div className="divide-y">
-                {event.positions.map((position) => (
-                  <section key={`${event.name}-${position.name}`} className="px-4 py-4 sm:px-5">
-                    <div className="mb-3 flex items-center justify-between gap-2">
-                      <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-                        {position.name}
-                      </h3>
-                      {isAdmin && (
-                        <button
-                          type="button"
-                          className="text-xs text-destructive hover:underline"
-                          onClick={() =>
-                            requestDeletePosition(event.name, position.name, position.shifts)
-                          }
-                        >
-                          Remove position
-                        </button>
-                      )}
-                    </div>
+                {isOpen && (
+                  <div className="divide-y border-t border-primary/15 bg-background">
+                    {event.positions.map((position) => (
+                      <section
+                        key={`${event.name}-${position.name}`}
+                        className="border-l-4 border-l-secondary-foreground/25 bg-secondary/30 px-4 py-4 sm:px-5"
+                      >
+                        <div className="mb-3 flex items-center justify-between gap-2">
+                          <div>
+                            <p className="text-[11px] font-semibold uppercase tracking-wider text-secondary-foreground/70">
+                              Position
+                            </p>
+                            <h3 className="text-base font-semibold text-secondary-foreground">
+                              {position.name}
+                            </h3>
+                          </div>
+                          {isAdmin && (
+                            <button
+                              type="button"
+                              className="text-xs text-destructive hover:underline"
+                              onClick={() =>
+                                requestDeletePosition(
+                                  event.name,
+                                  position.name,
+                                  position.shifts
+                                )
+                              }
+                            >
+                              Remove position
+                            </button>
+                          )}
+                        </div>
 
-                    <ul className="space-y-3">
-                      {position.shifts.map((shift) => {
-                        const { signedUp, spotsLeft } = shiftSignupSummary(shift);
-                        return (
-                          <li
-                            key={shift.id}
-                            className="rounded-xl border bg-background p-3 sm:p-4"
-                          >
-                            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between md:gap-4">
-                              <div className="min-w-0 flex-1 space-y-1">
-                                <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-                                  <span className="font-semibold">
-                                    {formatDate(shift.date)}
-                                  </span>
-                                  <span className="tabular-nums text-muted-foreground">
-                                    {formatTimeRange(shift.start_time, shift.end_time)}
-                                  </span>
-                                </div>
-                                <p className="text-sm text-muted-foreground">{shift.location}</p>
-                                {typeFilter === "all" ? (
-                                  <p className="text-xs text-muted-foreground">
-                                    {shiftTypeLabel(shift.shift_type)}
+                        <ul className="space-y-3">
+                          {position.shifts.map((shift) => {
+                            const { signedUp, spotsLeft } = shiftSignupSummary(shift);
+                            return (
+                              <li
+                                key={shift.id}
+                                className={cn(
+                                  "rounded-xl border border-border bg-background p-3 shadow-sm sm:p-4",
+                                  "border-l-4 border-l-accent-foreground/30",
+                                  spotsLeft > 0 && "bg-primary/[0.03]"
+                                )}
+                              >
+                                <div className="mb-2">
+                                  <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                                    Shift
                                   </p>
-                                ) : null}
-                                {shift.notes ? (
-                                  <p className="text-sm text-muted-foreground">{shift.notes}</p>
-                                ) : null}
-                                <AdminSignupList shift={shift} />
-                              </div>
-
-                              <div className="flex flex-col gap-2 sm:flex-row sm:items-center md:flex-col md:items-stretch lg:flex-row lg:items-center">
-                                <p className="text-sm tabular-nums sm:min-w-[5.5rem] md:text-right">
-                                  <span className="font-semibold">
-                                    {signedUp.length}/{shift.volunteers_needed}
-                                  </span>
-                                  <span className="text-muted-foreground">
-                                    {spotsLeft > 0
-                                      ? ` open`
-                                      : signedUp.length > 0
-                                        ? " full"
-                                        : ""}
-                                  </span>
-                                </p>
-                                <div className="flex items-center gap-1">
-                                  {isAdmin && (
-                                    <>
-                                      <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        className="h-9 w-9 shrink-0"
-                                        title="Edit shift"
-                                        onClick={() => openEditDialog(shift)}
-                                      >
-                                        <Pencil className="h-3.5 w-3.5" />
-                                      </Button>
-                                      <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        className="h-9 w-9 shrink-0 text-destructive hover:text-destructive"
-                                        title="Delete shift"
-                                        onClick={() => requestDeleteShift(shift)}
-                                      >
-                                        <Trash2 className="h-3.5 w-3.5" />
-                                      </Button>
-                                    </>
-                                  )}
-                                  <ShiftClaimButton
-                                    shift={shift}
-                                    className="h-10 flex-1 sm:flex-none sm:min-w-[7.5rem]"
-                                  />
                                 </div>
-                              </div>
-                            </div>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  </section>
-                ))}
-              </div>
-            </article>
-          ))}
+                                <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between md:gap-4">
+                                  <div className="min-w-0 flex-1 space-y-1">
+                                    <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                                      <span className="font-semibold">
+                                        {formatDate(shift.date)}
+                                      </span>
+                                      <span className="tabular-nums text-muted-foreground">
+                                        {formatTimeRange(shift.start_time, shift.end_time)}
+                                      </span>
+                                    </div>
+                                    <p className="text-sm text-muted-foreground">
+                                      {shift.location}
+                                    </p>
+                                    {typeFilter === "all" ? (
+                                      <p className="text-xs text-muted-foreground">
+                                        {shiftTypeLabel(shift.shift_type)}
+                                      </p>
+                                    ) : null}
+                                    {shift.notes ? (
+                                      <p className="text-sm text-muted-foreground">
+                                        {shift.notes}
+                                      </p>
+                                    ) : null}
+                                    <AdminSignupList shift={shift} />
+                                  </div>
+
+                                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center md:flex-col md:items-stretch lg:flex-row lg:items-center">
+                                    <p className="text-sm tabular-nums sm:min-w-[5.5rem] md:text-right">
+                                      <span className="font-semibold">
+                                        {signedUp.length}/{shift.volunteers_needed}
+                                      </span>
+                                      <span
+                                        className={cn(
+                                          spotsLeft > 0
+                                            ? "text-primary"
+                                            : "text-muted-foreground"
+                                        )}
+                                      >
+                                        {spotsLeft > 0
+                                          ? " open"
+                                          : signedUp.length > 0
+                                            ? " full"
+                                            : ""}
+                                      </span>
+                                    </p>
+                                    <div className="flex items-center gap-1">
+                                      {isAdmin && (
+                                        <>
+                                          <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-9 w-9 shrink-0"
+                                            title="Edit shift"
+                                            onClick={() => openEditDialog(shift)}
+                                          >
+                                            <Pencil className="h-3.5 w-3.5" />
+                                          </Button>
+                                          <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-9 w-9 shrink-0 text-destructive hover:text-destructive"
+                                            title="Delete shift"
+                                            onClick={() => requestDeleteShift(shift)}
+                                          >
+                                            <Trash2 className="h-3.5 w-3.5" />
+                                          </Button>
+                                        </>
+                                      )}
+                                      <ShiftClaimButton
+                                        shift={shift}
+                                        className="h-10 flex-1 sm:flex-none sm:min-w-[7.5rem]"
+                                      />
+                                    </div>
+                                  </div>
+                                </div>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      </section>
+                    ))}
+                  </div>
+                )}
+              </article>
+            );
+          })}
         </div>
       )}
 
