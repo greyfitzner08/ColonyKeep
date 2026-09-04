@@ -835,18 +835,27 @@ export function ShiftBoard({
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap justify-between gap-3">
-        <Select value={typeFilter} onValueChange={setTypeFilter}>
-          <SelectTrigger className="w-[180px]"><SelectValue placeholder="Shift type" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Types</SelectItem>
-            {SHIFT_TYPES.map((type) => (
-              <SelectItem key={type.value} value={type.value}>{type.label}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+        <div className="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row sm:items-center">
+          <Select value={typeFilter} onValueChange={setTypeFilter}>
+            <SelectTrigger className="w-full sm:w-[180px]">
+              <SelectValue placeholder="Shift type" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Types</SelectItem>
+              {SHIFT_TYPES.map((type) => (
+                <SelectItem key={type.value} value={type.value}>{type.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {groupedEvents.length > 0 && selectedEvent ? (
+            <p className="text-sm text-muted-foreground sm:truncate">
+              Viewing <span className="font-medium text-foreground">{selectedEvent.name}</span>
+            </p>
+          ) : null}
+        </div>
         {isAdmin && (
-          <Button onClick={openCreateDialog}>
+          <Button onClick={openCreateDialog} className="w-full sm:w-auto">
             <Plus className="h-4 w-4 mr-2" />Create Event
           </Button>
         )}
