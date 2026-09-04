@@ -72,6 +72,7 @@ const STATUS_RANK: Record<VolunteerApplicationStatus, number> = {
   pending: 3,
   needs_followup: 2,
   rejected: 1,
+  inactive: 0,
 };
 
 function pickText(

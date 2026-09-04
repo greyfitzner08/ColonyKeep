@@ -9,6 +9,10 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { BrandMark } from "@/components/branding/brand-mark";
 import { createClient } from "@/lib/supabase/client";
+import {
+  getVolunteerApplicationStatusByEmail,
+  isVolunteerLoginBlockedStatus,
+} from "@/lib/volunteers/login-access";
 import Link from "next/link";
 
 export function LoginForm() {
@@ -19,20 +23,43 @@ export function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirect = searchParams.get("redirect") ?? "/";
+  const urlError = searchParams.get("error");
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     setError("");
     const supabase = createClient();
-    const { data: authData, error: authError } = await supabase.auth.signInWithPassword({ email, password });
-    setLoading(false);
+    const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
     if (authError) {
-      setError(authError.message);
+      setLoading(false);
+      const message = authError.message?.toLowerCase() ?? "";
+      setError(
+        message.includes("banned") || message.includes("disabled")
+          ? "This volunteer account is inactive. Contact an admin to be re-approved."
+          : authError.message
+      );
       return;
     }
 
-    const userId = authData.user?.id;
+    const user = authData.user;
+    const userEmail = user?.email ?? email;
+    if (userEmail) {
+      const applicationStatus = await getVolunteerApplicationStatusByEmail(supabase, userEmail);
+      if (isVolunteerLoginBlockedStatus(applicationStatus)) {
+        await supabase.auth.signOut();
+        setLoading(false);
+        setError("This volunteer account is inactive. Contact an admin to be re-approved.");
+        return;
+      }
+    }
+
+    setLoading(false);
+
+    const userId = user?.id;
     if (userId) {
       const { data: profile } = await supabase
         .from("profiles")
@@ -79,7 +106,12 @@ export function LoginForm() {
               </div>
               <PasswordInput value={password} onChange={(e) => setPassword(e.target.value)} required />
             </div>
-            {error && <p className="text-sm text-destructive">{error}</p>}
+            {(error || urlError === "inactive") && (
+              <p className="text-sm text-destructive">
+                {error ||
+                  "This volunteer account is inactive. Contact an admin to be re-approved."}
+              </p>
+            )}
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? "Signing in..." : "Sign In"}
             </Button>

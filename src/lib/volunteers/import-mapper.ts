@@ -179,6 +179,7 @@ function parseStatus(value: string | undefined): VolunteerApplicationStatus {
   }
   if (normalized === "rejected") return "rejected";
   if (normalized === "approved") return "approved";
+  if (normalized === "inactive") return "inactive";
   return "pending";
 }
 

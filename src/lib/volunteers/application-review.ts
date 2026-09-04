@@ -15,11 +15,12 @@ export type ApplicationStatusFilter =
   | "pending"
   | "approved"
   | "rejected"
-  | "needs_followup";
+  | "needs_followup"
+  | "inactive";
 
 export type ApplicationViewMode = "cards" | "table";
 
-const REVIEWABLE_STATUSES = new Set(["pending", "needs_followup"]);
+const REVIEWABLE_STATUSES = new Set(["pending", "needs_followup", "inactive"]);
 
 export function canApproveImportedVolunteerWithPendingTraining(
   application: VolunteerApplication,
@@ -165,7 +166,8 @@ export function getApplicationReviewContext(
     pendingRoleRequests.length > 0 || (approvedRoles.length > 0 && newRoles.length > 0);
   const rolesToReview = isRoleExpansion
     ? newRoles
-    : application.status === "approved" && approvedRoles.length > 0
+    : (application.status === "approved" || application.status === "inactive") &&
+        approvedRoles.length > 0
       ? approvedRoles
       : (application.roles_requested ?? []);
 

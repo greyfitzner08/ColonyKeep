@@ -30,7 +30,8 @@ export type VolunteerApplicationStatus =
   | "pending"
   | "approved"
   | "rejected"
-  | "needs_followup";
+  | "needs_followup"
+  | "inactive";
 
 export type VolunteerRole =
   | "intake_representative"

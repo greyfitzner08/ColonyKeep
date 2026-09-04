@@ -6,6 +6,10 @@ import {
   getSupabaseUrl,
 } from "@/lib/supabase/env";
 import { canAccessRoute } from "@/lib/permissions";
+import {
+  getVolunteerApplicationStatusByEmail,
+  isVolunteerLoginBlockedStatus,
+} from "@/lib/volunteers/login-access";
 import type { Profile } from "@/lib/types";
 
 const PUBLIC_ROUTES = [
@@ -72,6 +76,20 @@ export async function updateSession(request: NextRequest) {
       .select("role, volunteer_roles, must_change_password, birthday, team_id")
       .eq("id", user.id)
       .maybeSingle();
+
+    if (profile?.role !== "admin" && user.email) {
+      const applicationStatus = await getVolunteerApplicationStatusByEmail(
+        supabase,
+        user.email
+      );
+      if (isVolunteerLoginBlockedStatus(applicationStatus)) {
+        await supabase.auth.signOut();
+        const url = request.nextUrl.clone();
+        url.pathname = "/login";
+        url.search = "error=inactive";
+        return NextResponse.redirect(url);
+      }
+    }
 
     if (profile?.must_change_password) {
       const url = request.nextUrl.clone();

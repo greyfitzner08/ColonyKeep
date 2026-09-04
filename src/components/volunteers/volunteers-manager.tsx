@@ -51,7 +51,7 @@ import {
   type ApplicationViewMode,
 } from "@/lib/volunteers/application-review";
 import { cn, formatDate } from "@/lib/utils";
-import { ROLE_PERMISSIONS, isKnownUserRole } from "@/lib/constants";
+import { isKnownUserRole } from "@/lib/constants";
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import type {
   VolunteerApplication,
@@ -79,6 +79,7 @@ import {
   LayoutGrid,
   Table2,
   Search,
+  UserMinus,
 } from "lucide-react";
 
 interface VolunteersManagerProps {
@@ -94,6 +95,7 @@ const STATUS_COLORS: Record<string, string> = {
   approved: "bg-green-100 text-green-800",
   rejected: "bg-red-100 text-red-800",
   needs_followup: "bg-orange-100 text-orange-800",
+  inactive: "bg-slate-200 text-slate-700",
 };
 
 const ADMIN_CHECKBOX_FIELDS = [
@@ -522,7 +524,7 @@ export function VolunteersManager({
 
   async function handleAction(
     id: string,
-    action: "approve" | "reject" | "followup",
+    action: "approve" | "reject" | "followup" | "inactive",
     adminNotes?: string,
     email?: string,
     volunteerRoles?: VolunteerRole[]
@@ -562,12 +564,14 @@ export function VolunteersManager({
       }
       clearActionError();
     } else {
+      const status =
+        action === "reject" ? "rejected" : action === "inactive" ? "inactive" : "needs_followup";
       const response = await fetch("/api/volunteers/update-status", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           applicationId: id,
-          status: action === "reject" ? "rejected" : "needs_followup",
+          status,
           adminNotes,
         }),
       });
@@ -970,7 +974,9 @@ export function VolunteersManager({
           <Check className="h-4 w-4 mr-1" />
           {actingId === app.id
             ? "Working..."
-            : rolesReady
+            : app.status === "inactive"
+              ? "Re-approve"
+              : rolesReady
               ? context.canApproveWithPendingTraining && !context.allRequirementsMet
                 ? isRoleExpansion
                   ? "Approve role expansion"
@@ -1007,20 +1013,12 @@ export function VolunteersManager({
 
     return (
       <div className="space-y-4">
-        {app.imported_via_csv && canReview && !context.allRequirementsMet && (
-          <div className="rounded-md border border-sky-300 bg-sky-50 px-4 py-3 text-sm text-sky-950">
-            <p className="font-medium">CSV import</p>
+        {app.status === "inactive" && (
+          <div className="rounded-md border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-900">
+            <p className="font-medium">Inactive volunteer</p>
             <p className="mt-1">
-              This volunteer was imported rather than signing up online. You can approve them now
-              with their selected roles and verify training afterward. They will still need to
-              accept the liability waiver and policy on first login.
+              Login is blocked until you re-approve this volunteer.
             </p>
-            {context.allMissingRequirements.length > 0 && (
-              <p className="mt-2 text-sky-900">
-                Training still pending:{" "}
-                {context.allMissingRequirements.map(requirementLabel).join(", ")}
-              </p>
-            )}
           </div>
         )}
 
@@ -1130,75 +1128,46 @@ export function VolunteersManager({
           )}
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2 rounded-md border p-3">
-          <div className="space-y-2">
-            <Label>Platform role</Label>
-            <Select
-              value={reviewPlatformRole}
-              onValueChange={(value) => setReviewPlatformRole(value as UserRole | "none")}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Platform role" />
-              </SelectTrigger>
-              <SelectContent>
-                {Object.entries(ROLE_PERMISSIONS).map(([role, { label }]) => (
-                  <SelectItem key={role} value={role}>
-                    {label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+        <div className="space-y-2 rounded-md border p-3">
+          <Label>Trap team</Label>
+          <Select
+            value={reviewTeamId}
+            onValueChange={setReviewTeamId}
+            disabled={!trapTeamRolesSelected || !trapTeamEligible}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Trap team" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">No team</SelectItem>
+              {sortTrapTeams(teams).map((team) => (
+                <SelectItem key={team.id} value={team.id}>
+                  {team.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {!linkedProfile && (
             <p className="text-xs text-muted-foreground">
-              {linkedProfile
-                ? "Saved with Save changes below."
-                : "Applied when you approve or create their login account."}
+              Prefills from home ZIP when a trap team covers that area. Change or clear before
+              approving if needed.
             </p>
-          </div>
-          <div className="space-y-2">
-            <Label>Trap team</Label>
-            <Select
-              value={reviewTeamId}
-              onValueChange={setReviewTeamId}
-              disabled={
-                reviewPlatformRole === "none" ||
-                !trapTeamRolesSelected ||
-                !trapTeamEligible
-              }
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Trap team" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">No team</SelectItem>
-                {sortTrapTeams(teams).map((team) => (
-                  <SelectItem key={team.id} value={team.id}>
-                    {team.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {!linkedProfile && (
-              <p className="text-xs text-muted-foreground">
-                Prefills from home ZIP when a trap team covers that area. Change or clear before
-                approving if needed.
-              </p>
-            )}
-            {linkedProfile && !linkedProfile.team_id && reviewTeamId !== "none" && (
-              <p className="text-xs text-muted-foreground">
-                Suggested from home ZIP. Save changes to assign them to this team.
-              </p>
-            )}
-            {linkedProfile && !trapTeamEligible && trapTeamRolesSelected && (
-              <p className="text-xs text-muted-foreground">
-                Team assignment unlocks after application approval and required training.
-              </p>
-            )}
-            {!trapTeamRolesSelected && (
-              <p className="text-xs text-muted-foreground">
-                Select a trap-team role to enable team assignment.
-              </p>
-            )}
-          </div>
+          )}
+          {linkedProfile && !linkedProfile.team_id && reviewTeamId !== "none" && (
+            <p className="text-xs text-muted-foreground">
+              Suggested from home ZIP. Save changes to assign them to this team.
+            </p>
+          )}
+          {linkedProfile && !trapTeamEligible && trapTeamRolesSelected && (
+            <p className="text-xs text-muted-foreground">
+              Team assignment unlocks after application approval and required training.
+            </p>
+          )}
+          {!trapTeamRolesSelected && (
+            <p className="text-xs text-muted-foreground">
+              Select a trap-team role to enable team assignment.
+            </p>
+          )}
         </div>
 
         {app.admin_notes && (
@@ -1479,15 +1448,35 @@ export function VolunteersManager({
                 <> This volunteer is already flagged to change their password on next sign-in.</>
               )}
             </p>
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={resettingPasswordId === app.id || actingId === app.id}
-              onClick={() => resetTemporaryPassword(app.id, app.full_name)}
-            >
-              <KeyRound className="h-4 w-4 mr-1" />
-              {resettingPasswordId === app.id ? "Resetting…" : "Reset to temporary password"}
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={resettingPasswordId === app.id || actingId === app.id}
+                onClick={() => resetTemporaryPassword(app.id, app.full_name)}
+              >
+                <KeyRound className="h-4 w-4 mr-1" />
+                {resettingPasswordId === app.id ? "Resetting…" : "Reset to temporary password"}
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={actingId === app.id}
+                onClick={() => {
+                  if (
+                    !window.confirm(
+                      `Mark ${app.full_name} as inactive? They will not be able to log in until re-approved.`
+                    )
+                  ) {
+                    return;
+                  }
+                  void handleAction(app.id, "inactive");
+                }}
+              >
+                <UserMinus className="h-4 w-4 mr-1" />
+                {actingId === app.id ? "Working..." : "Mark inactive"}
+              </Button>
+            </div>
           </div>
         )}
 
@@ -1507,17 +1496,13 @@ export function VolunteersManager({
   }
 
   function renderApplicationSummary(app: VolunteerApplication, context: ApplicationReviewContext) {
-    const { linkedProfile, rolesToReview, isRoleExpansion, approvedRoles } = context;
+    const { rolesToReview, isRoleExpansion, approvedRoles } = context;
     return (
       <>
         <div>
           <p className="font-medium">{app.full_name}</p>
           <p className="text-sm text-muted-foreground">
             {app.email} · Applied {formatDate(app.created_at)}
-            {app.imported_via_csv && <> · CSV import</>}
-            {linkedProfile?.role && (
-              <> · Platform role: {linkedProfile.role.replace(/_/g, " ")}</>
-            )}
           </p>
         </div>
         {isRoleExpansion && (
@@ -1712,6 +1697,7 @@ export function VolunteersManager({
               <SelectItem value="pending">Pending</SelectItem>
               <SelectItem value="needs_followup">Needs follow-up</SelectItem>
               <SelectItem value="approved">Approved</SelectItem>
+              <SelectItem value="inactive">Inactive</SelectItem>
               <SelectItem value="rejected">Rejected</SelectItem>
             </SelectContent>
           </Select>
@@ -1877,10 +1863,8 @@ export function VolunteersManager({
               <DialogHeader>
                 <DialogTitle>{reviewingApplication.full_name}</DialogTitle>
                 <DialogDescription>
-                  {reviewingApplication.email} · Applied {formatDate(reviewingApplication.created_at)}
-                  {reviewingContext.linkedProfile?.role && (
-                    <> · Platform role: {reviewingContext.linkedProfile.role.replace(/_/g, " ")}</>
-                  )}
+                  {reviewingApplication.email} · Applied{" "}
+                  {formatDate(reviewingApplication.created_at)}
                 </DialogDescription>
               </DialogHeader>
               {renderApplicationDetails(reviewingApplication, reviewingContext)}

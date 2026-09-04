@@ -175,6 +175,41 @@ export async function resetVolunteerTemporaryPassword(
   return { userId, created };
 }
 
+/** Ban auth login so inactive volunteers cannot sign in until re-approved. */
+export async function banVolunteerAuthUser(
+  service: SupabaseClient,
+  email: string
+): Promise<{ userId: string } | AuthUserError | { skipped: true }> {
+  const userId = await findAuthUserIdByEmail(service, email);
+  if (!userId) return { skipped: true };
+
+  // ~100 years — effectively permanent until an admin unbans on re-approval.
+  const { error } = await service.auth.admin.updateUserById(userId, {
+    ban_duration: "876000h",
+  });
+  if (error) {
+    return { error: error.message ?? "Could not deactivate volunteer login." };
+  }
+  return { userId };
+}
+
+/** Clear ban so a re-approved volunteer can sign in again. */
+export async function unbanVolunteerAuthUser(
+  service: SupabaseClient,
+  email: string
+): Promise<{ userId: string } | AuthUserError | { skipped: true }> {
+  const userId = await findAuthUserIdByEmail(service, email);
+  if (!userId) return { skipped: true };
+
+  const { error } = await service.auth.admin.updateUserById(userId, {
+    ban_duration: "none",
+  });
+  if (error) {
+    return { error: error.message ?? "Could not reactivate volunteer login." };
+  }
+  return { userId };
+}
+
 export function formatAuthSetupError(error: unknown, redirectTo?: string): string {
   return formatAuthError(error, redirectTo);
 }

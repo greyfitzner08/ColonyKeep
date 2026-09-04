@@ -4,7 +4,7 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { getRequestAppUrl } from "@/lib/app-url";
 import { getEmailValidationError, parsePrimaryEmail } from "@/lib/email-utils";
 import { syncProfileTeamMembership } from "@/lib/admin/team-members";
-import { ensureVolunteerAuthUser } from "@/lib/volunteers/approve-auth";
+import { ensureVolunteerAuthUser, unbanVolunteerAuthUser } from "@/lib/volunteers/approve-auth";
 import {
   isEligibleForTrapTeamAutoAssign,
   loadActiveTrapTeamsForZipMatch,
@@ -88,6 +88,11 @@ export async function POST(request: NextRequest) {
     }
 
     const { userId, isNewUser } = authResult;
+
+    const unbanResult = await unbanVolunteerAuthUser(service, volunteerEmail);
+    if (unbanResult && "error" in unbanResult) {
+      return errorResponse(unbanResult.error);
+    }
 
     const { data: existingProfile } = await service
       .from("profiles")
