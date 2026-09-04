@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useState, type ReactNode } from "react";
+import { Fragment, type ReactNode } from "react";
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -227,21 +227,20 @@ function CollapsibleSection({
   title: string;
   children: ReactNode;
 }) {
-  const [open, setOpen] = useState(false);
-
   return (
-    <section
+    <details
       className={cn(
-        "my-3 overflow-hidden rounded-lg border",
-        level === 2 ? "border-border" : "border-border/70 bg-muted/20"
+        "group my-3 overflow-hidden rounded-lg border bg-background",
+        level === 2 ? "border-primary/25" : "border-border/80 bg-muted/20"
       )}
     >
-      <button
-        type="button"
-        className="flex w-full items-center gap-2 px-3 py-2.5 text-left hover:bg-muted/40"
-        onClick={() => setOpen((value) => !value)}
-        aria-expanded={open}
+      <summary
+        className={cn(
+          "flex cursor-pointer list-none items-center gap-2 px-3 py-3 text-left marker:content-none",
+          "hover:bg-muted/50 [&::-webkit-details-marker]:hidden"
+        )}
       >
+        <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" />
         <span
           className={cn(
             "min-w-0 flex-1 font-semibold leading-snug",
@@ -250,15 +249,11 @@ function CollapsibleSection({
         >
           {renderInline(title)}
         </span>
-        <ChevronDown
-          className={cn(
-            "h-4 w-4 shrink-0 text-muted-foreground transition-transform",
-            open && "rotate-180"
-          )}
-        />
-      </button>
-      {open ? <div className="space-y-1 border-t px-3 py-3">{children}</div> : null}
-    </section>
+        <span className="shrink-0 text-xs text-muted-foreground group-open:hidden">Show</span>
+        <span className="hidden shrink-0 text-xs text-muted-foreground group-open:inline">Hide</span>
+      </summary>
+      <div className="space-y-1 border-t px-3 py-3">{children}</div>
+    </details>
   );
 }
 

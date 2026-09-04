@@ -290,6 +290,11 @@ export function LibraryManager({ documents: initial, isAdmin }: LibraryManagerPr
                 {readingDoc.description ? (
                   <DialogDescription>{readingDoc.description}</DialogDescription>
                 ) : null}
+                {isInlineGuide(readingDoc) ? (
+                  <p className="text-sm text-muted-foreground">
+                    Sections start collapsed — tap a heading to expand it.
+                  </p>
+                ) : null}
               </DialogHeader>
               <SimpleMarkdown content={readingDoc.body_markdown ?? ""} />
               {isAdmin && (
