@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireCaseWorker } from "@/lib/api/auth";
+import { caseClaimBlockForId } from "@/lib/cases/case-claim-block";
 import { syncTrackedCatFixesForCase } from "@/lib/cases/tracked-cat-fix";
 import { createServiceClient } from "@/lib/supabase/server";
 
 export async function POST(request: NextRequest) {
-  const { response } = await requireCaseWorker();
+  const { profile, response } = await requireCaseWorker();
   if (response) return response;
 
   const body = await request.json().catch(() => null);
@@ -16,6 +17,12 @@ export async function POST(request: NextRequest) {
 
   try {
     const service = await createServiceClient();
+    const claimBlock = await caseClaimBlockForId({
+      service,
+      helpRequestId,
+      profile: profile!,
+    });
+    if (claimBlock) return claimBlock;
     await syncTrackedCatFixesForCase(service, helpRequestId);
     return NextResponse.json({ success: true });
   } catch (error) {

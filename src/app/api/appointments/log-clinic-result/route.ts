@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAppointmentManager } from "@/lib/api/auth";
 import { isClinicResultDue } from "@/lib/appointments/clinic-result";
+import { caseClaimBlockForId } from "@/lib/cases/case-claim-block";
 import { recordClinicFix, type RecordClinicFixInput } from "@/lib/cases/record-clinic-fix";
 import { saveTrackedCatFromClinicLog } from "@/lib/cases/save-tracked-cat-from-clinic-log";
 import { parseFemaleReproductiveStatus, type TrackedCatDetails } from "@/lib/cases/tracked-cat-form";
@@ -75,6 +76,15 @@ export async function POST(request: NextRequest) {
 
   if (!appointment) {
     return NextResponse.json({ error: "Appointment not found" }, { status: 404 });
+  }
+
+  if (appointment.help_request_id) {
+    const claimBlock = await caseClaimBlockForId({
+      service,
+      helpRequestId: appointment.help_request_id,
+      profile: profile!,
+    });
+    if (claimBlock) return claimBlock;
   }
 
   const isOwner = appointment.reserved_by === user.email;

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAppointmentManager } from "@/lib/api/auth";
+import { caseClaimBlockForId } from "@/lib/cases/case-claim-block";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 
 export async function POST(request: NextRequest) {
@@ -15,6 +16,15 @@ export async function POST(request: NextRequest) {
 
   const body = await request.json();
   const { appointmentId, helpRequestId, catId, catDetails } = body;
+
+  if (helpRequestId) {
+    const claimBlock = await caseClaimBlockForId({
+      service,
+      helpRequestId,
+      profile: profile!,
+    });
+    if (claimBlock) return claimBlock;
+  }
 
   const { data: appointment } = await supabase
     .from("appointments")

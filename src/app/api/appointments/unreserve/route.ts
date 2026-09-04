@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAppointmentManager } from "@/lib/api/auth";
+import { caseClaimBlockForId } from "@/lib/cases/case-claim-block";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 
 export async function POST(request: NextRequest) {
-  const { response } = await requireAppointmentManager();
+  const { profile, response } = await requireAppointmentManager();
   if (response) return response;
 
   const supabase = await createClient();
@@ -26,6 +27,15 @@ export async function POST(request: NextRequest) {
 
   if (!appointment) {
     return NextResponse.json({ error: "Appointment not found" }, { status: 404 });
+  }
+
+  if (appointment.help_request_id) {
+    const claimBlock = await caseClaimBlockForId({
+      service,
+      helpRequestId: appointment.help_request_id,
+      profile: profile!,
+    });
+    if (claimBlock) return claimBlock;
   }
 
   if (appointment.status === "available") {

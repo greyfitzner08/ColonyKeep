@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { revalidateTag } from "next/cache";
 import { requireCaseWorker } from "@/lib/api/auth";
 import { applyTrapTeamAssignment } from "@/lib/cases/assign-team-by-zip";
+import { caseClaimBlockForId } from "@/lib/cases/case-claim-block";
 import { colonyAddressPayload } from "@/lib/cases/colony-address-fields";
 import {
   geocodeColonyFields,
@@ -21,7 +22,7 @@ function readOptionalNumber(value: unknown) {
 }
 
 export async function PATCH(request: NextRequest) {
-  const { response } = await requireCaseWorker();
+  const { profile, response } = await requireCaseWorker();
   if (response) return response;
 
   if (!hasSupabaseAdminConfig()) {
@@ -51,19 +52,12 @@ export async function PATCH(request: NextRequest) {
   }
 
   const service = await createServiceClient();
-  const { data: existing, error: loadError } = await service
-    .from("help_requests")
-    .select("id")
-    .eq("id", helpRequestId)
-    .maybeSingle();
-
-  if (loadError) {
-    return NextResponse.json({ error: loadError.message }, { status: 500 });
-  }
-
-  if (!existing) {
-    return NextResponse.json({ error: "Case not found" }, { status: 404 });
-  }
+  const claimBlock = await caseClaimBlockForId({
+    service,
+    helpRequestId,
+    profile: profile!,
+  });
+  if (claimBlock) return claimBlock;
 
   let colony_lat = readOptionalNumber(body?.colony_lat);
   let colony_lng = readOptionalNumber(body?.colony_lng);

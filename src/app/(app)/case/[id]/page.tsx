@@ -8,6 +8,7 @@ import { hasActiveMedicalFlag } from "@/lib/medical-flags";
 import {
   getCaseLifecycleLabel,
   getStatusLabel,
+  isIntakeQueueStatus,
   LIFECYCLE_STATUS_COLORS,
   toCaseLifecycleStatus,
 } from "@/lib/cases/statuses";
@@ -91,11 +92,17 @@ export default async function CasePage({ params }: CasePageProps) {
   });
   const claimGate =
     requiresClaim && !canWorkCase
-      ? intakeClaimGateMessage({
-          claimedByEmail: hr.claimed_by_email,
-          claimedByName: hr.claimed_by_name,
-          actorEmail,
-        })
+      ? isInquiryViewer && !isIntakeQueueStatus(hr.status)
+        ? {
+            kind: "other" as const,
+            message:
+              "This case has left the inquiry queue. Inquiry can view it but cannot edit. Trap team volunteers claim it to make changes.",
+          }
+        : intakeClaimGateMessage({
+            claimedByEmail: hr.claimed_by_email,
+            claimedByName: hr.claimed_by_name,
+            actorEmail,
+          })
       : null;
 
   return (
@@ -151,7 +158,7 @@ export default async function CasePage({ params }: CasePageProps) {
       {claimGate && (
         <div className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-50">
           <p className="font-medium">
-            {claimGate.kind === "unclaimed" ? "Claim required before review" : "Case already claimed"}
+            {claimGate.kind === "unclaimed" ? "Claim required before editing" : "Case already claimed"}
           </p>
           <p className="mt-1">{claimGate.message}</p>
           {isInquiryViewer && (
@@ -177,7 +184,7 @@ export default async function CasePage({ params }: CasePageProps) {
         canLogClinicFix={canManageAppointments(profile) && canWorkCase}
         userName={profile?.full_name ?? profile?.email ?? "Team member"}
         userEmail={actorEmail}
-        readOnly={!canWorkCase && requiresClaim}
+        readOnly={!canWorkCase}
       />
     </div>
   );

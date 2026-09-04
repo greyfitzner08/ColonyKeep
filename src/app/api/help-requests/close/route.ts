@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireApiRole } from "@/lib/api/auth";
+import { intakeClaimRequiredResponse } from "@/lib/cases/intake-claim-api";
 import { createServiceClient } from "@/lib/supabase/server";
-import type { HistoryEntry } from "@/lib/types";
+import type { HelpRequestStatus, HistoryEntry } from "@/lib/types";
 
 export async function POST(request: NextRequest) {
   const { profile, response } = await requireApiRole(["admin", "trap_team_lead"]);
@@ -20,13 +21,21 @@ export async function POST(request: NextRequest) {
   const service = await createServiceClient();
   const { data: existing, error: fetchError } = await service
     .from("help_requests")
-    .select("id, status, history_log")
+    .select("id, status, history_log, claimed_by_email")
     .eq("id", helpRequestId)
     .single();
 
   if (fetchError || !existing) {
     return NextResponse.json({ error: fetchError?.message ?? "Case not found" }, { status: 404 });
   }
+
+  const claimBlock = intakeClaimRequiredResponse({
+    role: profile!.role,
+    status: existing.status as HelpRequestStatus,
+    claimedByEmail: existing.claimed_by_email,
+    actorEmail: profile!.email,
+  });
+  if (claimBlock) return claimBlock;
 
   if (existing.status === "closed") {
     return NextResponse.json({ error: "Case is already closed." }, { status: 400 });

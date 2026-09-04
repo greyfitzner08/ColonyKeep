@@ -53,7 +53,7 @@ export function CaseClaimActions({
           size={emphasizeClaim ? "default" : "sm"}
           onClick={() => mutate("claim")}
         >
-          {emphasizeClaim ? "Claim to review" : "Claim case"}
+          {emphasizeClaim ? "Claim to edit" : "Claim case"}
         </Button>
       )}
       {canUnclaim && (

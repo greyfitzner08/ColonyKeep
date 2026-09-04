@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAppointmentManager } from "@/lib/api/auth";
+import { caseClaimBlockForId } from "@/lib/cases/case-claim-block";
 import { recordClinicFix } from "@/lib/cases/record-clinic-fix";
 import type { RecordClinicFixInput } from "@/lib/cases/record-clinic-fix";
 import { saveTrackedCatFromClinicLog } from "@/lib/cases/save-tracked-cat-from-clinic-log";
@@ -56,6 +57,13 @@ export async function POST(request: NextRequest) {
   if (!helpRequestId) {
     return NextResponse.json({ error: "Missing helpRequestId" }, { status: 400 });
   }
+
+  const claimBlock = await caseClaimBlockForId({
+    service,
+    helpRequestId,
+    profile: profile!,
+  });
+  if (claimBlock) return claimBlock;
 
   const resolvedAgeCategory =
     ageCategory === "adult" || ageCategory === "kitten" ? ageCategory : null;

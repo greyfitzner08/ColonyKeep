@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireCaseWorker } from "@/lib/api/auth";
+import { caseClaimBlockForId } from "@/lib/cases/case-claim-block";
 import { resolveTrackedCatFosterFields } from "@/lib/cases/tracked-cat-foster";
 import {
   syncTrackedCatFixesForCase,
@@ -10,7 +11,7 @@ import type { FosterFacility } from "@/lib/cases/foster-facility";
 import { resolveFemaleReproductiveStatusForSave } from "@/lib/cases/female-reproductive-status";
 
 export async function POST(request: NextRequest) {
-  const { response } = await requireCaseWorker();
+  const { profile, response } = await requireCaseWorker();
   if (response) return response;
 
   const body = await request.json().catch(() => null);
@@ -39,6 +40,12 @@ export async function POST(request: NextRequest) {
 
   try {
     const service = await createServiceClient();
+    const claimBlock = await caseClaimBlockForId({
+      service,
+      helpRequestId,
+      profile: profile!,
+    });
+    if (claimBlock) return claimBlock;
     const gender = body?.gender?.trim() || null;
     const { data: cat, error: insertError } = await service
       .from("cats")

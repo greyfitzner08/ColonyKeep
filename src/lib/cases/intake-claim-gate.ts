@@ -1,32 +1,39 @@
-import { isIntakeQueueStatus } from "@/lib/cases/statuses";
 import type { HelpRequestStatus, UserRole } from "@/lib/types";
 
-/** Platform roles that review intake cases and must claim before working them. */
+/** Roles that must hold a case claim before editing. Admins are exempt. */
+export function isClaimRestrictedRole(role: UserRole | null | undefined): boolean {
+  return role === "inquiry_team" || role === "trap_team_lead" || role === "volunteer";
+}
+
+/** @deprecated Prefer isClaimRestrictedRole — inquiry was the original claim-gated role. */
 export function isIntakeReviewRole(role: UserRole | null | undefined): boolean {
   return role === "inquiry_team";
 }
 
+/**
+ * Whether this role must claim before editing the case.
+ * Status is unused (kept for call-site compatibility).
+ */
 export function intakeCaseRequiresClaim(
   role: UserRole | null | undefined,
-  status: HelpRequestStatus
+  _status?: HelpRequestStatus
 ): boolean {
-  return isIntakeReviewRole(role) && isIntakeQueueStatus(status);
+  return isClaimRestrictedRole(role);
 }
 
 /**
- * Whether an intake reviewer may edit / route / annotate this case.
- * Admins are never blocked. Inquiry team must hold the claim while the case
- * is still in the inquiry queue.
+ * Whether the actor may edit / route / annotate this case.
+ * Admins are never blocked. Inquiry and TNVR roles must hold the claim.
  */
 export function canIntakeReviewerWorkCase(options: {
   role: UserRole | null | undefined;
-  status: HelpRequestStatus;
+  status?: HelpRequestStatus;
   claimedByEmail: string | null | undefined;
   actorEmail: string | null | undefined;
 }): boolean {
-  const { role, status, claimedByEmail, actorEmail } = options;
+  const { role, claimedByEmail, actorEmail } = options;
   if (role === "admin") return true;
-  if (!intakeCaseRequiresClaim(role, status)) return true;
+  if (!isClaimRestrictedRole(role)) return true;
   if (!actorEmail?.trim()) return false;
   return (claimedByEmail ?? "").trim().toLowerCase() === actorEmail.trim().toLowerCase();
 }
@@ -41,12 +48,12 @@ export function intakeClaimGateMessage(options: {
     return {
       kind: "unclaimed",
       message:
-        "Claim this case before reviewing details. Claiming locks it to you so another intake volunteer doesn’t work it at the same time.",
+        "Claim this case before making edits. Claiming locks it to you so another volunteer doesn’t work it at the same time.",
     };
   }
   const who = options.claimedByName?.trim() || options.claimedByEmail?.trim() || "another volunteer";
   return {
     kind: "other",
-    message: `This case is claimed by ${who}. Only they can review and route it right now.`,
+    message: `This case is claimed by ${who}. Only they can edit it right now.`,
   };
 }

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireCaseWorker } from "@/lib/api/auth";
+import { caseClaimBlockForId } from "@/lib/cases/case-claim-block";
 import { isTrackedCatClinicFixed } from "@/lib/cases/tracked-cat-fix";
 import { resolveTrackedCatFosterFields } from "@/lib/cases/tracked-cat-foster";
 import { syncTrackedCatFixesForCase, updateHelpRequestCatCounts } from "@/lib/cases/tracked-cat-fix";
@@ -17,7 +18,7 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { response } = await requireCaseWorker();
+  const { profile, response } = await requireCaseWorker();
   if (response) return response;
 
   const { id } = await params;
@@ -40,6 +41,13 @@ export async function PATCH(
     if (!existing) {
       return NextResponse.json({ error: "Cat not found" }, { status: 404 });
     }
+
+    const claimBlock = await caseClaimBlockForId({
+      service,
+      helpRequestId: existing.help_request_id,
+      profile: profile!,
+    });
+    if (claimBlock) return claimBlock;
 
     const resolvedAppointmentStatus =
       body?.appointment_status !== undefined ? appointmentStatus : existing.appointment_status;
@@ -150,7 +158,7 @@ export async function DELETE(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { response } = await requireCaseWorker();
+  const { profile, response } = await requireCaseWorker();
   if (response) return response;
 
   const { id } = await params;
@@ -166,6 +174,13 @@ export async function DELETE(
     if (!existing) {
       return NextResponse.json({ error: "Cat not found" }, { status: 404 });
     }
+
+    const claimBlock = await caseClaimBlockForId({
+      service,
+      helpRequestId: existing.help_request_id,
+      profile: profile!,
+    });
+    if (claimBlock) return claimBlock;
 
     const { error: deleteError } = await service.from("cats").delete().eq("id", id);
 
