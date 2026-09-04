@@ -20,6 +20,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { CaseSearchPicker } from "@/components/appointments/case-search-picker";
+import { isAppointmentDatePast } from "@/lib/appointments/slot-date";
 import { type HelpRequestOption } from "@/lib/cases/help-request-options";
 import type { Appointment, Cat } from "@/lib/types";
 import { formatDate } from "@/lib/utils";
@@ -49,6 +50,7 @@ export function ClaimAppointmentDialog({
 
   const lockedCase = linkedHelpRequest ?? null;
   const effectiveHelpRequestId = lockedCase?.id ?? helpRequestId;
+  const datePast = appointment ? isAppointmentDatePast(appointment.date) : false;
   const availableCats = cats.filter(
     (cat) => !cat.appointment_id || cat.appointment_id === appointment?.id
   );
@@ -58,11 +60,19 @@ export function ClaimAppointmentDialog({
     setHelpRequestId(lockedCase?.id ?? "");
     setCatMode("new");
     setCatName("");
-    setError(null);
+    setError(
+      isAppointmentDatePast(appointment.date)
+        ? "This appointment date has passed and cannot be claimed"
+        : null
+    );
   }, [appointment, lockedCase?.id]);
 
   async function claimSlot() {
     if (!appointment || !effectiveHelpRequestId) return;
+    if (isAppointmentDatePast(appointment.date)) {
+      setError("This appointment date has passed and cannot be claimed");
+      return;
+    }
     if (catMode === "new" && !catName.trim()) {
       setError("Enter a cat name or select an existing tracked cat");
       return;
@@ -170,9 +180,9 @@ export function ClaimAppointmentDialog({
           <Button
             onClick={claimSlot}
             className="w-full"
-            disabled={saving || !effectiveHelpRequestId}
+            disabled={saving || !effectiveHelpRequestId || datePast}
           >
-            {saving ? "Reserving…" : "Reserve slot"}
+            {saving ? "Reserving…" : datePast ? "Date has passed" : "Reserve slot"}
           </Button>
         </div>
       </DialogContent>

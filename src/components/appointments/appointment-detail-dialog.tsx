@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { APPOINTMENT_STATUS_COLORS } from "@/lib/constants";
 import { canUnreserveAppointment, shouldShowAppointmentStatusBadge } from "@/lib/appointments/clinic-result";
+import { isAppointmentDatePast } from "@/lib/appointments/slot-date";
 import { formatDate, cn } from "@/lib/utils";
 import type { Appointment } from "@/lib/types";
 
@@ -30,6 +31,8 @@ export function AppointmentDetailDialog({
   if (!appointment) return null;
 
   const canUnreserve = canUnreserveAppointment(appointment);
+  const pastAvailable =
+    appointment.status === "available" && isAppointmentDatePast(appointment.date);
 
   return (
     <Dialog open={Boolean(appointment)} onOpenChange={onOpenChange}>
@@ -97,8 +100,14 @@ export function AppointmentDetailDialog({
             </>
           )}
 
-          {appointment.status === "available" && (
+          {appointment.status === "available" && !pastAvailable && (
             <p className="text-muted-foreground">This slot is open for claiming.</p>
+          )}
+
+          {pastAvailable && (
+            <p className="text-muted-foreground">
+              This appointment date has passed and cannot be claimed.
+            </p>
           )}
 
           {canUnreserve && onUnreserve && (

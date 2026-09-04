@@ -20,6 +20,7 @@ import { ClaimAppointmentDialog } from "@/components/appointments/claim-appointm
 import { AppointmentDetailDialog } from "@/components/appointments/appointment-detail-dialog";
 import { APPOINTMENT_STATUS_COLORS } from "@/lib/constants";
 import { canUnreserveAppointment, shouldShowAppointmentStatusBadge } from "@/lib/appointments/clinic-result";
+import { isAppointmentDatePast } from "@/lib/appointments/slot-date";
 import { formatDate, cn } from "@/lib/utils";
 import type { Appointment, Clinic, Cat } from "@/lib/types";
 import type { HelpRequestOption } from "@/lib/cases/help-request-options";
@@ -127,10 +128,17 @@ export function AppointmentsCalendar({
   }
 
   function renderAppointmentCard(appt: Appointment) {
+    const pastAvailable =
+      appt.status === "available" && isAppointmentDatePast(appt.date);
+
     return (
       <Card
         key={appt.id}
-        className={cn("border-l-4 cursor-pointer hover:shadow-md", clinicColorMap[appt.clinic_id])}
+        className={cn(
+          "border-l-4 cursor-pointer hover:shadow-md",
+          clinicColorMap[appt.clinic_id],
+          pastAvailable && "opacity-60 hover:shadow-none"
+        )}
         onClick={() => openAppointment(appt)}
       >
         <CardContent className="pt-4">
@@ -142,6 +150,9 @@ export function AppointmentsCalendar({
                 <p className="text-xs text-muted-foreground">
                   Claimed by {appt.reserved_by_name}
                 </p>
+              )}
+              {pastAvailable && (
+                <p className="text-xs text-muted-foreground">Past date · cannot claim</p>
               )}
               {appt.help_request_id && <p className="text-xs text-primary">Linked to case</p>}
             </div>
@@ -219,7 +230,7 @@ export function AppointmentsCalendar({
   }
 
   function openAppointment(appt: Appointment) {
-    if (appt.status === "available") {
+    if (appt.status === "available" && !isAppointmentDatePast(appt.date)) {
       setClaimDialog(appt);
     } else {
       setDetailDialog(appt);
@@ -335,7 +346,11 @@ export function AppointmentsCalendar({
                             key={appt.id}
                             className={cn(
                               "truncate rounded px-1.5 py-0.5 text-[10px] text-white",
-                              appt.status === "available" ? "bg-green-600" : "bg-blue-600"
+                              appt.status === "available" && !isAppointmentDatePast(appt.date)
+                                ? "bg-green-600"
+                                : appt.status === "available"
+                                  ? "bg-muted-foreground"
+                                  : "bg-blue-600"
                             )}
                           >
                             {appt.clinic_name}

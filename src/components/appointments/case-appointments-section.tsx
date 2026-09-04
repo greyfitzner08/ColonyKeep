@@ -19,6 +19,7 @@ import {
   isClinicResultDue,
   shouldShowAppointmentStatusBadge,
 } from "@/lib/appointments/clinic-result";
+import { isAppointmentDatePast } from "@/lib/appointments/slot-date";
 import { formatDate, cn } from "@/lib/utils";
 import type { Appointment, Cat, ClinicFix } from "@/lib/types";
 import { trackedCatDetailsFromCat } from "@/lib/cases/tracked-cat-form";
@@ -196,17 +197,30 @@ export function CaseAppointmentsSection({
                     {formatDate(date)}
                   </p>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {slots.map((appt) => (
-                      <button
-                        key={appt.id}
-                        type="button"
-                        className="rounded-lg border px-4 py-3 text-left hover:bg-muted/50 transition-colors"
-                        onClick={() => setClaimTarget(appt)}
-                      >
-                        <p className="font-medium">{appt.clinic_name}</p>
-                        <p className="text-sm text-muted-foreground">Available · tap to reserve</p>
-                      </button>
-                    ))}
+                    {slots.map((appt) => {
+                      const past = isAppointmentDatePast(appt.date);
+                      return (
+                        <button
+                          key={appt.id}
+                          type="button"
+                          disabled={past}
+                          className={cn(
+                            "rounded-lg border px-4 py-3 text-left transition-colors",
+                            past
+                              ? "cursor-not-allowed opacity-60"
+                              : "hover:bg-muted/50"
+                          )}
+                          onClick={() => {
+                            if (!past) setClaimTarget(appt);
+                          }}
+                        >
+                          <p className="font-medium">{appt.clinic_name}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {past ? "Past date · cannot claim" : "Available · tap to reserve"}
+                          </p>
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               ))}

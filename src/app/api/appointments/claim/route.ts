@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAppointmentManager } from "@/lib/api/auth";
+import { isAppointmentDatePast } from "@/lib/appointments/slot-date";
 import { caseClaimBlockForId } from "@/lib/cases/case-claim-block";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 
@@ -34,6 +35,13 @@ export async function POST(request: NextRequest) {
 
   if (!appointment || appointment.status !== "available") {
     return NextResponse.json({ error: "Slot not available" }, { status: 400 });
+  }
+
+  if (isAppointmentDatePast(appointment.date)) {
+    return NextResponse.json(
+      { error: "This appointment date has passed and cannot be claimed" },
+      { status: 400 }
+    );
   }
 
   const { data: helpRequest } = await supabase
