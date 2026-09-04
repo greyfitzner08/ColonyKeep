@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { releaseIntakeAssignmentFields } from "@/lib/cases/case-assignment";
+import { normalizeHistoryLog } from "@/lib/cases/history-log";
 import type { Profile } from "@/lib/types";
 
 export interface AssignmentItem {
@@ -127,7 +128,7 @@ export async function previewVolunteerAssignments(
       label: "Claimed cases",
       description: "Intake or trap cases currently claimed by this volunteer.",
       unassignOutcome:
-        "Releases their claim. The cases stay open and become unclaimed.",
+        "Releases their claim only. Inquiry cases stay in the inquiry queue; trap cases stay with their assigned team. Workflow status and case history are kept.",
       count: claimedCases.data!.length,
       items: claimedCases.data!.map((row) => ({
         id: row.id,
@@ -369,30 +370,52 @@ function assertNoError(
   return error ? error.message || fallback : null;
 }
 
-/** Release claims the same way case unclaim does — clear assignee and unwind claim status. */
+/** Release claims without wiping queue placement or history. */
 async function releaseClaimedCases(
   service: SupabaseClient,
-  ids: string[]
+  ids: string[],
+  options?: { reason?: string }
 ): Promise<string | null> {
   if (ids.length === 0) return null;
 
   const { data: rows, error: fetchError } = await service
     .from("help_requests")
-    .select("id, status")
+    .select("id, status, history_log, assigned_team_id, assigned_team_name")
     .in("id", ids);
 
   const fetchProblem = assertNoError(fetchError, "Unable to load claimed cases");
   if (fetchProblem) return fetchProblem;
 
+  const reason =
+    options?.reason ??
+    "Claim released because the volunteer was removed from the platform";
+
   for (const row of rows ?? []) {
     const updates: Record<string, unknown> = {
       ...releaseIntakeAssignmentFields({}),
     };
+
+    // Keep inquiry statuses in the inquiry bucket (under_review / needs_more_info / etc.).
+    // Only the trap-stage label "claimed" needs to unwind so the case returns to the
+    // assigned team's unclaimed board — team assignment itself is preserved.
     if (row.status === "claimed") {
       updates.status = "routed_to_trap_team";
-    } else if (row.status === "under_review") {
-      updates.status = "new_intake";
     }
+
+    const history = normalizeHistoryLog(row.history_log);
+    history.push({
+      id: crypto.randomUUID(),
+      timestamp: new Date().toISOString(),
+      action: "unclaim",
+      actor_email: null,
+      actor_name: "System",
+      details: reason,
+      highlighted: false,
+      follow_up: false,
+      follow_up_completed: false,
+      text_color: "default",
+    });
+    updates.history_log = history;
 
     const { error } = await service.from("help_requests").update(updates).eq("id", row.id);
     const updateProblem = assertNoError(error, "Unable to release case claim");
@@ -526,7 +549,9 @@ export async function applyVolunteerAssignmentDecisions(
           const problem = assertNoError(error, "Unable to reassign claimed cases");
           if (problem) return problem;
         } else {
-          const problem = await releaseClaimedCases(service, ids);
+          const problem = await releaseClaimedCases(service, ids, {
+            reason: "Claim released because the volunteer was removed from the platform",
+          });
           if (problem) return problem;
         }
         break;
@@ -835,9 +860,21 @@ export async function scrubVolunteerFromApp(
       .ilike("claimed_by_email", email);
     const claimProblem = await releaseClaimedCases(
       service,
-      (claimed ?? []).map((row) => row.id)
+      (claimed ?? []).map((row) => row.id),
+      { reason: "Claim released because the volunteer was removed from the platform" }
     );
     if (claimProblem) return claimProblem;
+
+    // Clear leftover claim-name / assigned-to references without changing case status.
+    const { error: claimNameError } = await service
+      .from("help_requests")
+      .update({ claimed_by_name: null })
+      .ilike("claimed_by_name", email);
+    const claimNameProblem = assertNoError(
+      claimNameError,
+      "Unable to clear leftover case claim names"
+    );
+    if (claimNameProblem) return claimNameProblem;
 
     const { error: legacyEmailError } = await service
       .from("help_requests")
@@ -902,6 +939,16 @@ export async function scrubVolunteerFromApp(
   }
 
   if (fullName) {
+    const { error: claimFullNameError } = await service
+      .from("help_requests")
+      .update({ claimed_by_name: null })
+      .ilike("claimed_by_name", fullName);
+    const claimFullNameProblem = assertNoError(
+      claimFullNameError,
+      "Unable to clear leftover case claim names"
+    );
+    if (claimFullNameProblem) return claimFullNameProblem;
+
     const { error: legacyNameError } = await service
       .from("help_requests")
       .update({ assigned_to: null })

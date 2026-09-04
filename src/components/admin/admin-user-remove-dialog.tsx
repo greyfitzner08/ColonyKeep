@@ -33,6 +33,7 @@ import type {
   AssignmentDecision,
   VolunteerAssignmentPreview,
 } from "@/lib/admin/volunteer-assignments";
+import { cn } from "@/lib/utils";
 import type { Profile } from "@/lib/types";
 import { Loader2 } from "lucide-react";
 
@@ -217,9 +218,9 @@ export function AdminUserRemoveDialog({
           <DialogHeader>
             <DialogTitle>Remove {user.full_name ?? user.email}?</DialogTitle>
             <DialogDescription>
-              {user.role === "admin"
-                ? "This user is an administrator. Removing them deletes their login and profile permanently, and clears their live assignments across the app."
-                : "Removing this volunteer deletes their login and clears them from cases, shifts, teams, appointments, equipment, and other live assignments. Reassign items you want to keep owned, or unassign them."}
+              Choose what happens to each assignment, then confirm removal. Releasing claims keeps
+              case status and history — inquiry work stays in inquiry, trap work stays with its
+              team.
             </DialogDescription>
           </DialogHeader>
 
@@ -253,25 +254,31 @@ export function AdminUserRemoveDialog({
 
                   {group.reassignable ? (
                     <div className="space-y-3">
-                      <div className="flex flex-wrap gap-2">
+                      <p className="text-sm font-medium">What should happen?</p>
+                      <div className="grid gap-2">
                         {!group.requiresReassign ? (
-                          <Button
+                          <button
                             type="button"
-                            size="sm"
-                            variant={selectedAction === "unassign" ? "default" : "outline"}
-                            aria-pressed={selectedAction === "unassign"}
                             disabled={removing}
+                            aria-pressed={selectedAction === "unassign"}
                             onClick={() => updateDecision(group.key, { action: "unassign" })}
+                            className={cn(
+                              "rounded-md border px-3 py-2 text-left transition-colors",
+                              selectedAction === "unassign"
+                                ? "border-primary bg-primary/5"
+                                : "hover:bg-muted/60"
+                            )}
                           >
-                            Unassign volunteer
-                          </Button>
+                            <p className="text-sm font-medium">Release claims</p>
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                              {group.unassignOutcome}
+                            </p>
+                          </button>
                         ) : null}
-                        <Button
+                        <button
                           type="button"
-                          size="sm"
-                          variant={selectedAction === "reassign" ? "default" : "outline"}
-                          aria-pressed={selectedAction === "reassign"}
                           disabled={removing || reassignmentOptions.length === 0}
+                          aria-pressed={selectedAction === "reassign"}
                           onClick={() =>
                             updateDecision(group.key, {
                               action: "reassign",
@@ -279,9 +286,18 @@ export function AdminUserRemoveDialog({
                                 decision.action === "reassign" ? decision.targetUserId : "",
                             })
                           }
+                          className={cn(
+                            "rounded-md border px-3 py-2 text-left transition-colors disabled:opacity-50",
+                            selectedAction === "reassign"
+                              ? "border-primary bg-primary/5"
+                              : "hover:bg-muted/60"
+                          )}
                         >
-                          Reassign to another user
-                        </Button>
+                          <p className="text-sm font-medium">Transfer to another user</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            Keep these items assigned by moving them to someone else first.
+                          </p>
+                        </button>
                       </div>
 
                       {selectedAction === "reassign" ? (
@@ -314,19 +330,11 @@ export function AdminUserRemoveDialog({
                               </SelectContent>
                             </Select>
                           )}
-                          <p className="text-xs text-muted-foreground">
-                            Transfer these items to the selected volunteer before removing this
-                            account.
-                          </p>
                         </div>
-                      ) : (
-                        <p className="text-xs text-muted-foreground">{group.unassignOutcome}</p>
-                      )}
+                      ) : null}
                     </div>
                   ) : (
-                    <p className="text-sm text-muted-foreground">
-                      {group.unassignOutcome}
-                    </p>
+                    <p className="text-sm text-muted-foreground">{group.unassignOutcome}</p>
                   )}
                 </div>
               );
