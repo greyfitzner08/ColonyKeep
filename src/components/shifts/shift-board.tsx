@@ -1,8 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -16,9 +15,73 @@ import {
   formatAddressPartsLine,
 } from "@/components/forms/address-autocomplete";
 import { SHIFT_REQUIRED_ROLES, SHIFT_TYPES } from "@/lib/constants";
-import { formatDate, formatTimeRange } from "@/lib/utils";
+import { cn, formatDate, formatTimeRange } from "@/lib/utils";
 import type { Shift, ShiftRequiredRole, ShiftType } from "@/lib/types";
-import { Plus, MapPin, Clock, Pencil, Trash2 } from "lucide-react";
+import { Plus, MapPin, Clock, Pencil, Trash2, ChevronDown } from "lucide-react";
+
+function CollapsibleBlock({
+  title,
+  summary,
+  defaultOpen = false,
+  headerAction,
+  children,
+  className,
+  titleClassName,
+}: {
+  title: string;
+  summary?: string;
+  defaultOpen?: boolean;
+  headerAction?: ReactNode;
+  children: ReactNode;
+  className?: string;
+  titleClassName?: string;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+
+  return (
+    <div className={cn("overflow-hidden rounded-xl border bg-background", className)}>
+      <div className="flex items-start gap-2 border-b bg-muted/30 px-4 py-3">
+        <button
+          type="button"
+          className="flex min-w-0 flex-1 items-start gap-2 rounded-md text-left transition-colors hover:bg-muted/50"
+          onClick={() => setOpen((value) => !value)}
+          aria-expanded={open}
+        >
+          <ChevronDown
+            className={cn(
+              "mt-0.5 h-4 w-4 shrink-0 text-muted-foreground transition-transform",
+              open && "rotate-180"
+            )}
+          />
+          <span className="min-w-0 flex-1">
+            <span className={cn("block font-semibold leading-snug", titleClassName)}>{title}</span>
+            {summary ? (
+              <span className="mt-0.5 block text-sm text-muted-foreground">{summary}</span>
+            ) : null}
+          </span>
+        </button>
+        {headerAction ? <div className="shrink-0">{headerAction}</div> : null}
+      </div>
+      {open ? <div className="p-4">{children}</div> : null}
+    </div>
+  );
+}
+
+function shiftIdentityKey(input: {
+  event_name: string;
+  position_name: string;
+  date: string;
+  start_time: string;
+  end_time: string;
+}) {
+  return [
+    input.event_name.trim().toLowerCase(),
+    input.position_name.trim().toLowerCase(),
+    input.date,
+    input.start_time.slice(0, 5),
+    input.end_time.slice(0, 5),
+  ].join("|");
+}
 
 interface ShiftBoardProps {
   shifts: Shift[];
@@ -192,25 +255,15 @@ export function ShiftBoard({ shifts: initial, userEmail, isAdmin }: ShiftBoardPr
 
   function openAddShiftsToEvent(eventGroupName: string, eventShifts: Shift[]) {
     const sample = eventShifts[0];
-    const existingPositions = Array.from(
-      new Set(eventShifts.map((shift) => positionLabel(shift)))
-    );
+    // Start blank so "Add shifts" never clones an existing slot by accident.
+    // Keep only event-level defaults (location / type / role).
     setEventName(eventGroupName);
     setDefaultLocation(sample?.location ?? "");
     setPositions([
       emptyPosition({
-        name: existingPositions[0] ?? "",
         shift_type: sample?.shift_type ?? "event",
         required_roles: sample?.required_roles ?? "any",
-        slots: [
-          emptySlot({
-            date: sample?.date ?? "",
-            start_time: sample?.start_time?.slice(0, 5) ?? "",
-            end_time: sample?.end_time?.slice(0, 5) ?? "",
-            location: "",
-            volunteers_needed: sample?.volunteers_needed ?? 1,
-          }),
-        ],
+        slots: [emptySlot()],
       }),
     ]);
     setFormError(null);
@@ -312,7 +365,8 @@ export function ShiftBoard({ shifts: initial, userEmail, isAdmin }: ShiftBoardPr
       return [
         ...current,
         emptySlot({
-          date: last?.date || editForm.date,
+          // Leave date empty so save cannot silently clone this shift.
+          date: "",
           start_time: last?.start_time || editForm.start_time,
           end_time: last?.end_time || editForm.end_time,
           location: last?.location || "",
@@ -387,6 +441,19 @@ export function ShiftBoard({ shifts: initial, userEmail, isAdmin }: ShiftBoardPr
       }
     }
 
+    const existingKeys = new Set(
+      initial.map((shift) =>
+        shiftIdentityKey({
+          event_name: shift.event_name,
+          position_name: positionLabel(shift),
+          date: shift.date,
+          start_time: shift.start_time,
+          end_time: shift.end_time,
+        })
+      )
+    );
+    const batchKeys = new Set<string>();
+
     for (const slot of prepared) {
       if (!slot.date) {
         setFormError(`${slot.label}: choose a date.`);
@@ -400,6 +467,25 @@ export function ShiftBoard({ shifts: initial, userEmail, isAdmin }: ShiftBoardPr
         setFormError(`${slot.label}: set a location (or a default event location).`);
         return;
       }
+
+      const key = shiftIdentityKey({
+        event_name: eventName,
+        position_name: slot.position_name,
+        date: slot.date,
+        start_time: slot.start_time,
+        end_time: slot.end_time,
+      });
+      if (batchKeys.has(key)) {
+        setFormError(`${slot.label}: this matches another new shift in this form.`);
+        return;
+      }
+      if (existingKeys.has(key)) {
+        setFormError(
+          `${slot.label}: a shift with this position, date, and time already exists on this event.`
+        );
+        return;
+      }
+      batchKeys.add(key);
     }
 
     setSaving(true);
@@ -436,6 +522,44 @@ export function ShiftBoard({ shifts: initial, userEmail, isAdmin }: ShiftBoardPr
       return;
     }
 
+    const existingKeys = new Set(
+      initial.map((shift) =>
+        shiftIdentityKey({
+          event_name: shift.event_name,
+          position_name: positionLabel(shift),
+          date: shift.date,
+          start_time: shift.start_time,
+          end_time: shift.end_time,
+        })
+      )
+    );
+    // The edited shift may still match its own identity until saved — exclude it.
+    existingKeys.delete(
+      shiftIdentityKey({
+        event_name: editingShift.event_name,
+        position_name: positionLabel(editingShift),
+        date: editingShift.date,
+        start_time: editingShift.start_time,
+        end_time: editingShift.end_time,
+      })
+    );
+
+    const editedKey = shiftIdentityKey({
+      event_name: editForm.event_name,
+      position_name: editForm.position_name,
+      date: editForm.date,
+      start_time: editForm.start_time,
+      end_time: editForm.end_time,
+    });
+    if (existingKeys.has(editedKey)) {
+      setFormError(
+        "Another shift already uses this event, position, date, and time."
+      );
+      return;
+    }
+
+    const batchKeys = new Set<string>([editedKey]);
+
     for (const [index, slot] of additionalSlots.entries()) {
       const location = (slot.location.trim() || editForm.location).trim();
       const label = `Additional shift ${index + 1}`;
@@ -451,6 +575,21 @@ export function ShiftBoard({ shifts: initial, userEmail, isAdmin }: ShiftBoardPr
         setFormError(`${label}: set a location.`);
         return;
       }
+
+      const key = shiftIdentityKey({
+        event_name: editForm.event_name,
+        position_name: editForm.position_name,
+        date: slot.date,
+        start_time: slot.start_time,
+        end_time: slot.end_time,
+      });
+      if (batchKeys.has(key) || existingKeys.has(key)) {
+        setFormError(
+          `${label}: a shift with this position, date, and time already exists.`
+        );
+        return;
+      }
+      batchKeys.add(key);
     }
 
     setSaving(true);
@@ -538,23 +677,30 @@ export function ShiftBoard({ shifts: initial, userEmail, isAdmin }: ShiftBoardPr
       {groupedEvents.length === 0 ? (
         <p className="text-sm text-muted-foreground">No shifts match this filter.</p>
       ) : (
-        <div className="grid grid-cols-1 gap-6 xl:grid-cols-2 xl:items-start">
-          {groupedEvents.map((group) => (
-            <Card key={group.name} className="overflow-hidden">
-              <CardHeader className="space-y-2 border-b bg-muted/30 pb-5">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                  <div className="min-w-0 space-y-2">
-                    <CardTitle className="text-xl leading-snug">{group.name}</CardTitle>
-                    <p className="text-sm text-muted-foreground">
-                      {group.positions.length} position{group.positions.length === 1 ? "" : "s"}
-                      {" · "}
-                      {group.shifts.length} shift{group.shifts.length === 1 ? "" : "s"}
-                      {group.shifts.length > 1
-                        ? ` · ${formatDate(group.shifts[0].date)} – ${formatDate(group.shifts[group.shifts.length - 1].date)}`
-                        : ` · ${formatDate(group.shifts[0].date)}`}
-                    </p>
-                  </div>
-                  {isAdmin && (
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 xl:items-start">
+          {groupedEvents.map((group, groupIndex) => {
+            const filled = group.shifts.reduce(
+              (sum, shift) => sum + (shift.signed_up_emails?.length ?? 0),
+              0
+            );
+            const needed = group.shifts.reduce(
+              (sum, shift) => sum + shift.volunteers_needed,
+              0
+            );
+            const dateSummary =
+              group.shifts.length > 1
+                ? `${formatDate(group.shifts[0].date)} – ${formatDate(group.shifts[group.shifts.length - 1].date)}`
+                : formatDate(group.shifts[0].date);
+
+            return (
+              <CollapsibleBlock
+                key={group.name}
+                defaultOpen={groupIndex === 0}
+                title={group.name}
+                titleClassName="text-xl"
+                summary={`${group.positions.length} position${group.positions.length === 1 ? "" : "s"} · ${group.shifts.length} shift${group.shifts.length === 1 ? "" : "s"} · ${filled}/${needed} filled · ${dateSummary}`}
+                headerAction={
+                  isAdmin ? (
                     <Button
                       type="button"
                       variant="outline"
@@ -565,96 +711,114 @@ export function ShiftBoard({ shifts: initial, userEmail, isAdmin }: ShiftBoardPr
                       <Plus className="h-4 w-4 mr-1" />
                       Add shifts
                     </Button>
-                  )}
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-8 pt-5">
-                {group.positions.map((position) => (
-                  <div key={`${group.name}-${position.name}`} className="space-y-3">
-                    <h3 className="text-base font-semibold tracking-tight">{position.name}</h3>
-                    <div className="space-y-3">
-                      {position.shifts.map((shift) => {
-                        const signedUp = shift.signed_up_emails ?? [];
-                        const isSignedUp = signedUp.includes(userEmail);
-                        const spotsLeft = shift.volunteers_needed - signedUp.length;
+                  ) : undefined
+                }
+              >
+                <div className="space-y-3">
+                  {group.positions.map((position, positionIndex) => {
+                    const positionFilled = position.shifts.reduce(
+                      (sum, shift) => sum + (shift.signed_up_emails?.length ?? 0),
+                      0
+                    );
+                    const positionNeeded = position.shifts.reduce(
+                      (sum, shift) => sum + shift.volunteers_needed,
+                      0
+                    );
 
-                        return (
-                          <div
-                            key={shift.id}
-                            className="flex flex-col gap-4 rounded-xl border bg-background p-4 sm:p-5"
-                          >
-                            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                              <div className="min-w-0 space-y-2">
-                                <p className="text-base font-medium leading-snug">
-                                  {formatDate(shift.date)}
+                    return (
+                      <CollapsibleBlock
+                        key={`${group.name}-${position.name}`}
+                        defaultOpen={group.positions.length === 1 || positionIndex === 0}
+                        title={position.name}
+                        titleClassName="text-base"
+                        summary={`${position.shifts.length} shift${position.shifts.length === 1 ? "" : "s"} · ${positionFilled}/${positionNeeded} volunteers`}
+                        className="bg-muted/10"
+                      >
+                        <div className="space-y-3">
+                          {position.shifts.map((shift) => {
+                            const signedUp = shift.signed_up_emails ?? [];
+                            const isSignedUp = signedUp.includes(userEmail);
+                            const spotsLeft = shift.volunteers_needed - signedUp.length;
+
+                            return (
+                              <div
+                                key={shift.id}
+                                className="flex flex-col gap-3 rounded-lg border bg-background p-3 sm:p-4"
+                              >
+                                <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                                  <div className="min-w-0 space-y-1.5">
+                                    <p className="font-medium leading-snug">
+                                      {formatDate(shift.date)}
+                                    </p>
+                                    <p className="flex items-center gap-2 text-sm text-muted-foreground">
+                                      <Clock className="h-4 w-4 shrink-0" />
+                                      {formatTimeRange(shift.start_time, shift.end_time)}
+                                    </p>
+                                    <p className="flex items-start gap-2 text-sm text-muted-foreground">
+                                      <MapPin className="mt-0.5 h-4 w-4 shrink-0" />
+                                      <span className="min-w-0 break-words leading-relaxed">
+                                        {shift.location}
+                                      </span>
+                                    </p>
+                                  </div>
+                                  <div className="flex shrink-0 items-center gap-1.5">
+                                    <Badge variant="secondary" className="whitespace-nowrap">
+                                      {shiftTypeLabel(shift.shift_type)}
+                                    </Badge>
+                                    {isAdmin && (
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-8 w-8"
+                                        onClick={() => openEditDialog(shift)}
+                                      >
+                                        <Pencil className="h-4 w-4" />
+                                      </Button>
+                                    )}
+                                  </div>
+                                </div>
+                                <p className="text-sm">
+                                  {signedUp.length}/{shift.volunteers_needed} volunteers signed up
+                                  {spotsLeft > 0
+                                    ? ` · ${spotsLeft} spot${spotsLeft === 1 ? "" : "s"} left`
+                                    : ""}
                                 </p>
-                                <p className="flex items-center gap-2 text-sm text-muted-foreground">
-                                  <Clock className="h-4 w-4 shrink-0" />
-                                  {formatTimeRange(shift.start_time, shift.end_time)}
-                                </p>
-                                <p className="flex items-start gap-2 text-sm text-muted-foreground">
-                                  <MapPin className="mt-0.5 h-4 w-4 shrink-0" />
-                                  <span className="min-w-0 break-words leading-relaxed">
-                                    {shift.location}
-                                  </span>
-                                </p>
-                              </div>
-                              <div className="flex shrink-0 items-center gap-1.5">
-                                <Badge variant="secondary" className="whitespace-nowrap">
-                                  {shiftTypeLabel(shift.shift_type)}
-                                </Badge>
-                                {isAdmin && (
+                                {shift.notes && (
+                                  <p className="text-sm leading-relaxed text-muted-foreground">
+                                    {shift.notes}
+                                  </p>
+                                )}
+                                {isSignedUp ? (
                                   <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-8 w-8"
-                                    onClick={() => openEditDialog(shift)}
+                                    variant="outline"
+                                    className="w-full sm:w-auto sm:self-start"
+                                    onClick={() => claimShift(shift.id, "unclaim")}
                                   >
-                                    <Pencil className="h-4 w-4" />
+                                    Unclaim Shift
+                                  </Button>
+                                ) : spotsLeft > 0 ? (
+                                  <Button
+                                    className="w-full sm:w-auto sm:self-start"
+                                    onClick={() => claimShift(shift.id, "claim")}
+                                  >
+                                    Sign Up
+                                  </Button>
+                                ) : (
+                                  <Button className="w-full sm:w-auto sm:self-start" disabled>
+                                    Full
                                   </Button>
                                 )}
                               </div>
-                            </div>
-                            <p className="text-sm">
-                              {signedUp.length}/{shift.volunteers_needed} volunteers signed up
-                              {spotsLeft > 0
-                                ? ` · ${spotsLeft} spot${spotsLeft === 1 ? "" : "s"} left`
-                                : ""}
-                            </p>
-                            {shift.notes && (
-                              <p className="text-sm leading-relaxed text-muted-foreground">
-                                {shift.notes}
-                              </p>
-                            )}
-                            {isSignedUp ? (
-                              <Button
-                                variant="outline"
-                                className="mt-auto w-full sm:w-auto sm:self-start"
-                                onClick={() => claimShift(shift.id, "unclaim")}
-                              >
-                                Unclaim Shift
-                              </Button>
-                            ) : spotsLeft > 0 ? (
-                              <Button
-                                className="mt-auto w-full sm:w-auto sm:self-start"
-                                onClick={() => claimShift(shift.id, "claim")}
-                              >
-                                Sign Up
-                              </Button>
-                            ) : (
-                              <Button className="mt-auto w-full sm:w-auto sm:self-start" disabled>
-                                Full
-                              </Button>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-          ))}
+                            );
+                          })}
+                        </div>
+                      </CollapsibleBlock>
+                    );
+                  })}
+                </div>
+              </CollapsibleBlock>
+            );
+          })}
         </div>
       )}
 
@@ -664,7 +828,7 @@ export function ShiftBoard({ shifts: initial, userEmail, isAdmin }: ShiftBoardPr
             <DialogTitle>{createTitle}</DialogTitle>
             <DialogDescription>
               {lockingEventName
-                ? "Add more volunteer positions or dated shifts to this event."
+                ? "Enter a new position or reuse an existing one, then set date and times for each new shift. Fields start blank so nothing is duplicated by mistake."
                 : "Name the event, add volunteer positions, and give each position one or more dated shifts — including multi-day schedules."}
             </DialogDescription>
           </DialogHeader>
@@ -678,6 +842,19 @@ export function ShiftBoard({ shifts: initial, userEmail, isAdmin }: ShiftBoardPr
                 disabled={lockingEventName}
               />
             </div>
+            {lockingEventName && (
+              <p className="rounded-md border bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
+                Existing positions:{" "}
+                {Array.from(
+                  new Set(
+                    initial
+                      .filter((shift) => shift.event_name.trim() === eventName.trim())
+                      .map((shift) => positionLabel(shift))
+                  )
+                ).join(", ") || "none yet"}
+                . Reuse a name to add another shift to that position.
+              </p>
+            )}
             <AddressAutocomplete
               label="Default location"
               defaultValue={defaultLocation}
@@ -1023,7 +1200,8 @@ export function ShiftBoard({ shifts: initial, userEmail, isAdmin }: ShiftBoardPr
                 <div>
                   <p className="text-sm font-medium">Additional shifts</p>
                   <p className="text-xs text-muted-foreground">
-                    Same event and position · optional locations default to this shift’s location
+                    Same event and position · pick a date (starts blank) · times copy as a starting
+                    point · optional locations default to this shift’s location
                   </p>
                 </div>
                 <Button type="button" variant="outline" size="sm" onClick={addAdditionalSlot}>
