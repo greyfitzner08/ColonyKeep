@@ -161,7 +161,7 @@ export function VolunteersManager({
   const [roleRequestPatches, setRoleRequestPatches] = useState<
     Record<string, Partial<VolunteerRoleRequest>>
   >({});
-  const [filter, setFilter] = useState<ApplicationStatusFilter>("needs_attention");
+  const [filter, setFilter] = useState<ApplicationStatusFilter>("all");
   const [viewMode, setViewMode] = useState<ApplicationViewMode>("cards");
   const [interestFilter, setInterestFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
