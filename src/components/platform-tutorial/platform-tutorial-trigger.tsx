@@ -46,14 +46,11 @@ export function PlatformTutorialTrigger({
       <>
         <Button
           type="button"
-          variant="ghost"
-          className={cn(
-            "h-auto w-full justify-start gap-2 px-2 py-2 text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground",
-            className
-          )}
+          variant="sidebar"
+          className={cn("h-auto w-full justify-start gap-2 px-2 py-2", className)}
           onClick={() => setChooserOpen(true)}
         >
-          <Compass className="h-4 w-4 shrink-0" />
+          <Compass className="h-4 w-4 shrink-0" aria-hidden="true" />
           <span className="text-sm font-medium">Walkthroughs</span>
         </Button>
 

@@ -96,16 +96,16 @@ export function AdminRolePreviewControl({
       <Button
         type="button"
         size="icon"
-        variant="ghost"
+        variant="sidebar"
         className={cn(
-          "h-8 w-8 text-sidebar-foreground/80 hover:text-sidebar-foreground",
-          previewKey && "text-amber-700 hover:text-amber-800"
+          "h-8 w-8",
+          previewKey && "text-amber-300 hover:bg-sidebar-accent hover:text-amber-200"
         )}
         aria-label={activeLabel ? `Viewing as ${activeLabel}. Change preview role.` : "View app as another role"}
         title={activeLabel ? `Viewing as ${activeLabel}` : "View as role"}
         onClick={() => setOpen(true)}
       >
-        <Eye className="h-4 w-4" />
+        <Eye className="h-4 w-4" aria-hidden="true" />
       </Button>
 
       <Dialog open={open} onOpenChange={setOpen}>

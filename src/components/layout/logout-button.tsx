@@ -17,12 +17,13 @@ export function LogoutButton() {
 
   return (
     <Button
-      variant="ghost"
+      variant="sidebar"
       size="sm"
-      className="w-full justify-start gap-2 text-sidebar-foreground/80 hover:text-sidebar-foreground"
+      className="w-full justify-start gap-2"
       onClick={handleLogout}
+      aria-label="Log out"
     >
-      <LogOut className="h-4 w-4" />
+      <LogOut className="h-4 w-4" aria-hidden="true" />
       Log out
     </Button>
   );
