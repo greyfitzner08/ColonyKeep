@@ -26,17 +26,17 @@ function pad2(value: number): string {
   return String(value).padStart(2, "0");
 }
 
-/** Display dates as MM-DD-YYYY app-wide. */
+/** Display dates as DD-MM-YYYY app-wide. */
 export function formatDate(date: string | Date): string {
   const d = toDisplayDate(date);
   if (Number.isNaN(d.getTime())) return "";
-  return `${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}-${d.getFullYear()}`;
+  return `${pad2(d.getDate())}-${pad2(d.getMonth() + 1)}-${d.getFullYear()}`;
 }
 
 export function formatDateTime(date: string | Date): string {
   const d = new Date(date);
   if (Number.isNaN(d.getTime())) return "";
-  const datePart = `${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}-${d.getFullYear()}`;
+  const datePart = `${pad2(d.getDate())}-${pad2(d.getMonth() + 1)}-${d.getFullYear()}`;
   const timePart = d.toLocaleTimeString("en-US", {
     hour: "numeric",
     minute: "2-digit",

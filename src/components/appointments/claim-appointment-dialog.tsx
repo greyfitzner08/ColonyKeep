@@ -22,6 +22,7 @@ import {
 import { CaseSearchPicker } from "@/components/appointments/case-search-picker";
 import { type HelpRequestOption } from "@/lib/cases/help-request-options";
 import type { Appointment, Cat } from "@/lib/types";
+import { formatDate } from "@/lib/utils";
 
 interface ClaimAppointmentDialogProps {
   appointment: Appointment | null;
@@ -105,7 +106,7 @@ export function ClaimAppointmentDialog({
           <DialogTitle>Claim Appointment</DialogTitle>
           <DialogDescription>
             {appointment
-              ? `${appointment.clinic_name} · ${appointment.date}`
+              ? `${appointment.clinic_name} · ${formatDate(appointment.date)}`
               : "Link this slot to a case"}
           </DialogDescription>
         </DialogHeader>
