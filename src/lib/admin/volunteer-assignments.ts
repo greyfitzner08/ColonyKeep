@@ -353,6 +353,46 @@ export async function previewVolunteerAssignments(
   };
 }
 
+function assertNoError(
+  error: { message: string } | null,
+  fallback: string
+): string | null {
+  return error ? error.message || fallback : null;
+}
+
+/** Release claims the same way case unclaim does — clear assignee and unwind claim status. */
+async function releaseClaimedCases(
+  service: SupabaseClient,
+  ids: string[]
+): Promise<string | null> {
+  if (ids.length === 0) return null;
+
+  const { data: rows, error: fetchError } = await service
+    .from("help_requests")
+    .select("id, status")
+    .in("id", ids);
+
+  const fetchProblem = assertNoError(fetchError, "Unable to load claimed cases");
+  if (fetchProblem) return fetchProblem;
+
+  for (const row of rows ?? []) {
+    const updates: Record<string, unknown> = {
+      ...releaseIntakeAssignmentFields({}),
+    };
+    if (row.status === "claimed") {
+      updates.status = "routed_to_trap_team";
+    } else if (row.status === "under_review") {
+      updates.status = "new_intake";
+    }
+
+    const { error } = await service.from("help_requests").update(updates).eq("id", row.id);
+    const updateProblem = assertNoError(error, "Unable to release case claim");
+    if (updateProblem) return updateProblem;
+  }
+
+  return null;
+}
+
 async function releaseReservedAppointment(service: SupabaseClient, appointmentId: string) {
   const { data: appointment } = await service
     .from("appointments")
@@ -467,30 +507,37 @@ export async function applyVolunteerAssignmentDecisions(
       case "claimed_cases": {
         const ids = group.items.map((item) => item.id);
         if (decision.action === "reassign") {
-          await service
+          const { error } = await service
             .from("help_requests")
             .update({
               claimed_by_email: target!.email,
               claimed_by_name: target!.full_name,
             })
             .in("id", ids);
+          const problem = assertNoError(error, "Unable to reassign claimed cases");
+          if (problem) return problem;
         } else {
-          await service
-            .from("help_requests")
-            .update(releaseIntakeAssignmentFields({}))
-            .in("id", ids);
+          const problem = await releaseClaimedCases(service, ids);
+          if (problem) return problem;
         }
         break;
       }
       case "legacy_case_assignments": {
         const ids = group.items.map((item) => item.id);
         if (decision.action === "reassign") {
-          await service
+          const { error } = await service
             .from("help_requests")
             .update({ assigned_to: target!.full_name ?? target!.email })
             .in("id", ids);
+          const problem = assertNoError(error, "Unable to reassign legacy case assignments");
+          if (problem) return problem;
         } else {
-          await service.from("help_requests").update({ assigned_to: null }).in("id", ids);
+          const { error } = await service
+            .from("help_requests")
+            .update({ assigned_to: null })
+            .in("id", ids);
+          const problem = assertNoError(error, "Unable to clear legacy case assignments");
+          if (problem) return problem;
         }
         break;
       }

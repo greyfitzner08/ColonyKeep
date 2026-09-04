@@ -28,7 +28,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { cn } from "@/lib/utils";
 import { getApiErrorMessage } from "@/lib/api/errors";
 import type {
   AssignmentDecision,
@@ -136,6 +135,22 @@ export function AdminUserRemoveDialog({
     };
   }, [open, user?.id]);
 
+  const incompleteReassign = useMemo(() => {
+    if (!preview) return null;
+    for (const group of preview.groups) {
+      const decision =
+        decisions[group.key] ??
+        defaultDecisionForGroup(group.key, group.reassignable, group.requiresReassign);
+      if (group.requiresReassign && decision.action !== "reassign") {
+        return `Choose who should take over ${group.label.toLowerCase()}.`;
+      }
+      if (decision.action === "reassign" && !decision.targetUserId) {
+        return `Select a user to reassign ${group.label.toLowerCase()} to.`;
+      }
+    }
+    return null;
+  }, [preview, decisions]);
+
   function updateDecision(groupKey: string, decision: AssignmentDecision) {
     setDecisions((current) => ({ ...current, [groupKey]: decision }));
     setError(null);
@@ -144,6 +159,12 @@ export function AdminUserRemoveDialog({
 
   async function removeVolunteer() {
     if (!user || !preview) return;
+
+    if (incompleteReassign) {
+      setError(incompleteReassign);
+      onError(incompleteReassign);
+      return;
+    }
 
     const resolvedDecisions = Object.fromEntries(
       preview.groups.map((group) => [
@@ -188,7 +209,11 @@ export function AdminUserRemoveDialog({
         open={open && !simpleConfirmOpen && !loadingPreview && preview?.hasAssignments}
         onOpenChange={(nextOpen) => !removing && onOpenChange(nextOpen)}
       >
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent
+          className="max-w-2xl max-h-[90vh] overflow-y-auto"
+          onCloseAutoFocus={(event) => event.preventDefault()}
+          onOpenAutoFocus={(event) => event.preventDefault()}
+        >
           <DialogHeader>
             <DialogTitle>Remove {user.full_name ?? user.email}?</DialogTitle>
             <DialogDescription>
@@ -235,6 +260,7 @@ export function AdminUserRemoveDialog({
                             size="sm"
                             variant={selectedAction === "unassign" ? "default" : "outline"}
                             aria-pressed={selectedAction === "unassign"}
+                            disabled={removing}
                             onClick={() => updateDecision(group.key, { action: "unassign" })}
                           >
                             Unassign volunteer
@@ -245,6 +271,7 @@ export function AdminUserRemoveDialog({
                           size="sm"
                           variant={selectedAction === "reassign" ? "default" : "outline"}
                           aria-pressed={selectedAction === "reassign"}
+                          disabled={removing || reassignmentOptions.length === 0}
                           onClick={() =>
                             updateDecision(group.key, {
                               action: "reassign",
@@ -257,37 +284,43 @@ export function AdminUserRemoveDialog({
                         </Button>
                       </div>
 
-                      <div className={cn(selectedAction !== "reassign" && "hidden")}>
-                        <Label className="sr-only">Reassignment user</Label>
-                        <Select
-                          value={
-                            decision.action === "reassign" && decision.targetUserId
-                              ? decision.targetUserId
-                              : undefined
-                          }
-                          onValueChange={(targetUserId) =>
-                            updateDecision(group.key, { action: "reassign", targetUserId })
-                          }
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select user" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {reassignmentOptions.map((entry) => (
-                              <SelectItem key={entry.id} value={entry.id}>
-                                {entry.full_name?.trim() || entry.email}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      {selectedAction === "unassign" ? (
-                        <p className="text-xs text-muted-foreground">{group.unassignOutcome}</p>
+                      {selectedAction === "reassign" ? (
+                        <div className="space-y-2">
+                          <Label className="sr-only">Reassignment user</Label>
+                          {reassignmentOptions.length === 0 ? (
+                            <p className="text-sm text-destructive">
+                              No other volunteers available to reassign to.
+                            </p>
+                          ) : (
+                            <Select
+                              value={
+                                decision.action === "reassign" && decision.targetUserId
+                                  ? decision.targetUserId
+                                  : undefined
+                              }
+                              onValueChange={(targetUserId) =>
+                                updateDecision(group.key, { action: "reassign", targetUserId })
+                              }
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select user" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {reassignmentOptions.map((entry) => (
+                                  <SelectItem key={entry.id} value={entry.id}>
+                                    {entry.full_name?.trim() || entry.email}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          )}
+                          <p className="text-xs text-muted-foreground">
+                            Transfer these items to the selected volunteer before removing this
+                            account.
+                          </p>
+                        </div>
                       ) : (
-                        <p className="text-xs text-muted-foreground">
-                          Transfer these items to the selected volunteer before removing this account.
-                        </p>
+                        <p className="text-xs text-muted-foreground">{group.unassignOutcome}</p>
                       )}
                     </div>
                   ) : (
@@ -300,6 +333,9 @@ export function AdminUserRemoveDialog({
             })}
 
             {error ? <p className="text-sm text-destructive">{error}</p> : null}
+            {!error && incompleteReassign ? (
+              <p className="text-sm text-muted-foreground">{incompleteReassign}</p>
+            ) : null}
           </div>
 
           <div className="flex justify-end gap-2 pt-2">
@@ -315,7 +351,7 @@ export function AdminUserRemoveDialog({
               type="button"
               variant="destructive"
               onClick={() => void removeVolunteer()}
-              disabled={removing}
+              disabled={removing || Boolean(incompleteReassign)}
             >
               {removing ? "Removing…" : "Remove volunteer"}
             </Button>
