@@ -452,10 +452,19 @@ export function VolunteersManager({
     setActionError(null);
   }
 
+  function closeReviewDialog() {
+    setReviewingApplicationId(null);
+    setReviewTeamId("none");
+    setAdditionalRoleEdits({});
+    setContactEdits({});
+    setApplicationPatches({});
+    setRoleRequestPatches({});
+  }
+
   async function provisionLoginAccount(
     app: VolunteerApplication,
     linkedProfile?: Profile
-  ): Promise<boolean> {
+  ): Promise<"ok" | "warning" | "error"> {
     clearActionError();
     setActingId(app.id);
     const contact = contactForApp(app, linkedProfile);
@@ -474,15 +483,16 @@ export function VolunteersManager({
     setActingId(null);
     if (!response.ok) {
       showActionError(getApiErrorMessage(result, "Unable to create volunteer login account"));
-      return false;
+      return "error";
     }
     if (result?.warning) {
       showActionError(result.warning);
-    } else {
-      clearActionError();
+      router.refresh();
+      return "warning";
     }
+    clearActionError();
     router.refresh();
-    return true;
+    return "ok";
   }
 
   async function saveVolunteerChanges(
@@ -570,11 +580,12 @@ export function VolunteersManager({
     router.refresh();
 
     if (app.status === "approved" && !linkedProfile) {
-      await provisionLoginAccount(app);
-      return;
+      const provisionResult = await provisionLoginAccount(app);
+      if (provisionResult !== "ok") return;
     }
 
     clearActionError();
+    closeReviewDialog();
   }
 
   async function handleAction(
@@ -1997,14 +2008,7 @@ export function VolunteersManager({
       <Dialog
         open={reviewingApplicationId != null}
         onOpenChange={(open) => {
-          if (!open) {
-            setReviewingApplicationId(null);
-            setReviewTeamId("none");
-            setAdditionalRoleEdits({});
-            setContactEdits({});
-            setApplicationPatches({});
-            setRoleRequestPatches({});
-          }
+          if (!open) closeReviewDialog();
         }}
       >
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
@@ -2026,11 +2030,7 @@ export function VolunteersManager({
                     : "Training checkboxes save immediately when toggled."}
                 </p>
                 <div className="flex gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setReviewingApplicationId(null)}
-                  >
+                  <Button type="button" variant="outline" onClick={closeReviewDialog}>
                     Close
                   </Button>
                   <Button
