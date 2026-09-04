@@ -36,6 +36,13 @@ function toDateKey(date: Date): string {
   return `${year}-${month}-${day}`;
 }
 
+/** Normalize DB/calendar date strings to YYYY-MM-DD for grouping. */
+function appointmentDateKey(date: string): string {
+  const trimmed = date.trim();
+  const match = /^(\d{4}-\d{2}-\d{2})/.exec(trimmed);
+  return match ? match[1] : trimmed.slice(0, 10);
+}
+
 function buildMonthGrid(year: number, month: number) {
   const firstDay = new Date(year, month, 1);
   const daysInMonth = new Date(year, month + 1, 0).getDate();
@@ -110,7 +117,7 @@ export function AppointmentsCalendar({
 
   const grouped = filtered.reduce(
     (acc, appt) => {
-      const key = appt.date;
+      const key = appointmentDateKey(appt.date);
       if (!acc[key]) acc[key] = [];
       acc[key].push(appt);
       return acc;
@@ -405,19 +412,8 @@ export function AppointmentsCalendar({
               {selectedDayAppointments.length === 0 ? (
                 <p className="text-sm text-muted-foreground">No appointments on this day.</p>
               ) : (
-                <div className="space-y-3">
-                  {selectedDayAppointments.some((appt) => appt.status === "available") && (
-                    <p className="text-sm text-muted-foreground">
-                      Available slots for this day are shown in the selection dialog.
-                    </p>
-                  )}
-                  {selectedDayAppointments.some((appt) => appt.status !== "available") && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                      {selectedDayAppointments
-                        .filter((appt) => appt.status !== "available")
-                        .map((appt) => renderAppointmentCard(appt))}
-                    </div>
-                  )}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {selectedDayAppointments.map((appt) => renderAppointmentCard(appt))}
                 </div>
               )}
             </div>
