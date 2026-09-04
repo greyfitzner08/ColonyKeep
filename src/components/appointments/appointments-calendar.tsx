@@ -15,14 +15,14 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
 import { NumberInput } from "@/components/ui/number-input";
+import { DisplayDateInput } from "@/components/ui/display-date-input";
 import { ClaimAppointmentDialog } from "@/components/appointments/claim-appointment-dialog";
 import { AppointmentDetailDialog } from "@/components/appointments/appointment-detail-dialog";
 import { APPOINTMENT_STATUS_COLORS } from "@/lib/constants";
 import { canUnreserveAppointment, shouldShowAppointmentStatusBadge } from "@/lib/appointments/clinic-result";
 import { isAppointmentDatePast } from "@/lib/appointments/slot-date";
-import { formatDate, parseDisplayDate, cn } from "@/lib/utils";
+import { formatDate, cn } from "@/lib/utils";
 import type { Appointment, Clinic, Cat } from "@/lib/types";
 import type { HelpRequestOption } from "@/lib/cases/help-request-options";
 import { Plus, Calendar, ChevronLeft, ChevronRight } from "lucide-react";
@@ -215,8 +215,7 @@ export function AppointmentsCalendar({
       setBulkError("Select a clinic before creating slots.");
       return;
     }
-    const isoDate = parseDisplayDate(bulkForm.date);
-    if (!isoDate) {
+    if (!bulkForm.date) {
       setBulkError("Enter the date as DD-MM-YYYY.");
       return;
     }
@@ -228,7 +227,7 @@ export function AppointmentsCalendar({
       body: JSON.stringify({
         clinic_id: clinic.id,
         clinic_name: clinic.name,
-        date: isoDate,
+        date: bulkForm.date,
         count: bulkForm.count,
       }),
     });
@@ -241,6 +240,7 @@ export function AppointmentsCalendar({
     }
 
     setBulkDialog(false);
+    setBulkForm({ clinic_id: "", date: "", count: 5 });
     router.refresh();
   }
 
@@ -499,13 +499,10 @@ export function AppointmentsCalendar({
             </div>
             <div className="space-y-2">
               <Label htmlFor="bulk-create-date">Date (DD-MM-YYYY)</Label>
-              <Input
+              <DisplayDateInput
                 id="bulk-create-date"
-                type="text"
-                inputMode="numeric"
-                placeholder="DD-MM-YYYY"
                 value={bulkForm.date}
-                onChange={(e) => setBulkForm({ ...bulkForm, date: e.target.value })}
+                onValueChange={(date) => setBulkForm({ ...bulkForm, date })}
               />
             </div>
             <div className="space-y-2">

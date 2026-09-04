@@ -54,8 +54,9 @@ export function CaseAppointmentsSection({
 
   const grouped = availableAppointments.reduce(
     (acc, appt) => {
-      if (!acc[appt.date]) acc[appt.date] = [];
-      acc[appt.date].push(appt);
+      const key = appt.date.trim().slice(0, 10);
+      if (!acc[key]) acc[key] = [];
+      acc[key].push(appt);
       return acc;
     },
     {} as Record<string, Appointment[]>

@@ -27,6 +27,7 @@ import {
   normalizeServiceCatalog,
 } from "@/lib/clinics/service-catalog";
 import { formatCurrency, formatDate } from "@/lib/utils";
+import { DisplayDateInput } from "@/components/ui/display-date-input";
 import type {
   Clinic,
   ClinicEventPricingMode,
@@ -431,7 +432,14 @@ export function ClinicEventsManager({ events, clinics, bookings }: ClinicEventsM
         <p className="text-xs text-muted-foreground">Selecting a clinic loads its service catalog — you can customize below.</p>
       </div>
       <div className="space-y-1"><Label>Title</Label><Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} /></div>
-      <div className="space-y-1"><Label>Date</Label><Input type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} /></div>
+      <div className="space-y-1">
+        <Label htmlFor="clinic-event-date">Date (DD-MM-YYYY)</Label>
+        <DisplayDateInput
+          id="clinic-event-date"
+          value={form.date}
+          onValueChange={(date) => setForm({ ...form, date })}
+        />
+      </div>
       <div className="space-y-1"><Label>Location</Label><Input value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} /></div>
       <div className="space-y-1">
         <Label>Total Spots</Label>

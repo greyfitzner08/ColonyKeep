@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { DisplayDateInput } from "@/components/ui/display-date-input";
 import {
   Dialog,
   DialogContent,
@@ -208,12 +209,14 @@ export function LogClinicFixDialog({
               />
             </div>
             <div className="space-y-2">
-              <Label className="text-sm font-medium">Fix date</Label>
-              <Input
+              <Label className="text-sm font-medium" htmlFor="clinic-fix-date">
+                Fix date (DD-MM-YYYY)
+              </Label>
+              <DisplayDateInput
+                id="clinic-fix-date"
                 className="text-base"
-                type="date"
                 value={fixDate}
-                onChange={(e) => setFixDate(e.target.value)}
+                onValueChange={setFixDate}
               />
             </div>
           </div>

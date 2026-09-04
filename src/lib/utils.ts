@@ -12,7 +12,7 @@ export function formatCaseNumber(seq: number): string {
 /** Parse calendar dates as local days so YYYY-MM-DD is not shifted by timezone. */
 function toDisplayDate(date: string | Date): Date {
   if (date instanceof Date) return date;
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date.trim());
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(date.trim());
   if (match) {
     const year = Number(match[1]);
     const month = Number(match[2]) - 1;
@@ -49,6 +49,9 @@ export function parseDisplayDate(value: string): string | null {
 }
 
 export function formatDateTime(date: string | Date): string {
+  if (typeof date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(date.trim())) {
+    return formatDate(date);
+  }
   const d = new Date(date);
   if (Number.isNaN(d.getTime())) return "";
   const datePart = `${pad2(d.getDate())}-${pad2(d.getMonth() + 1)}-${d.getFullYear()}`;
