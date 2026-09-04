@@ -85,11 +85,22 @@ interface EditFormState {
   notes: string;
 }
 
-type DeleteTarget = {
-  ids: string[];
-  title: string;
-  description: string;
-};
+type PendingDestructiveAction =
+  | {
+      type: "delete_shifts";
+      ids: string[];
+      title: string;
+      description: string;
+      confirmLabel: string;
+    }
+  | {
+      type: "remove_signup";
+      shiftId: string;
+      email: string;
+      title: string;
+      description: string;
+      confirmLabel: string;
+    };
 
 function newKey(prefix: string) {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -177,7 +188,7 @@ export function ShiftBoard({
   const [additionalSlots, setAdditionalSlots] = useState<TimeSlotForm[]>([]);
   const [createTitle, setCreateTitle] = useState("Create Event");
   const [lockingEventName, setLockingEventName] = useState(false);
-  const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<PendingDestructiveAction | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [selectedEventName, setSelectedEventName] = useState<string | null>(null);
 
@@ -385,29 +396,49 @@ export function ShiftBoard({
     router.refresh();
   }
 
-  async function removeSignup(shiftId: string, email: string) {
-    await fetch("/api/shifts/claim", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ shiftId, action: "remove", email }),
-    });
-    router.refresh();
+  function openDestructiveConfirm(target: PendingDestructiveAction) {
+    setFormError(null);
+    if (editOpen) {
+      setEditOpen(false);
+      setEditingShift(null);
+      window.setTimeout(() => setDeleteTarget(target), 80);
+      return;
+    }
+    setDeleteTarget(target);
   }
 
-  async function confirmDelete() {
-    if (!deleteTarget || deleteTarget.ids.length === 0) return;
+  async function confirmDestructiveAction() {
+    if (!deleteTarget) return;
     setDeleting(true);
     setFormError(null);
     try {
-      const response = await fetch("/api/shifts/delete", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ids: deleteTarget.ids }),
-      });
-      const result = await response.json().catch(() => null);
-      if (!response.ok) {
-        setFormError(result?.error ?? "Unable to delete");
-        return;
+      if (deleteTarget.type === "remove_signup") {
+        const response = await fetch("/api/shifts/claim", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            shiftId: deleteTarget.shiftId,
+            action: "remove",
+            email: deleteTarget.email,
+          }),
+        });
+        const result = await response.json().catch(() => null);
+        if (!response.ok) {
+          setFormError(result?.error ?? "Unable to remove signup");
+          return;
+        }
+      } else {
+        if (deleteTarget.ids.length === 0) return;
+        const response = await fetch("/api/shifts/delete", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ids: deleteTarget.ids }),
+        });
+        const result = await response.json().catch(() => null);
+        if (!response.ok) {
+          setFormError(result?.error ?? "Unable to delete");
+          return;
+        }
       }
       setDeleteTarget(null);
       setEditOpen(false);
@@ -420,14 +451,15 @@ export function ShiftBoard({
 
   function requestDeleteShift(shift: Shift) {
     const signupCount = shift.signed_up_emails?.length ?? 0;
-    setFormError(null);
-    setDeleteTarget({
+    openDestructiveConfirm({
+      type: "delete_shifts",
       ids: [shift.id],
-      title: "Delete this shift?",
+      title: "Are you sure you would like to delete this shift?",
       description:
         signupCount > 0
-          ? `This removes ${formatDate(shift.date)} (${formatTimeRange(shift.start_time, shift.end_time)}) and clears ${signupCount} signup${signupCount === 1 ? "" : "s"}.`
-          : `This removes ${formatDate(shift.date)} (${formatTimeRange(shift.start_time, shift.end_time)}).`,
+          ? `This permanently removes ${formatDate(shift.date)} (${formatTimeRange(shift.start_time, shift.end_time)}) and clears ${signupCount} signup${signupCount === 1 ? "" : "s"}. This cannot be undone.`
+          : `This permanently removes ${formatDate(shift.date)} (${formatTimeRange(shift.start_time, shift.end_time)}). This cannot be undone.`,
+      confirmLabel: "Yes, delete shift",
     });
   }
 
@@ -436,14 +468,15 @@ export function ShiftBoard({
       (sum, shift) => sum + (shift.signed_up_emails?.length ?? 0),
       0
     );
-    setFormError(null);
-    setDeleteTarget({
+    openDestructiveConfirm({
+      type: "delete_shifts",
       ids: shifts.map((shift) => shift.id),
-      title: `Delete position "${positionName}"?`,
+      title: `Are you sure you would like to delete the position "${positionName}"?`,
       description:
         signupCount > 0
-          ? `This deletes ${shifts.length} shift${shifts.length === 1 ? "" : "s"} under ${eventName} and clears ${signupCount} signup${signupCount === 1 ? "" : "s"}.`
-          : `This deletes ${shifts.length} shift${shifts.length === 1 ? "" : "s"} under ${eventName}.`,
+          ? `This permanently deletes ${shifts.length} shift${shifts.length === 1 ? "" : "s"} under ${eventName} and clears ${signupCount} signup${signupCount === 1 ? "" : "s"}. This cannot be undone.`
+          : `This permanently deletes ${shifts.length} shift${shifts.length === 1 ? "" : "s"} under ${eventName}. This cannot be undone.`,
+      confirmLabel: "Yes, delete position",
     });
   }
 
@@ -452,14 +485,27 @@ export function ShiftBoard({
       (sum, shift) => sum + (shift.signed_up_emails?.length ?? 0),
       0
     );
-    setFormError(null);
-    setDeleteTarget({
+    openDestructiveConfirm({
+      type: "delete_shifts",
       ids: shifts.map((shift) => shift.id),
-      title: `Delete event "${eventName}"?`,
+      title: `Are you sure you would like to delete the event "${eventName}"?`,
       description:
         signupCount > 0
-          ? `This deletes the whole event (${shifts.length} shift${shifts.length === 1 ? "" : "s"}) and clears ${signupCount} signup${signupCount === 1 ? "" : "s"}.`
-          : `This deletes the whole event (${shifts.length} shift${shifts.length === 1 ? "" : "s"}).`,
+          ? `This permanently deletes the whole event (${shifts.length} shift${shifts.length === 1 ? "" : "s"}) and clears ${signupCount} signup${signupCount === 1 ? "" : "s"}. This cannot be undone.`
+          : `This permanently deletes the whole event (${shifts.length} shift${shifts.length === 1 ? "" : "s"}). This cannot be undone.`,
+      confirmLabel: "Yes, delete event",
+    });
+  }
+
+  function requestRemoveSignup(shiftId: string, email: string) {
+    const name = signupLabel(email);
+    openDestructiveConfirm({
+      type: "remove_signup",
+      shiftId,
+      email,
+      title: "Are you sure you would like to remove this signup?",
+      description: `This removes ${name} from the shift. They can sign up again later if a spot is open.`,
+      confirmLabel: "Yes, remove signup",
     });
   }
 
@@ -911,7 +957,7 @@ export function ShiftBoard({
                                     <button
                                       type="button"
                                       className="text-destructive hover:underline"
-                                      onClick={() => removeSignup(shift.id, email)}
+                                      onClick={() => requestRemoveSignup(shift.id, email)}
                                     >
                                       Remove
                                     </button>
@@ -1497,8 +1543,12 @@ export function ShiftBoard({
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{deleteTarget?.title ?? "Delete?"}</AlertDialogTitle>
-            <AlertDialogDescription>{deleteTarget?.description}</AlertDialogDescription>
+            <AlertDialogTitle>
+              {deleteTarget?.title ?? "Are you sure you would like to delete this?"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {deleteTarget?.description ?? "This action cannot be undone."}
+            </AlertDialogDescription>
           </AlertDialogHeader>
           {formError && <p className="text-sm text-destructive">{formError}</p>}
           <AlertDialogFooter>
@@ -1506,12 +1556,12 @@ export function ShiftBoard({
             <AlertDialogAction
               onClick={(event) => {
                 event.preventDefault();
-                void confirmDelete();
+                void confirmDestructiveAction();
               }}
               disabled={deleting}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              {deleting ? "Deleting..." : "Delete"}
+              {deleting ? "Working..." : deleteTarget?.confirmLabel ?? "Yes, delete"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
