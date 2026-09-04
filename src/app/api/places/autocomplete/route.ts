@@ -28,7 +28,12 @@ export async function GET(request: NextRequest) {
   if (!data || data.status === "REQUEST_DENIED" || data.status === "INVALID_REQUEST") {
     return NextResponse.json({
       predictions: [],
-      error: formatGoogleMapsApiError(data?.status, data?.error_message),
+      error: formatGoogleMapsApiError(data?.status, data?.error_message, {
+        key: apiKey,
+        source: process.env.GOOGLE_MAPS_SERVER_API_KEY?.trim()
+          ? "GOOGLE_MAPS_SERVER_API_KEY"
+          : "GOOGLE_MAPS_API_KEY",
+      }),
     });
   }
 

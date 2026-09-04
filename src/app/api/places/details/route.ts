@@ -32,7 +32,12 @@ export async function GET(request: NextRequest) {
   if (!result) {
     const error =
       data?.status === "REQUEST_DENIED"
-        ? formatGoogleMapsApiError(data?.status, data?.error_message)
+        ? formatGoogleMapsApiError(data?.status, data?.error_message, {
+            key: apiKey,
+            source: process.env.GOOGLE_MAPS_SERVER_API_KEY?.trim()
+              ? "GOOGLE_MAPS_SERVER_API_KEY"
+              : "GOOGLE_MAPS_API_KEY",
+          })
         : undefined;
     return NextResponse.json({
       address: "",
