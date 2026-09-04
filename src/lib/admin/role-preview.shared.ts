@@ -1,4 +1,4 @@
-import { isKnownUserRole, ROLE_PERMISSIONS, TNVR_ROLES, VOLUNTEER_ROLES } from "@/lib/constants";
+import { ROLE_PERMISSIONS, TNVR_ROLES, VOLUNTEER_ROLES } from "@/lib/constants";
 import type { Profile, RoleDescription, UserRole, VolunteerRole } from "@/lib/types";
 
 export const ROLE_PREVIEW_COOKIE = "tnvr_admin_role_preview";
@@ -12,7 +12,6 @@ export const VOLUNTEER_ROLES_EXCLUDED_FROM_PREVIEW: VolunteerRole[] = [
 export const PLATFORM_ROLE_PREVIEW_OPTIONS: { key: UserRole; label: string }[] = [
   { key: "inquiry_team", label: "Inquiry team" },
   { key: "trap_team_lead", label: "TNVR team" },
-  { key: "volunteer", label: "Volunteer (general)" },
 ];
 
 /** @deprecated Use PLATFORM_ROLE_PREVIEW_OPTIONS */
@@ -43,8 +42,9 @@ export function parseRolePreviewCookie(
     return { userRole: "volunteer", volunteerRoles: [volunteerRole] };
   }
 
-  if (isKnownUserRole(value) && value !== "admin") {
-    return { userRole: value, volunteerRoles: [] };
+  // Bare platform previews only — no empty "volunteer (general)" option.
+  if (PLATFORM_ROLE_PREVIEW_OPTIONS.some((entry) => entry.key === value)) {
+    return { userRole: value as UserRole, volunteerRoles: [] };
   }
 
   return null;
