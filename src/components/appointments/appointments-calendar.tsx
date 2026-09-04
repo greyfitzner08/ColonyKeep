@@ -216,7 +216,7 @@ export function AppointmentsCalendar({
       return;
     }
     if (!bulkForm.date) {
-      setBulkError("Enter the date as DD-MM-YYYY.");
+      setBulkError("Enter a date like 4 September 2026.");
       return;
     }
     setBulkError(null);
@@ -498,7 +498,7 @@ export function AppointmentsCalendar({
               </Select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="bulk-create-date">Date (DD-MM-YYYY)</Label>
+              <Label htmlFor="bulk-create-date">Date</Label>
               <DisplayDateInput
                 id="bulk-create-date"
                 value={bulkForm.date}

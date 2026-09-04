@@ -210,7 +210,7 @@ export function LogClinicFixDialog({
             </div>
             <div className="space-y-2">
               <Label className="text-sm font-medium" htmlFor="clinic-fix-date">
-                Fix date (DD-MM-YYYY)
+                Fix date
               </Label>
               <DisplayDateInput
                 id="clinic-fix-date"

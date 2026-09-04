@@ -433,7 +433,7 @@ export function ClinicEventsManager({ events, clinics, bookings }: ClinicEventsM
       </div>
       <div className="space-y-1"><Label>Title</Label><Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} /></div>
       <div className="space-y-1">
-        <Label htmlFor="clinic-event-date">Date (DD-MM-YYYY)</Label>
+        <Label htmlFor="clinic-event-date">Date</Label>
         <DisplayDateInput
           id="clinic-event-date"
           value={form.date}

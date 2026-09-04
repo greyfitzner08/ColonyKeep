@@ -26,20 +26,29 @@ function pad2(value: number): string {
   return String(value).padStart(2, "0");
 }
 
-/** Display dates as DD-MM-YYYY app-wide. */
-export function formatDate(date: string | Date): string {
-  const d = toDisplayDate(date);
-  if (Number.isNaN(d.getTime())) return "";
-  return `${pad2(d.getDate())}-${pad2(d.getMonth() + 1)}-${d.getFullYear()}`;
-}
+const MONTH_NAMES = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+] as const;
 
-/** Parse a DD-MM-YYYY display date into YYYY-MM-DD, or null if invalid. */
-export function parseDisplayDate(value: string): string | null {
-  const match = /^(\d{1,2})-(\d{1,2})-(\d{4})$/.exec(value.trim());
-  if (!match) return null;
-  const day = Number(match[1]);
-  const month = Number(match[2]);
-  const year = Number(match[3]);
+const MONTH_LOOKUP = Object.fromEntries(
+  MONTH_NAMES.flatMap((name, index) => [
+    [name.toLowerCase(), index + 1],
+    [name.slice(0, 3).toLowerCase(), index + 1],
+  ])
+) as Record<string, number>;
+
+function toIsoDate(year: number, month: number, day: number): string | null {
   if (!Number.isFinite(day) || !Number.isFinite(month) || !Number.isFinite(year)) return null;
   const d = new Date(year, month - 1, day);
   if (d.getFullYear() !== year || d.getMonth() !== month - 1 || d.getDate() !== day) {
@@ -48,13 +57,44 @@ export function parseDisplayDate(value: string): string | null {
   return `${year}-${pad2(month)}-${pad2(day)}`;
 }
 
+/** Display dates as "4 September 2026" app-wide. */
+export function formatDate(date: string | Date): string {
+  const d = toDisplayDate(date);
+  if (Number.isNaN(d.getTime())) return "";
+  return `${d.getDate()} ${MONTH_NAMES[d.getMonth()]} ${d.getFullYear()}`;
+}
+
+/**
+ * Parse a display date into YYYY-MM-DD.
+ * Accepts "4 September 2026", "4 Sept 2026", or "DD-MM-YYYY".
+ */
+export function parseDisplayDate(value: string): string | null {
+  const trimmed = value.trim().replace(/\s+/g, " ");
+
+  const named = /^(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})$/.exec(trimmed);
+  if (named) {
+    const day = Number(named[1]);
+    const month = MONTH_LOOKUP[named[2].toLowerCase()];
+    const year = Number(named[3]);
+    if (!month) return null;
+    return toIsoDate(year, month, day);
+  }
+
+  const numeric = /^(\d{1,2})-(\d{1,2})-(\d{4})$/.exec(trimmed);
+  if (numeric) {
+    return toIsoDate(Number(numeric[3]), Number(numeric[2]), Number(numeric[1]));
+  }
+
+  return null;
+}
+
 export function formatDateTime(date: string | Date): string {
   if (typeof date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(date.trim())) {
     return formatDate(date);
   }
   const d = new Date(date);
   if (Number.isNaN(d.getTime())) return "";
-  const datePart = `${pad2(d.getDate())}-${pad2(d.getMonth() + 1)}-${d.getFullYear()}`;
+  const datePart = formatDate(d);
   const timePart = d.toLocaleTimeString("en-US", {
     hour: "numeric",
     minute: "2-digit",
