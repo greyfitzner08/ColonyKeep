@@ -62,7 +62,7 @@ const NAV_GROUPS: NavGroup[] = [
   },
   {
     id: "cases",
-    label: "Cases",
+    label: "Operations",
     items: [
       { href: "/intake", label: "Inquiry Queue", icon: Inbox },
       { href: "/trap-queue", label: "Trap Queue", icon: Kanban },
