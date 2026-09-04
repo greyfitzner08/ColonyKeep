@@ -1038,7 +1038,7 @@ export function VolunteersManager({
           <Check className="h-4 w-4 mr-1" />
           {actingId === app.id
             ? "Working..."
-            : app.status === "inactive" || app.status === "rejected"
+            : app.status === "inactive"
               ? "Re-approve"
               : rolesReady
               ? context.canApproveWithPendingTraining && !context.allRequirementsMet
