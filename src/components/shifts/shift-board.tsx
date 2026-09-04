@@ -26,7 +26,7 @@ import {
 } from "@/components/forms/address-autocomplete";
 import { isAppointmentDatePast } from "@/lib/appointments/slot-date";
 import { SHIFT_REQUIRED_ROLES, SHIFT_TYPES } from "@/lib/constants";
-import { cn, formatDate, formatTimeRange } from "@/lib/utils";
+import { formatDate, formatTimeRange } from "@/lib/utils";
 import type { Shift, ShiftRequiredRole, ShiftType } from "@/lib/types";
 import { Plus, Pencil, Trash2 } from "lucide-react";
 
@@ -780,33 +780,44 @@ export function ShiftBoard({
     return { signedUp, spotsLeft, pastDate: isAppointmentDatePast(shift.date) };
   }
 
-  function ShiftClaimButton({ shift }: { shift: Shift }) {
+  function ShiftClaimButton({
+    shift,
+    className,
+  }: {
+    shift: Shift;
+    className?: string;
+  }) {
     const { signedUp, spotsLeft, pastDate } = shiftSignupSummary(shift);
     const isSignedUp = signedUp.includes(userEmail);
 
     if (isSignedUp) {
       return (
-        <Button variant="outline" size="sm" onClick={() => claimShift(shift.id, "unclaim")}>
+        <Button
+          variant="outline"
+          size="sm"
+          className={className}
+          onClick={() => claimShift(shift.id, "unclaim")}
+        >
           Unclaim
         </Button>
       );
     }
     if (pastDate) {
       return (
-        <Button size="sm" disabled>
-          Past
+        <Button size="sm" className={className} disabled>
+          Past date
         </Button>
       );
     }
     if (spotsLeft > 0) {
       return (
-        <Button size="sm" onClick={() => claimShift(shift.id, "claim")}>
+        <Button size="sm" className={className} onClick={() => claimShift(shift.id, "claim")}>
           Sign Up
         </Button>
       );
     }
     return (
-      <Button size="sm" disabled>
+      <Button size="sm" className={className} disabled>
         Full
       </Button>
     );
@@ -816,47 +827,46 @@ export function ShiftBoard({
     const signedUp = shift.signed_up_emails ?? [];
     if (!isAdmin || signedUp.length === 0) return null;
     return (
-      <ul className="mt-1.5 space-y-1">
-        {signedUp.map((email) => (
-          <li key={email} className="text-xs">
-            <span className="font-medium">{signupLabel(email)}</span>{" "}
-            <button
-              type="button"
-              className="text-destructive hover:underline"
-              onClick={() => requestRemoveSignup(shift.id, email)}
-            >
-              Remove
-            </button>
-          </li>
-        ))}
-      </ul>
+      <div className="rounded-lg bg-muted/40 px-3 py-2">
+        <p className="text-xs font-medium text-muted-foreground">Signed up</p>
+        <ul className="mt-1.5 space-y-1.5">
+          {signedUp.map((email) => (
+            <li key={email} className="flex items-center justify-between gap-2 text-sm">
+              <span className="min-w-0 truncate font-medium">{signupLabel(email)}</span>
+              <button
+                type="button"
+                className="shrink-0 text-xs text-destructive hover:underline"
+                onClick={() => requestRemoveSignup(shift.id, email)}
+              >
+                Remove
+              </button>
+            </li>
+          ))}
+        </ul>
+      </div>
     );
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
-        <div className="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row sm:items-center">
-          <Select value={typeFilter} onValueChange={setTypeFilter}>
-            <SelectTrigger className="w-full sm:w-[180px]">
-              <SelectValue placeholder="Shift type" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Types</SelectItem>
-              {SHIFT_TYPES.map((type) => (
-                <SelectItem key={type.value} value={type.value}>{type.label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {groupedEvents.length > 0 && selectedEvent ? (
-            <p className="text-sm text-muted-foreground sm:truncate">
-              Viewing <span className="font-medium text-foreground">{selectedEvent.name}</span>
-            </p>
-          ) : null}
-        </div>
+    <div className="mx-auto w-full max-w-3xl space-y-4">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <Select value={typeFilter} onValueChange={setTypeFilter}>
+          <SelectTrigger className="w-full sm:w-[200px]">
+            <SelectValue placeholder="Shift type" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Types</SelectItem>
+            {SHIFT_TYPES.map((type) => (
+              <SelectItem key={type.value} value={type.value}>
+                {type.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         {isAdmin && (
           <Button onClick={openCreateDialog} className="w-full sm:w-auto">
-            <Plus className="h-4 w-4 mr-2" />Create Event
+            <Plus className="mr-2 h-4 w-4" />
+            Create Event
           </Button>
         )}
       </div>
@@ -864,14 +874,14 @@ export function ShiftBoard({
       {groupedEvents.length === 0 || !selectedEvent ? (
         <p className="text-sm text-muted-foreground">No shifts match this filter.</p>
       ) : (
-        <div className="space-y-4">
-          <div className="space-y-2 lg:hidden">
+        <div className="space-y-5">
+          <div className="space-y-2">
             <Label htmlFor="shift-board-event">Event</Label>
             <Select
               value={selectedEvent.name}
               onValueChange={(value) => setSelectedEventName(value)}
             >
-              <SelectTrigger id="shift-board-event" className="w-full">
+              <SelectTrigger id="shift-board-event" className="h-11 w-full text-base">
                 <SelectValue placeholder="Choose an event" />
               </SelectTrigger>
               <SelectContent>
@@ -886,7 +896,7 @@ export function ShiftBoard({
                   );
                   return (
                     <SelectItem key={group.name} value={group.name}>
-                      {group.name} · {filled}/{needed}
+                      {group.name} · {filled}/{needed} filled
                     </SelectItem>
                   );
                 })}
@@ -894,304 +904,140 @@ export function ShiftBoard({
             </Select>
           </div>
 
-          <div className="grid gap-6 lg:grid-cols-[minmax(220px,280px)_minmax(0,1fr)] lg:items-start">
-            <aside className="hidden space-y-2 lg:block">
-              <p className="px-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                Events
+          <div className="flex flex-col gap-3 border-b pb-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
+              <h2 className="text-xl font-semibold leading-tight">{selectedEvent.name}</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {selectedEvent.positions.length} position
+                {selectedEvent.positions.length === 1 ? "" : "s"} · {selectedEvent.shifts.length}{" "}
+                shift
+                {selectedEvent.shifts.length === 1 ? "" : "s"}
               </p>
-              <div className="space-y-2">
-                {groupedEvents.map((group) => {
-                  const filled = group.shifts.reduce(
-                    (sum, shift) => sum + (shift.signed_up_emails?.length ?? 0),
-                    0
-                  );
-                  const needed = group.shifts.reduce(
-                    (sum, shift) => sum + shift.volunteers_needed,
-                    0
-                  );
-                  const active = selectedEvent.name === group.name;
-                  const dateSummary =
-                    group.shifts.length > 1
-                      ? `${formatDate(group.shifts[0].date)} – ${formatDate(group.shifts[group.shifts.length - 1].date)}`
-                      : formatDate(group.shifts[0].date);
+            </div>
+            {isAdmin && (
+              <div className="grid grid-cols-2 gap-2 sm:flex">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="w-full sm:w-auto"
+                  onClick={() => openAddShiftsToEvent(selectedEvent.name, selectedEvent.shifts)}
+                >
+                  <Plus className="mr-1 h-4 w-4" />
+                  Add shifts
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="w-full text-destructive hover:text-destructive sm:w-auto"
+                  onClick={() => requestDeleteEvent(selectedEvent.name, selectedEvent.shifts)}
+                >
+                  <Trash2 className="mr-1 h-4 w-4" />
+                  Delete
+                </Button>
+              </div>
+            )}
+          </div>
 
-                  return (
+          <div className="space-y-8">
+            {selectedEvent.positions.map((position) => (
+              <section key={`${selectedEvent.name}-${position.name}`} className="space-y-3">
+                <div className="flex items-center justify-between gap-2">
+                  <h3 className="text-base font-semibold">{position.name}</h3>
+                  {isAdmin && (
                     <button
-                      key={group.name}
                       type="button"
-                      onClick={() => setSelectedEventName(group.name)}
-                      className={cn(
-                        "w-full rounded-lg border px-3 py-2.5 text-left transition-colors",
-                        active
-                          ? "border-primary bg-primary/5"
-                          : "bg-background hover:bg-muted/40"
-                      )}
+                      className="text-xs text-destructive hover:underline"
+                      onClick={() =>
+                        requestDeletePosition(selectedEvent.name, position.name, position.shifts)
+                      }
                     >
-                      <p className="truncate font-medium leading-snug">{group.name}</p>
-                      <p className="mt-0.5 text-xs text-muted-foreground">
-                        {dateSummary} · {filled}/{needed}
-                      </p>
+                      Remove
                     </button>
-                  );
-                })}
-              </div>
-            </aside>
-
-            <div className="min-w-0 space-y-4">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                <div className="min-w-0 space-y-1">
-                  <h2 className="text-xl font-semibold tracking-tight">{selectedEvent.name}</h2>
-                  <p className="text-sm text-muted-foreground">
-                    {selectedEvent.positions.length} position
-                    {selectedEvent.positions.length === 1 ? "" : "s"} ·{" "}
-                    {selectedEvent.shifts.length} shift
-                    {selectedEvent.shifts.length === 1 ? "" : "s"}
-                  </p>
+                  )}
                 </div>
-                {isAdmin && (
-                  <div className="flex shrink-0 flex-wrap gap-1.5">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() =>
-                        openAddShiftsToEvent(selectedEvent.name, selectedEvent.shifts)
-                      }
-                    >
-                      <Plus className="mr-1 h-4 w-4" />
-                      Add shifts
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="text-destructive hover:text-destructive"
-                      onClick={() =>
-                        requestDeleteEvent(selectedEvent.name, selectedEvent.shifts)
-                      }
-                    >
-                      <Trash2 className="mr-1 h-4 w-4" />
-                      Delete event
-                    </Button>
-                  </div>
-                )}
-              </div>
 
-              {/* Mobile & tablet: stacked cards (table is hard to read under ~1024px) */}
-              <div className="space-y-6 lg:hidden">
-                {selectedEvent.positions.map((position) => (
-                  <div key={`${selectedEvent.name}-${position.name}`} className="space-y-3">
-                    <div className="flex flex-wrap items-center justify-between gap-2 border-b pb-2">
-                      <h3 className="text-base font-semibold">{position.name}</h3>
-                      {isAdmin && (
-                        <button
-                          type="button"
-                          className="text-xs text-destructive hover:underline"
-                          onClick={() =>
-                            requestDeletePosition(
-                              selectedEvent.name,
-                              position.name,
-                              position.shifts
-                            )
-                          }
-                        >
-                          Remove position
-                        </button>
-                      )}
-                    </div>
-                    <ul className="space-y-3">
-                      {position.shifts.map((shift) => {
-                        const { signedUp, spotsLeft } = shiftSignupSummary(shift);
-                        return (
-                          <li
-                            key={shift.id}
-                            className="space-y-3 rounded-xl border bg-background p-4 shadow-sm"
-                          >
-                            <div className="flex items-start justify-between gap-2">
-                              <div className="min-w-0">
-                                <p className="text-lg font-semibold leading-snug">
-                                  {formatDate(shift.date)}
-                                </p>
-                                <Badge variant="outline" className="mt-1.5 font-normal">
-                                  {shiftTypeLabel(shift.shift_type)}
-                                </Badge>
-                              </div>
-                              {isAdmin && (
-                                <div className="flex shrink-0">
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-9 w-9"
-                                    onClick={() => openEditDialog(shift)}
-                                  >
-                                    <Pencil className="h-4 w-4" />
-                                  </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-9 w-9 text-destructive hover:text-destructive"
-                                    onClick={() => requestDeleteShift(shift)}
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
-                                </div>
-                              )}
-                            </div>
-
-                            <dl className="space-y-2.5 text-sm">
-                              <div className="flex gap-3">
-                                <dt className="w-16 shrink-0 text-muted-foreground">Time</dt>
-                                <dd className="min-w-0 font-medium">
-                                  {formatTimeRange(shift.start_time, shift.end_time)}
-                                </dd>
-                              </div>
-                              <div className="flex gap-3">
-                                <dt className="w-16 shrink-0 text-muted-foreground">Where</dt>
-                                <dd className="min-w-0 break-words">{shift.location}</dd>
-                              </div>
-                              <div className="flex gap-3">
-                                <dt className="w-16 shrink-0 text-muted-foreground">Spots</dt>
-                                <dd className="min-w-0 font-medium">
-                                  {signedUp.length}/{shift.volunteers_needed}
-                                  {spotsLeft > 0
-                                    ? ` · ${spotsLeft} open`
-                                    : signedUp.length > 0
-                                      ? " · full"
-                                      : ""}
-                                </dd>
-                              </div>
-                              {shift.notes ? (
-                                <div className="flex gap-3">
-                                  <dt className="w-16 shrink-0 text-muted-foreground">Notes</dt>
-                                  <dd className="min-w-0 break-words text-muted-foreground">
-                                    {shift.notes}
-                                  </dd>
-                                </div>
-                              ) : null}
-                            </dl>
-
-                            <AdminSignupList shift={shift} />
-
-                            <div className="pt-1">
-                              <div className="[&_button]:w-full">
-                                <ShiftClaimButton shift={shift} />
-                              </div>
-                            </div>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  </div>
-                ))}
-              </div>
-
-              {/* Desktop: table */}
-              <div className="hidden overflow-x-auto rounded-lg border lg:block">
-                <table className="w-full text-left text-sm">
-                  <thead className="border-b bg-muted/40 text-xs text-muted-foreground">
-                    <tr>
-                      <th className="px-3 py-2.5 font-medium">Position</th>
-                      <th className="px-3 py-2.5 font-medium">When</th>
-                      <th className="hidden px-3 py-2.5 font-medium xl:table-cell">Location</th>
-                      <th className="px-3 py-2.5 font-medium">Spots</th>
-                      <th className="px-3 py-2.5 font-medium text-right"> </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {selectedEvent.positions.map((position) =>
-                      position.shifts.map((shift, shiftIndex) => {
-                        const { signedUp, spotsLeft } = shiftSignupSummary(shift);
-                        const isFirstInPosition = shiftIndex === 0;
-
-                        return (
-                          <tr key={shift.id} className="border-b last:border-b-0 align-top">
-                            <td className="px-3 py-3">
-                              {isFirstInPosition ? (
-                                <div className="space-y-1">
-                                  <p className="font-medium leading-snug">{position.name}</p>
-                                  {isAdmin && (
-                                    <button
-                                      type="button"
-                                      className="text-xs text-destructive hover:underline"
-                                      onClick={() =>
-                                        requestDeletePosition(
-                                          selectedEvent.name,
-                                          position.name,
-                                          position.shifts
-                                        )
-                                      }
-                                    >
-                                      Remove position
-                                    </button>
-                                  )}
-                                </div>
-                              ) : (
-                                <span className="sr-only">{position.name}</span>
-                              )}
-                            </td>
-                            <td className="px-3 py-3">
-                              <p className="font-medium">{formatDate(shift.date)}</p>
-                              <p className="text-muted-foreground">
+                <ul className="space-y-3">
+                  {position.shifts.map((shift) => {
+                    const { signedUp, spotsLeft } = shiftSignupSummary(shift);
+                    return (
+                      <li
+                        key={shift.id}
+                        className="overflow-hidden rounded-2xl border bg-background"
+                      >
+                        <div className="space-y-3 p-4">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <p className="text-lg font-semibold leading-snug">
+                                {formatDate(shift.date)}
+                              </p>
+                              <p className="mt-1 text-base font-medium tabular-nums">
                                 {formatTimeRange(shift.start_time, shift.end_time)}
                               </p>
-                              <Badge variant="outline" className="mt-1 font-normal">
-                                {shiftTypeLabel(shift.shift_type)}
-                              </Badge>
-                              <p className="mt-2 break-words text-xs text-muted-foreground xl:hidden">
-                                {shift.location}
-                              </p>
-                            </td>
-                            <td className="hidden max-w-[240px] px-3 py-3 xl:table-cell">
-                              <p className="break-words text-muted-foreground">{shift.location}</p>
-                              {shift.notes ? (
-                                <p className="mt-1 text-xs text-muted-foreground">{shift.notes}</p>
-                              ) : null}
-                            </td>
-                            <td className="px-3 py-3">
-                              <p>
-                                {signedUp.length}/{shift.volunteers_needed}
-                                {spotsLeft > 0 ? (
-                                  <span className="text-muted-foreground"> · {spotsLeft} open</span>
-                                ) : signedUp.length > 0 ? (
-                                  <span className="text-muted-foreground"> · full</span>
-                                ) : null}
-                              </p>
-                              <AdminSignupList shift={shift} />
-                            </td>
-                            <td className="px-3 py-3">
-                              <div className="flex flex-wrap items-center justify-end gap-1">
-                                {isAdmin && (
-                                  <>
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      className="h-8 w-8"
-                                      onClick={() => openEditDialog(shift)}
-                                    >
-                                      <Pencil className="h-4 w-4" />
-                                    </Button>
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      className="h-8 w-8 text-destructive hover:text-destructive"
-                                      title="Delete shift"
-                                      onClick={() => requestDeleteShift(shift)}
-                                    >
-                                      <Trash2 className="h-4 w-4" />
-                                    </Button>
-                                  </>
-                                )}
-                                <ShiftClaimButton shift={shift} />
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
+                            </div>
+                            <Badge variant="secondary" className="shrink-0 font-normal">
+                              {shiftTypeLabel(shift.shift_type)}
+                            </Badge>
+                          </div>
+
+                          <p className="text-sm leading-relaxed text-muted-foreground">
+                            {shift.location}
+                          </p>
+
+                          <div className="flex items-center justify-between gap-2 rounded-lg bg-muted/50 px-3 py-2 text-sm">
+                            <span className="text-muted-foreground">Spots</span>
+                            <span className="font-semibold tabular-nums">
+                              {signedUp.length}/{shift.volunteers_needed}
+                              {spotsLeft > 0
+                                ? ` · ${spotsLeft} open`
+                                : signedUp.length > 0
+                                  ? " · full"
+                                  : ""}
+                            </span>
+                          </div>
+
+                          {shift.notes ? (
+                            <p className="text-sm leading-relaxed text-muted-foreground">
+                              {shift.notes}
+                            </p>
+                          ) : null}
+
+                          <AdminSignupList shift={shift} />
+
+                          {isAdmin && (
+                            <div className="flex gap-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="flex-1"
+                                onClick={() => openEditDialog(shift)}
+                              >
+                                <Pencil className="mr-1.5 h-3.5 w-3.5" />
+                                Edit
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="flex-1 text-destructive hover:text-destructive"
+                                onClick={() => requestDeleteShift(shift)}
+                              >
+                                <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+                                Delete
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="border-t bg-muted/20 p-3">
+                          <ShiftClaimButton shift={shift} className="h-11 w-full text-base" />
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </section>
+            ))}
           </div>
         </div>
       )}

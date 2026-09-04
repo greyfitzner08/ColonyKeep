@@ -42,8 +42,7 @@ export default async function ShiftBoardPage() {
       <div>
         <h1 className="text-3xl font-bold">Shift Board</h1>
         <p className="text-muted-foreground">
-          Pick an event, then claim an open shift. Phones and tablets use cards; large screens use
-          a table.
+          Choose an event, then sign up for a shift.
         </p>
       </div>
       <ShiftBoard
