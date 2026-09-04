@@ -337,7 +337,7 @@ export function ColonyIntakeForm() {
           <p className="text-muted-foreground mt-1">
             Community inquiry form — your report goes directly into our inquiry queue
           </p>
-          <p className="mx-auto mt-3 max-w-lg text-sm text-muted-foreground">
+          <p className="mx-auto mt-3 max-w-xl text-sm leading-relaxed text-foreground/80">
             {INTAKE_COMMUNICATIONS_NOTICE}
           </p>
         </div>
