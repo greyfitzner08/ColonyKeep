@@ -42,7 +42,7 @@ export default async function ShiftBoardPage() {
       <div>
         <h1 className="text-3xl font-bold">Shift Board</h1>
         <p className="text-muted-foreground">
-          Sign up for volunteer shifts. Events can include multiple days and opportunities.
+          Browse events by position and sign up for open shifts.
         </p>
       </div>
       <ShiftBoard

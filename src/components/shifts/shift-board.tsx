@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type ReactNode } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -26,57 +26,9 @@ import {
 } from "@/components/forms/address-autocomplete";
 import { isAppointmentDatePast } from "@/lib/appointments/slot-date";
 import { SHIFT_REQUIRED_ROLES, SHIFT_TYPES } from "@/lib/constants";
-import { cn, formatDate, formatTimeRange } from "@/lib/utils";
+import { formatDate, formatTimeRange } from "@/lib/utils";
 import type { Shift, ShiftRequiredRole, ShiftType } from "@/lib/types";
-import { Plus, MapPin, Clock, Pencil, Trash2, ChevronDown } from "lucide-react";
-
-function CollapsibleBlock({
-  title,
-  summary,
-  defaultOpen = false,
-  headerAction,
-  children,
-  className,
-  titleClassName,
-}: {
-  title: string;
-  summary?: string;
-  defaultOpen?: boolean;
-  headerAction?: ReactNode;
-  children: ReactNode;
-  className?: string;
-  titleClassName?: string;
-}) {
-  const [open, setOpen] = useState(defaultOpen);
-
-  return (
-    <div className={cn("overflow-hidden rounded-xl border bg-background", className)}>
-      <div className="flex items-start gap-2 border-b bg-muted/30 px-4 py-3">
-        <button
-          type="button"
-          className="flex min-w-0 flex-1 items-start gap-2 rounded-md text-left transition-colors hover:bg-muted/50"
-          onClick={() => setOpen((value) => !value)}
-          aria-expanded={open}
-        >
-          <ChevronDown
-            className={cn(
-              "mt-0.5 h-4 w-4 shrink-0 text-muted-foreground transition-transform",
-              open && "rotate-180"
-            )}
-          />
-          <span className="min-w-0 flex-1">
-            <span className={cn("block font-semibold leading-snug", titleClassName)}>{title}</span>
-            {summary ? (
-              <span className="mt-0.5 block text-sm text-muted-foreground">{summary}</span>
-            ) : null}
-          </span>
-        </button>
-        {headerAction ? <div className="shrink-0">{headerAction}</div> : null}
-      </div>
-      {open ? <div className="p-4">{children}</div> : null}
-    </div>
-  );
-}
+import { Plus, MapPin, Clock, Pencil, Trash2 } from "lucide-react";
 
 function shiftIdentityKey(input: {
   event_name: string;
@@ -790,8 +742,8 @@ export function ShiftBoard({
       {groupedEvents.length === 0 ? (
         <p className="text-sm text-muted-foreground">No shifts match this filter.</p>
       ) : (
-        <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 xl:items-start">
-          {groupedEvents.map((group, groupIndex) => {
+        <div className="space-y-12">
+          {groupedEvents.map((group) => {
             const filled = group.shifts.reduce(
               (sum, shift) => sum + (shift.signed_up_emails?.length ?? 0),
               0
@@ -806,14 +758,20 @@ export function ShiftBoard({
                 : formatDate(group.shifts[0].date);
 
             return (
-              <CollapsibleBlock
-                key={group.name}
-                defaultOpen={groupIndex === 0}
-                title={group.name}
-                titleClassName="text-xl"
-                summary={`${group.positions.length} position${group.positions.length === 1 ? "" : "s"} · ${group.shifts.length} shift${group.shifts.length === 1 ? "" : "s"} · ${filled}/${needed} filled · ${dateSummary}`}
-                headerAction={
-                  isAdmin ? (
+              <section key={group.name} className="space-y-6">
+                <div className="flex flex-col gap-3 border-b pb-4 sm:flex-row sm:items-end sm:justify-between">
+                  <div className="min-w-0 space-y-1">
+                    <h2 className="text-2xl font-semibold tracking-tight">{group.name}</h2>
+                    <p className="text-sm text-muted-foreground">
+                      {dateSummary}
+                      <span className="mx-1.5 text-muted-foreground/50">·</span>
+                      {filled}/{needed} filled
+                      <span className="mx-1.5 text-muted-foreground/50">·</span>
+                      {group.positions.length} position
+                      {group.positions.length === 1 ? "" : "s"}
+                    </p>
+                  </div>
+                  {isAdmin && (
                     <div className="flex shrink-0 items-center gap-1.5">
                       <Button
                         type="button"
@@ -821,25 +779,25 @@ export function ShiftBoard({
                         size="sm"
                         onClick={() => openAddShiftsToEvent(group.name, group.shifts)}
                       >
-                        <Plus className="h-4 w-4 mr-1" />
+                        <Plus className="mr-1 h-4 w-4" />
                         Add shifts
                       </Button>
                       <Button
                         type="button"
                         variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-destructive hover:text-destructive"
-                        title="Delete event"
+                        size="sm"
+                        className="text-destructive hover:text-destructive"
                         onClick={() => requestDeleteEvent(group.name, group.shifts)}
                       >
-                        <Trash2 className="h-4 w-4" />
+                        <Trash2 className="mr-1 h-4 w-4" />
+                        Delete event
                       </Button>
                     </div>
-                  ) : undefined
-                }
-              >
-                <div className="space-y-3">
-                  {group.positions.map((position, positionIndex) => {
+                  )}
+                </div>
+
+                <div className="space-y-8">
+                  {group.positions.map((position) => {
                     const positionFilled = position.shifts.reduce(
                       (sum, shift) => sum + (shift.signed_up_emails?.length ?? 0),
                       0
@@ -850,31 +808,31 @@ export function ShiftBoard({
                     );
 
                     return (
-                      <CollapsibleBlock
-                        key={`${group.name}-${position.name}`}
-                        defaultOpen={group.positions.length === 1 || positionIndex === 0}
-                        title={position.name}
-                        titleClassName="text-base"
-                        summary={`${position.shifts.length} shift${position.shifts.length === 1 ? "" : "s"} · ${positionFilled}/${positionNeeded} volunteers`}
-                        className="bg-muted/10"
-                        headerAction={
-                          isAdmin ? (
+                      <div key={`${group.name}-${position.name}`} className="space-y-3">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="min-w-0">
+                            <h3 className="font-medium">{position.name}</h3>
+                            <p className="text-xs text-muted-foreground">
+                              {positionFilled}/{positionNeeded} volunteers
+                            </p>
+                          </div>
+                          {isAdmin && (
                             <Button
                               type="button"
                               variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 text-destructive hover:text-destructive"
-                              title="Delete position"
+                              size="sm"
+                              className="h-8 text-destructive hover:text-destructive"
                               onClick={() =>
                                 requestDeletePosition(group.name, position.name, position.shifts)
                               }
                             >
-                              <Trash2 className="h-4 w-4" />
+                              <Trash2 className="mr-1 h-3.5 w-3.5" />
+                              Remove position
                             </Button>
-                          ) : undefined
-                        }
-                      >
-                        <div className="space-y-3">
+                          )}
+                        </div>
+
+                        <ul className="divide-y border-y">
                           {position.shifts.map((shift) => {
                             const signedUp = shift.signed_up_emails ?? [];
                             const isSignedUp = signedUp.includes(userEmail);
@@ -882,127 +840,124 @@ export function ShiftBoard({
                             const pastDate = isAppointmentDatePast(shift.date);
 
                             return (
-                              <div
+                              <li
                                 key={shift.id}
-                                className="flex flex-col gap-3 rounded-lg border bg-background p-3 sm:p-4"
+                                className="flex flex-col gap-3 py-4 sm:flex-row sm:items-start sm:justify-between"
                               >
-                                <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                                  <div className="min-w-0 space-y-1.5">
+                                <div className="min-w-0 space-y-1.5">
+                                  <div className="flex flex-wrap items-center gap-2">
                                     <p className="font-medium leading-snug">
                                       {formatDate(shift.date)}
                                     </p>
-                                    <p className="flex items-center gap-2 text-sm text-muted-foreground">
-                                      <Clock className="h-4 w-4 shrink-0" />
-                                      {formatTimeRange(shift.start_time, shift.end_time)}
-                                    </p>
-                                    <p className="flex items-start gap-2 text-sm text-muted-foreground">
-                                      <MapPin className="mt-0.5 h-4 w-4 shrink-0" />
-                                      <span className="min-w-0 break-words leading-relaxed">
-                                        {shift.location}
-                                      </span>
-                                    </p>
-                                  </div>
-                                  <div className="flex shrink-0 items-center gap-1.5">
-                                    <Badge variant="secondary" className="whitespace-nowrap">
+                                    <Badge variant="outline" className="font-normal">
                                       {shiftTypeLabel(shift.shift_type)}
                                     </Badge>
-                                    {isAdmin && (
-                                      <>
-                                        <Button
-                                          variant="ghost"
-                                          size="icon"
-                                          className="h-8 w-8"
-                                          onClick={() => openEditDialog(shift)}
-                                        >
-                                          <Pencil className="h-4 w-4" />
-                                        </Button>
-                                        <Button
-                                          variant="ghost"
-                                          size="icon"
-                                          className="h-8 w-8 text-destructive hover:text-destructive"
-                                          title="Delete shift"
-                                          onClick={() => requestDeleteShift(shift)}
-                                        >
-                                          <Trash2 className="h-4 w-4" />
-                                        </Button>
-                                      </>
-                                    )}
                                   </div>
-                                </div>
-                                <p className="text-sm">
-                                  {signedUp.length}/{shift.volunteers_needed} volunteers signed up
-                                  {spotsLeft > 0
-                                    ? ` · ${spotsLeft} spot${spotsLeft === 1 ? "" : "s"} left`
-                                    : ""}
-                                </p>
-                                {isAdmin && signedUp.length > 0 && (
-                                  <ul className="space-y-1.5 rounded-md border bg-muted/20 px-3 py-2">
-                                    {signedUp.map((email) => (
-                                      <li
-                                        key={email}
-                                        className="flex items-start justify-between gap-3 text-sm"
-                                      >
-                                        <div className="min-w-0">
-                                          <p className="font-medium leading-snug">
-                                            {signupLabel(email)}
-                                          </p>
-                                          {signupLabel(email).toLowerCase() !== email.toLowerCase() && (
-                                            <p className="truncate text-xs text-muted-foreground">
-                                              {email}
-                                            </p>
-                                          )}
-                                        </div>
-                                        <Button
-                                          type="button"
-                                          variant="ghost"
-                                          size="sm"
-                                          className="h-7 shrink-0 px-2 text-xs text-destructive hover:text-destructive"
-                                          onClick={() => removeSignup(shift.id, email)}
-                                        >
-                                          Remove
-                                        </Button>
-                                      </li>
-                                    ))}
-                                  </ul>
-                                )}
-                                {shift.notes && (
-                                  <p className="text-sm leading-relaxed text-muted-foreground">
-                                    {shift.notes}
+                                  <p className="flex items-center gap-2 text-sm text-muted-foreground">
+                                    <Clock className="h-3.5 w-3.5 shrink-0" />
+                                    {formatTimeRange(shift.start_time, shift.end_time)}
                                   </p>
-                                )}
-                                {isSignedUp ? (
-                                  <Button
-                                    variant="outline"
-                                    className="w-full sm:w-auto sm:self-start"
-                                    onClick={() => claimShift(shift.id, "unclaim")}
-                                  >
-                                    Unclaim Shift
-                                  </Button>
-                                ) : pastDate ? (
-                                  <Button className="w-full sm:w-auto sm:self-start" disabled>
-                                    Past date
-                                  </Button>
-                                ) : spotsLeft > 0 ? (
-                                  <Button
-                                    className="w-full sm:w-auto sm:self-start"
-                                    onClick={() => claimShift(shift.id, "claim")}
-                                  >
-                                    Sign Up
-                                  </Button>
-                                ) : (
-                                  <Button className="w-full sm:w-auto sm:self-start" disabled>
-                                    Full
-                                  </Button>
-                                )}
-                              </div>
+                                  <p className="flex items-start gap-2 text-sm text-muted-foreground">
+                                    <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                                    <span className="min-w-0 break-words leading-relaxed">
+                                      {shift.location}
+                                    </span>
+                                  </p>
+                                  <p className="text-sm text-muted-foreground">
+                                    {signedUp.length}/{shift.volunteers_needed} signed up
+                                    {spotsLeft > 0
+                                      ? ` · ${spotsLeft} open`
+                                      : signedUp.length > 0
+                                        ? " · full"
+                                        : ""}
+                                  </p>
+                                  {shift.notes && (
+                                    <p className="text-sm leading-relaxed text-muted-foreground">
+                                      {shift.notes}
+                                    </p>
+                                  )}
+                                  {isAdmin && signedUp.length > 0 && (
+                                    <ul className="mt-1 space-y-1">
+                                      {signedUp.map((email) => (
+                                        <li
+                                          key={email}
+                                          className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm"
+                                        >
+                                          <span className="font-medium">
+                                            {signupLabel(email)}
+                                          </span>
+                                          {signupLabel(email).toLowerCase() !==
+                                            email.toLowerCase() && (
+                                            <span className="text-xs text-muted-foreground">
+                                              {email}
+                                            </span>
+                                          )}
+                                          <button
+                                            type="button"
+                                            className="text-xs text-destructive hover:underline"
+                                            onClick={() => removeSignup(shift.id, email)}
+                                          >
+                                            Remove
+                                          </button>
+                                        </li>
+                                      ))}
+                                    </ul>
+                                  )}
+                                </div>
+
+                                <div className="flex shrink-0 flex-wrap items-center gap-1.5 sm:flex-col sm:items-end">
+                                  {isAdmin && (
+                                    <div className="flex items-center gap-0.5">
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-8 w-8"
+                                        onClick={() => openEditDialog(shift)}
+                                      >
+                                        <Pencil className="h-4 w-4" />
+                                      </Button>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-8 w-8 text-destructive hover:text-destructive"
+                                        title="Delete shift"
+                                        onClick={() => requestDeleteShift(shift)}
+                                      >
+                                        <Trash2 className="h-4 w-4" />
+                                      </Button>
+                                    </div>
+                                  )}
+                                  {isSignedUp ? (
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => claimShift(shift.id, "unclaim")}
+                                    >
+                                      Unclaim
+                                    </Button>
+                                  ) : pastDate ? (
+                                    <Button size="sm" disabled>
+                                      Past date
+                                    </Button>
+                                  ) : spotsLeft > 0 ? (
+                                    <Button size="sm" onClick={() => claimShift(shift.id, "claim")}>
+                                      Sign Up
+                                    </Button>
+                                  ) : (
+                                    <Button size="sm" disabled>
+                                      Full
+                                    </Button>
+                                  )}
+                                </div>
+                              </li>
                             );
                           })}
-                        </div>
-                      </CollapsibleBlock>
+                        </ul>
+                      </div>
                     );
                   })}
                 </div>
-              </CollapsibleBlock>
+              </section>
             );
           })}
         </div>
