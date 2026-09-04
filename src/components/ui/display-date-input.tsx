@@ -12,7 +12,7 @@ interface DisplayDateInputProps
   onValueChange: (isoDate: string) => void;
 }
 
-/** Text date field that displays and accepts dates like "4 September 2026". */
+/** Text date field that displays and accepts dates like "September 4, 2026". */
 export function DisplayDateInput({
   value,
   onValueChange,
@@ -31,7 +31,7 @@ export function DisplayDateInput({
       {...props}
       id={id}
       type="text"
-      placeholder="4 September 2026"
+      placeholder="September 4, 2026"
       autoComplete="off"
       className={cn(className)}
       value={text}

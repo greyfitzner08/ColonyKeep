@@ -57,25 +57,34 @@ function toIsoDate(year: number, month: number, day: number): string | null {
   return `${year}-${pad2(month)}-${pad2(day)}`;
 }
 
-/** Display dates as "4 September 2026" app-wide. */
+/** Display dates as "September 4, 2026" app-wide. */
 export function formatDate(date: string | Date): string {
   const d = toDisplayDate(date);
   if (Number.isNaN(d.getTime())) return "";
-  return `${d.getDate()} ${MONTH_NAMES[d.getMonth()]} ${d.getFullYear()}`;
+  return `${MONTH_NAMES[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
 }
 
 /**
  * Parse a display date into YYYY-MM-DD.
- * Accepts "4 September 2026", "4 Sept 2026", or "DD-MM-YYYY".
+ * Accepts "September 4, 2026", "Sept 4 2026", "4 September 2026", or "DD-MM-YYYY".
  */
 export function parseDisplayDate(value: string): string | null {
-  const trimmed = value.trim().replace(/\s+/g, " ");
+  const trimmed = value.trim().replace(/\s+/g, " ").replace(/,/g, "");
 
-  const named = /^(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})$/.exec(trimmed);
-  if (named) {
-    const day = Number(named[1]);
-    const month = MONTH_LOOKUP[named[2].toLowerCase()];
-    const year = Number(named[3]);
+  const monthFirst = /^([A-Za-z]+)\s+(\d{1,2})\s+(\d{4})$/.exec(trimmed);
+  if (monthFirst) {
+    const month = MONTH_LOOKUP[monthFirst[1].toLowerCase()];
+    const day = Number(monthFirst[2]);
+    const year = Number(monthFirst[3]);
+    if (!month) return null;
+    return toIsoDate(year, month, day);
+  }
+
+  const dayFirst = /^(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})$/.exec(trimmed);
+  if (dayFirst) {
+    const day = Number(dayFirst[1]);
+    const month = MONTH_LOOKUP[dayFirst[2].toLowerCase()];
+    const year = Number(dayFirst[3]);
     if (!month) return null;
     return toIsoDate(year, month, day);
   }

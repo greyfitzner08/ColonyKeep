@@ -216,7 +216,7 @@ export function AppointmentsCalendar({
       return;
     }
     if (!bulkForm.date) {
-      setBulkError("Enter a date like 4 September 2026.");
+      setBulkError("Enter a date like September 4, 2026.");
       return;
     }
     setBulkError(null);
