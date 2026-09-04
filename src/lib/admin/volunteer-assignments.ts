@@ -89,7 +89,7 @@ export async function previewVolunteerAssignments(
       .from("appointments")
       .select("id, clinic_name, date")
       .ilike("transporter_email", email),
-    service.from("shifts").select("id, event_name, position_name, date").contains("signed_up_emails", [email]),
+    service.from("shifts").select("id, event_name, position_name, date, signed_up_emails, waitlist_emails"),
     service.from("trap_teams").select("id, name").ilike("lead_email", email),
     service.from("trap_teams").select("id, name").contains("members", [email]),
     service
@@ -189,15 +189,24 @@ export async function previewVolunteerAssignments(
     });
   }
 
-  if ((shifts.data ?? []).length > 0) {
+  const shiftRows = (shifts.data ?? []).filter((row) => {
+    const signedUp = row.signed_up_emails ?? [];
+    const waitlist = row.waitlist_emails ?? [];
+    return (
+      signedUp.some((entry: string) => normalizeEmail(entry) === email) ||
+      waitlist.some((entry: string) => normalizeEmail(entry) === email)
+    );
+  });
+
+  if (shiftRows.length > 0) {
     groups.push({
       key: "shift_signups",
-      label: "Shift signups",
-      description: "Volunteer shift board slots signed up for this volunteer.",
+      label: "Shift board",
+      description: "Shift signups and waitlist spots for this volunteer.",
       unassignOutcome:
-        "Removes their signup only. The shift event stays on the board for other volunteers.",
-      count: shifts.data!.length,
-      items: shifts.data!.map((row) => ({
+        "Removes them from the signup and waitlist. The shift stays on the board for other volunteers.",
+      count: shiftRows.length,
+      items: shiftRows.map((row) => ({
         id: row.id,
         label: row.position_name
           ? `${row.event_name} · ${row.position_name} · ${row.date}`
@@ -317,7 +326,7 @@ export async function previewVolunteerAssignments(
       key: "team_announcements",
       label: "Team feed posts",
       description: "Announcements authored by this volunteer.",
-      unassignOutcome: "Deletes these team feed posts.",
+      unassignOutcome: "Keeps the posts but removes this volunteer as author.",
       count: announcements.data!.length,
       items: announcements.data!.map((row) => ({
         id: row.id,
@@ -333,7 +342,7 @@ export async function previewVolunteerAssignments(
       key: "library_documents",
       label: "Resource library uploads",
       description: "Documents uploaded by this volunteer.",
-      unassignOutcome: "Deletes these uploaded documents.",
+      unassignOutcome: "Keeps the documents but clears this volunteer as uploader.",
       count: libraryDocs.data!.length,
       items: libraryDocs.data!.map((row) => ({
         id: row.id,
@@ -589,7 +598,7 @@ export async function applyVolunteerAssignmentDecisions(
       case "shift_signups": {
         const { data: shiftRows } = await service
           .from("shifts")
-          .select("id, signed_up_emails")
+          .select("id, signed_up_emails, waitlist_emails")
           .in(
             "id",
             group.items.map((item) => item.id)
@@ -599,10 +608,16 @@ export async function applyVolunteerAssignmentDecisions(
           const signedUp = (shift.signed_up_emails ?? []).filter(
             (entry: string) => normalizeEmail(entry) !== email
           );
-          if (decision.action === "reassign" && !signedUp.includes(target!.email)) {
+          const waitlist = (shift.waitlist_emails ?? []).filter(
+            (entry: string) => normalizeEmail(entry) !== email
+          );
+          if (decision.action === "reassign" && !signedUp.some((entry: string) => normalizeEmail(entry) === normalizeEmail(target!.email))) {
             signedUp.push(target!.email);
           }
-          await service.from("shifts").update({ signed_up_emails: signedUp }).eq("id", shift.id);
+          await service
+            .from("shifts")
+            .update({ signed_up_emails: signedUp, waitlist_emails: waitlist })
+            .eq("id", shift.id);
         }
         break;
       }
@@ -704,7 +719,10 @@ export async function applyVolunteerAssignmentDecisions(
         } else {
           await service
             .from("team_announcements")
-            .delete()
+            .update({
+              author_email: "removed-volunteer@local",
+              author_name: "Former volunteer",
+            })
             .in(
               "id",
               group.items.map((item) => item.id)
@@ -724,7 +742,7 @@ export async function applyVolunteerAssignmentDecisions(
         } else {
           await service
             .from("library_documents")
-            .delete()
+            .update({ created_by_email: null })
             .in(
               "id",
               group.items.map((item) => item.id)
@@ -750,6 +768,228 @@ export async function applyVolunteerAssignmentDecisions(
   }
 
   await service.from("profiles").update({ team_id: null }).eq("id", preview.userId);
+
+  return null;
+}
+
+/** Default every assignment group to unassign (or empty reassign when required). */
+export function defaultAssignmentDecisions(
+  preview: VolunteerAssignmentPreview
+): Record<string, AssignmentDecision> {
+  const decisions: Record<string, AssignmentDecision> = {};
+  for (const group of preview.groups) {
+    if (group.requiresReassign) {
+      decisions[group.key] = { action: "reassign", targetUserId: "" };
+    } else {
+      decisions[group.key] = { action: "unassign" };
+    }
+  }
+  return decisions;
+}
+
+async function loadVolunteerEmails(
+  service: SupabaseClient,
+  profile: Pick<Profile, "id" | "email">
+): Promise<string[]> {
+  const emails = new Set<string>([normalizeEmail(profile.email)]);
+  const { data: aliases } = await service
+    .from("profile_email_aliases")
+    .select("email")
+    .eq("profile_id", profile.id);
+  for (const alias of aliases ?? []) {
+    if (alias.email?.trim()) emails.add(normalizeEmail(alias.email));
+  }
+  return Array.from(emails);
+}
+
+function emailMatches(candidate: string | null | undefined, emails: Set<string>): boolean {
+  if (!candidate?.trim()) return false;
+  return emails.has(normalizeEmail(candidate));
+}
+
+/**
+ * Final cleanup so a removed volunteer no longer appears in live app locations.
+ * Safe to run after assignment decisions (or alone when there were no decisions).
+ * Does not clear trap team lead — that must be reassigned first.
+ */
+export async function scrubVolunteerFromApp(
+  service: SupabaseClient,
+  profile: Pick<Profile, "id" | "email" | "full_name">
+): Promise<string | null> {
+  const emailList = await loadVolunteerEmails(service, profile);
+  const emails = new Set(emailList);
+  const fullName = profile.full_name?.trim() ?? "";
+
+  const { data: leadTeams } = await service.from("trap_teams").select("id, name, lead_email");
+  const stillLeading = (leadTeams ?? []).filter((team) => emailMatches(team.lead_email, emails));
+  if (stillLeading.length > 0) {
+    return `Reassign trap team lead before removing this volunteer (${stillLeading
+      .map((team) => team.name)
+      .join(", ")}).`;
+  }
+
+  for (const email of emailList) {
+    const { data: claimed } = await service
+      .from("help_requests")
+      .select("id")
+      .ilike("claimed_by_email", email);
+    const claimProblem = await releaseClaimedCases(
+      service,
+      (claimed ?? []).map((row) => row.id)
+    );
+    if (claimProblem) return claimProblem;
+
+    const { error: legacyEmailError } = await service
+      .from("help_requests")
+      .update({ assigned_to: null })
+      .ilike("assigned_to", email);
+    const legacyEmailProblem = assertNoError(
+      legacyEmailError,
+      "Unable to clear legacy case assignments"
+    );
+    if (legacyEmailProblem) return legacyEmailProblem;
+
+    const { data: reserved } = await service
+      .from("appointments")
+      .select("id")
+      .ilike("reserved_by", email)
+      .neq("status", "available");
+    for (const row of reserved ?? []) {
+      await releaseReservedAppointment(service, row.id);
+    }
+
+    const { error: transportError } = await service
+      .from("appointments")
+      .update({ transporter_email: null, transporter_name: null })
+      .ilike("transporter_email", email);
+    const transportProblem = assertNoError(transportError, "Unable to clear transport assignments");
+    if (transportProblem) return transportProblem;
+
+    const { error: hoursError } = await service
+      .from("volunteer_hours")
+      .delete()
+      .ilike("volunteer_email", email);
+    const hoursProblem = assertNoError(hoursError, "Unable to delete volunteer hours");
+    if (hoursProblem) return hoursProblem;
+
+    const { error: appError } = await service
+      .from("volunteer_applications")
+      .delete()
+      .ilike("email", email);
+    const appProblem = assertNoError(appError, "Unable to delete volunteer applications");
+    if (appProblem) return appProblem;
+
+    const { error: roleReqError } = await service
+      .from("volunteer_role_requests")
+      .delete()
+      .or(`email.ilike.${email},profile_id.eq.${profile.id}`);
+    const roleReqProblem = assertNoError(roleReqError, "Unable to delete role requests");
+    if (roleReqProblem) return roleReqProblem;
+
+    const { error: fosterError } = await service
+      .from("cats")
+      .update({ foster_email: null })
+      .ilike("foster_email", email);
+    const fosterProblem = assertNoError(fosterError, "Unable to clear foster contacts");
+    if (fosterProblem) return fosterProblem;
+
+    const { error: borrowerError } = await service
+      .from("trap_equipment_items")
+      .update({ borrower_email: null, borrower_name: null, borrower_phone: null })
+      .ilike("borrower_email", email);
+    const borrowerProblem = assertNoError(borrowerError, "Unable to clear equipment loans");
+    if (borrowerProblem) return borrowerProblem;
+  }
+
+  if (fullName) {
+    const { error: legacyNameError } = await service
+      .from("help_requests")
+      .update({ assigned_to: null })
+      .ilike("assigned_to", fullName);
+    const legacyNameProblem = assertNoError(
+      legacyNameError,
+      "Unable to clear legacy case name assignments"
+    );
+    if (legacyNameProblem) return legacyNameProblem;
+  }
+
+  const { error: equipmentError } = await service
+    .from("trap_equipment_items")
+    .update({ assigned_to_profile_id: null })
+    .eq("assigned_to_profile_id", profile.id);
+  const equipmentProblem = assertNoError(equipmentError, "Unable to clear equipment custody");
+  if (equipmentProblem) return equipmentProblem;
+
+  const { data: shifts } = await service
+    .from("shifts")
+    .select("id, signed_up_emails, waitlist_emails");
+  for (const shift of shifts ?? []) {
+    const signedUp = (shift.signed_up_emails ?? []).filter(
+      (entry: string) => !emailMatches(entry, emails)
+    );
+    const waitlist = (shift.waitlist_emails ?? []).filter(
+      (entry: string) => !emailMatches(entry, emails)
+    );
+    if (
+      signedUp.length !== (shift.signed_up_emails ?? []).length ||
+      waitlist.length !== (shift.waitlist_emails ?? []).length
+    ) {
+      const { error } = await service
+        .from("shifts")
+        .update({ signed_up_emails: signedUp, waitlist_emails: waitlist })
+        .eq("id", shift.id);
+      const problem = assertNoError(error, "Unable to clear shift board signups");
+      if (problem) return problem;
+    }
+  }
+
+  const { data: teams } = await service.from("trap_teams").select("id, members");
+  for (const team of teams ?? []) {
+    const members = (team.members ?? []).filter(
+      (member: string) => !emailMatches(member, emails)
+    );
+    if (members.length !== (team.members ?? []).length) {
+      const { error } = await service.from("trap_teams").update({ members }).eq("id", team.id);
+      const problem = assertNoError(error, "Unable to clear trap team membership");
+      if (problem) return problem;
+    }
+  }
+
+  const { data: announcements } = await service
+    .from("team_announcements")
+    .select("id, author_email, comments");
+  for (const post of announcements ?? []) {
+    const comments = Array.isArray(post.comments) ? post.comments : [];
+    const nextComments = comments.filter(
+      (comment: { author_email?: string | null }) => !emailMatches(comment.author_email, emails)
+    );
+    const authorMatch = emailMatches(post.author_email, emails);
+    if (!authorMatch && nextComments.length === comments.length) continue;
+
+    const { error } = await service
+      .from("team_announcements")
+      .update({
+        ...(authorMatch
+          ? { author_email: "removed-volunteer@local", author_name: "Former volunteer" }
+          : {}),
+        comments: nextComments,
+      })
+      .eq("id", post.id);
+    const problem = assertNoError(error, "Unable to clear team feed authorship");
+    if (problem) return problem;
+  }
+
+  for (const email of emailList) {
+    const { error } = await service
+      .from("library_documents")
+      .update({ created_by_email: null })
+      .ilike("created_by_email", email);
+    const problem = assertNoError(error, "Unable to clear library uploader");
+    if (problem) return problem;
+  }
+
+  await service.from("profiles").update({ team_id: null }).eq("id", profile.id);
+  await service.from("profile_email_aliases").delete().eq("profile_id", profile.id);
 
   return null;
 }

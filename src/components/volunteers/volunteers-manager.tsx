@@ -995,7 +995,11 @@ export function VolunteersManager({
   }
 
   async function deleteApplication(id: string, name: string) {
-    if (!window.confirm(`Delete the application for ${name}? This cannot be undone.`)) {
+    if (
+      !window.confirm(
+        `Remove ${name} from the platform? This deletes their application/login and clears them from cases, shifts, teams, appointments, and other live assignments. This cannot be undone.`
+      )
+    ) {
       return;
     }
 
@@ -1009,7 +1013,7 @@ export function VolunteersManager({
     const result = await response.json().catch(() => null);
     setActingId(null);
     if (!response.ok) {
-      showActionError(getApiErrorMessage(result, "Unable to delete application"));
+      showActionError(getApiErrorMessage(result, "Unable to remove volunteer"));
       return;
     }
     if (reviewingApplicationId === id) setReviewingApplicationId(null);
@@ -1656,7 +1660,7 @@ export function VolunteersManager({
             disabled={actingId === app.id}
           >
             <Trash2 className="h-4 w-4 mr-1" />
-            {actingId === app.id ? "Deleting..." : "Delete Application"}
+            {actingId === app.id ? "Removing..." : "Remove volunteer"}
           </Button>
         </div>
       </div>

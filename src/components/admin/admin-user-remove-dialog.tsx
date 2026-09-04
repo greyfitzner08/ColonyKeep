@@ -218,8 +218,8 @@ export function AdminUserRemoveDialog({
             <DialogTitle>Remove {user.full_name ?? user.email}?</DialogTitle>
             <DialogDescription>
               {user.role === "admin"
-                ? "This user is an administrator. Removing them deletes their login and profile permanently."
-                : "This volunteer still has active assignments. Reassign each item to another volunteer, or unassign them and leave the case, shift, or appointment in place."}
+                ? "This user is an administrator. Removing them deletes their login and profile permanently, and clears their live assignments across the app."
+                : "Removing this volunteer deletes their login and clears them from cases, shifts, teams, appointments, equipment, and other live assignments. Reassign items you want to keep owned, or unassign them."}
             </DialogDescription>
           </DialogHeader>
 

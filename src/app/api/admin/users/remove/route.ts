@@ -4,6 +4,7 @@ import {
   applyVolunteerAssignmentDecisions,
   previewVolunteerAssignments,
   removeVolunteerUser,
+  scrubVolunteerFromApp,
   type AssignmentDecision,
 } from "@/lib/admin/volunteer-assignments";
 import { createServiceClient } from "@/lib/supabase/server";
@@ -58,20 +59,19 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "User not found" }, { status: 404 });
   }
 
-  const preview = await previewVolunteerAssignments(service, targetProfile as Profile);
+  const target = targetProfile as Profile;
+  const preview = await previewVolunteerAssignments(service, target);
 
   if (preview.hasAssignments) {
     const applyError = await applyVolunteerAssignmentDecisions(service, preview, decisions);
     if (applyError) {
       return NextResponse.json({ error: applyError }, { status: 400 });
     }
-  } else {
-    await service.from("volunteer_applications").delete().ilike("email", targetProfile.email);
-    await service
-      .from("volunteer_role_requests")
-      .delete()
-      .or(`email.ilike.${targetProfile.email},profile_id.eq.${targetProfile.id}`);
-    await service.from("profiles").update({ team_id: null }).eq("id", userId);
+  }
+
+  const scrubError = await scrubVolunteerFromApp(service, target);
+  if (scrubError) {
+    return NextResponse.json({ error: scrubError }, { status: 400 });
   }
 
   const removeError = await removeVolunteerUser(service, userId);
