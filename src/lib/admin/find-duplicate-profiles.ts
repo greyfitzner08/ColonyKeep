@@ -22,6 +22,20 @@ function normalizePhone(phone: string | null | undefined): string {
   return digits;
 }
 
+/** Normalize to YYYY-MM-DD so timestamp-style values still match. */
+function normalizeBirthday(birthday: string | null | undefined): string | null {
+  const raw = (birthday ?? "").trim();
+  if (!raw) return null;
+  const isoDay = raw.slice(0, 10);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(isoDay)) return isoDay;
+  const parsed = new Date(`${raw}T12:00:00`);
+  if (Number.isNaN(parsed.getTime())) return null;
+  const year = parsed.getFullYear();
+  const month = String(parsed.getMonth() + 1).padStart(2, "0");
+  const day = String(parsed.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
 function reasonLabel(reason: DuplicateMatchReason): string {
   switch (reason) {
     case "phone":
@@ -34,7 +48,8 @@ function reasonLabel(reason: DuplicateMatchReason): string {
 }
 
 export function duplicateReasonLabels(reasons: DuplicateMatchReason[]): string {
-  return reasons.map(reasonLabel).join(" · ");
+  const order: DuplicateMatchReason[] = ["phone", "name_birthday", "name"];
+  return order.filter((reason) => reasons.includes(reason)).map(reasonLabel).join(" · ");
 }
 
 /**
@@ -57,8 +72,9 @@ export function findDuplicateProfileGroups(profiles: Profile[]): DuplicateProfil
     const name = normalizeName(profile.full_name);
     if (!name) continue;
 
-    if (profile.birthday) {
-      const key = `${name}|${profile.birthday}`;
+    const birthday = normalizeBirthday(profile.birthday);
+    if (birthday) {
+      const key = `${name}|${birthday}`;
       const list = byNameBirthday.get(key) ?? [];
       list.push(profile);
       byNameBirthday.set(key, list);
@@ -88,15 +104,8 @@ export function findDuplicateProfileGroups(profiles: Profile[]): DuplicateProfil
 
   for (const list of byPhone.values()) addPairs(list, "phone");
   for (const list of byNameBirthday.values()) addPairs(list, "name_birthday");
-
-  // Name-only matches only when neither phone nor name+birthday already linked them,
-  // and both lack a conflicting distinct phone — keep noise down by requiring name+birthday
-  // OR phone as primary; name-only is secondary for people with no phone/birthday.
-  for (const list of byName.values()) {
-    if (list.length < 2) continue;
-    const thin = list.filter((p) => !normalizePhone(p.phone) && !p.birthday);
-    addPairs(thin, "name");
-  }
+  // Always surface exact same-name accounts — admins decide whether they are true duplicates.
+  for (const list of byName.values()) addPairs(list, "name");
 
   // Union-find style clustering of connected pairs
   const parent = new Map<string, string>();
