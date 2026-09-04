@@ -21,7 +21,7 @@ import { AppointmentDetailDialog } from "@/components/appointments/appointment-d
 import { APPOINTMENT_STATUS_COLORS } from "@/lib/constants";
 import { canUnreserveAppointment, shouldShowAppointmentStatusBadge } from "@/lib/appointments/clinic-result";
 import { isAppointmentDatePast } from "@/lib/appointments/slot-date";
-import { formatDate, cn } from "@/lib/utils";
+import { formatDate, parseDisplayDate, cn } from "@/lib/utils";
 import type { Appointment, Clinic, Cat } from "@/lib/types";
 import type { HelpRequestOption } from "@/lib/cases/help-request-options";
 import { Plus, Calendar, ChevronLeft, ChevronRight } from "lucide-react";
@@ -186,6 +186,11 @@ export function AppointmentsCalendar({
       setBulkError("Select a clinic before creating slots.");
       return;
     }
+    const isoDate = parseDisplayDate(bulkForm.date);
+    if (!isoDate) {
+      setBulkError("Enter the date as DD-MM-YYYY.");
+      return;
+    }
     setBulkError(null);
     setSavingBulk(true);
     const response = await fetch("/api/appointments/bulk-create", {
@@ -194,7 +199,7 @@ export function AppointmentsCalendar({
       body: JSON.stringify({
         clinic_id: clinic.id,
         clinic_name: clinic.name,
-        date: bulkForm.date,
+        date: isoDate,
         count: bulkForm.count,
       }),
     });
@@ -419,7 +424,17 @@ export function AppointmentsCalendar({
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2"><Label>Date</Label><Input type="date" value={bulkForm.date} onChange={(e) => setBulkForm({ ...bulkForm, date: e.target.value })} /></div>
+            <div className="space-y-2">
+              <Label htmlFor="bulk-create-date">Date (DD-MM-YYYY)</Label>
+              <Input
+                id="bulk-create-date"
+                type="text"
+                inputMode="numeric"
+                placeholder="DD-MM-YYYY"
+                value={bulkForm.date}
+                onChange={(e) => setBulkForm({ ...bulkForm, date: e.target.value })}
+              />
+            </div>
             <div className="space-y-2">
               <Label>Number of Slots</Label>
               <NumberInput
