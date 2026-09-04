@@ -112,6 +112,47 @@ function usesEditOpenAction(status: VolunteerApplicationStatus) {
   return status === "approved" || status === "inactive";
 }
 
+function applicationStatusLabel(status: VolunteerApplicationStatus): string {
+  return APPLICATION_STATUS_OPTIONS.find((option) => option.value === status)?.label
+    ?? status.replace(/_/g, " ");
+}
+
+/** Single chip for list cards/tables — prefer actionable attention over raw status. */
+function applicationListBadge(
+  app: VolunteerApplication,
+  context: ApplicationReviewContext
+): { label: string; className: string } {
+  if (context.attentionLabel) {
+    if (context.isRoleExpansion && !context.rolesReady) {
+      return {
+        label: context.attentionLabel,
+        className: "border-amber-400 bg-amber-50 text-amber-900",
+      };
+    }
+    if (app.status === "rejected") {
+      return {
+        label: context.attentionLabel,
+        className: "border-red-300 bg-red-50 text-red-900",
+      };
+    }
+    if (context.hasPendingTraining || /requirements pending|training pending/i.test(context.attentionLabel)) {
+      return {
+        label: context.attentionLabel,
+        className: "border-amber-400 bg-amber-50 text-amber-900",
+      };
+    }
+    return {
+      label: context.attentionLabel,
+      className: "border-primary/30 bg-primary/5 text-primary",
+    };
+  }
+
+  return {
+    label: applicationStatusLabel(app.status),
+    className: STATUS_COLORS[app.status] ?? "",
+  };
+}
+
 const ADMIN_CHECKBOX_FIELDS = [
   { key: "shadow_completed", label: "Shadow Completed" },
   { key: "intake_training", label: "Intake Training" },
@@ -1678,41 +1719,23 @@ export function VolunteersManager({
       {
         id: "status",
         label: "Status",
-        defaultWidth: 130,
-        sortValue: (app) => app.status,
-        render: (app) => (
-          <Badge className={STATUS_COLORS[app.status]}>{app.status.replace(/_/g, " ")}</Badge>
-        ),
-      },
-      {
-        id: "attention",
-        label: "Attention",
         defaultWidth: 180,
         sortValue: (app) => {
           const context = getReviewContext(app);
-          return context.attentionLabel ?? "";
+          return context.attentionLabel ?? app.status;
         },
         render: (app) => {
           const context = getReviewContext(app);
+          const badge = applicationListBadge(app, context);
           return (
             <div className="space-y-1">
-              {context.attentionLabel ? (
-                <Badge
-                  variant="outline"
-                  className={cn(
-                    "text-xs",
-                    context.isRoleExpansion && !context.rolesReady
-                      ? "border-amber-400 bg-amber-50 text-amber-900"
-                      : "border-primary/30 text-primary"
-                  )}
-                >
-                  {context.attentionLabel}
-                </Badge>
-              ) : (
-                <span className="text-sm text-muted-foreground">—</span>
-              )}
+              <Badge variant="outline" className={cn("text-xs capitalize", badge.className)}>
+                {badge.label}
+              </Badge>
               {context.attentionDetail && (
-                <p className="line-clamp-2 text-xs text-muted-foreground">{context.attentionDetail}</p>
+                <p className="line-clamp-2 text-xs text-muted-foreground">
+                  {context.attentionDetail}
+                </p>
               )}
             </div>
           );
@@ -1758,13 +1781,14 @@ export function VolunteersManager({
         headerClassName: "text-right",
         cellClassName: "text-right",
         render: (app) => {
+          const context = getReviewContext(app);
           const isEdit = usesEditOpenAction(app.status);
           return (
             <div className="flex justify-end">
               <Button
                 type="button"
                 size="sm"
-                variant="outline"
+                variant={context.needsAttention && !isEdit ? "default" : "outline"}
                 onClick={() => setReviewingApplicationId(app.id)}
                 aria-label={isEdit ? `Edit ${app.full_name}` : `Review ${app.full_name}`}
               >
@@ -1895,71 +1919,59 @@ export function VolunteersManager({
                   {renderApplicationSummary(app, context)}
                 </div>
                 <div className="flex flex-col items-end gap-2 shrink-0">
-                  {context.attentionLabel && (
-                    <Badge
-                      variant="outline"
-                      className={cn(
-                        context.isRoleExpansion && !context.rolesReady
-                          ? "border-amber-400 bg-amber-50 text-amber-900"
-                          : "border-primary/30 text-primary"
-                      )}
-                    >
-                      {context.attentionLabel}
-                    </Badge>
-                  )}
-                  <Badge className={STATUS_COLORS[app.status]}>{app.status.replace(/_/g, " ")}</Badge>
-                  {context.isRoleExpansion && context.newRoles.length > 0 ? (
-                    <div className="flex flex-col gap-2 items-end">
-                      <Button
-                        type="button"
-                        size="sm"
-                        disabled={actingId === app.id || !context.rolesReady}
-                        onClick={() => handleApproveApplication(app, context, emailForApp(app))}
-                      >
-                        <Check className="h-4 w-4 mr-1" />
-                        {actingId === app.id
-                          ? "Working..."
-                          : context.rolesReady
-                            ? "Approve roles"
-                            : "Complete requirements"}
-                      </Button>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        onClick={() => setReviewingApplicationId(app.id)}
-                        aria-label={
-                          usesEditOpenAction(app.status)
-                            ? `Edit ${app.full_name}`
-                            : `Review ${app.full_name}`
-                        }
-                      >
-                        {usesEditOpenAction(app.status) ? (
-                          <Pencil className="h-4 w-4" />
+                  {(() => {
+                    const badge = applicationListBadge(app, context);
+                    const isEdit = usesEditOpenAction(app.status);
+                    return (
+                      <>
+                        <Badge variant="outline" className={cn(badge.className)}>
+                          {badge.label}
+                        </Badge>
+                        {context.isRoleExpansion && context.newRoles.length > 0 ? (
+                          <div className="flex flex-col gap-2 items-end">
+                            <Button
+                              type="button"
+                              size="sm"
+                              disabled={actingId === app.id || !context.rolesReady}
+                              onClick={() =>
+                                handleApproveApplication(app, context, emailForApp(app))
+                              }
+                            >
+                              <Check className="h-4 w-4 mr-1" />
+                              {actingId === app.id
+                                ? "Working..."
+                                : context.rolesReady
+                                  ? "Approve roles"
+                                  : "Complete requirements"}
+                            </Button>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              onClick={() => setReviewingApplicationId(app.id)}
+                              aria-label={
+                                isEdit ? `Edit ${app.full_name}` : `Review ${app.full_name}`
+                              }
+                            >
+                              {isEdit ? <Pencil className="h-4 w-4" /> : "Details"}
+                            </Button>
+                          </div>
                         ) : (
-                          "Review"
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant={context.needsAttention && !isEdit ? "default" : "outline"}
+                            onClick={() => setReviewingApplicationId(app.id)}
+                            aria-label={
+                              isEdit ? `Edit ${app.full_name}` : `Review ${app.full_name}`
+                            }
+                          >
+                            {isEdit ? <Pencil className="h-4 w-4" /> : "Review"}
+                          </Button>
                         )}
-                      </Button>
-                    </div>
-                  ) : (
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      onClick={() => setReviewingApplicationId(app.id)}
-                      aria-label={
-                        usesEditOpenAction(app.status)
-                          ? `Edit ${app.full_name}`
-                          : `Review ${app.full_name}`
-                      }
-                    >
-                      {usesEditOpenAction(app.status) ? (
-                        <Pencil className="h-4 w-4" />
-                      ) : (
-                        "Review"
-                      )}
-                    </Button>
-                  )}
+                      </>
+                    );
+                  })()}
                 </div>
               </div>
             </CardHeader>

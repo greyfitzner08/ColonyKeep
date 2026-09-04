@@ -247,10 +247,10 @@ export function getApplicationReviewContext(
     attentionDetail = application.admin_notes?.trim() || null;
   } else if (application.status === "rejected") {
     needsAttention = true;
-    attentionLabel = "Rejected — can reopen";
+    attentionLabel = "Rejected";
     attentionDetail =
       application.admin_notes?.trim() ||
-      "Change status or approve again when ready to reconsider.";
+      "You can reopen this as pending, follow-up, inactive, or approve.";
   } else if (hasPendingTraining) {
     needsAttention = true;
     attentionLabel = "Training pending";
