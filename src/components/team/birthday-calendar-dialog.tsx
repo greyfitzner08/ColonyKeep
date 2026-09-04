@@ -17,11 +17,12 @@ import {
   getMonthGrid,
   getWeekDays,
   startOfWeekSunday,
+  upcomingBirthdayDayGroups,
   type BirthdayPerson,
 } from "@/lib/team-feed/birthdays";
 import { cn, formatDate } from "@/lib/utils";
 
-type CalendarView = "month" | "week";
+type CalendarView = "month" | "week" | "list";
 
 interface BirthdayCalendarDialogProps {
   open: boolean;
@@ -64,7 +65,7 @@ export function BirthdayCalendarDialog({
     return date;
   }, []);
 
-  const [view, setView] = useState<CalendarView>("month");
+  const [view, setView] = useState<CalendarView>("list");
   const [monthCursor, setMonthCursor] = useState(() => new Date(today.getFullYear(), today.getMonth(), 1));
   const [weekCursor, setWeekCursor] = useState(() => startOfWeekSunday(today));
 
@@ -75,6 +76,10 @@ export function BirthdayCalendarDialog({
 
   const weekDays = useMemo(() => getWeekDays(weekCursor), [weekCursor]);
   const weekLabel = `${formatDate(weekDays[0])} – ${formatDate(weekDays[6])}`;
+  const weekDaysWithBirthdays = useMemo(
+    () => weekDays.filter((day) => birthdaysOnCalendarDay(people, day).length > 0),
+    [weekDays, people]
+  );
 
   const monthGrid = useMemo(
     () => getMonthGrid(monthCursor.getFullYear(), monthCursor.getMonth()),
@@ -85,6 +90,8 @@ export function BirthdayCalendarDialog({
     () => birthdaysInMonth(people, monthCursor.getFullYear(), monthCursor.getMonth()),
     [people, monthCursor]
   );
+
+  const listGroups = useMemo(() => upcomingBirthdayDayGroups(people, today), [people, today]);
 
   function shiftMonth(delta: number) {
     setMonthCursor((current) => new Date(current.getFullYear(), current.getMonth() + delta, 1));
@@ -115,12 +122,22 @@ export function BirthdayCalendarDialog({
             Team birthdays
           </DialogTitle>
           <DialogDescription>
-            Month and day only — birth years stay private. Browse by month or week.
+            Month and day only — birth years stay private. List shows only days with birthdays;
+            month and week show the full calendar.
           </DialogDescription>
         </DialogHeader>
 
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="inline-flex rounded-md border p-0.5">
+            <Button
+              type="button"
+              size="sm"
+              variant={view === "list" ? "default" : "ghost"}
+              className="h-8"
+              onClick={() => setView("list")}
+            >
+              List
+            </Button>
             <Button
               type="button"
               size="sm"
@@ -141,34 +158,85 @@ export function BirthdayCalendarDialog({
             </Button>
           </div>
 
-          <div className="flex items-center gap-2">
-            <Button
-              type="button"
-              size="icon"
-              variant="outline"
-              className="h-8 w-8"
-              onClick={() => (view === "month" ? shiftMonth(-1) : shiftWeek(-1))}
-              aria-label={view === "month" ? "Previous month" : "Previous week"}
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <span className="min-w-[10rem] text-center text-sm font-medium">
-              {view === "month" ? monthLabel : weekLabel}
-            </span>
-            <Button
-              type="button"
-              size="icon"
-              variant="outline"
-              className="h-8 w-8"
-              onClick={() => (view === "month" ? shiftMonth(1) : shiftWeek(1))}
-              aria-label={view === "month" ? "Next month" : "Next week"}
-            >
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-          </div>
+          {view !== "list" && (
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                size="icon"
+                variant="outline"
+                className="h-8 w-8"
+                onClick={() => (view === "month" ? shiftMonth(-1) : shiftWeek(-1))}
+                aria-label={view === "month" ? "Previous month" : "Previous week"}
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <span className="min-w-[10rem] text-center text-sm font-medium">
+                {view === "month" ? monthLabel : weekLabel}
+              </span>
+              <Button
+                type="button"
+                size="icon"
+                variant="outline"
+                className="h-8 w-8"
+                onClick={() => (view === "month" ? shiftMonth(1) : shiftWeek(1))}
+                aria-label={view === "month" ? "Next month" : "Next week"}
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+          )}
         </div>
 
-        {view === "month" ? (
+        {view === "list" ? (
+          <div className="space-y-2">
+            {listGroups.length === 0 ? (
+              <p className="py-6 text-center text-sm text-muted-foreground">
+                No team birthdays on file yet. They appear here as volunteers add or update their
+                birthday.
+              </p>
+            ) : (
+              <>
+                <p className="text-xs text-muted-foreground">
+                  {listGroups.reduce((sum, group) => sum + group.people.length, 0)} upcoming
+                  birthday{listGroups.length === 1 ? "" : "s"} · next 12 months
+                </p>
+                {listGroups.map((group) => (
+                  <div
+                    key={group.date.toISOString()}
+                    className={cn(
+                      "flex flex-col gap-2 rounded-md border p-3 sm:flex-row sm:items-start sm:gap-4",
+                      isToday(group.date) && "border-pink-300 bg-pink-50/40"
+                    )}
+                  >
+                    <div className="flex shrink-0 items-baseline gap-2 sm:w-40 sm:flex-col sm:gap-0.5">
+                      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                        {group.date.toLocaleDateString(undefined, { weekday: "short" })}
+                      </p>
+                      <p
+                        className={cn(
+                          "text-sm font-semibold",
+                          isToday(group.date) && "text-pink-700"
+                        )}
+                      >
+                        {formatDate(group.date)}
+                      </p>
+                    </div>
+                    <ul
+                      className="flex min-w-0 flex-1 flex-wrap gap-1.5"
+                      aria-label={`Birthdays on ${formatDate(group.date)}`}
+                    >
+                      {group.people.map((person) => (
+                        <li key={`${person.full_name}-${person.birthday}`} className="min-w-0 max-w-full">
+                          <BirthdayNameChip name={person.full_name} />
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+              </>
+            )}
+          </div>
+        ) : view === "month" ? (
           <div className="space-y-3">
             <div className="grid grid-cols-7 gap-1 text-center text-[11px] font-medium text-muted-foreground">
               {WEEKDAY_LABELS.map((label) => (
@@ -193,7 +261,7 @@ export function BirthdayCalendarDialog({
                     <div className="mt-1 flex flex-col gap-0.5">
                       {dayBirthdays.slice(0, 2).map((person) => (
                         <BirthdayNameChip
-                          key={person.full_name}
+                          key={`${person.full_name}-${person.birthday}`}
                           name={person.full_name}
                           className="px-1 py-0 text-[10px]"
                         />
@@ -215,7 +283,7 @@ export function BirthdayCalendarDialog({
                 <div className="flex flex-wrap gap-2">
                   {monthBirthdays.map((person) => (
                     <BirthdayNameChip
-                      key={person.full_name}
+                      key={`${person.full_name}-${person.birthday}`}
                       name={`${person.full_name} · ${formatBirthdayMonthDay(person.birthday)}`}
                       className="rounded-full px-2.5 py-1"
                     />
@@ -226,40 +294,45 @@ export function BirthdayCalendarDialog({
           </div>
         ) : (
           <div className="space-y-2">
-            {weekDays.map((day) => {
-              const dayBirthdays = birthdaysOnCalendarDay(people, day);
-              return (
-                <div
-                  key={day.toISOString()}
-                  className={cn(
-                    "flex flex-col gap-2 rounded-md border p-3 sm:flex-row sm:items-start sm:gap-4",
-                    isToday(day) && "border-pink-300 bg-pink-50/40"
-                  )}
-                >
-                  <div className="flex shrink-0 items-baseline gap-2 sm:w-36 sm:flex-col sm:gap-0.5">
-                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                      {day.toLocaleDateString(undefined, { weekday: "short" })}
-                    </p>
-                    <p className={cn("text-sm font-semibold", isToday(day) && "text-pink-700")}>
-                      {formatDate(day)}
-                    </p>
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    {dayBirthdays.length === 0 ? (
-                      <p className="text-sm text-muted-foreground">No birthdays</p>
-                    ) : (
+            {weekDaysWithBirthdays.length === 0 ? (
+              <p className="py-6 text-center text-sm text-muted-foreground">
+                No birthdays this week.
+              </p>
+            ) : (
+              weekDaysWithBirthdays.map((day) => {
+                const dayBirthdays = birthdaysOnCalendarDay(people, day);
+                return (
+                  <div
+                    key={day.toISOString()}
+                    className={cn(
+                      "flex flex-col gap-2 rounded-md border p-3 sm:flex-row sm:items-start sm:gap-4",
+                      isToday(day) && "border-pink-300 bg-pink-50/40"
+                    )}
+                  >
+                    <div className="flex shrink-0 items-baseline gap-2 sm:w-36 sm:flex-col sm:gap-0.5">
+                      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                        {day.toLocaleDateString(undefined, { weekday: "short" })}
+                      </p>
+                      <p className={cn("text-sm font-semibold", isToday(day) && "text-pink-700")}>
+                        {formatDate(day)}
+                      </p>
+                    </div>
+                    <div className="min-w-0 flex-1">
                       <ul className="flex flex-wrap gap-1.5" aria-label={`Birthdays on ${formatDate(day)}`}>
                         {dayBirthdays.map((person) => (
-                          <li key={person.full_name} className="min-w-0 max-w-full">
+                          <li
+                            key={`${person.full_name}-${person.birthday}`}
+                            className="min-w-0 max-w-full"
+                          >
                             <BirthdayNameChip name={person.full_name} />
                           </li>
                         ))}
                       </ul>
-                    )}
+                    </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })
+            )}
           </div>
         )}
       </DialogContent>

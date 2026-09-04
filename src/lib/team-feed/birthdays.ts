@@ -132,3 +132,47 @@ export function upcomingBirthdayLabel(birthday: string, asOf = new Date()): stri
   if (days === 1) return "tomorrow";
   return formatBirthdayMonthDay(birthday, { weekday: "short" });
 }
+
+export interface BirthdayDayGroup {
+  /** Next occurrence of this month/day from asOf. */
+  date: Date;
+  people: BirthdayPerson[];
+}
+
+/** Upcoming birthday days only (no empty days), ordered soonest-first for the next year. */
+export function upcomingBirthdayDayGroups(
+  people: BirthdayPerson[],
+  asOf = new Date()
+): BirthdayDayGroup[] {
+  const today = startOfDay(asOf);
+  const byKey = new Map<string, BirthdayPerson[]>();
+
+  for (const person of people) {
+    if (!person.birthday?.trim()) continue;
+    const { month, day } = parseBirthdayMonthDay(person.birthday);
+    if (Number.isNaN(month) || Number.isNaN(day)) continue;
+    const key = `${month}-${day}`;
+    const list = byKey.get(key) ?? [];
+    list.push(person);
+    byKey.set(key, list);
+  }
+
+  return Array.from(byKey.entries())
+    .map(([key, groupPeople]) => {
+      const [monthPart, dayPart] = key.split("-");
+      const month = Number(monthPart);
+      const day = Number(dayPart);
+      const date = new Date(today.getFullYear(), month, day);
+      if (date < today) {
+        date.setFullYear(today.getFullYear() + 1);
+      }
+      return {
+        date,
+        people: [...groupPeople].sort((a, b) =>
+          a.full_name.localeCompare(b.full_name, undefined, { sensitivity: "base" })
+        ),
+      };
+    })
+    .sort((a, b) => a.date.getTime() - b.date.getTime());
+}
+
