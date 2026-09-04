@@ -100,6 +100,7 @@ export function CaseColonyTab({
                 caseNumber={hr.case_number}
                 clinicFix={clinicFixByCatId.get(cat.id) ?? null}
                 canLogClinicFix={canLogClinicFix && !readOnly}
+                readOnly={readOnly}
                 onUpdated={onCatUpdated}
                 onRemoved={onCatRemoved}
               />

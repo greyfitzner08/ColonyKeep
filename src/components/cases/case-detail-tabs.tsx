@@ -451,6 +451,7 @@ export function CaseDetailTabs({
           clinicFixes={clinicFixes}
           userEmail={userEmail}
           isAdmin={userRole === "admin"}
+          readOnly={readOnly}
         />
       </TabsContent>
 

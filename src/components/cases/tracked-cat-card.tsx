@@ -48,6 +48,8 @@ interface TrackedCatCardProps {
   caseNumber: string;
   clinicFix?: ClinicFix | null;
   canLogClinicFix: boolean;
+  /** When true, hide edit/remove controls (view-only). */
+  readOnly?: boolean;
   onUpdated: (cat: Cat) => void;
   onRemoved: (catId: string) => void;
 }
@@ -147,6 +149,7 @@ export function TrackedCatCard({
   caseNumber,
   clinicFix = null,
   canLogClinicFix,
+  readOnly = false,
   onUpdated,
   onRemoved,
 }: TrackedCatCardProps) {
@@ -474,20 +477,24 @@ export function TrackedCatCard({
               {subtitle && <p className="text-sm text-muted-foreground">{subtitle}</p>}
             </div>
             <div className="flex shrink-0 gap-2">
-              <Button
-                size="sm"
-                variant="outline"
-                className="text-destructive hover:text-destructive"
-                onClick={() => setRemoveDialogOpen(true)}
-                disabled={removing || saving}
-              >
-                <Trash2 className="h-4 w-4 mr-1" />
-                Remove
-              </Button>
-              <Button size="sm" variant="outline" onClick={startEditing} disabled={removing}>
-                <Pencil className="h-4 w-4 mr-1" />
-                Edit
-              </Button>
+              {!readOnly && (
+                <>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="text-destructive hover:text-destructive"
+                    onClick={() => setRemoveDialogOpen(true)}
+                    disabled={removing || saving}
+                  >
+                    <Trash2 className="h-4 w-4 mr-1" />
+                    Remove
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={startEditing} disabled={removing}>
+                    <Pencil className="h-4 w-4 mr-1" />
+                    Edit
+                  </Button>
+                </>
+              )}
             </div>
           </div>
 

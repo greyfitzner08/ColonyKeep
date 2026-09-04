@@ -35,6 +35,8 @@ interface CaseAppointmentsSectionProps {
   clinicFixes?: ClinicFix[];
   userEmail?: string;
   isAdmin?: boolean;
+  /** When true, hide reserve / unreserve / log-result actions. */
+  readOnly?: boolean;
 }
 
 export function CaseAppointmentsSection({
@@ -45,6 +47,7 @@ export function CaseAppointmentsSection({
   clinicFixes = [],
   userEmail = "",
   isAdmin = false,
+  readOnly = false,
 }: CaseAppointmentsSectionProps) {
   const router = useRouter();
   const [claimTarget, setClaimTarget] = useState<Appointment | null>(null);
@@ -82,6 +85,7 @@ export function CaseAppointmentsSection({
   }
 
   function canLogResults(appt: Appointment) {
+    if (readOnly) return false;
     if (!isClinicResultDue(appt, clinicFixes)) return false;
     return appt.reserved_by === userEmail || isAdmin;
   }
@@ -156,7 +160,9 @@ export function CaseAppointmentsSection({
                       Log clinic results
                     </Button>
                   )}
-                  {canUnreserveAppointment(appt, clinicFixes) && !isClinicResultDue(appt, clinicFixes) && (
+                  {canUnreserveAppointment(appt, clinicFixes) &&
+                    !isClinicResultDue(appt, clinicFixes) &&
+                    !readOnly && (
                     <Button
                       variant="outline"
                       size="sm"
@@ -174,63 +180,71 @@ export function CaseAppointmentsSection({
         </div>
       )}
 
-      <div className="space-y-3">
-        <h3 className="text-base font-semibold flex items-center gap-2">
-          <Plus className="h-4 w-4" />
-          Reserve a slot
-        </h3>
-        {availableAppointments.length === 0 ? (
-          <p className="text-base text-muted-foreground">
-            No available appointment slots right now. Check the{" "}
-            <a href="/appointments" className="text-primary underline">
-              appointments calendar
-            </a>{" "}
-            later.
-          </p>
-        ) : (
-          <div className="space-y-4">
-            {Object.entries(grouped)
-              .sort(([a], [b]) => a.localeCompare(b))
-              .map(([date, slots]) => (
-                <div key={date}>
-                  <p className="text-sm font-medium text-muted-foreground mb-2 flex items-center gap-2">
-                    <Calendar className="h-3.5 w-3.5" />
-                    {formatDate(date)}
-                  </p>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {slots.map((appt) => {
-                      const past = isAppointmentDatePast(appt.date);
-                      return (
-                        <button
-                          key={appt.id}
-                          type="button"
-                          disabled={past}
-                          className={cn(
-                            "rounded-lg border px-4 py-3 text-left transition-colors",
-                            past
-                              ? "cursor-not-allowed opacity-60"
-                              : "hover:bg-muted/50"
-                          )}
-                          onClick={() => {
-                            if (!past) setClaimTarget(appt);
-                          }}
-                        >
-                          <p className="font-medium">{appt.clinic_name}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {past ? "Past date · cannot claim" : "Available · tap to reserve"}
-                          </p>
-                        </button>
-                      );
-                    })}
+      {!readOnly && (
+        <div className="space-y-3">
+          <h3 className="text-base font-semibold flex items-center gap-2">
+            <Plus className="h-4 w-4" />
+            Reserve a slot
+          </h3>
+          {availableAppointments.length === 0 ? (
+            <p className="text-base text-muted-foreground">
+              No available appointment slots right now. Check the{" "}
+              <a href="/appointments" className="text-primary underline">
+                appointments calendar
+              </a>{" "}
+              later.
+            </p>
+          ) : (
+            <div className="space-y-4">
+              {Object.entries(grouped)
+                .sort(([a], [b]) => a.localeCompare(b))
+                .map(([date, slots]) => (
+                  <div key={date}>
+                    <p className="text-sm font-medium text-muted-foreground mb-2 flex items-center gap-2">
+                      <Calendar className="h-3.5 w-3.5" />
+                      {formatDate(date)}
+                    </p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {slots.map((appt) => {
+                        const past = isAppointmentDatePast(appt.date);
+                        return (
+                          <button
+                            key={appt.id}
+                            type="button"
+                            disabled={past}
+                            className={cn(
+                              "rounded-lg border px-4 py-3 text-left transition-colors",
+                              past
+                                ? "cursor-not-allowed opacity-60"
+                                : "hover:bg-muted/50"
+                            )}
+                            onClick={() => {
+                              if (!past) setClaimTarget(appt);
+                            }}
+                          >
+                            <p className="font-medium">{appt.clinic_name}</p>
+                            <p className="text-sm text-muted-foreground">
+                              {past ? "Past date · cannot claim" : "Available · tap to reserve"}
+                            </p>
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
-                </div>
-              ))}
-          </div>
-        )}
-      </div>
+                ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {readOnly && appointments.length === 0 && (
+        <p className="text-sm text-muted-foreground">
+          Claim this case to reserve appointment slots.
+        </p>
+      )}
 
       <ClaimAppointmentDialog
-        appointment={claimTarget}
+        appointment={readOnly ? null : claimTarget}
         onOpenChange={(open) => !open && setClaimTarget(null)}
         helpRequests={[]}
         linkedHelpRequest={helpRequest}
@@ -238,7 +252,7 @@ export function CaseAppointmentsSection({
       />
 
       <LogClinicResultDialog
-        appointment={logTarget}
+        appointment={readOnly ? null : logTarget}
         onOpenChange={(open) => !open && setLogTarget(null)}
       />
     </div>
