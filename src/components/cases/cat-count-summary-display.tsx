@@ -90,7 +90,7 @@ export function CatCountSummaryDisplay({ counts, pregnantCount }: CatCountSummar
               <CountCell value={counts.fixedTotal} className="font-medium text-primary" />
             </tr>
             {counts.fosterTotal > 0 && (
-              <tr className="border-b bg-amber-50 dark:bg-amber-950/20">
+              <tr className="bg-amber-50 dark:bg-amber-950/20">
                 <th className="px-4 py-2.5 text-left font-medium text-amber-800 dark:text-amber-200" scope="row">
                   Sent to foster/facility
                 </th>
@@ -108,14 +108,6 @@ export function CatCountSummaryDisplay({ counts, pregnantCount }: CatCountSummar
                 />
               </tr>
             )}
-            <tr>
-              <th className="px-4 py-2.5 text-left font-medium" scope="row">
-                Still need fixing
-              </th>
-              <CountCell value={counts.unfixedAdults} />
-              <CountCell value={counts.unfixedKittens} />
-              <CountCell value={counts.unfixedTotal} className="font-medium" />
-            </tr>
           </tbody>
         </table>
       </div>
