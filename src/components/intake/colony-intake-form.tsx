@@ -320,9 +320,6 @@ export function ColonyIntakeForm() {
               Your case number is <strong>{caseNumber}</strong>. Our team will review your report
               and contact you soon.
             </p>
-            <p className="pt-2 text-xs text-muted-foreground/80">
-              {INTAKE_COMMUNICATIONS_NOTICE}
-            </p>
           </CardContent>
         </Card>
       </div>
@@ -339,6 +336,9 @@ export function ColonyIntakeForm() {
           <h1 className="text-2xl font-bold">Report a Cat Colony</h1>
           <p className="text-muted-foreground mt-1">
             Community inquiry form — your report goes directly into our inquiry queue
+          </p>
+          <p className="mx-auto mt-3 max-w-lg text-sm text-muted-foreground">
+            {INTAKE_COMMUNICATIONS_NOTICE}
           </p>
         </div>
 
@@ -865,9 +865,6 @@ export function ColonyIntakeForm() {
               )}
             </div>
             {submitError && <p className="text-sm text-destructive">{submitError}</p>}
-            <p className="pt-2 text-center text-xs text-muted-foreground/80">
-              {INTAKE_COMMUNICATIONS_NOTICE}
-            </p>
           </CardContent>
         </Card>
       </div>
