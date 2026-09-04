@@ -93,7 +93,7 @@ type PendingDestructiveAction =
       confirmLabel: string;
     }
   | {
-      type: "remove_signup";
+      type: "remove_signup" | "remove_waitlist";
       shiftId: string;
       email: string;
       title: string;
@@ -404,8 +404,11 @@ export function ShiftBoard({
     setAdditionalSlots((current) => current.filter((slot) => slot.key !== key));
   }
 
-  async function claimShift(shiftId: string, action: "claim" | "unclaim") {
-    if (action === "claim") {
+  async function claimShift(
+    shiftId: string,
+    action: "claim" | "unclaim" | "waitlist" | "leave_waitlist"
+  ) {
+    if (action === "claim" || action === "waitlist") {
       const shift = initial.find((row) => row.id === shiftId);
       if (shift && isAppointmentDatePast(shift.date)) return;
     }
@@ -433,22 +436,27 @@ export function ShiftBoard({
     setDeleting(true);
     setFormError(null);
     try {
-      if (deleteTarget.type === "remove_signup") {
+      if (deleteTarget.type === "remove_signup" || deleteTarget.type === "remove_waitlist") {
         const response = await fetch("/api/shifts/claim", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             shiftId: deleteTarget.shiftId,
-            action: "remove",
+            action: deleteTarget.type === "remove_waitlist" ? "remove_waitlist" : "remove",
             email: deleteTarget.email,
           }),
         });
         const result = await response.json().catch(() => null);
         if (!response.ok) {
-          setFormError(result?.error ?? "Unable to remove signup");
+          setFormError(
+            result?.error ??
+              (deleteTarget.type === "remove_waitlist"
+                ? "Unable to remove from waitlist"
+                : "Unable to remove signup")
+          );
           return;
         }
-      } else {
+      } else if (deleteTarget.type === "delete_shifts") {
         if (deleteTarget.ids.length === 0) return;
         const response = await fetch("/api/shifts/delete", {
           method: "POST",
@@ -525,8 +533,20 @@ export function ShiftBoard({
       shiftId,
       email,
       title: "Are you sure you would like to remove this signup?",
-      description: `This removes ${name} from the shift. They can sign up again later if a spot is open.`,
+      description: `This removes ${name} from the shift. If anyone is waitlisted, the next person is moved into the open spot.`,
       confirmLabel: "Yes, remove signup",
+    });
+  }
+
+  function requestRemoveWaitlist(shiftId: string, email: string) {
+    const name = signupLabel(email);
+    openDestructiveConfirm({
+      type: "remove_waitlist",
+      shiftId,
+      email,
+      title: "Are you sure you would like to remove this person from the waitlist?",
+      description: `This removes ${name} from the waitlist.`,
+      confirmLabel: "Yes, remove from waitlist",
     });
   }
 
@@ -797,8 +817,14 @@ export function ShiftBoard({
 
   function shiftSignupSummary(shift: Shift) {
     const signedUp = shift.signed_up_emails ?? [];
-    const spotsLeft = shift.volunteers_needed - signedUp.length;
-    return { signedUp, spotsLeft, pastDate: isAppointmentDatePast(shift.date) };
+    const waitlist = shift.waitlist_emails ?? [];
+    const spotsLeft = Math.max(0, shift.volunteers_needed - signedUp.length);
+    return {
+      signedUp,
+      waitlist,
+      spotsLeft,
+      pastDate: isAppointmentDatePast(shift.date),
+    };
   }
 
   function ShiftClaimButton({
@@ -808,8 +834,11 @@ export function ShiftBoard({
     shift: Shift;
     className?: string;
   }) {
-    const { signedUp, spotsLeft, pastDate } = shiftSignupSummary(shift);
-    const isSignedUp = signedUp.includes(userEmail);
+    const { signedUp, waitlist, spotsLeft, pastDate } = shiftSignupSummary(shift);
+    const emailLower = userEmail.trim().toLowerCase();
+    const isSignedUp = signedUp.some((email) => email.toLowerCase() === emailLower);
+    const waitlistIndex = waitlist.findIndex((email) => email.toLowerCase() === emailLower);
+    const isWaitlisted = waitlistIndex >= 0;
 
     if (isSignedUp) {
       return (
@@ -837,33 +866,78 @@ export function ShiftBoard({
         </Button>
       );
     }
+    if (isWaitlisted) {
+      return (
+        <Button
+          variant="outline"
+          size="sm"
+          className={className}
+          onClick={() => claimShift(shift.id, "leave_waitlist")}
+        >
+          Leave waitlist (#{waitlistIndex + 1})
+        </Button>
+      );
+    }
     return (
-      <Button size="sm" className={className} disabled>
-        Full
+      <Button
+        variant="secondary"
+        size="sm"
+        className={className}
+        onClick={() => claimShift(shift.id, "waitlist")}
+      >
+        Join waitlist
       </Button>
     );
   }
 
-  function AdminSignupList({ shift }: { shift: Shift }) {
+  function AdminPeopleLists({ shift }: { shift: Shift }) {
+    if (!isAdmin) return null;
     const signedUp = shift.signed_up_emails ?? [];
-    if (!isAdmin || signedUp.length === 0) return null;
+    const waitlist = shift.waitlist_emails ?? [];
+    if (signedUp.length === 0 && waitlist.length === 0) return null;
+
     return (
-      <div className="rounded-lg bg-muted/40 px-3 py-2">
-        <p className="text-xs font-medium text-muted-foreground">Signed up</p>
-        <ul className="mt-1.5 space-y-1.5">
-          {signedUp.map((email) => (
-            <li key={email} className="flex items-center justify-between gap-2 text-sm">
-              <span className="min-w-0 truncate font-medium">{signupLabel(email)}</span>
-              <button
-                type="button"
-                className="shrink-0 text-xs text-destructive hover:underline"
-                onClick={() => requestRemoveSignup(shift.id, email)}
-              >
-                Remove
-              </button>
-            </li>
-          ))}
-        </ul>
+      <div className="space-y-2">
+        {signedUp.length > 0 ? (
+          <div className="rounded-lg bg-muted/40 px-3 py-2">
+            <p className="text-xs font-medium text-muted-foreground">Signed up</p>
+            <ul className="mt-1.5 space-y-1.5">
+              {signedUp.map((email) => (
+                <li key={email} className="flex items-center justify-between gap-2 text-sm">
+                  <span className="min-w-0 truncate font-medium">{signupLabel(email)}</span>
+                  <button
+                    type="button"
+                    className="shrink-0 text-xs text-destructive hover:underline"
+                    onClick={() => requestRemoveSignup(shift.id, email)}
+                  >
+                    Remove
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+        {waitlist.length > 0 ? (
+          <div className="rounded-lg border border-amber-200/80 bg-amber-50/80 px-3 py-2">
+            <p className="text-xs font-medium text-amber-900/80">Waitlist</p>
+            <ul className="mt-1.5 space-y-1.5">
+              {waitlist.map((email, index) => (
+                <li key={email} className="flex items-center justify-between gap-2 text-sm">
+                  <span className="min-w-0 truncate font-medium text-amber-950">
+                    #{index + 1} {signupLabel(email)}
+                  </span>
+                  <button
+                    type="button"
+                    className="shrink-0 text-xs text-destructive hover:underline"
+                    onClick={() => requestRemoveWaitlist(shift.id, email)}
+                  >
+                    Remove
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
       </div>
     );
   }
@@ -979,14 +1053,9 @@ export function ShiftBoard({
                         className="border-l-4 border-l-secondary-foreground/25 bg-secondary/30 px-4 py-4 sm:px-5"
                       >
                         <div className="mb-3 flex items-center justify-between gap-2">
-                          <div>
-                            <p className="text-[11px] font-semibold uppercase tracking-wider text-secondary-foreground/70">
-                              Position
-                            </p>
-                            <h3 className="text-base font-semibold text-secondary-foreground">
-                              {position.name}
-                            </h3>
-                          </div>
+                          <h3 className="text-base font-semibold text-secondary-foreground">
+                            {position.name}
+                          </h3>
                           {isAdmin && (
                             <button
                               type="button"
@@ -999,14 +1068,14 @@ export function ShiftBoard({
                                 )
                               }
                             >
-                              Remove position
+                              Remove
                             </button>
                           )}
                         </div>
 
                         <ul className="space-y-3">
                           {position.shifts.map((shift) => {
-                            const { signedUp, spotsLeft } = shiftSignupSummary(shift);
+                            const { signedUp, waitlist, spotsLeft } = shiftSignupSummary(shift);
                             return (
                               <li
                                 key={shift.id}
@@ -1016,11 +1085,6 @@ export function ShiftBoard({
                                   spotsLeft > 0 && "bg-primary/[0.03]"
                                 )}
                               >
-                                <div className="mb-2">
-                                  <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                                    Shift
-                                  </p>
-                                </div>
                                 <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between md:gap-4">
                                   <div className="min-w-0 flex-1 space-y-1">
                                     <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
@@ -1044,28 +1108,35 @@ export function ShiftBoard({
                                         {shift.notes}
                                       </p>
                                     ) : null}
-                                    <AdminSignupList shift={shift} />
+                                    <AdminPeopleLists shift={shift} />
                                   </div>
 
                                   <div className="flex flex-col gap-2 sm:flex-row sm:items-center md:flex-col md:items-stretch lg:flex-row lg:items-center">
-                                    <p className="text-sm tabular-nums sm:min-w-[5.5rem] md:text-right">
-                                      <span className="font-semibold">
-                                        {signedUp.length}/{shift.volunteers_needed}
-                                      </span>
-                                      <span
-                                        className={cn(
-                                          spotsLeft > 0
-                                            ? "text-primary"
-                                            : "text-muted-foreground"
-                                        )}
-                                      >
-                                        {spotsLeft > 0
-                                          ? " open"
-                                          : signedUp.length > 0
-                                            ? " full"
-                                            : ""}
-                                      </span>
-                                    </p>
+                                    <div className="text-sm tabular-nums sm:min-w-[5.5rem] md:text-right">
+                                      <p>
+                                        <span className="font-semibold">
+                                          {signedUp.length}/{shift.volunteers_needed}
+                                        </span>
+                                        <span
+                                          className={cn(
+                                            spotsLeft > 0
+                                              ? "text-primary"
+                                              : "text-muted-foreground"
+                                          )}
+                                        >
+                                          {spotsLeft > 0
+                                            ? " open"
+                                            : signedUp.length > 0
+                                              ? " full"
+                                              : ""}
+                                        </span>
+                                      </p>
+                                      {waitlist.length > 0 ? (
+                                        <p className="text-xs text-amber-800/90">
+                                          {waitlist.length} waitlisted
+                                        </p>
+                                      ) : null}
+                                    </div>
                                     <div className="flex items-center gap-1">
                                       {isAdmin && (
                                         <>

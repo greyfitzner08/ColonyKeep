@@ -15,20 +15,22 @@ export default async function ShiftBoardPage() {
     .order("date");
 
   const typedShifts = (shifts ?? []) as Shift[];
-  const signupEmails = Array.from(
+  const rosterEmails = Array.from(
     new Set(
       typedShifts.flatMap((shift) =>
-        (shift.signed_up_emails ?? []).map((email) => email.trim()).filter(Boolean)
+        [...(shift.signed_up_emails ?? []), ...(shift.waitlist_emails ?? [])]
+          .map((email) => email.trim())
+          .filter(Boolean)
       )
     )
   );
 
   const signupNamesByEmail: Record<string, string> = {};
-  if (isAdmin && signupEmails.length > 0) {
+  if (isAdmin && rosterEmails.length > 0) {
     const { data: profiles } = await supabase
       .from("profiles")
       .select("email, full_name")
-      .in("email", signupEmails);
+      .in("email", rosterEmails);
 
     for (const row of profiles ?? []) {
       const email = row.email?.trim().toLowerCase();
@@ -42,7 +44,7 @@ export default async function ShiftBoardPage() {
       <div>
         <h1 className="text-3xl font-bold">Shift Board</h1>
         <p className="text-muted-foreground">
-          Open an event to see its positions and shifts. Dates show on each event header.
+          Open an event to sign up. If a slot is full, join the waitlist.
         </p>
       </div>
       <ShiftBoard

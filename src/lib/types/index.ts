@@ -454,6 +454,8 @@ export interface Shift {
   team_ids: string[];
   volunteers_needed: number;
   signed_up_emails: string[];
+  /** Join-order waitlist when the shift is full; first entry is promoted when a spot opens. */
+  waitlist_emails: string[];
   notes: string | null;
   created_at: string;
   updated_at: string;
