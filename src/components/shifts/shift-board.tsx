@@ -135,6 +135,9 @@ export function ShiftBoard({ shifts: initial, userEmail, isAdmin }: ShiftBoardPr
   const [defaultLocation, setDefaultLocation] = useState("");
   const [positions, setPositions] = useState<PositionForm[]>([emptyPosition()]);
   const [editForm, setEditForm] = useState<EditFormState>(EMPTY_EDIT);
+  const [additionalSlots, setAdditionalSlots] = useState<TimeSlotForm[]>([]);
+  const [createTitle, setCreateTitle] = useState("Create Event");
+  const [lockingEventName, setLockingEventName] = useState(false);
 
   const filtered = typeFilter === "all"
     ? initial
@@ -182,12 +185,44 @@ export function ShiftBoard({ shifts: initial, userEmail, isAdmin }: ShiftBoardPr
     setDefaultLocation("");
     setPositions([emptyPosition()]);
     setFormError(null);
+    setCreateTitle("Create Event");
+    setLockingEventName(false);
+    setCreateOpen(true);
+  }
+
+  function openAddShiftsToEvent(eventGroupName: string, eventShifts: Shift[]) {
+    const sample = eventShifts[0];
+    const existingPositions = Array.from(
+      new Set(eventShifts.map((shift) => positionLabel(shift)))
+    );
+    setEventName(eventGroupName);
+    setDefaultLocation(sample?.location ?? "");
+    setPositions([
+      emptyPosition({
+        name: existingPositions[0] ?? "",
+        shift_type: sample?.shift_type ?? "event",
+        required_roles: sample?.required_roles ?? "any",
+        slots: [
+          emptySlot({
+            date: sample?.date ?? "",
+            start_time: sample?.start_time?.slice(0, 5) ?? "",
+            end_time: sample?.end_time?.slice(0, 5) ?? "",
+            location: "",
+            volunteers_needed: sample?.volunteers_needed ?? 1,
+          }),
+        ],
+      }),
+    ]);
+    setFormError(null);
+    setCreateTitle(`Add shifts · ${eventGroupName}`);
+    setLockingEventName(true);
     setCreateOpen(true);
   }
 
   function openEditDialog(shift: Shift) {
     setEditingShift(shift);
     setEditForm(formFromShift(shift));
+    setAdditionalSlots([]);
     setFormError(null);
     setEditOpen(true);
   }
@@ -269,6 +304,32 @@ export function ShiftBoard({ shifts: initial, userEmail, isAdmin }: ShiftBoardPr
         };
       })
     );
+  }
+
+  function addAdditionalSlot() {
+    setAdditionalSlots((current) => {
+      const last = current[current.length - 1];
+      return [
+        ...current,
+        emptySlot({
+          date: last?.date || editForm.date,
+          start_time: last?.start_time || editForm.start_time,
+          end_time: last?.end_time || editForm.end_time,
+          location: last?.location || "",
+          volunteers_needed: last?.volunteers_needed ?? editForm.volunteers_needed ?? 1,
+        }),
+      ];
+    });
+  }
+
+  function updateAdditionalSlot(key: string, patch: Partial<TimeSlotForm>) {
+    setAdditionalSlots((current) =>
+      current.map((slot) => (slot.key === key ? { ...slot, ...patch } : slot))
+    );
+  }
+
+  function removeAdditionalSlot(key: string) {
+    setAdditionalSlots((current) => current.filter((slot) => slot.key !== key));
   }
 
   async function claimShift(shiftId: string, action: "claim" | "unclaim") {
@@ -375,6 +436,23 @@ export function ShiftBoard({ shifts: initial, userEmail, isAdmin }: ShiftBoardPr
       return;
     }
 
+    for (const [index, slot] of additionalSlots.entries()) {
+      const location = (slot.location.trim() || editForm.location).trim();
+      const label = `Additional shift ${index + 1}`;
+      if (!slot.date) {
+        setFormError(`${label}: choose a date.`);
+        return;
+      }
+      if (!slot.start_time || !slot.end_time) {
+        setFormError(`${label}: set start and end times.`);
+        return;
+      }
+      if (!location) {
+        setFormError(`${label}: set a location.`);
+        return;
+      }
+    }
+
     setSaving(true);
 
     const response = await fetch("/api/shifts/update", {
@@ -389,15 +467,50 @@ export function ShiftBoard({ shifts: initial, userEmail, isAdmin }: ShiftBoardPr
       }),
     });
     const result = await response.json().catch(() => null);
-    setSaving(false);
 
     if (!response.ok) {
+      setSaving(false);
       setFormError(result?.error ?? "Unable to update shift");
       return;
     }
 
+    if (additionalSlots.length > 0) {
+      const createResponse = await fetch("/api/shifts/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          event_name: editForm.event_name.trim(),
+          shifts: additionalSlots.map((slot) => ({
+            position_name: editForm.position_name.trim(),
+            shift_type: editForm.shift_type,
+            required_roles: editForm.required_roles,
+            date: slot.date,
+            start_time: slot.start_time,
+            end_time: slot.end_time,
+            location: (slot.location.trim() || editForm.location).trim(),
+            volunteers_needed: slot.volunteers_needed,
+            notes: slot.notes.trim() || null,
+          })),
+        }),
+      });
+      const createResult = await createResponse.json().catch(() => null);
+      setSaving(false);
+
+      if (!createResponse.ok) {
+        setFormError(
+          createResult?.error ??
+            "Saved this shift, but could not create the additional shifts."
+        );
+        router.refresh();
+        return;
+      }
+    } else {
+      setSaving(false);
+    }
+
     setEditOpen(false);
     setEditingShift(null);
+    setAdditionalSlots([]);
     router.refresh();
   }
 
@@ -429,15 +542,31 @@ export function ShiftBoard({ shifts: initial, userEmail, isAdmin }: ShiftBoardPr
           {groupedEvents.map((group) => (
             <Card key={group.name} className="overflow-hidden">
               <CardHeader className="space-y-2 border-b bg-muted/30 pb-5">
-                <CardTitle className="text-xl leading-snug">{group.name}</CardTitle>
-                <p className="text-sm text-muted-foreground">
-                  {group.positions.length} position{group.positions.length === 1 ? "" : "s"}
-                  {" · "}
-                  {group.shifts.length} shift{group.shifts.length === 1 ? "" : "s"}
-                  {group.shifts.length > 1
-                    ? ` · ${formatDate(group.shifts[0].date)} – ${formatDate(group.shifts[group.shifts.length - 1].date)}`
-                    : ` · ${formatDate(group.shifts[0].date)}`}
-                </p>
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="min-w-0 space-y-2">
+                    <CardTitle className="text-xl leading-snug">{group.name}</CardTitle>
+                    <p className="text-sm text-muted-foreground">
+                      {group.positions.length} position{group.positions.length === 1 ? "" : "s"}
+                      {" · "}
+                      {group.shifts.length} shift{group.shifts.length === 1 ? "" : "s"}
+                      {group.shifts.length > 1
+                        ? ` · ${formatDate(group.shifts[0].date)} – ${formatDate(group.shifts[group.shifts.length - 1].date)}`
+                        : ` · ${formatDate(group.shifts[0].date)}`}
+                    </p>
+                  </div>
+                  {isAdmin && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="shrink-0"
+                      onClick={() => openAddShiftsToEvent(group.name, group.shifts)}
+                    >
+                      <Plus className="h-4 w-4 mr-1" />
+                      Add shifts
+                    </Button>
+                  )}
+                </div>
               </CardHeader>
               <CardContent className="space-y-8 pt-5">
                 {group.positions.map((position) => (
@@ -532,10 +661,11 @@ export function ShiftBoard({ shifts: initial, userEmail, isAdmin }: ShiftBoardPr
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Create Event</DialogTitle>
+            <DialogTitle>{createTitle}</DialogTitle>
             <DialogDescription>
-              Name the event, add volunteer positions, and give each position one or more dated
-              shifts — including multi-day schedules.
+              {lockingEventName
+                ? "Add more volunteer positions or dated shifts to this event."
+                : "Name the event, add volunteer positions, and give each position one or more dated shifts — including multi-day schedules."}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -545,6 +675,7 @@ export function ShiftBoard({ shifts: initial, userEmail, isAdmin }: ShiftBoardPr
                 value={eventName}
                 onChange={(e) => setEventName(e.target.value)}
                 placeholder="Spring Trap Day"
+                disabled={lockingEventName}
               />
             </div>
             <AddressAutocomplete
@@ -748,19 +879,38 @@ export function ShiftBoard({ shifts: initial, userEmail, isAdmin }: ShiftBoardPr
             {formError && <p className="text-sm text-destructive">{formError}</p>}
             <Button onClick={saveEventShifts} className="w-full" disabled={saving}>
               {saving
-                ? "Creating..."
-                : totalShiftCount === 1
-                  ? "Create Event"
-                  : `Create Event (${totalShiftCount} shifts)`}
+                ? lockingEventName
+                  ? "Adding..."
+                  : "Creating..."
+                : lockingEventName
+                  ? totalShiftCount === 1
+                    ? "Add shift to event"
+                    : `Add ${totalShiftCount} shifts to event`
+                  : totalShiftCount === 1
+                    ? "Create Event"
+                    : `Create Event (${totalShiftCount} shifts)`}
             </Button>
           </div>
         </DialogContent>
       </Dialog>
 
-      <Dialog open={editOpen} onOpenChange={setEditOpen}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto">
+      <Dialog
+        open={editOpen}
+        onOpenChange={(open) => {
+          setEditOpen(open);
+          if (!open) {
+            setEditingShift(null);
+            setAdditionalSlots([]);
+            setFormError(null);
+          }
+        }}
+      >
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Edit Shift</DialogTitle>
+            <DialogDescription>
+              Update this shift, or add more dated shifts for the same event and position.
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
             <div className="space-y-1">
@@ -867,9 +1017,126 @@ export function ShiftBoard({ shifts: initial, userEmail, isAdmin }: ShiftBoardPr
                 rows={3}
               />
             </div>
+
+            <div className="space-y-3 rounded-lg border p-3">
+              <div className="flex items-center justify-between gap-2">
+                <div>
+                  <p className="text-sm font-medium">Additional shifts</p>
+                  <p className="text-xs text-muted-foreground">
+                    Same event and position · optional locations default to this shift’s location
+                  </p>
+                </div>
+                <Button type="button" variant="outline" size="sm" onClick={addAdditionalSlot}>
+                  <Plus className="h-4 w-4 mr-1" />
+                  Add shift
+                </Button>
+              </div>
+
+              {additionalSlots.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  No extra shifts yet. Use Add shift to create more dates or times for this
+                  position.
+                </p>
+              ) : (
+                additionalSlots.map((slot, slotIndex) => (
+                  <div key={slot.key} className="space-y-3 rounded-md border bg-muted/30 p-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-sm font-medium">
+                        {slot.date ? formatDate(slot.date) : `Additional shift ${slotIndex + 1}`}
+                      </p>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={() => removeAdditionalSlot(slot.key)}
+                        aria-label={`Remove additional shift ${slotIndex + 1}`}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <Label>Date</Label>
+                        <Input
+                          type="date"
+                          value={slot.date}
+                          onChange={(e) =>
+                            updateAdditionalSlot(slot.key, { date: e.target.value })
+                          }
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label>Volunteers needed</Label>
+                        <NumberInput
+                          integer
+                          min={1}
+                          emptyValue={1}
+                          value={slot.volunteers_needed}
+                          onValueChange={(value) => {
+                            if (typeof value !== "number") return;
+                            updateAdditionalSlot(slot.key, { volunteers_needed: value });
+                          }}
+                        />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <Label>Start</Label>
+                        <Input
+                          type="time"
+                          value={slot.start_time}
+                          onChange={(e) =>
+                            updateAdditionalSlot(slot.key, { start_time: e.target.value })
+                          }
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label>End</Label>
+                        <Input
+                          type="time"
+                          value={slot.end_time}
+                          onChange={(e) =>
+                            updateAdditionalSlot(slot.key, { end_time: e.target.value })
+                          }
+                        />
+                      </div>
+                    </div>
+                    <AddressAutocomplete
+                      label="Location (optional)"
+                      defaultValue={slot.location}
+                      placeholder={editForm.location || "Same as this shift"}
+                      onAddressChange={(location) =>
+                        updateAdditionalSlot(slot.key, { location })
+                      }
+                      onSelect={(parts) =>
+                        updateAdditionalSlot(slot.key, {
+                          location: formatAddressPartsLine(parts),
+                        })
+                      }
+                    />
+                    <div className="space-y-1">
+                      <Label>Notes (optional)</Label>
+                      <Textarea
+                        value={slot.notes}
+                        onChange={(e) =>
+                          updateAdditionalSlot(slot.key, { notes: e.target.value })
+                        }
+                        rows={2}
+                      />
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
             {formError && <p className="text-sm text-destructive">{formError}</p>}
             <Button onClick={saveEditedShift} className="w-full" disabled={saving}>
-              {saving ? "Saving..." : "Save Changes"}
+              {saving
+                ? "Saving..."
+                : additionalSlots.length > 0
+                  ? `Save + add ${additionalSlots.length} shift${additionalSlots.length === 1 ? "" : "s"}`
+                  : "Save Changes"}
             </Button>
           </div>
         </DialogContent>
