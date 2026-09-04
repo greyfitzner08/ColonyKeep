@@ -33,14 +33,13 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { createClient } from "@/lib/supabase/client";
-import { formatDate } from "@/lib/utils";
+import { cn, formatDate } from "@/lib/utils";
 import type { VolunteerHours, Shift, Profile, HelpRequest } from "@/lib/types";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { getStatusLabel } from "@/lib/cases/statuses";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { STATUS_COLORS } from "@/lib/constants";
-import { cn } from "@/lib/utils";
 
 const HOUR_TYPES = [
   { value: "trapping", label: "Trapping" },
