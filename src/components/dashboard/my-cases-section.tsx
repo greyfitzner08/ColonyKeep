@@ -15,6 +15,9 @@ interface MyCasesSectionProps {
   showClaimHint?: boolean;
   hintHref?: string;
   hintLabel?: string;
+  /** Shown under the list when there are cases (e.g. full history link). */
+  footerHref?: string;
+  footerLabel?: string;
   canClaim?: boolean;
   userEmail?: string;
   isAdmin?: boolean;
@@ -28,6 +31,8 @@ export function MyCasesSection({
   showClaimHint = false,
   hintHref = "/intake",
   hintLabel = "Go to inquiry queue",
+  footerHref,
+  footerLabel,
   canClaim = false,
   userEmail = "",
   isAdmin = false,
@@ -52,13 +57,20 @@ export function MyCasesSection({
             )}
           </div>
         ) : (
-          <CaseQueueView
-            cases={cases}
-            canClaim={canClaim}
-            userEmail={userEmail}
-            isAdmin={isAdmin}
-            showControls
-          />
+          <div className="space-y-3">
+            <CaseQueueView
+              cases={cases}
+              canClaim={canClaim}
+              userEmail={userEmail}
+              isAdmin={isAdmin}
+              showControls
+            />
+            {footerHref && footerLabel && (
+              <Button asChild variant="outline" size="sm">
+                <Link href={footerHref}>{footerLabel}</Link>
+              </Button>
+            )}
+          </div>
         )}
       </CardContent>
     </Card>

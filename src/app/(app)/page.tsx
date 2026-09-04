@@ -7,6 +7,7 @@ import { fetchCommunityStats } from "@/components/dashboard/community-stats-card
 import { fetchTrapTeamDashboardData } from "@/lib/dashboard/trap-team-data";
 import { fetchPendingClinicResults } from "@/lib/appointments/pending-clinic-results";
 import { sortCasesMedicalFirst } from "@/lib/cases/sort-cases";
+import { fetchInquiryWorkHistory } from "@/lib/cases/inquiry-work-history";
 import { INTAKE_QUEUE_STATUSES } from "@/lib/cases/statuses";
 import { sortTrapTeams } from "@/lib/trap-teams/sort-teams";
 import {
@@ -73,13 +74,14 @@ export default async function DashboardPage() {
   const myShifts = (myShiftsRaw ?? []) as Shift[];
 
   let myCases: HelpRequest[] = [];
+  let inquiryWorkHistory: HelpRequest[] = [];
   let teamCases: HelpRequest[] = [];
   let overdueFollowUps: { id: string; case_number: string; follow_up_due_date: string }[] = [];
   let pendingAppointments = 0;
   let pendingClinicResults: Awaited<ReturnType<typeof fetchPendingClinicResults>> = [];
 
   if (intakeWorker) {
-    const [{ data: claimedCases }, { data: overdue }] = await Promise.all([
+    const [{ data: claimedCases }, { data: overdue }, workHistory] = await Promise.all([
       supabase
         .from("help_requests")
         .select("*")
@@ -92,9 +94,11 @@ export default async function DashboardPage() {
         .eq("claimed_by_email", email)
         .in("status", INTAKE_QUEUE_STATUSES)
         .lt("follow_up_due_date", today),
+      fetchInquiryWorkHistory(supabase, email, 12),
     ]);
 
     myCases = sortCasesMedicalFirst((claimedCases ?? []) as HelpRequest[]);
+    inquiryWorkHistory = workHistory;
     overdueFollowUps = overdue ?? [];
   }
 
@@ -188,6 +192,7 @@ export default async function DashboardPage() {
         overdueFollowUps: intakeWorker && overdueFollowUps.length > 0,
         shifts: showShifts,
         myCases: intakeWorker,
+        inquiryWorkHistory: intakeWorker,
         myTrapWork: trapWorker,
         trapTeam: showTrapTeam && trapTeams.length > 0,
         appointments: showAppointments,
@@ -196,6 +201,7 @@ export default async function DashboardPage() {
       overdueFollowUps={overdueFollowUps}
       myShifts={myShifts}
       myCases={myCases}
+      inquiryWorkHistory={inquiryWorkHistory}
       teamCases={teamCases}
       userEmail={email}
       intakeWorker={intakeWorker}

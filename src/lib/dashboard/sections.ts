@@ -3,6 +3,7 @@ export type DashboardSectionId =
   | "overdue-followups"
   | "shifts"
   | "my-cases"
+  | "inquiry-work-history"
   | "my-trap-work"
   | "trap-team"
   | "appointments"
@@ -12,6 +13,7 @@ export const DEFAULT_SECTION_ORDER: DashboardSectionId[] = [
   "overdue-followups",
   "shifts",
   "my-cases",
+  "inquiry-work-history",
   "my-trap-work",
   "trap-team",
   "community-stats",
@@ -24,6 +26,7 @@ export const SECTION_LABELS: Record<DashboardSectionId, string> = {
   "overdue-followups": "Overdue Follow-ups",
   shifts: "My Upcoming Shifts",
   "my-cases": "My Cases",
+  "inquiry-work-history": "Inquiry Work History",
   "my-trap-work": "My Trap Work",
   "trap-team": "Trap Team",
   appointments: "Clinic appointments",

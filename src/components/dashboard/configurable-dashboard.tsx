@@ -38,6 +38,7 @@ interface ConfigurableDashboardProps {
     overdueFollowUps: boolean;
     shifts: boolean;
     myCases: boolean;
+    inquiryWorkHistory: boolean;
     myTrapWork: boolean;
     trapTeam: boolean;
     appointments: boolean;
@@ -46,6 +47,7 @@ interface ConfigurableDashboardProps {
   overdueFollowUps: { id: string; case_number: string; follow_up_due_date: string }[];
   myShifts: Shift[];
   myCases: HelpRequest[];
+  inquiryWorkHistory: HelpRequest[];
   teamCases: HelpRequest[];
   userEmail: string;
   intakeWorker: boolean;
@@ -95,6 +97,7 @@ export function ConfigurableDashboard({
   overdueFollowUps,
   myShifts,
   myCases,
+  inquiryWorkHistory,
   teamCases,
   userEmail,
   intakeWorker,
@@ -113,6 +116,7 @@ export function ConfigurableDashboard({
     if (sections.overdueFollowUps) ids.push("overdue-followups");
     if (sections.shifts) ids.push("shifts");
     if (sections.myCases) ids.push("my-cases");
+    if (sections.inquiryWorkHistory) ids.push("inquiry-work-history");
     if (sections.myTrapWork) ids.push("my-trap-work");
     if (sections.trapTeam) ids.push("trap-team");
     if (sections.communityStats) ids.push("community-stats");
@@ -218,6 +222,23 @@ export function ConfigurableDashboard({
             emptyMessage="You have not claimed any open cases yet."
             showClaimHint
             canClaim={intakeWorker}
+            userEmail={userEmail}
+            isAdmin={isAdmin}
+          />
+        );
+      case "inquiry-work-history":
+        return (
+          <MyCasesSection
+            title="Inquiry work history"
+            description="Cases you previously reviewed that have left the inquiry queue (for example after routing to a trap team)."
+            cases={inquiryWorkHistory}
+            emptyMessage="No past inquiry cases yet. Route a claimed case to a trap team and it will show up here."
+            showClaimHint
+            hintHref="/intake"
+            hintLabel="Go to inquiry queue"
+            footerHref="/intake?scope=history"
+            footerLabel="Open full work history"
+            canClaim={false}
             userEmail={userEmail}
             isAdmin={isAdmin}
           />

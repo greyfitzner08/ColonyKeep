@@ -188,7 +188,7 @@ const INQUIRY_TRACK: AdvancedTutorialTrack = {
       id: "adv-inquiry-trap",
       title: "See the case after handoff",
       description:
-        "Routed cases show up in the Trap Queue for field coordination. You may still update intake notes, but trapping logistics live here.",
+        "Routed cases leave the Inquiry Queue and show up in the Trap Queue for field coordination. Find cases you previously worked under My work history on the Inquiry page or Dashboard — view-only after handoff.",
       icon: Kanban,
       navHref: "/trap-queue",
       flowNote: "Same case, different stage — don’t recreate it as a new intake.",

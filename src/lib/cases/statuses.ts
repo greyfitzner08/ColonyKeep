@@ -79,13 +79,11 @@ export const INTAKE_QUEUE_STATUSES: HelpRequestStatus[] = [
   "needs_more_info",
 ];
 
-/** Statuses intake/inquiry volunteers may set on a case. */
-export const INTAKE_EDITABLE_STATUSES: HelpRequestStatus[] = [
-  "new_intake",
-  "under_review",
-  "needs_more_info",
-  "routed_to_trap_team",
-];
+/** Statuses shown in the inquiry queue status filter (pre-trap only). */
+export const INTAKE_FILTER_STATUSES: HelpRequestStatus[] = [...INTAKE_QUEUE_STATUSES];
+
+/** Statuses intake/inquiry volunteers may set on a case (routing uses a dedicated action). */
+export const INTAKE_EDITABLE_STATUSES: HelpRequestStatus[] = [...INTAKE_QUEUE_STATUSES];
 
 /** Statuses shown on trap queue navigation and loaded into the trap queue view. */
 export const TRAP_KANBAN_STATUSES: HelpRequestStatus[] = [
@@ -167,19 +165,14 @@ export function getInquiryTeamStatusLabel(
 }
 
 export function inquiryTeamManagesStatus(status: HelpRequestStatus) {
-  return (
-    status === "new_intake" ||
-    status === "under_review" ||
-    status === "needs_more_info" ||
-    status === "routed_to_trap_team"
-  );
+  return isIntakeQueueStatus(status);
 }
 
 export function getStatusOptionsForRole(role: UserRole | null | undefined) {
   const deprecated = new Set(DEPRECATED_HELP_REQUEST_STATUSES);
 
   if (role === "inquiry_team") {
-    return filterStatusOptions(INTAKE_EDITABLE_STATUSES);
+    return filterStatusOptions(INTAKE_FILTER_STATUSES);
   }
   if (role === "trap_team_lead" || role === "volunteer") {
     return filterStatusOptions(TRAP_EDITABLE_STATUSES);
