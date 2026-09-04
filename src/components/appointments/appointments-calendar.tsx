@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -90,6 +91,7 @@ export function AppointmentsCalendar({
     return { year: now.getFullYear(), month: now.getMonth() };
   });
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [daySlotsDate, setDaySlotsDate] = useState<string | null>(null);
   const [selectedClinics, setSelectedClinics] = useState<string[]>(clinics.map((c) => c.id));
   const [claimDialog, setClaimDialog] = useState<Appointment | null>(null);
   const [detailDialog, setDetailDialog] = useState<Appointment | null>(null);
@@ -118,6 +120,9 @@ export function AppointmentsCalendar({
 
   const monthGrid = buildMonthGrid(monthCursor.year, monthCursor.month);
   const selectedDayAppointments = selectedDate ? grouped[selectedDate] ?? [] : [];
+  const daySlotsAppointments = daySlotsDate
+    ? (grouped[daySlotsDate] ?? []).filter((appt) => appt.status === "available")
+    : [];
 
   function shiftMonth(delta: number) {
     setMonthCursor((current) => {
@@ -125,6 +130,23 @@ export function AppointmentsCalendar({
       return { year: next.getFullYear(), month: next.getMonth() };
     });
     setSelectedDate(null);
+    setDaySlotsDate(null);
+  }
+
+  function handleDayClick(date: string) {
+    setSelectedDate(date);
+    const available = (grouped[date] ?? []).filter((appt) => appt.status === "available");
+    if (available.length > 0) {
+      setDaySlotsDate(date);
+    } else {
+      setDaySlotsDate(null);
+    }
+  }
+
+  function selectAvailableSlot(appt: Appointment) {
+    if (isAppointmentDatePast(appt.date)) return;
+    setDaySlotsDate(null);
+    setClaimDialog(appt);
   }
 
   function renderAppointmentCard(appt: Appointment) {
@@ -335,7 +357,7 @@ export function AppointmentsCalendar({
                   <button
                     key={cell.date}
                     type="button"
-                    onClick={() => setSelectedDate(cell.date)}
+                    onClick={() => handleDayClick(cell.date)}
                     className={cn(
                       "min-h-24 border-b border-r p-2 text-left transition-colors hover:bg-muted/40",
                       !cell.inMonth && "bg-muted/20 text-muted-foreground",
@@ -383,8 +405,19 @@ export function AppointmentsCalendar({
               {selectedDayAppointments.length === 0 ? (
                 <p className="text-sm text-muted-foreground">No appointments on this day.</p>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                  {selectedDayAppointments.map((appt) => renderAppointmentCard(appt))}
+                <div className="space-y-3">
+                  {selectedDayAppointments.some((appt) => appt.status === "available") && (
+                    <p className="text-sm text-muted-foreground">
+                      Available slots for this day are shown in the selection dialog.
+                    </p>
+                  )}
+                  {selectedDayAppointments.some((appt) => appt.status !== "available") && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                      {selectedDayAppointments
+                        .filter((appt) => appt.status !== "available")
+                        .map((appt) => renderAppointmentCard(appt))}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -395,6 +428,50 @@ export function AppointmentsCalendar({
           )}
         </div>
       )}
+
+      <Dialog
+        open={!!daySlotsDate}
+        onOpenChange={(open) => {
+          if (!open) setDaySlotsDate(null);
+        }}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Available appointments</DialogTitle>
+            <DialogDescription>
+              {daySlotsDate
+                ? `Select a slot for ${formatDate(daySlotsDate)}`
+                : "Select a slot"}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 max-h-[60vh] overflow-y-auto">
+            {daySlotsAppointments.map((appt, index) => {
+              const past = isAppointmentDatePast(appt.date);
+              return (
+                <button
+                  key={appt.id}
+                  type="button"
+                  disabled={past}
+                  onClick={() => selectAvailableSlot(appt)}
+                  className={cn(
+                    "w-full rounded-lg border px-4 py-3 text-left transition-colors",
+                    past
+                      ? "cursor-not-allowed opacity-60"
+                      : "hover:bg-muted/50"
+                  )}
+                >
+                  <p className="font-medium">{appt.clinic_name}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {past
+                      ? "Past date · cannot claim"
+                      : `Slot ${index + 1} · tap to reserve`}
+                  </p>
+                </button>
+              );
+            })}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <ClaimAppointmentDialog
         appointment={claimDialog}
