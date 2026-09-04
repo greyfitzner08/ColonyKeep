@@ -42,7 +42,7 @@ export default async function ShiftBoardPage() {
       <div>
         <h1 className="text-3xl font-bold">Shift Board</h1>
         <p className="text-muted-foreground">
-          Pick an event, then a position, then sign up for a shift.
+          Each event shows its dates and the shifts underneath. Sign up for any open shift.
         </p>
       </div>
       <ShiftBoard

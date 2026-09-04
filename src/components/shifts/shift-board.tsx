@@ -189,7 +189,6 @@ export function ShiftBoard({
   const [lockingEventName, setLockingEventName] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<PendingDestructiveAction | null>(null);
   const [deleting, setDeleting] = useState(false);
-  const [selectedEventName, setSelectedEventName] = useState<string | null>(null);
 
   const filtered = typeFilter === "all"
     ? initial
@@ -204,40 +203,53 @@ export function ShiftBoard({
       groups.set(key, list);
     }
 
-    return Array.from(groups.entries()).map(([name, shifts]) => {
-      const sorted = [...shifts].sort((a, b) => {
-        const positionDiff = positionLabel(a).localeCompare(positionLabel(b));
-        if (positionDiff !== 0) return positionDiff;
-        const dateDiff = a.date.localeCompare(b.date);
-        if (dateDiff !== 0) return dateDiff;
-        return a.start_time.localeCompare(b.start_time);
-      });
+    return Array.from(groups.entries())
+      .map(([name, shifts]) => {
+        const sorted = [...shifts].sort((a, b) => {
+          const positionDiff = positionLabel(a).localeCompare(positionLabel(b));
+          if (positionDiff !== 0) return positionDiff;
+          const dateDiff = a.date.localeCompare(b.date);
+          if (dateDiff !== 0) return dateDiff;
+          return a.start_time.localeCompare(b.start_time);
+        });
 
-      const byPosition = new Map<string, Shift[]>();
-      for (const shift of sorted) {
-        const key = positionLabel(shift);
-        const list = byPosition.get(key) ?? [];
-        list.push(shift);
-        byPosition.set(key, list);
-      }
+        const byPosition = new Map<string, Shift[]>();
+        for (const shift of sorted) {
+          const key = positionLabel(shift);
+          const list = byPosition.get(key) ?? [];
+          list.push(shift);
+          byPosition.set(key, list);
+        }
 
-      return {
-        name,
-        shifts: sorted,
-        positions: Array.from(byPosition.entries()).map(([positionName, positionShifts]) => ({
-          name: positionName,
-          shifts: positionShifts,
-        })),
-      };
-    });
+        const dates = sorted.map((shift) => shift.date).sort();
+        const startDate = dates[0];
+        const endDate = dates[dates.length - 1];
+        const whenLabel =
+          startDate === endDate
+            ? formatDate(startDate)
+            : `${formatDate(startDate)} – ${formatDate(endDate)}`;
+
+        const filled = sorted.reduce(
+          (sum, shift) => sum + (shift.signed_up_emails?.length ?? 0),
+          0
+        );
+        const needed = sorted.reduce((sum, shift) => sum + shift.volunteers_needed, 0);
+
+        return {
+          name,
+          shifts: sorted,
+          whenLabel,
+          startDate,
+          filled,
+          needed,
+          positions: Array.from(byPosition.entries()).map(([positionName, positionShifts]) => ({
+            name: positionName,
+            shifts: positionShifts,
+          })),
+        };
+      })
+      .sort((a, b) => a.startDate.localeCompare(b.startDate));
   }, [filtered]);
-
-  const selectedEvent = useMemo(() => {
-    if (groupedEvents.length === 0) return null;
-    return (
-      groupedEvents.find((group) => group.name === selectedEventName) ?? groupedEvents[0]
-    );
-  }, [groupedEvents, selectedEventName]);
 
   function openCreateDialog() {
     setEventName("");
@@ -846,20 +858,11 @@ export function ShiftBoard({
     );
   }
 
-  const selectedDateSummary = selectedEvent
-    ? selectedEvent.shifts.length > 1
-      ? `${formatDate(selectedEvent.shifts[0].date)} – ${formatDate(
-          selectedEvent.shifts[selectedEvent.shifts.length - 1].date
-        )}`
-      : formatDate(selectedEvent.shifts[0].date)
-    : null;
-
   return (
-    <div className="mx-auto w-full max-w-2xl space-y-8">
-      {/* Page chrome — secondary to the event → position → shift hierarchy */}
+    <div className="w-full space-y-6">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <Select value={typeFilter} onValueChange={setTypeFilter}>
-          <SelectTrigger className="h-9 w-full text-sm sm:w-[180px]">
+          <SelectTrigger className="h-9 w-full text-sm sm:w-[200px]">
             <SelectValue placeholder="Shift type" />
           </SelectTrigger>
           <SelectContent>
@@ -879,210 +882,164 @@ export function ShiftBoard({
         )}
       </div>
 
-      {groupedEvents.length === 0 || !selectedEvent ? (
+      {groupedEvents.length === 0 ? (
         <p className="text-sm text-muted-foreground">No shifts match this filter.</p>
       ) : (
-        <div className="space-y-8">
-          {/* Level 1 — Event */}
-          <section className="space-y-3">
-            <div className="space-y-1">
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Event
-              </p>
-              <Select
-                value={selectedEvent.name}
-                onValueChange={(value) => setSelectedEventName(value)}
-              >
-                <SelectTrigger
-                  id="shift-board-event"
-                  className="h-12 w-full text-base font-semibold"
-                >
-                  <SelectValue placeholder="Choose an event" />
-                </SelectTrigger>
-                <SelectContent>
-                  {groupedEvents.map((group) => {
-                    const filled = group.shifts.reduce(
-                      (sum, shift) => sum + (shift.signed_up_emails?.length ?? 0),
-                      0
-                    );
-                    const needed = group.shifts.reduce(
-                      (sum, shift) => sum + shift.volunteers_needed,
-                      0
-                    );
-                    return (
-                      <SelectItem key={group.name} value={group.name}>
-                        {group.name} · {filled}/{needed} filled
-                      </SelectItem>
-                    );
-                  })}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
-              <span>{selectedDateSummary}</span>
-              <span aria-hidden="true">·</span>
-              <span>
-                {selectedEvent.positions.length} position
-                {selectedEvent.positions.length === 1 ? "" : "s"}
-              </span>
-              <span aria-hidden="true">·</span>
-              <span>
-                {selectedEvent.shifts.length} shift
-                {selectedEvent.shifts.length === 1 ? "" : "s"}
-              </span>
-              {isAdmin && (
-                <>
-                  <span aria-hidden="true" className="hidden sm:inline">
-                    ·
-                  </span>
-                  <button
-                    type="button"
-                    className="text-foreground underline-offset-2 hover:underline"
-                    onClick={() =>
-                      openAddShiftsToEvent(selectedEvent.name, selectedEvent.shifts)
-                    }
-                  >
-                    Add shifts
-                  </button>
-                  <button
-                    type="button"
-                    className="text-destructive underline-offset-2 hover:underline"
-                    onClick={() =>
-                      requestDeleteEvent(selectedEvent.name, selectedEvent.shifts)
-                    }
-                  >
-                    Delete event
-                  </button>
-                </>
-              )}
-            </div>
-          </section>
-
-          {/* Level 2 — Positions, each containing Level 3 shifts */}
-          <div className="space-y-6">
-            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Positions & shifts
-            </p>
-
-            {selectedEvent.positions.map((position) => {
-              const positionFilled = position.shifts.reduce(
-                (sum, shift) => sum + (shift.signed_up_emails?.length ?? 0),
-                0
-              );
-              const positionNeeded = position.shifts.reduce(
-                (sum, shift) => sum + shift.volunteers_needed,
-                0
-              );
-
-              return (
-                <section
-                  key={`${selectedEvent.name}-${position.name}`}
-                  className="overflow-hidden rounded-xl border"
-                >
-                  <header className="flex items-center justify-between gap-3 border-b bg-muted/40 px-4 py-3">
-                    <div className="min-w-0">
-                      <h2 className="truncate text-lg font-semibold leading-tight">
-                        {position.name}
-                      </h2>
-                      <p className="mt-0.5 text-xs text-muted-foreground">
-                        {position.shifts.length} shift
-                        {position.shifts.length === 1 ? "" : "s"} · {positionFilled}/
-                        {positionNeeded} filled
-                      </p>
-                    </div>
-                    {isAdmin && (
-                      <button
+        <div className="space-y-6">
+          {groupedEvents.map((event) => (
+            <article
+              key={event.name}
+              className="overflow-hidden rounded-2xl border bg-background shadow-sm"
+            >
+              {/* Event header — name + when are the primary signals */}
+              <header className="space-y-3 border-b bg-muted/30 px-4 py-4 sm:px-5 sm:py-5">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="min-w-0 space-y-1.5">
+                    <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      Event
+                    </p>
+                    <h2 className="text-xl font-bold leading-tight tracking-tight sm:text-2xl">
+                      {event.name}
+                    </h2>
+                    <p className="text-base font-medium text-foreground sm:text-lg">
+                      {event.whenLabel}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      {event.positions.length} position
+                      {event.positions.length === 1 ? "" : "s"} · {event.shifts.length}{" "}
+                      shift
+                      {event.shifts.length === 1 ? "" : "s"} · {event.filled}/{event.needed}{" "}
+                      filled
+                    </p>
+                  </div>
+                  {isAdmin && (
+                    <div className="flex shrink-0 flex-wrap gap-2">
+                      <Button
                         type="button"
-                        className="shrink-0 text-xs text-destructive hover:underline"
-                        onClick={() =>
-                          requestDeletePosition(
-                            selectedEvent.name,
-                            position.name,
-                            position.shifts
-                          )
-                        }
+                        variant="outline"
+                        size="sm"
+                        onClick={() => openAddShiftsToEvent(event.name, event.shifts)}
                       >
-                        Remove
-                      </button>
-                    )}
-                  </header>
+                        <Plus className="mr-1 h-4 w-4" />
+                        Add shifts
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="text-destructive hover:text-destructive"
+                        onClick={() => requestDeleteEvent(event.name, event.shifts)}
+                      >
+                        <Trash2 className="mr-1 h-4 w-4" />
+                        Delete
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </header>
 
-                  <ul className="divide-y">
-                    {position.shifts.map((shift) => {
-                      const { signedUp, spotsLeft } = shiftSignupSummary(shift);
-                      return (
-                        <li key={shift.id} className="space-y-3 px-4 py-4">
-                          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                            <div className="min-w-0 space-y-1">
-                              <p className="font-medium leading-snug">
-                                {formatDate(shift.date)}
-                              </p>
-                              <p className="text-sm tabular-nums text-muted-foreground">
-                                {formatTimeRange(shift.start_time, shift.end_time)}
-                              </p>
-                              <p className="text-sm text-muted-foreground">{shift.location}</p>
-                              {typeFilter === "all" ? (
-                                <p className="text-xs text-muted-foreground">
-                                  {shiftTypeLabel(shift.shift_type)}
-                                </p>
-                              ) : null}
-                              {shift.notes ? (
-                                <p className="pt-1 text-sm text-muted-foreground">{shift.notes}</p>
-                              ) : null}
-                            </div>
+              <div className="divide-y">
+                {event.positions.map((position) => (
+                  <section key={`${event.name}-${position.name}`} className="px-4 py-4 sm:px-5">
+                    <div className="mb-3 flex items-center justify-between gap-2">
+                      <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                        {position.name}
+                      </h3>
+                      {isAdmin && (
+                        <button
+                          type="button"
+                          className="text-xs text-destructive hover:underline"
+                          onClick={() =>
+                            requestDeletePosition(event.name, position.name, position.shifts)
+                          }
+                        >
+                          Remove position
+                        </button>
+                      )}
+                    </div>
 
-                            <div className="flex shrink-0 flex-col gap-2 sm:w-36 sm:items-end">
-                              <p className="text-sm tabular-nums">
-                                <span className="font-semibold">
-                                  {signedUp.length}/{shift.volunteers_needed}
-                                </span>
-                                <span className="text-muted-foreground">
-                                  {spotsLeft > 0
-                                    ? ` · ${spotsLeft} open`
-                                    : signedUp.length > 0
-                                      ? " · full"
-                                      : ""}
-                                </span>
-                              </p>
-                              <ShiftClaimButton
-                                shift={shift}
-                                className="h-10 w-full sm:w-auto"
-                              />
-                              {isAdmin && (
-                                <div className="flex w-full justify-end gap-1">
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-8 w-8"
-                                    title="Edit shift"
-                                    onClick={() => openEditDialog(shift)}
-                                  >
-                                    <Pencil className="h-3.5 w-3.5" />
-                                  </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-8 w-8 text-destructive hover:text-destructive"
-                                    title="Delete shift"
-                                    onClick={() => requestDeleteShift(shift)}
-                                  >
-                                    <Trash2 className="h-3.5 w-3.5" />
-                                  </Button>
+                    <ul className="space-y-3">
+                      {position.shifts.map((shift) => {
+                        const { signedUp, spotsLeft } = shiftSignupSummary(shift);
+                        return (
+                          <li
+                            key={shift.id}
+                            className="rounded-xl border bg-background p-3 sm:p-4"
+                          >
+                            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between md:gap-4">
+                              <div className="min-w-0 flex-1 space-y-1">
+                                <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                                  <span className="font-semibold">
+                                    {formatDate(shift.date)}
+                                  </span>
+                                  <span className="tabular-nums text-muted-foreground">
+                                    {formatTimeRange(shift.start_time, shift.end_time)}
+                                  </span>
                                 </div>
-                              )}
-                            </div>
-                          </div>
+                                <p className="text-sm text-muted-foreground">{shift.location}</p>
+                                {typeFilter === "all" ? (
+                                  <p className="text-xs text-muted-foreground">
+                                    {shiftTypeLabel(shift.shift_type)}
+                                  </p>
+                                ) : null}
+                                {shift.notes ? (
+                                  <p className="text-sm text-muted-foreground">{shift.notes}</p>
+                                ) : null}
+                                <AdminSignupList shift={shift} />
+                              </div>
 
-                          <AdminSignupList shift={shift} />
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </section>
-              );
-            })}
-          </div>
+                              <div className="flex flex-col gap-2 sm:flex-row sm:items-center md:flex-col md:items-stretch lg:flex-row lg:items-center">
+                                <p className="text-sm tabular-nums sm:min-w-[5.5rem] md:text-right">
+                                  <span className="font-semibold">
+                                    {signedUp.length}/{shift.volunteers_needed}
+                                  </span>
+                                  <span className="text-muted-foreground">
+                                    {spotsLeft > 0
+                                      ? ` open`
+                                      : signedUp.length > 0
+                                        ? " full"
+                                        : ""}
+                                  </span>
+                                </p>
+                                <div className="flex items-center gap-1">
+                                  {isAdmin && (
+                                    <>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-9 w-9 shrink-0"
+                                        title="Edit shift"
+                                        onClick={() => openEditDialog(shift)}
+                                      >
+                                        <Pencil className="h-3.5 w-3.5" />
+                                      </Button>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-9 w-9 shrink-0 text-destructive hover:text-destructive"
+                                        title="Delete shift"
+                                        onClick={() => requestDeleteShift(shift)}
+                                      >
+                                        <Trash2 className="h-3.5 w-3.5" />
+                                      </Button>
+                                    </>
+                                  )}
+                                  <ShiftClaimButton
+                                    shift={shift}
+                                    className="h-10 flex-1 sm:flex-none sm:min-w-[7.5rem]"
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </section>
+                ))}
+              </div>
+            </article>
+          ))}
         </div>
       )}
 
