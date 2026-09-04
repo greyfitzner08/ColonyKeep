@@ -28,7 +28,7 @@ import { isAppointmentDatePast } from "@/lib/appointments/slot-date";
 import { SHIFT_REQUIRED_ROLES, SHIFT_TYPES } from "@/lib/constants";
 import { cn, formatDate, formatTimeRange } from "@/lib/utils";
 import type { Shift, ShiftRequiredRole, ShiftType } from "@/lib/types";
-import { Plus, Pencil, Trash2, Clock, MapPin } from "lucide-react";
+import { Plus, Pencil, Trash2 } from "lucide-react";
 
 function shiftIdentityKey(input: {
   event_name: string;
@@ -977,12 +977,12 @@ export function ShiftBoard({
                 )}
               </div>
 
-              {/* Phones: stacked cards */}
-              <div className="space-y-6 md:hidden">
+              {/* Mobile & tablet: stacked cards (table is hard to read under ~1024px) */}
+              <div className="space-y-6 lg:hidden">
                 {selectedEvent.positions.map((position) => (
                   <div key={`${selectedEvent.name}-${position.name}`} className="space-y-3">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <h3 className="font-medium">{position.name}</h3>
+                    <div className="flex flex-wrap items-center justify-between gap-2 border-b pb-2">
+                      <h3 className="text-base font-semibold">{position.name}</h3>
                       {isAdmin && (
                         <button
                           type="button"
@@ -1005,43 +1005,23 @@ export function ShiftBoard({
                         return (
                           <li
                             key={shift.id}
-                            className="space-y-3 rounded-lg border bg-background p-3"
+                            className="space-y-3 rounded-xl border bg-background p-4 shadow-sm"
                           >
                             <div className="flex items-start justify-between gap-2">
-                              <div className="min-w-0 space-y-1.5">
-                                <div className="flex flex-wrap items-center gap-2">
-                                  <p className="font-medium">{formatDate(shift.date)}</p>
-                                  <Badge variant="outline" className="font-normal">
-                                    {shiftTypeLabel(shift.shift_type)}
-                                  </Badge>
-                                </div>
-                                <p className="flex items-center gap-2 text-sm text-muted-foreground">
-                                  <Clock className="h-3.5 w-3.5 shrink-0" />
-                                  {formatTimeRange(shift.start_time, shift.end_time)}
+                              <div className="min-w-0">
+                                <p className="text-lg font-semibold leading-snug">
+                                  {formatDate(shift.date)}
                                 </p>
-                                <p className="flex items-start gap-2 text-sm text-muted-foreground">
-                                  <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                                  <span className="min-w-0 break-words">{shift.location}</span>
-                                </p>
-                                <p className="text-sm text-muted-foreground">
-                                  {signedUp.length}/{shift.volunteers_needed}
-                                  {spotsLeft > 0
-                                    ? ` · ${spotsLeft} open`
-                                    : signedUp.length > 0
-                                      ? " · full"
-                                      : ""}
-                                </p>
-                                {shift.notes ? (
-                                  <p className="text-sm text-muted-foreground">{shift.notes}</p>
-                                ) : null}
-                                <AdminSignupList shift={shift} />
+                                <Badge variant="outline" className="mt-1.5 font-normal">
+                                  {shiftTypeLabel(shift.shift_type)}
+                                </Badge>
                               </div>
                               {isAdmin && (
                                 <div className="flex shrink-0">
                                   <Button
                                     variant="ghost"
                                     size="icon"
-                                    className="h-8 w-8"
+                                    className="h-9 w-9"
                                     onClick={() => openEditDialog(shift)}
                                   >
                                     <Pencil className="h-4 w-4" />
@@ -1049,7 +1029,7 @@ export function ShiftBoard({
                                   <Button
                                     variant="ghost"
                                     size="icon"
-                                    className="h-8 w-8 text-destructive hover:text-destructive"
+                                    className="h-9 w-9 text-destructive hover:text-destructive"
                                     onClick={() => requestDeleteShift(shift)}
                                   >
                                     <Trash2 className="h-4 w-4" />
@@ -1057,7 +1037,46 @@ export function ShiftBoard({
                                 </div>
                               )}
                             </div>
-                            <ShiftClaimButton shift={shift} />
+
+                            <dl className="space-y-2.5 text-sm">
+                              <div className="flex gap-3">
+                                <dt className="w-16 shrink-0 text-muted-foreground">Time</dt>
+                                <dd className="min-w-0 font-medium">
+                                  {formatTimeRange(shift.start_time, shift.end_time)}
+                                </dd>
+                              </div>
+                              <div className="flex gap-3">
+                                <dt className="w-16 shrink-0 text-muted-foreground">Where</dt>
+                                <dd className="min-w-0 break-words">{shift.location}</dd>
+                              </div>
+                              <div className="flex gap-3">
+                                <dt className="w-16 shrink-0 text-muted-foreground">Spots</dt>
+                                <dd className="min-w-0 font-medium">
+                                  {signedUp.length}/{shift.volunteers_needed}
+                                  {spotsLeft > 0
+                                    ? ` · ${spotsLeft} open`
+                                    : signedUp.length > 0
+                                      ? " · full"
+                                      : ""}
+                                </dd>
+                              </div>
+                              {shift.notes ? (
+                                <div className="flex gap-3">
+                                  <dt className="w-16 shrink-0 text-muted-foreground">Notes</dt>
+                                  <dd className="min-w-0 break-words text-muted-foreground">
+                                    {shift.notes}
+                                  </dd>
+                                </div>
+                              ) : null}
+                            </dl>
+
+                            <AdminSignupList shift={shift} />
+
+                            <div className="pt-1">
+                              <div className="[&_button]:w-full">
+                                <ShiftClaimButton shift={shift} />
+                              </div>
+                            </div>
                           </li>
                         );
                       })}
@@ -1066,8 +1085,8 @@ export function ShiftBoard({
                 ))}
               </div>
 
-              {/* Tablet/desktop: table */}
-              <div className="hidden overflow-x-auto rounded-lg border md:block">
+              {/* Desktop: table */}
+              <div className="hidden overflow-x-auto rounded-lg border lg:block">
                 <table className="w-full text-left text-sm">
                   <thead className="border-b bg-muted/40 text-xs text-muted-foreground">
                     <tr>
