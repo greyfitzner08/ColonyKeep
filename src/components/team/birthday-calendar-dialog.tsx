@@ -31,6 +31,28 @@ interface BirthdayCalendarDialogProps {
 
 const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
+function BirthdayNameChip({
+  name,
+  className,
+}: {
+  name: string;
+  className?: string;
+}) {
+  return (
+    <span
+      title={name}
+      className={cn(
+        "inline-flex max-w-full items-center rounded-md border border-pink-100 bg-pink-50 px-2 py-0.5",
+        "text-xs font-medium leading-snug text-pink-950",
+        "whitespace-nowrap",
+        className
+      )}
+    >
+      <span className="truncate">{name}</span>
+    </span>
+  );
+}
+
 export function BirthdayCalendarDialog({
   open,
   onOpenChange,
@@ -168,15 +190,13 @@ export function BirthdayCalendarDialog({
                     <p className={cn("text-xs font-medium", isToday(date) && "text-pink-700")}>
                       {date.getDate()}
                     </p>
-                    <div className="mt-1 space-y-0.5">
+                    <div className="mt-1 flex flex-col gap-0.5">
                       {dayBirthdays.slice(0, 2).map((person) => (
-                        <p
+                        <BirthdayNameChip
                           key={person.full_name}
-                          className="truncate text-[10px] leading-tight text-pink-900"
-                          title={person.full_name}
-                        >
-                          {person.full_name}
-                        </p>
+                          name={person.full_name}
+                          className="px-1 py-0 text-[10px]"
+                        />
                       ))}
                       {dayBirthdays.length > 2 && (
                         <p className="text-[10px] text-muted-foreground">+{dayBirthdays.length - 2}</p>
@@ -194,44 +214,47 @@ export function BirthdayCalendarDialog({
                 </p>
                 <div className="flex flex-wrap gap-2">
                   {monthBirthdays.map((person) => (
-                    <span
+                    <BirthdayNameChip
                       key={person.full_name}
-                      className="rounded-full border border-pink-100 bg-pink-50 px-2.5 py-1 text-xs text-pink-900"
-                    >
-                      {person.full_name} · {formatBirthdayMonthDay(person.birthday)}
-                    </span>
+                      name={`${person.full_name} · ${formatBirthdayMonthDay(person.birthday)}`}
+                      className="rounded-full px-2.5 py-1"
+                    />
                   ))}
                 </div>
               </div>
             )}
           </div>
         ) : (
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-7">
+          <div className="space-y-2">
             {weekDays.map((day) => {
               const dayBirthdays = birthdaysOnCalendarDay(people, day);
               return (
                 <div
                   key={day.toISOString()}
                   className={cn(
-                    "rounded-md border p-2 min-h-[7rem]",
+                    "flex flex-col gap-2 rounded-md border p-3 sm:flex-row sm:items-start sm:gap-4",
                     isToday(day) && "border-pink-300 bg-pink-50/40"
                   )}
                 >
-                  <p className="text-[11px] font-medium text-muted-foreground">
-                    {day.toLocaleDateString(undefined, { weekday: "short" })}
-                  </p>
-                  <p className={cn("text-sm font-semibold", isToday(day) && "text-pink-700")}>
-                    {formatDate(day)}
-                  </p>
-                  <div className="mt-2 space-y-1">
+                  <div className="flex shrink-0 items-baseline gap-2 sm:w-36 sm:flex-col sm:gap-0.5">
+                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      {day.toLocaleDateString(undefined, { weekday: "short" })}
+                    </p>
+                    <p className={cn("text-sm font-semibold", isToday(day) && "text-pink-700")}>
+                      {formatDate(day)}
+                    </p>
+                  </div>
+                  <div className="min-w-0 flex-1">
                     {dayBirthdays.length === 0 ? (
-                      <p className="text-[11px] text-muted-foreground">—</p>
+                      <p className="text-sm text-muted-foreground">No birthdays</p>
                     ) : (
-                      dayBirthdays.map((person) => (
-                        <p key={person.full_name} className="text-xs leading-snug text-pink-900">
-                          {person.full_name}
-                        </p>
-                      ))
+                      <ul className="flex flex-wrap gap-1.5" aria-label={`Birthdays on ${formatDate(day)}`}>
+                        {dayBirthdays.map((person) => (
+                          <li key={person.full_name} className="min-w-0 max-w-full">
+                            <BirthdayNameChip name={person.full_name} />
+                          </li>
+                        ))}
+                      </ul>
                     )}
                   </div>
                 </div>
