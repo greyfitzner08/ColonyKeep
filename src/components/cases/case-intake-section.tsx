@@ -145,10 +145,6 @@ export function CaseIntakeSection({
                     ))}
                   </SelectContent>
                 </Select>
-                <p className="text-xs text-muted-foreground">
-                  Open, in progress, on hold, or closed. Appointment / trap steps stay on the
-                  trap board.
-                </p>
               </div>
             )}
             <div className="space-y-2">
