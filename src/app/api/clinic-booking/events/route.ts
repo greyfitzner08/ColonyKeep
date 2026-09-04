@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { availableSpots } from "@/lib/clinic-events/availability";
+import { isEventPastDate } from "@/lib/clinic-events/visibility";
 import { createServiceClient } from "@/lib/supabase/server";
 import { hasSupabaseAdminConfig } from "@/lib/supabase/env";
 import type { PublicBooking, PublicClinicEvent } from "@/lib/types";
@@ -53,10 +54,15 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: error.message }, { status: 400 });
   }
 
+  // Hide past-dated events from the public list; keep a direct eventId lookup so the UI can show a clear message.
+  const bookableEvents = ((events ?? []) as Array<Record<string, unknown> & { date?: string }>).filter(
+    (event) => eventId || (typeof event.date === "string" && !isEventPastDate(event.date))
+  );
+
   const counts: Record<string, number> = {};
   const available: Record<string, number> = {};
 
-  for (const event of events ?? []) {
+  for (const event of bookableEvents) {
     const { data: bookings, error: countError } = await service
       .from("public_bookings")
       .select("*")
@@ -67,12 +73,15 @@ export async function GET(request: Request) {
     }
 
     const bookingRows = (bookings ?? []) as PublicBooking[];
-    counts[event.id] = bookingRows.length;
-    available[event.id] = availableSpots(event.total_spots, bookingRows);
+    counts[event.id as string] = bookingRows.length;
+    available[event.id as string] = availableSpots(
+      Number(event.total_spots),
+      bookingRows
+    );
   }
 
   return NextResponse.json({
-    events: normalizeEvents((events ?? []) as Array<Record<string, unknown>>),
+    events: normalizeEvents(bookableEvents as Array<Record<string, unknown>>),
     counts,
     available,
   });

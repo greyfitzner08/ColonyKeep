@@ -4,6 +4,7 @@ import {
   normalizeServiceCatalog,
 } from "@/lib/clinics/service-catalog";
 import { calculateSpotTotals } from "@/lib/clinics/event-pricing";
+import { isEventPastDate } from "@/lib/clinic-events/visibility";
 import { createServiceClient } from "@/lib/supabase/server";
 import type { PublicBooking, PublicClinicEvent } from "@/lib/types";
 
@@ -84,16 +85,21 @@ export async function POST(request: NextRequest) {
     .single();
 
   const eventRow = event as PublicClinicEvent | null;
+  if (!eventRow || isEventPastDate(eventRow.date)) {
+    return NextResponse.json(
+      { error: "Cannot book a clinic event on a past date" },
+      { status: 400 }
+    );
+  }
+
   const catalog = normalizeServiceCatalog(
-    eventRow?.service_catalog,
-    eventRow?.included_services,
-    eventRow?.addon_services
+    eventRow.service_catalog,
+    eventRow.included_services,
+    eventRow.addon_services
   );
 
   const selectedAddonsPerSpot = spots.map((spot) => spot.selected_addons ?? []);
-  const spotTotals = eventRow
-    ? calculateSpotTotals(eventRow, catalog, selectedAddonsPerSpot)
-    : spots.map((spot) => spot.total_price ?? 0);
+  const spotTotals = calculateSpotTotals(eventRow, catalog, selectedAddonsPerSpot);
 
   for (let index = 0; index < holdRows.length; index += 1) {
     const hold = holdRows[index];

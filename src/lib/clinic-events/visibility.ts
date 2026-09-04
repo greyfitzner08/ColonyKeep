@@ -1,10 +1,8 @@
-/** UTC calendar date (YYYY-MM-DD) for comparisons with Postgres DATE columns. */
-export function todayIsoDate(): string {
-  return new Date().toISOString().split("T")[0];
-}
+import { isAppointmentDatePast } from "@/lib/appointments/slot-date";
 
+/** True when the clinic event calendar date is before today (local). */
 export function isEventPastDate(date: string): boolean {
-  return date < todayIsoDate();
+  return isAppointmentDatePast(date);
 }
 
 export function eventBookingStatusLabel(event: {

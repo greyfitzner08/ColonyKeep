@@ -206,7 +206,7 @@ function ClinicBookingContent() {
         const loaded = result.events as PublicClinicEvent[];
         setEvents(loaded);
         setAvailable(result.available ?? {});
-        if (eventFilter && loaded.length === 1) {
+        if (eventFilter && loaded.length === 1 && !isEventPastDate(loaded[0].date)) {
           setSelectedEvent(loaded[0]);
         }
       })
@@ -269,6 +269,10 @@ function ClinicBookingContent() {
   async function startHold() {
     if (!selectedEvent) return;
     setSubmitError(null);
+    if (isEventPastDate(selectedEvent.date)) {
+      setSubmitError("This clinic event date has passed.");
+      return;
+    }
     const max = maxSpotRequest(selectedEvent);
     const count = parsedSpotCount();
     if (count == null || count < 1) {
@@ -507,12 +511,19 @@ function ClinicBookingContent() {
               <Card>
                 <CardContent className="py-8 text-center text-muted-foreground">
                   {eventFilter
-                    ? "This clinic event is not available for booking. It may have been deactivated."
+                    ? "This clinic event is not available for booking. It may have passed or been deactivated."
                     : "No clinic events are open for booking right now."}
                 </CardContent>
               </Card>
             )}
-            {events.length > 0 && (
+            {events.length > 0 && events.every((event) => isEventPastDate(event.date)) && (
+              <Card>
+                <CardContent className="py-8 text-center text-muted-foreground">
+                  This clinic event date has passed and can no longer be booked.
+                </CardContent>
+              </Card>
+            )}
+            {events.length > 0 && !events.every((event) => isEventPastDate(event.date)) && (
               <div
                 role="alert"
                 className="flex gap-2 rounded-md border border-amber-400/80 bg-amber-50 px-3 py-2 text-sm text-amber-950"
@@ -525,9 +536,10 @@ function ClinicBookingContent() {
                 </p>
               </div>
             )}
-            {events.map((event) => {
+            {events
+              .filter((event) => !isEventPastDate(event.date))
+              .map((event) => {
               const remaining = available[event.id] ?? event.total_spots;
-              const pastDate = isEventPastDate(event.date);
               return (
                 <Card
                   key={event.id}
@@ -547,11 +559,6 @@ function ClinicBookingContent() {
                       </div>
                       <div className="flex shrink-0 flex-col items-end gap-2">
                         <SpotsLeftCounter remaining={remaining} />
-                        {pastDate && (
-                          <Badge variant="outline" className="text-xs">
-                            Past event date
-                          </Badge>
-                        )}
                       </div>
                     </div>
                   </CardHeader>

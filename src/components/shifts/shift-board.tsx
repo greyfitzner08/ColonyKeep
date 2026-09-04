@@ -14,6 +14,7 @@ import {
   AddressAutocomplete,
   formatAddressPartsLine,
 } from "@/components/forms/address-autocomplete";
+import { isAppointmentDatePast } from "@/lib/appointments/slot-date";
 import { SHIFT_REQUIRED_ROLES, SHIFT_TYPES } from "@/lib/constants";
 import { cn, formatDate, formatTimeRange } from "@/lib/utils";
 import type { Shift, ShiftRequiredRole, ShiftType } from "@/lib/types";
@@ -387,6 +388,10 @@ export function ShiftBoard({ shifts: initial, userEmail, isAdmin }: ShiftBoardPr
   }
 
   async function claimShift(shiftId: string, action: "claim" | "unclaim") {
+    if (action === "claim") {
+      const shift = initial.find((row) => row.id === shiftId);
+      if (shift && isAppointmentDatePast(shift.date)) return;
+    }
     await fetch("/api/shifts/claim", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -739,6 +744,7 @@ export function ShiftBoard({ shifts: initial, userEmail, isAdmin }: ShiftBoardPr
                             const signedUp = shift.signed_up_emails ?? [];
                             const isSignedUp = signedUp.includes(userEmail);
                             const spotsLeft = shift.volunteers_needed - signedUp.length;
+                            const pastDate = isAppointmentDatePast(shift.date);
 
                             return (
                               <div
@@ -795,6 +801,10 @@ export function ShiftBoard({ shifts: initial, userEmail, isAdmin }: ShiftBoardPr
                                     onClick={() => claimShift(shift.id, "unclaim")}
                                   >
                                     Unclaim Shift
+                                  </Button>
+                                ) : pastDate ? (
+                                  <Button className="w-full sm:w-auto sm:self-start" disabled>
+                                    Past date
                                   </Button>
                                 ) : spotsLeft > 0 ? (
                                   <Button

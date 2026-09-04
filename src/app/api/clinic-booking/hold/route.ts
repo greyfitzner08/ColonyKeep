@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { availableSpots } from "@/lib/clinic-events/availability";
 import { clinicHoldDurationMs, holdExtensionNotes } from "@/lib/clinic-events/hold-duration";
+import { isEventPastDate } from "@/lib/clinic-events/visibility";
 import { createServiceClient } from "@/lib/supabase/server";
 import type { PublicBooking } from "@/lib/types";
 
@@ -16,12 +17,19 @@ export async function POST(request: NextRequest) {
   const service = await createServiceClient();
   const { data: event, error: eventError } = await service
     .from("public_clinic_events")
-    .select("id, total_spots, is_active")
+    .select("id, total_spots, is_active, date")
     .eq("id", eventId)
     .single();
 
   if (eventError || !event?.is_active) {
     return NextResponse.json({ error: "Clinic event is not available" }, { status: 400 });
+  }
+
+  if (isEventPastDate(event.date)) {
+    return NextResponse.json(
+      { error: "Cannot book a clinic event on a past date" },
+      { status: 400 }
+    );
   }
 
   const { data: bookings, error: bookingsError } = await service

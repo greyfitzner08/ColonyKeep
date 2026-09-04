@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireShiftAccess } from "@/lib/api/auth";
+import { isAppointmentDatePast } from "@/lib/appointments/slot-date";
 import { createClient } from "@/lib/supabase/server";
 
 export async function POST(request: NextRequest) {
@@ -21,6 +22,12 @@ export async function POST(request: NextRequest) {
   let signedUp = [...(shift.signed_up_emails ?? [])];
 
   if (action === "claim") {
+    if (isAppointmentDatePast(shift.date)) {
+      return NextResponse.json(
+        { error: "Cannot sign up for a shift on a past date" },
+        { status: 400 }
+      );
+    }
     if (signedUp.length >= shift.volunteers_needed) {
       return NextResponse.json({ error: "Shift is full" }, { status: 400 });
     }
