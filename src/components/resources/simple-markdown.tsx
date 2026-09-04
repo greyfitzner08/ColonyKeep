@@ -1,6 +1,7 @@
 "use client";
 
-import { Fragment, type ReactNode } from "react";
+import { Fragment, useState, type ReactNode } from "react";
+import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 function renderInline(text: string): ReactNode[] {
@@ -71,18 +72,19 @@ function renderTable(rows: string[]): ReactNode {
   );
 }
 
-/** Lightweight markdown renderer for in-app resource guides (no external dependency). */
-export function SimpleMarkdown({
-  content,
-  className,
-}: {
-  content: string;
-  className?: string;
-}) {
+type MdBlock =
+  | { type: "hr" }
+  | { type: "code"; code: string }
+  | { type: "table"; rows: string[] }
+  | { type: "heading"; level: 1 | 2 | 3; text: string }
+  | { type: "ol"; items: string[] }
+  | { type: "ul"; items: string[] }
+  | { type: "p"; text: string };
+
+function parseMarkdownBlocks(content: string): MdBlock[] {
   const lines = content.replace(/\r\n/g, "\n").split("\n");
-  const blocks: ReactNode[] = [];
+  const blocks: MdBlock[] = [];
   let index = 0;
-  let key = 0;
 
   while (index < lines.length) {
     const line = lines[index];
@@ -93,7 +95,7 @@ export function SimpleMarkdown({
     }
 
     if (line.trim() === "---") {
-      blocks.push(<hr key={key++} className="my-6 border-border" />);
+      blocks.push({ type: "hr" });
       index += 1;
       continue;
     }
@@ -107,14 +109,7 @@ export function SimpleMarkdown({
         index += 1;
       }
       index += 1;
-      blocks.push(
-        <pre
-          key={key++}
-          className="my-3 overflow-x-auto rounded-lg bg-muted p-3 text-xs leading-relaxed"
-        >
-          <code>{code.join("\n")}</code>
-        </pre>
-      );
+      blocks.push({ type: "code", code: code.join("\n") });
       continue;
     }
 
@@ -124,29 +119,17 @@ export function SimpleMarkdown({
         tableRows.push(lines[index]);
         index += 1;
       }
-      blocks.push(<Fragment key={key++}>{renderTable(tableRows)}</Fragment>);
+      blocks.push({ type: "table", rows: tableRows });
       continue;
     }
 
     const heading = /^(#{1,3})\s+(.+)$/.exec(line);
     if (heading) {
-      const level = heading[1].length;
-      const text = heading[2];
-      const HeadingTag = (level === 1 ? "h1" : level === 2 ? "h2" : "h3") as
-        | "h1"
-        | "h2"
-        | "h3";
-      const headingClass =
-        level === 1
-          ? "mt-2 mb-3 text-2xl font-bold tracking-tight"
-          : level === 2
-            ? "mt-6 mb-2 text-xl font-semibold"
-            : "mt-4 mb-1.5 text-base font-semibold";
-      blocks.push(
-        <HeadingTag key={key++} className={headingClass}>
-          {renderInline(text)}
-        </HeadingTag>
-      );
+      blocks.push({
+        type: "heading",
+        level: heading[1].length as 1 | 2 | 3,
+        text: heading[2],
+      });
       index += 1;
       continue;
     }
@@ -157,13 +140,7 @@ export function SimpleMarkdown({
         items.push(lines[index].replace(/^\d+\.\s+/, ""));
         index += 1;
       }
-      blocks.push(
-        <ol key={key++} className="my-2 list-decimal space-y-1 pl-5 text-sm leading-relaxed">
-          {items.map((item, itemIndex) => (
-            <li key={itemIndex}>{renderInline(item)}</li>
-          ))}
-        </ol>
-      );
+      blocks.push({ type: "ol", items });
       continue;
     }
 
@@ -173,13 +150,7 @@ export function SimpleMarkdown({
         items.push(lines[index].replace(/^[-*]\s+/, ""));
         index += 1;
       }
-      blocks.push(
-        <ul key={key++} className="my-2 list-disc space-y-1 pl-5 text-sm leading-relaxed">
-          {items.map((item, itemIndex) => (
-            <li key={itemIndex}>{renderInline(item)}</li>
-          ))}
-        </ul>
-      );
+      blocks.push({ type: "ul", items });
       continue;
     }
 
@@ -190,6 +161,7 @@ export function SimpleMarkdown({
       lines[index].trim() &&
       !lines[index].startsWith("#") &&
       !lines[index].startsWith("```") &&
+      !lines[index].startsWith("~~~") &&
       lines[index].trim() !== "---" &&
       !lines[index].trim().startsWith("|") &&
       !/^\d+\.\s+/.test(lines[index]) &&
@@ -198,12 +170,153 @@ export function SimpleMarkdown({
       paragraph.push(lines[index]);
       index += 1;
     }
-    blocks.push(
-      <p key={key++} className="my-2 text-sm leading-relaxed">
-        {renderInline(paragraph.join(" "))}
-      </p>
-    );
+    blocks.push({ type: "p", text: paragraph.join(" ") });
   }
 
-  return <div className={cn("max-w-none text-foreground", className)}>{blocks}</div>;
+  return blocks;
+}
+
+function renderLeafBlock(block: MdBlock, key: number): ReactNode {
+  switch (block.type) {
+    case "hr":
+      return <hr key={key} className="my-6 border-border" />;
+    case "code":
+      return (
+        <pre
+          key={key}
+          className="my-3 overflow-x-auto rounded-lg bg-muted p-3 text-xs leading-relaxed"
+        >
+          <code>{block.code}</code>
+        </pre>
+      );
+    case "table":
+      return <Fragment key={key}>{renderTable(block.rows)}</Fragment>;
+    case "ol":
+      return (
+        <ol key={key} className="my-2 list-decimal space-y-1 pl-5 text-sm leading-relaxed">
+          {block.items.map((item, itemIndex) => (
+            <li key={itemIndex}>{renderInline(item)}</li>
+          ))}
+        </ol>
+      );
+    case "ul":
+      return (
+        <ul key={key} className="my-2 list-disc space-y-1 pl-5 text-sm leading-relaxed">
+          {block.items.map((item, itemIndex) => (
+            <li key={itemIndex}>{renderInline(item)}</li>
+          ))}
+        </ul>
+      );
+    case "p":
+      return (
+        <p key={key} className="my-2 text-sm leading-relaxed">
+          {renderInline(block.text)}
+        </p>
+      );
+    case "heading":
+      return null;
+  }
+}
+
+function CollapsibleSection({
+  level,
+  title,
+  children,
+}: {
+  level: 2 | 3;
+  title: string;
+  children: ReactNode;
+}) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <section
+      className={cn(
+        "my-3 overflow-hidden rounded-lg border",
+        level === 2 ? "border-border" : "border-border/70 bg-muted/20"
+      )}
+    >
+      <button
+        type="button"
+        className="flex w-full items-center gap-2 px-3 py-2.5 text-left hover:bg-muted/40"
+        onClick={() => setOpen((value) => !value)}
+        aria-expanded={open}
+      >
+        <span
+          className={cn(
+            "min-w-0 flex-1 font-semibold leading-snug",
+            level === 2 ? "text-base" : "text-sm"
+          )}
+        >
+          {renderInline(title)}
+        </span>
+        <ChevronDown
+          className={cn(
+            "h-4 w-4 shrink-0 text-muted-foreground transition-transform",
+            open && "rotate-180"
+          )}
+        />
+      </button>
+      {open ? <div className="space-y-1 border-t px-3 py-3">{children}</div> : null}
+    </section>
+  );
+}
+
+function renderBlockRange(blocks: MdBlock[], start: number, end: number, keyBase: number): ReactNode[] {
+  const nodes: ReactNode[] = [];
+  let index = start;
+  let key = keyBase;
+
+  while (index < end) {
+    const block = blocks[index];
+
+    if (block.type === "heading" && block.level === 1) {
+      nodes.push(
+        <h1 key={key++} className="mt-2 mb-3 text-2xl font-bold tracking-tight">
+          {renderInline(block.text)}
+        </h1>
+      );
+      index += 1;
+      continue;
+    }
+
+    if (block.type === "heading" && (block.level === 2 || block.level === 3)) {
+      const sectionLevel = block.level;
+      const title = block.text;
+      let cursor = index + 1;
+      while (cursor < end) {
+        const next = blocks[cursor];
+        if (next.type === "heading" && next.level <= sectionLevel) break;
+        cursor += 1;
+      }
+      nodes.push(
+        <CollapsibleSection key={key++} level={sectionLevel} title={title}>
+          {renderBlockRange(blocks, index + 1, cursor, key * 100)}
+        </CollapsibleSection>
+      );
+      index = cursor;
+      continue;
+    }
+
+    nodes.push(renderLeafBlock(block, key++));
+    index += 1;
+  }
+
+  return nodes;
+}
+
+/** Lightweight markdown renderer for in-app resource guides (no external dependency). */
+export function SimpleMarkdown({
+  content,
+  className,
+}: {
+  content: string;
+  className?: string;
+}) {
+  const blocks = parseMarkdownBlocks(content);
+  return (
+    <div className={cn("max-w-none text-foreground", className)}>
+      {renderBlockRange(blocks, 0, blocks.length, 0)}
+    </div>
+  );
 }
