@@ -9,8 +9,7 @@ export function isVolunteerLoginBlockedStatus(
 }
 
 export async function getVolunteerApplicationStatusByEmail(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  client: SupabaseClient<any, any, any>,
+  client: SupabaseClient,
   email: string
 ): Promise<VolunteerApplicationStatus | null> {
   const normalized = email.trim().toLowerCase();

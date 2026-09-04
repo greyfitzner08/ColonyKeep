@@ -5,8 +5,7 @@ import type { HelpRequestStatus, Profile } from "@/lib/types";
 
 /** Load claim fields and return a block response when the actor may not edit. */
 export async function caseClaimBlockForId(options: {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  service: SupabaseClient<any, any, any>;
+  service: SupabaseClient;
   helpRequestId: string;
   profile: Profile;
 }): Promise<NextResponse | null> {
