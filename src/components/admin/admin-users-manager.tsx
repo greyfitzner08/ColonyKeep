@@ -15,6 +15,7 @@ import {
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import { AdminUserEditDialog } from "@/components/admin/admin-user-edit-dialog";
 import { AdminUserRemoveDialog } from "@/components/admin/admin-user-remove-dialog";
+import { AdminDuplicateAccountsDialog } from "@/components/admin/admin-duplicate-accounts-dialog";
 import { getApiErrorMessage } from "@/lib/api/errors";
 import { ROLE_PERMISSIONS, isKnownUserRole } from "@/lib/constants";
 import {
@@ -29,7 +30,7 @@ import type {
   UserRole,
   VolunteerApplication,
 } from "@/lib/types";
-import { Pencil, Search, Trash2 } from "lucide-react";
+import { GitMerge, Pencil, Search, Trash2 } from "lucide-react";
 
 interface AdminUsersManagerProps {
   users: Profile[];
@@ -54,6 +55,7 @@ export function AdminUsersManager({
   const [updatingRoleId, setUpdatingRoleId] = useState<string | null>(null);
   const [editingUser, setEditingUser] = useState<Profile | null>(null);
   const [removingUser, setRemovingUser] = useState<Profile | null>(null);
+  const [duplicatesOpen, setDuplicatesOpen] = useState(false);
   const [userError, setUserError] = useState<string | null>(null);
 
   const roleCatalog = useMemo(
@@ -295,7 +297,19 @@ export function AdminUsersManager({
             ))}
           </SelectContent>
         </Select>
-        <p className="text-sm text-muted-foreground sm:ml-auto">
+        <Button
+          type="button"
+          variant="outline"
+          className="sm:ml-auto"
+          onClick={() => {
+            setUserError(null);
+            setDuplicatesOpen(true);
+          }}
+        >
+          <GitMerge className="mr-2 h-4 w-4" />
+          Find duplicates
+        </Button>
+        <p className="text-sm text-muted-foreground">
           {filteredUsers.length} of {users.length} users
         </p>
       </div>
@@ -312,7 +326,8 @@ export function AdminUsersManager({
       <p className="text-xs text-muted-foreground">
         Change platform roles inline in the table. Your own account cannot be changed here. Use Edit
         for contact details, volunteer interests, and trap team assignment. Birthday is collected
-        when users log in.
+        when users log in. Use Find duplicates to merge accidental double accounts without losing
+        emails or case work.
       </p>
 
       <AdminUserEditDialog
@@ -339,6 +354,13 @@ export function AdminUsersManager({
         users={users}
         open={removingUser != null}
         onOpenChange={(open) => !open && setRemovingUser(null)}
+        onError={setUserError}
+      />
+
+      <AdminDuplicateAccountsDialog
+        open={duplicatesOpen}
+        onOpenChange={setDuplicatesOpen}
+        currentUserId={currentUserId}
         onError={setUserError}
       />
     </div>
