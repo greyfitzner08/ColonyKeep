@@ -28,7 +28,7 @@ import { isAppointmentDatePast } from "@/lib/appointments/slot-date";
 import { SHIFT_REQUIRED_ROLES, SHIFT_TYPES } from "@/lib/constants";
 import { cn, formatDate, formatTimeRange } from "@/lib/utils";
 import type { Shift, ShiftRequiredRole, ShiftType } from "@/lib/types";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Plus, Pencil, Trash2, Clock, MapPin } from "lucide-react";
 
 function shiftIdentityKey(input: {
   event_name: string;
@@ -774,6 +774,65 @@ export function ShiftBoard({
 
   const totalShiftCount = positions.reduce((sum, position) => sum + position.slots.length, 0);
 
+  function shiftSignupSummary(shift: Shift) {
+    const signedUp = shift.signed_up_emails ?? [];
+    const spotsLeft = shift.volunteers_needed - signedUp.length;
+    return { signedUp, spotsLeft, pastDate: isAppointmentDatePast(shift.date) };
+  }
+
+  function ShiftClaimButton({ shift }: { shift: Shift }) {
+    const { signedUp, spotsLeft, pastDate } = shiftSignupSummary(shift);
+    const isSignedUp = signedUp.includes(userEmail);
+
+    if (isSignedUp) {
+      return (
+        <Button variant="outline" size="sm" onClick={() => claimShift(shift.id, "unclaim")}>
+          Unclaim
+        </Button>
+      );
+    }
+    if (pastDate) {
+      return (
+        <Button size="sm" disabled>
+          Past
+        </Button>
+      );
+    }
+    if (spotsLeft > 0) {
+      return (
+        <Button size="sm" onClick={() => claimShift(shift.id, "claim")}>
+          Sign Up
+        </Button>
+      );
+    }
+    return (
+      <Button size="sm" disabled>
+        Full
+      </Button>
+    );
+  }
+
+  function AdminSignupList({ shift }: { shift: Shift }) {
+    const signedUp = shift.signed_up_emails ?? [];
+    if (!isAdmin || signedUp.length === 0) return null;
+    return (
+      <ul className="mt-1.5 space-y-1">
+        {signedUp.map((email) => (
+          <li key={email} className="text-xs">
+            <span className="font-medium">{signupLabel(email)}</span>{" "}
+            <button
+              type="button"
+              className="text-destructive hover:underline"
+              onClick={() => requestRemoveSignup(shift.id, email)}
+            >
+              Remove
+            </button>
+          </li>
+        ))}
+      </ul>
+    );
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap justify-between gap-3">
@@ -796,180 +855,180 @@ export function ShiftBoard({
       {groupedEvents.length === 0 || !selectedEvent ? (
         <p className="text-sm text-muted-foreground">No shifts match this filter.</p>
       ) : (
-        <div className="grid gap-6 lg:grid-cols-[minmax(220px,280px)_minmax(0,1fr)] lg:items-start">
-          <aside className="space-y-2">
-            <p className="px-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              Events
-            </p>
-            <div className="flex gap-2 overflow-x-auto pb-1 lg:flex-col lg:overflow-visible lg:pb-0">
-              {groupedEvents.map((group) => {
-                const filled = group.shifts.reduce(
-                  (sum, shift) => sum + (shift.signed_up_emails?.length ?? 0),
-                  0
-                );
-                const needed = group.shifts.reduce(
-                  (sum, shift) => sum + shift.volunteers_needed,
-                  0
-                );
-                const active = selectedEvent.name === group.name;
-                const dateSummary =
-                  group.shifts.length > 1
-                    ? `${formatDate(group.shifts[0].date)} – ${formatDate(group.shifts[group.shifts.length - 1].date)}`
-                    : formatDate(group.shifts[0].date);
+        <div className="space-y-4">
+          <div className="space-y-2 lg:hidden">
+            <Label htmlFor="shift-board-event">Event</Label>
+            <Select
+              value={selectedEvent.name}
+              onValueChange={(value) => setSelectedEventName(value)}
+            >
+              <SelectTrigger id="shift-board-event" className="w-full">
+                <SelectValue placeholder="Choose an event" />
+              </SelectTrigger>
+              <SelectContent>
+                {groupedEvents.map((group) => {
+                  const filled = group.shifts.reduce(
+                    (sum, shift) => sum + (shift.signed_up_emails?.length ?? 0),
+                    0
+                  );
+                  const needed = group.shifts.reduce(
+                    (sum, shift) => sum + shift.volunteers_needed,
+                    0
+                  );
+                  return (
+                    <SelectItem key={group.name} value={group.name}>
+                      {group.name} · {filled}/{needed}
+                    </SelectItem>
+                  );
+                })}
+              </SelectContent>
+            </Select>
+          </div>
 
-                return (
-                  <button
-                    key={group.name}
-                    type="button"
-                    onClick={() => setSelectedEventName(group.name)}
-                    className={cn(
-                      "min-w-[200px] shrink-0 rounded-lg border px-3 py-2.5 text-left transition-colors lg:min-w-0 lg:w-full",
-                      active
-                        ? "border-primary bg-primary/5"
-                        : "bg-background hover:bg-muted/40"
-                    )}
-                  >
-                    <p className="truncate font-medium leading-snug">{group.name}</p>
-                    <p className="mt-0.5 text-xs text-muted-foreground">
-                      {dateSummary} · {filled}/{needed}
-                    </p>
-                  </button>
-                );
-              })}
-            </div>
-          </aside>
+          <div className="grid gap-6 lg:grid-cols-[minmax(220px,280px)_minmax(0,1fr)] lg:items-start">
+            <aside className="hidden space-y-2 lg:block">
+              <p className="px-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Events
+              </p>
+              <div className="space-y-2">
+                {groupedEvents.map((group) => {
+                  const filled = group.shifts.reduce(
+                    (sum, shift) => sum + (shift.signed_up_emails?.length ?? 0),
+                    0
+                  );
+                  const needed = group.shifts.reduce(
+                    (sum, shift) => sum + shift.volunteers_needed,
+                    0
+                  );
+                  const active = selectedEvent.name === group.name;
+                  const dateSummary =
+                    group.shifts.length > 1
+                      ? `${formatDate(group.shifts[0].date)} – ${formatDate(group.shifts[group.shifts.length - 1].date)}`
+                      : formatDate(group.shifts[0].date);
 
-          <div className="min-w-0 space-y-4">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-              <div className="min-w-0 space-y-1">
-                <h2 className="text-xl font-semibold tracking-tight">{selectedEvent.name}</h2>
-                <p className="text-sm text-muted-foreground">
-                  {selectedEvent.positions.length} position
-                  {selectedEvent.positions.length === 1 ? "" : "s"} ·{" "}
-                  {selectedEvent.shifts.length} shift
-                  {selectedEvent.shifts.length === 1 ? "" : "s"}
-                </p>
+                  return (
+                    <button
+                      key={group.name}
+                      type="button"
+                      onClick={() => setSelectedEventName(group.name)}
+                      className={cn(
+                        "w-full rounded-lg border px-3 py-2.5 text-left transition-colors",
+                        active
+                          ? "border-primary bg-primary/5"
+                          : "bg-background hover:bg-muted/40"
+                      )}
+                    >
+                      <p className="truncate font-medium leading-snug">{group.name}</p>
+                      <p className="mt-0.5 text-xs text-muted-foreground">
+                        {dateSummary} · {filled}/{needed}
+                      </p>
+                    </button>
+                  );
+                })}
               </div>
-              {isAdmin && (
-                <div className="flex shrink-0 flex-wrap gap-1.5">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() =>
-                      openAddShiftsToEvent(selectedEvent.name, selectedEvent.shifts)
-                    }
-                  >
-                    <Plus className="mr-1 h-4 w-4" />
-                    Add shifts
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="text-destructive hover:text-destructive"
-                    onClick={() =>
-                      requestDeleteEvent(selectedEvent.name, selectedEvent.shifts)
-                    }
-                  >
-                    <Trash2 className="mr-1 h-4 w-4" />
-                    Delete event
-                  </Button>
+            </aside>
+
+            <div className="min-w-0 space-y-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="min-w-0 space-y-1">
+                  <h2 className="text-xl font-semibold tracking-tight">{selectedEvent.name}</h2>
+                  <p className="text-sm text-muted-foreground">
+                    {selectedEvent.positions.length} position
+                    {selectedEvent.positions.length === 1 ? "" : "s"} ·{" "}
+                    {selectedEvent.shifts.length} shift
+                    {selectedEvent.shifts.length === 1 ? "" : "s"}
+                  </p>
                 </div>
-              )}
-            </div>
+                {isAdmin && (
+                  <div className="flex shrink-0 flex-wrap gap-1.5">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() =>
+                        openAddShiftsToEvent(selectedEvent.name, selectedEvent.shifts)
+                      }
+                    >
+                      <Plus className="mr-1 h-4 w-4" />
+                      Add shifts
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="text-destructive hover:text-destructive"
+                      onClick={() =>
+                        requestDeleteEvent(selectedEvent.name, selectedEvent.shifts)
+                      }
+                    >
+                      <Trash2 className="mr-1 h-4 w-4" />
+                      Delete event
+                    </Button>
+                  </div>
+                )}
+              </div>
 
-            <div className="overflow-x-auto rounded-lg border">
-              <table className="w-full min-w-[640px] text-left text-sm">
-                <thead className="border-b bg-muted/40 text-xs text-muted-foreground">
-                  <tr>
-                    <th className="px-3 py-2.5 font-medium">Position</th>
-                    <th className="px-3 py-2.5 font-medium">When</th>
-                    <th className="px-3 py-2.5 font-medium">Location</th>
-                    <th className="px-3 py-2.5 font-medium">Spots</th>
-                    <th className="px-3 py-2.5 font-medium text-right"> </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {selectedEvent.positions.map((position) =>
-                    position.shifts.map((shift, shiftIndex) => {
-                      const signedUp = shift.signed_up_emails ?? [];
-                      const isSignedUp = signedUp.includes(userEmail);
-                      const spotsLeft = shift.volunteers_needed - signedUp.length;
-                      const pastDate = isAppointmentDatePast(shift.date);
-                      const isFirstInPosition = shiftIndex === 0;
-
-                      return (
-                        <tr key={shift.id} className="border-b last:border-b-0 align-top">
-                          <td className="px-3 py-3">
-                            {isFirstInPosition ? (
-                              <div className="space-y-1">
-                                <p className="font-medium leading-snug">{position.name}</p>
-                                {isAdmin && (
-                                  <button
-                                    type="button"
-                                    className="text-xs text-destructive hover:underline"
-                                    onClick={() =>
-                                      requestDeletePosition(
-                                        selectedEvent.name,
-                                        position.name,
-                                        position.shifts
-                                      )
-                                    }
-                                  >
-                                    Remove position
-                                  </button>
-                                )}
+              {/* Phones: stacked cards */}
+              <div className="space-y-6 md:hidden">
+                {selectedEvent.positions.map((position) => (
+                  <div key={`${selectedEvent.name}-${position.name}`} className="space-y-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <h3 className="font-medium">{position.name}</h3>
+                      {isAdmin && (
+                        <button
+                          type="button"
+                          className="text-xs text-destructive hover:underline"
+                          onClick={() =>
+                            requestDeletePosition(
+                              selectedEvent.name,
+                              position.name,
+                              position.shifts
+                            )
+                          }
+                        >
+                          Remove position
+                        </button>
+                      )}
+                    </div>
+                    <ul className="space-y-3">
+                      {position.shifts.map((shift) => {
+                        const { signedUp, spotsLeft } = shiftSignupSummary(shift);
+                        return (
+                          <li
+                            key={shift.id}
+                            className="space-y-3 rounded-lg border bg-background p-3"
+                          >
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="min-w-0 space-y-1.5">
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <p className="font-medium">{formatDate(shift.date)}</p>
+                                  <Badge variant="outline" className="font-normal">
+                                    {shiftTypeLabel(shift.shift_type)}
+                                  </Badge>
+                                </div>
+                                <p className="flex items-center gap-2 text-sm text-muted-foreground">
+                                  <Clock className="h-3.5 w-3.5 shrink-0" />
+                                  {formatTimeRange(shift.start_time, shift.end_time)}
+                                </p>
+                                <p className="flex items-start gap-2 text-sm text-muted-foreground">
+                                  <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                                  <span className="min-w-0 break-words">{shift.location}</span>
+                                </p>
+                                <p className="text-sm text-muted-foreground">
+                                  {signedUp.length}/{shift.volunteers_needed}
+                                  {spotsLeft > 0
+                                    ? ` · ${spotsLeft} open`
+                                    : signedUp.length > 0
+                                      ? " · full"
+                                      : ""}
+                                </p>
+                                {shift.notes ? (
+                                  <p className="text-sm text-muted-foreground">{shift.notes}</p>
+                                ) : null}
+                                <AdminSignupList shift={shift} />
                               </div>
-                            ) : (
-                              <span className="sr-only">{position.name}</span>
-                            )}
-                          </td>
-                          <td className="px-3 py-3">
-                            <p className="font-medium">{formatDate(shift.date)}</p>
-                            <p className="text-muted-foreground">
-                              {formatTimeRange(shift.start_time, shift.end_time)}
-                            </p>
-                            <Badge variant="outline" className="mt-1 font-normal">
-                              {shiftTypeLabel(shift.shift_type)}
-                            </Badge>
-                          </td>
-                          <td className="max-w-[220px] px-3 py-3">
-                            <p className="break-words text-muted-foreground">{shift.location}</p>
-                            {shift.notes ? (
-                              <p className="mt-1 text-xs text-muted-foreground">{shift.notes}</p>
-                            ) : null}
-                          </td>
-                          <td className="px-3 py-3">
-                            <p>
-                              {signedUp.length}/{shift.volunteers_needed}
-                              {spotsLeft > 0 ? (
-                                <span className="text-muted-foreground"> · {spotsLeft} open</span>
-                              ) : signedUp.length > 0 ? (
-                                <span className="text-muted-foreground"> · full</span>
-                              ) : null}
-                            </p>
-                            {isAdmin && signedUp.length > 0 && (
-                              <ul className="mt-1.5 space-y-1">
-                                {signedUp.map((email) => (
-                                  <li key={email} className="text-xs">
-                                    <span className="font-medium">{signupLabel(email)}</span>{" "}
-                                    <button
-                                      type="button"
-                                      className="text-destructive hover:underline"
-                                      onClick={() => requestRemoveSignup(shift.id, email)}
-                                    >
-                                      Remove
-                                    </button>
-                                  </li>
-                                ))}
-                              </ul>
-                            )}
-                          </td>
-                          <td className="px-3 py-3">
-                            <div className="flex flex-wrap items-center justify-end gap-1">
                               {isAdmin && (
-                                <>
+                                <div className="flex shrink-0">
                                   <Button
                                     variant="ghost"
                                     size="icon"
@@ -982,42 +1041,128 @@ export function ShiftBoard({
                                     variant="ghost"
                                     size="icon"
                                     className="h-8 w-8 text-destructive hover:text-destructive"
-                                    title="Delete shift"
                                     onClick={() => requestDeleteShift(shift)}
                                   >
                                     <Trash2 className="h-4 w-4" />
                                   </Button>
-                                </>
-                              )}
-                              {isSignedUp ? (
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => claimShift(shift.id, "unclaim")}
-                                >
-                                  Unclaim
-                                </Button>
-                              ) : pastDate ? (
-                                <Button size="sm" disabled>
-                                  Past
-                                </Button>
-                              ) : spotsLeft > 0 ? (
-                                <Button size="sm" onClick={() => claimShift(shift.id, "claim")}>
-                                  Sign Up
-                                </Button>
-                              ) : (
-                                <Button size="sm" disabled>
-                                  Full
-                                </Button>
+                                </div>
                               )}
                             </div>
-                          </td>
-                        </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
+                            <ShiftClaimButton shift={shift} />
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
+                ))}
+              </div>
+
+              {/* Tablet/desktop: table */}
+              <div className="hidden overflow-x-auto rounded-lg border md:block">
+                <table className="w-full text-left text-sm">
+                  <thead className="border-b bg-muted/40 text-xs text-muted-foreground">
+                    <tr>
+                      <th className="px-3 py-2.5 font-medium">Position</th>
+                      <th className="px-3 py-2.5 font-medium">When</th>
+                      <th className="hidden px-3 py-2.5 font-medium xl:table-cell">Location</th>
+                      <th className="px-3 py-2.5 font-medium">Spots</th>
+                      <th className="px-3 py-2.5 font-medium text-right"> </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {selectedEvent.positions.map((position) =>
+                      position.shifts.map((shift, shiftIndex) => {
+                        const { signedUp, spotsLeft } = shiftSignupSummary(shift);
+                        const isFirstInPosition = shiftIndex === 0;
+
+                        return (
+                          <tr key={shift.id} className="border-b last:border-b-0 align-top">
+                            <td className="px-3 py-3">
+                              {isFirstInPosition ? (
+                                <div className="space-y-1">
+                                  <p className="font-medium leading-snug">{position.name}</p>
+                                  {isAdmin && (
+                                    <button
+                                      type="button"
+                                      className="text-xs text-destructive hover:underline"
+                                      onClick={() =>
+                                        requestDeletePosition(
+                                          selectedEvent.name,
+                                          position.name,
+                                          position.shifts
+                                        )
+                                      }
+                                    >
+                                      Remove position
+                                    </button>
+                                  )}
+                                </div>
+                              ) : (
+                                <span className="sr-only">{position.name}</span>
+                              )}
+                            </td>
+                            <td className="px-3 py-3">
+                              <p className="font-medium">{formatDate(shift.date)}</p>
+                              <p className="text-muted-foreground">
+                                {formatTimeRange(shift.start_time, shift.end_time)}
+                              </p>
+                              <Badge variant="outline" className="mt-1 font-normal">
+                                {shiftTypeLabel(shift.shift_type)}
+                              </Badge>
+                              <p className="mt-2 break-words text-xs text-muted-foreground xl:hidden">
+                                {shift.location}
+                              </p>
+                            </td>
+                            <td className="hidden max-w-[240px] px-3 py-3 xl:table-cell">
+                              <p className="break-words text-muted-foreground">{shift.location}</p>
+                              {shift.notes ? (
+                                <p className="mt-1 text-xs text-muted-foreground">{shift.notes}</p>
+                              ) : null}
+                            </td>
+                            <td className="px-3 py-3">
+                              <p>
+                                {signedUp.length}/{shift.volunteers_needed}
+                                {spotsLeft > 0 ? (
+                                  <span className="text-muted-foreground"> · {spotsLeft} open</span>
+                                ) : signedUp.length > 0 ? (
+                                  <span className="text-muted-foreground"> · full</span>
+                                ) : null}
+                              </p>
+                              <AdminSignupList shift={shift} />
+                            </td>
+                            <td className="px-3 py-3">
+                              <div className="flex flex-wrap items-center justify-end gap-1">
+                                {isAdmin && (
+                                  <>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-8 w-8"
+                                      onClick={() => openEditDialog(shift)}
+                                    >
+                                      <Pencil className="h-4 w-4" />
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-8 w-8 text-destructive hover:text-destructive"
+                                      title="Delete shift"
+                                      onClick={() => requestDeleteShift(shift)}
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </>
+                                )}
+                                <ShiftClaimButton shift={shift} />
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
         </div>
