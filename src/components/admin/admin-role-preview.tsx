@@ -14,12 +14,9 @@ import {
 } from "@/components/ui/dialog";
 import {
   PLATFORM_ROLE_PREVIEW_OPTIONS,
-  encodeVolunteerRolePreview,
   rolePreviewLabel,
-  volunteerRolesForPreview,
 } from "@/lib/admin/role-preview.shared";
 import { cn } from "@/lib/utils";
-import type { RoleDescription } from "@/lib/types";
 
 interface AdminRolePreviewProps {
   previewKey: string | null;
@@ -68,16 +65,13 @@ export function AdminRolePreviewBanner({ previewKey, previewLabel }: AdminRolePr
 
 interface AdminRolePreviewControlProps {
   previewKey: string | null;
-  roleDescriptions: RoleDescription[];
 }
 
 export function AdminRolePreviewControl({
   previewKey,
-  roleDescriptions,
 }: AdminRolePreviewControlProps) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
-  const volunteerRoles = volunteerRolesForPreview(roleDescriptions);
 
   async function setPreview(nextKey: string | null) {
     await fetch("/api/admin/role-preview", {
@@ -89,7 +83,7 @@ export function AdminRolePreviewControl({
     router.refresh();
   }
 
-  const activeLabel = rolePreviewLabel(previewKey, roleDescriptions);
+  const activeLabel = rolePreviewLabel(previewKey);
 
   return (
     <>
@@ -113,7 +107,7 @@ export function AdminRolePreviewControl({
           <DialogHeader className="border-b px-6 py-4 text-left">
             <DialogTitle>View as role</DialogTitle>
             <DialogDescription>
-              Preview navigation and page access as another platform role or volunteer interest.
+              Preview navigation and page access as another platform role. Volunteer interests do not change access.
             </DialogDescription>
           </DialogHeader>
 
@@ -145,30 +139,6 @@ export function AdminRolePreviewControl({
                 {entry.label}
               </button>
             ))}
-
-            {volunteerRoles.length > 0 && (
-              <>
-                <p className="px-3 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                  Volunteer interests
-                </p>
-                {volunteerRoles.map((entry) => {
-                  const key = encodeVolunteerRolePreview(entry.role_id);
-                  return (
-                    <button
-                      key={entry.role_id}
-                      type="button"
-                      className={cn(
-                        "w-full rounded-sm px-3 py-2 text-left text-sm hover:bg-muted",
-                        previewKey === key && "bg-muted font-medium"
-                      )}
-                      onClick={() => setPreview(key)}
-                    >
-                      {entry.label}
-                    </button>
-                  );
-                })}
-              </>
-            )}
           </div>
         </DialogContent>
       </Dialog>

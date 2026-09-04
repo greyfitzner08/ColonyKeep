@@ -30,9 +30,7 @@ export default async function IntakePage({ searchParams }: IntakePageProps) {
   const profile = await getAppProfile();
 
   const showWorkHistory =
-    profile?.role === "inquiry_team" ||
-    profile?.role === "admin" ||
-    (profile?.volunteer_roles ?? []).includes("intake_representative");
+    profile?.role === "inquiry_team" || profile?.role === "admin";
   const isHistoryScope = showWorkHistory && params.scope === "history";
 
   let filtered: HelpRequest[] = [];

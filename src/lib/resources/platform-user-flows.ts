@@ -1,7 +1,14 @@
 /** Default handbook content for the Platform User Flows resource (seeded into library_documents). */
 export const PLATFORM_USER_FLOWS_MARKDOWN = `# ColonyKeep user flows — start to finish
 
-This guide explains how access works in the app: a **platform role** (Administrator / Inquiry Team / TNVR Team / Volunteer) plus optional **volunteer roles** (trapper, clinic coordination, event volunteer, etc.) that unlock more tools.
+This guide explains how access works in the app. **Page access is controlled by platform role only**:
+
+- **Administrator**
+- **Inquiry Team**
+- **TNVR Team** (trap team lead)
+- **Volunteer** (every volunteer sees the same tools)
+
+**Volunteer interests** (trapper, event volunteer, clinic coordination, etc.) are for staffing, labeling, and matching people to shifts — they do **not** unlock different pages.
 
 ---
 
@@ -12,15 +19,15 @@ This guide explains how access works in the app: a **platform role** (Administra
 2. Application sits in **Admin → Volunteers** as pending (or follow-up / rejected / inactive).
 
 ### Admin approves
-1. Admin opens the applicant → sets **volunteer roles**, optional **trap team**, optional **platform role**.
+1. Admin opens the applicant → sets **volunteer interests** (for staffing), optional **trap team**, and **platform role** (what they can open in the app).
 2. **Approve / Save** creates (or restores) their login and profile.
 3. Inactive accounts cannot sign in until re-approved.
 
 ### First login
 1. User signs in at **Login**.
 2. Lands on **Dashboard**.
-3. Sidebar shows only routes their permissions allow (**Home / Operations / Clinics / Team / Resources / Administration**).
-4. Optional: platform tour from **Resources** (quick tour of visible pages, or advanced track by role).
+3. Sidebar shows only routes their **platform role** allows (**Home / Operations / Clinics / Team / Resources / Administration**).
+4. Optional: platform tour from **Resources** (quick tour of visible pages, or advanced track by platform role).
 
 ### Ongoing personal setup
 - **My Profile** — contact info, birthday, volunteer interests, certificates.
@@ -42,7 +49,7 @@ Public / intake request
     → Complete / close
 ~~~
 
-**Claim rule:** Inquiry, TNVR Team, and Volunteers must **claim** a case before editing. Admins can edit without claiming.
+**Claim rule:** Inquiry and TNVR Team must **claim** a case before editing. Admins can edit without claiming. Volunteers do not work case queues.
 
 ---
 
@@ -54,7 +61,7 @@ Public / intake request
 Dashboard shows org-wide work; sidebar includes everything (queues, clinics, volunteers, reports, admin).
 
 ### Typical loop
-1. **Volunteers** — approve applicants, assign roles/teams, merge duplicates, reopen inactive.
+1. **Volunteers** — approve applicants, assign interests/teams, set platform role, merge duplicates, reopen inactive.
 2. **Inquiry Queue** — oversee early cases; claim/edit if needed.
 3. **Trap Queue / Hotspots / Equipment** — support field ops.
 4. **Clinics → Appointments / Clinic Events** — partners, slots, public events.
@@ -71,7 +78,7 @@ Not a personal queue; they supervise and fix access. Work history still appears 
 **Job:** First contact on colony help requests; hand off ready cases to trap teams. Inquiry does **not** close field cases as their main path.
 
 ### After login
-Dashboard emphasizes **My Cases** (claimed inquiry work), overdue follow-ups, work history.
+Dashboard emphasizes **My Cases** (claimed inquiry work), overdue follow-ups, work history. Sidebar includes Inquiry Queue, Trap Queue, Hotspots, Shift Board, and shared volunteer tools.
 
 ### Day-to-day
 1. Open **Inquiry Queue**.
@@ -89,12 +96,12 @@ Dashboard emphasizes **My Cases** (claimed inquiry work), overdue follow-ups, wo
 
 ---
 
-## 5. TNVR Team / Trap team lead
+## 5. TNVR Team
 
 **Job:** Run field work for assigned teams — trap, transport, recovery, clinic booking, gear.
 
 ### After login
-Dashboard shows team cases, personally claimed cases, shifts, pending clinic follow-ups when relevant.
+Dashboard shows team cases, personally claimed cases, shifts, pending clinic follow-ups when relevant. Sidebar includes Inquiry Queue, Trap Queue, Hotspots, Appointments, Equipment, Shift Board, and shared tools.
 
 ### Day-to-day
 1. **Trap Queue** — primary board (team-assigned + personally claimed).
@@ -112,104 +119,47 @@ Dashboard shows team cases, personally claimed cases, shifts, pending clinic fol
 
 ---
 
-## 6. Clinic Coordination
+## 6. Volunteer
 
-Volunteer roles: **Clinic Coordination** or **Colony Support** (usually on a Volunteer platform account).
-
-**Job:** Clinic partners, appointment capacity, public clinic events — not necessarily owning trap cases.
+**Job:** Staff events and community work; stay oriented via feed, resources, and profile. Same page access for every volunteer interest.
 
 ### After login
-Access to **Clinics**, **Clinic Events**, **Appointments**, often **Shift Board**.
+Core: Dashboard, **Shift Board**, **Team Feed**, **Resources**, **Profile**, **My Impact**; **Team Directory** if adult (birthday set). No Inquiry Queue, Trap Queue, Clinics, or Appointments unless the admin changes their **platform role**.
 
 ### Day-to-day
-1. **Clinics** — maintain partner clinic records.
-2. **Appointments** — add one-off or recurring available slots; monitor reservations.
-3. **Clinic Events** — public booking events, capacity, pricing/messaging.
-4. **Shift Board** — staff clinic/event days.
-5. Optional awareness of **Trap Queue** demand; **Resources** for SOPs.
-
-### Caseload
-Capacity and event calendars, not an inquiry caseload. Case linkage happens when field people reserve appointments against help requests.
-
----
-
-## 7. Field volunteers
-
-Examples: trapper, trap loaner, transporter, recovery (+ sometimes intake representative).
-
-**Job:** Execute claimed field work; keep status and gear accurate for the next person.
-
-### After login
-Case-worker access: **Inquiry** (if intake-capable), **Trap Queue**, **Hotspots**, **Appointments**, **Equipment**, shifts, feed, impact.
-
-### Day-to-day
-1. Dashboard → active / claimed work.
-2. **Trap Queue** — claim, update trapping/transport/recovery.
-3. **Equipment** — check gear out/in.
-4. **Appointments** — reserve/confirm clinic time with lead coordination.
-5. Optional **Intake** if they support first contact (same claim-before-edit rule).
-6. Optional **Shift Board** for event days (separate from case assignment).
-7. **My Impact** for personal record.
-
-### Caseload
-Personal claims (+ team assignment if on a trap team). Don’t edit cases claimed by someone else.
-
----
-
-## 8. Event / community volunteers
-
-Examples: event volunteer, photographer, crafter, snack patrol, outreach, etc. (no TNVR case interests).
-
-**Job:** Staff events and community work — not trap queues.
-
-### After login
-Core: Dashboard, **Shift Board**, **Team Feed**, **Resources**, **Profile**, **My Impact**; **Team Directory** if adult (birthday set).
-
-### Day-to-day
-1. **Shift Board** — open event → position → dated shift → **Sign Up**.
+1. **Shift Board** — open event → position → dated shift → **Sign Up** (or join waitlist).
 2. Confirm on **Dashboard** (upcoming shifts).
 3. Check **Team Feed** before the day.
-4. Read **Resources**; keep **Profile** roles/contact current.
+4. Read **Resources**; keep **Profile** interests/contact current so admins can match you to the right shifts.
 5. **My Impact** after helping.
 
 ### Caseload
-Shift claims, not cases. Signing up for a shift does **not** assign a trap case.
+Shift claims, not cases. Signing up for a shift does **not** assign a trap case. Interests help organizers know what you want to do; they do not change the sidebar.
 
 ---
 
-## 9. Minimal / general volunteer
+## 7. Quick map: who owns which page?
 
-Few interests, or not yet fully configured.
-
-### After login
-Dashboard, Feed, Resources, Profile, Impact; Shift Board only if eligible.
-
-### Day-to-day
-Orient via tour → complete **Profile** (roles, birthday, certs) so admins can expand access → watch **Feed** → claim shifts if available.
-
----
-
-## 10. Quick map: who owns which page?
-
-| Area | Primary owners |
+| Area | Platform roles |
 | --- | --- |
-| Inquiry Queue | Inquiry Team, admins, intake-capable volunteers |
-| Trap Queue | TNVR leads, field volunteers, admins |
-| Hotspots | Case workers |
-| Appointments | TNVR / clinic coord / field TNVR / admins |
-| Clinics & Clinic Events | Clinic coordination, admins |
-| Equipment | TNVR leads & TNVR volunteers, admins |
-| Shift Board | Most staff/eligible volunteers; admins create |
-| Volunteers / Admin / Reports | Admins |
-| Team Feed / Resources / Profile / My Impact | Almost everyone with login |
+| Inquiry Queue | Inquiry Team, TNVR Team, Administrator |
+| Trap Queue | Inquiry Team, TNVR Team, Administrator |
+| Hotspots | Inquiry Team, TNVR Team, Administrator |
+| Appointments | TNVR Team, Administrator |
+| Clinics & Clinic Events | Administrator |
+| Equipment | TNVR Team, Administrator |
+| Shift Board | Everyone with a login (all four platform roles) |
+| Volunteers / Admin / Reports | Administrator |
+| Team Feed / Resources / Profile / My Impact | Everyone with a login |
 
 ---
 
-## 11. Mental model for training
+## 8. Mental model for training
 
-1. **People first** (roles unlock queues).
-2. **Cases** move Inquiry → Trap → Clinic appointment → done.
-3. **Events/shifts** are a parallel path.
-4. **Claim** = ownership before edit (except admin).
-5. **Dashboard** summarizes; **queues/calendars** are where work happens.
+1. **Platform role** = which pages you can open.
+2. **Volunteer interests** = how you are staffed and labeled — not extra page unlocks.
+3. **Cases** move Inquiry → Trap → Clinic appointment → done (Inquiry / TNVR / Admin).
+4. **Events/shifts** are a parallel path for all volunteers.
+5. **Claim** = ownership before edit (except admin).
+6. **Dashboard** summarizes; **queues/calendars** are where work happens.
 `;

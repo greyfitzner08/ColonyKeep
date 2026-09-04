@@ -228,7 +228,6 @@ export function Sidebar({
             {isAdmin && (
               <AdminRolePreviewControl
                 previewKey={previewKey}
-                roleDescriptions={roleDescriptions}
               />
             )}
           </div>

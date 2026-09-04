@@ -10,9 +10,7 @@ export {
   PREVIEWABLE_PLATFORM_ROLES,
   ROLE_PREVIEW_COOKIE,
   applyRolePreview,
-  encodeVolunteerRolePreview,
   isValidRolePreviewKey,
-  isVolunteerRole,
   parseRolePreviewCookie,
   rolePreviewLabel,
 } from "@/lib/admin/role-preview.shared";
@@ -20,7 +18,11 @@ export {
 export async function getRolePreviewKey(): Promise<string | null> {
   const cookieStore = await cookies();
   const value = cookieStore.get(ROLE_PREVIEW_COOKIE)?.value;
-  return parseRolePreviewCookie(value) ? value ?? null : null;
+  const parsed = parseRolePreviewCookie(value);
+  if (!parsed) return null;
+  // Legacy interest cookies map to volunteer platform access.
+  if (value?.startsWith("v:")) return "volunteer";
+  return value ?? null;
 }
 
 export async function getEffectiveProfile(profile: Profile | null): Promise<Profile | null> {

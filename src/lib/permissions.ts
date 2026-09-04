@@ -1,25 +1,16 @@
-import { TNVR_ROLES } from "@/lib/constants";
 import { isAdult } from "@/lib/volunteers/age-eligibility";
-import type { Profile, UserRole, VolunteerRole } from "@/lib/types";
+import type { Profile, UserRole } from "@/lib/types";
 
-/** Volunteer interests that can sign up for event/shift board slots. */
-export const SHIFT_ELIGIBLE_VOLUNTEER_ROLES: VolunteerRole[] = [
-  "intake_representative",
-  "trapper",
-  "trap_loaner",
-  "transporter",
-  "recovery",
-  "event_volunteer",
-  "grant_writing",
-  "social_media",
-  "story_writer",
-  "snack_patrol",
-  "crafter",
-  "photographer",
-  "videographer",
-  "community_outreach",
-  "youth_volunteer",
-];
+/**
+ * Access tiers are driven by platform role only:
+ * - admin
+ * - inquiry_team
+ * - trap_team_lead (TNVR)
+ * - volunteer (same tools for every volunteer interest)
+ *
+ * Volunteer interests (trapper, event volunteer, etc.) are for staffing/labeling,
+ * not for unlocking different pages.
+ */
 
 export interface ProfilePermissions {
   label: string;
@@ -38,24 +29,13 @@ export interface ProfilePermissions {
   canViewVolunteerDirectory: boolean;
 }
 
-function volunteerRoles(profile: Profile): VolunteerRole[] {
-  return profile.volunteer_roles ?? [];
-}
-
-function hasVolunteerRole(profile: Profile, roles: VolunteerRole[]): boolean {
-  const mine = volunteerRoles(profile);
-  return roles.some((role) => mine.includes(role));
-}
-
+/** @deprecated Interests no longer gate clinic access; kept for call-site compatibility. */
 export function hasClinicCoordinationVolunteerRole(profile: Profile | null): boolean {
-  if (!profile) return false;
-  return hasVolunteerRole(profile, ["colony_support", "clinic_coordination"]);
+  return profile?.role === "admin";
 }
 
 export function canManageClinics(profile: Profile | null): boolean {
-  if (!profile?.role) return false;
-  if (profile.role === "admin") return true;
-  return hasClinicCoordinationVolunteerRole(profile);
+  return profile?.role === "admin";
 }
 
 export function canManageClinicEvents(profile: Profile | null): boolean {
@@ -66,52 +46,41 @@ export function canManageCommunityPartners(profile: Profile | null): boolean {
   return profile?.role === "admin";
 }
 
-function hasTnvrVolunteerInterest(profile: Profile): boolean {
-  return hasVolunteerRole(profile, TNVR_ROLES);
-}
-
+/** TNVR field tooling (equipment, etc.) — platform TNVR team or admin. */
 export function hasTnvrVolunteerRole(profile: Profile | null): boolean {
   if (!profile?.role) return false;
-  if (profile.role === "admin" || profile.role === "trap_team_lead") return true;
-  return hasTnvrVolunteerInterest(profile);
+  return profile.role === "admin" || profile.role === "trap_team_lead";
 }
 
 export function canManageTrapEquipment(profile: Profile | null): boolean {
   return hasTnvrVolunteerRole(profile);
 }
 
+/** Case queues — admin, inquiry, or TNVR platform roles only. */
 export function isCaseWorker(profile: Profile | null): boolean {
   if (!profile?.role) return false;
-  if (profile.role === "admin") return true;
-  if (profile.role === "inquiry_team" || profile.role === "trap_team_lead") return true;
-  if (hasVolunteerRole(profile, ["intake_representative"])) return true;
-  if (hasTnvrVolunteerInterest(profile)) return true;
-  return false;
+  return (
+    profile.role === "admin" ||
+    profile.role === "inquiry_team" ||
+    profile.role === "trap_team_lead"
+  );
 }
 
 export function canManageAppointments(profile: Profile | null): boolean {
   if (!profile?.role) return false;
-  if (profile.role === "admin") return true;
-  if (profile.role === "trap_team_lead") return true;
-  if (hasClinicCoordinationVolunteerRole(profile)) return true;
-  if (hasTnvrVolunteerInterest(profile)) return true;
-  return false;
+  return profile.role === "admin" || profile.role === "trap_team_lead";
 }
 
 export function canViewTrapTeamSection(profile: Profile | null): boolean {
   if (!profile?.role) return false;
   if (profile.role === "admin") return true;
-  if (!profile.team_id) return false;
-  if (profile.role === "trap_team_lead") return true;
-  return hasTnvrVolunteerInterest(profile);
+  if (profile.role !== "trap_team_lead") return false;
+  return Boolean(profile.team_id);
 }
 
+/** Every signed-in platform role can use Shift Board. */
 export function canClaimShifts(profile: Profile | null): boolean {
-  if (!profile?.role) return false;
-  if (profile.role === "admin") return true;
-  if (profile.role === "inquiry_team" || profile.role === "trap_team_lead") return true;
-  if (hasClinicCoordinationVolunteerRole(profile)) return true;
-  return hasVolunteerRole(profile, SHIFT_ELIGIBLE_VOLUNTEER_ROLES);
+  return Boolean(profile?.role);
 }
 
 export function canViewVolunteerDirectory(profile: Profile | null): boolean {
@@ -167,41 +136,31 @@ export function getProfilePermissions(profile: Profile | null): ProfilePermissio
     };
   }
 
-  const routes = new Set<string>(["/", "/profile", "/team-feed", "/my-impact", "/resources"]);
+  const routes = new Set<string>([
+    "/",
+    "/profile",
+    "/team-feed",
+    "/my-impact",
+    "/resources",
+    "/shift-board",
+  ]);
 
   if (volunteerDirectory) {
     routes.add("/team-directory");
   }
 
-  if (caseWorker) {
+  if (role === "inquiry_team") {
     routes.add("/intake");
     routes.add("/trap-queue");
     routes.add("/hotspots");
   }
 
-  if (appointments) {
+  if (role === "trap_team_lead") {
+    routes.add("/intake");
+    routes.add("/trap-queue");
+    routes.add("/hotspots");
     routes.add("/appointments");
-  }
-
-  if (canManageClinics(profile)) {
-    routes.add("/clinics");
-    routes.add("/clinic-events");
-  }
-
-  if (shifts) {
-    routes.add("/shift-board");
-  }
-
-  if (canManageTrapEquipment(profile)) {
     routes.add("/equipment");
-  }
-
-  if (canManageCommunityPartners(profile)) {
-    routes.add("/community-partners");
-  }
-
-  if (!caseWorker) {
-    routes.add("/"); // dashboard with community stats
   }
 
   const labels: Record<UserRole, string> = {
@@ -219,10 +178,10 @@ export function getProfilePermissions(profile: Profile | null): ProfilePermissio
     canViewTrapQueue: caseWorker,
     canManageAppointments: appointments,
     canClaimShifts: shifts,
-    canViewCommunityStats: !caseWorker || role === "volunteer",
+    canViewCommunityStats: role === "volunteer",
     canManageVolunteers: false,
-    canManageClinics: canManageClinics(profile),
-    canManageClinicEvents: canManageClinicEvents(profile),
+    canManageClinics: false,
+    canManageClinicEvents: false,
     canViewReports: false,
     canManageAdmin: false,
     canViewVolunteerDirectory: volunteerDirectory,

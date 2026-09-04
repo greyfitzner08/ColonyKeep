@@ -18,22 +18,15 @@ interface TrapQueuePageProps {
   searchParams: Promise<{ view?: string; scope?: string }>;
 }
 
-const TRAP_ROLES = new Set(["trap_team_lead", "volunteer", "admin"]);
-
 export default async function TrapQueuePage({ searchParams }: TrapQueuePageProps) {
   const params = await searchParams;
   const supabase = await createClient();
   const profile = await getAppProfile();
   const canWorkCases = isCaseWorker(profile);
   const isTrapRole =
-    canWorkCases &&
-    (profile?.role === "admin" ||
-      profile?.role === "trap_team_lead" ||
-      profile?.role === "inquiry_team" ||
-      TRAP_ROLES.has(profile?.role ?? "") ||
-      (profile?.volunteer_roles ?? []).some((role) =>
-        ["trapper", "trap_loaner", "transporter", "recovery", "intake_representative"].includes(role)
-      ));
+    profile?.role === "admin" ||
+    profile?.role === "trap_team_lead" ||
+    profile?.role === "inquiry_team";
 
   const isHistoryScope = params.scope === "history";
   const defaultView: TrapQueueView = "all";

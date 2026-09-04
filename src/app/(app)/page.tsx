@@ -14,7 +14,6 @@ import {
   canClaimShifts,
   canManageAppointments,
   canViewTrapTeamSection,
-  hasClinicCoordinationVolunteerRole,
   isCaseWorker,
 } from "@/lib/permissions";
 import type { HelpRequest, Shift } from "@/lib/types";
@@ -42,23 +41,11 @@ export default async function DashboardPage() {
   const email = profile.email ?? "";
   const today = todayIsoDate();
   const caseWorker = isCaseWorker(profile);
-  const trapWorker =
-    caseWorker &&
-    (profile.role === "admin" ||
-      profile.role === "trap_team_lead" ||
-      profile.role === "volunteer" ||
-      (profile.volunteer_roles ?? []).some((role) =>
-        ["trapper", "trap_loaner", "transporter", "recovery"].includes(role)
-      ));
-  const intakeWorker =
-    caseWorker &&
-    (profile.role === "admin" ||
-      profile.role === "inquiry_team" ||
-      (profile.volunteer_roles ?? []).includes("intake_representative"));
+  const trapWorker = profile.role === "admin" || profile.role === "trap_team_lead";
+  const intakeWorker = profile.role === "admin" || profile.role === "inquiry_team";
   const showShifts = canClaimShifts(profile);
   const showAppointments = canManageAppointments(profile);
-  const showProgramAppointments =
-    profile.role === "admin" || hasClinicCoordinationVolunteerRole(profile);
+  const showProgramAppointments = profile.role === "admin";
   const showTrapTeam = canViewTrapTeamSection(profile);
 
   const { data: myShiftsRaw } = showShifts

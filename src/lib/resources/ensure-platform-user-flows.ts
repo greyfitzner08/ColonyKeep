@@ -19,10 +19,19 @@ export async function ensurePlatformUserFlowsDocument(): Promise<void> {
     .maybeSingle();
 
   if (existing?.id) {
-    if (!existing.body_markdown?.trim()) {
+    const needsAccessModelRefresh =
+      !existing.body_markdown?.trim() ||
+      existing.body_markdown.includes("that unlock more tools") ||
+      !existing.body_markdown.includes("Page access is controlled by platform role only");
+
+    if (needsAccessModelRefresh) {
       await service
         .from("library_documents")
-        .update({ body_markdown: PLATFORM_USER_FLOWS_MARKDOWN })
+        .update({
+          body_markdown: PLATFORM_USER_FLOWS_MARKDOWN,
+          description:
+            "Start-to-finish guide by platform role: Administrator, Inquiry, TNVR, and Volunteer.",
+        })
         .eq("id", existing.id);
     }
     return;
@@ -31,7 +40,7 @@ export async function ensurePlatformUserFlowsDocument(): Promise<void> {
   await service.from("library_documents").insert({
     title: TITLE,
     description:
-      "Start-to-finish guide for each role: first login through daily caseload and event work.",
+      "Start-to-finish guide by platform role: Administrator, Inquiry, TNVR, and Volunteer.",
     file_url: "",
     section: SECTION,
     view_roles: ["admin", "inquiry_team", "trap_team_lead", "volunteer"],

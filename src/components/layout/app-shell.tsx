@@ -35,7 +35,7 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
     signupRoleCatalog = signupCatalog;
   }
 
-  const previewLabel = previewKey ? rolePreviewLabel(previewKey, roleDescriptions) : null;
+  const previewLabel = previewKey ? rolePreviewLabel(previewKey) : null;
 
   let application: VolunteerApplication | null = null;
   if (!isActualAdmin && profile?.email) {

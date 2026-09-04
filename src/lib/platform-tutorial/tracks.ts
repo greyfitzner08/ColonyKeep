@@ -21,11 +21,7 @@ import {
   Users,
 } from "lucide-react";
 import type { ProfilePermissions } from "@/lib/permissions";
-import {
-  canManageClinics,
-  getProfilePermissions,
-  isCaseWorker,
-} from "@/lib/permissions";
+import { getProfilePermissions } from "@/lib/permissions";
 import type { PlatformTutorialStep } from "@/lib/platform-tutorial/steps";
 import type { Profile, UserRole } from "@/lib/types";
 
@@ -63,10 +59,10 @@ const ADMIN_TRACK: AdvancedTutorialTrack = {
       id: "adv-admin-people",
       title: "Start with people",
       description:
-        "Approve volunteer applications and assign roles in Volunteers. Role access controls which queues and actions someone can use — fixing access problems usually starts here.",
+        "Approve volunteer applications and assign platform roles in Volunteers. Platform role controls which queues and pages someone can open — fixing access problems usually starts here.",
       icon: Users,
       navHref: "/volunteers",
-      flowNote: "Roles unlock Inquiry Queue, Trap Queue, Shift Board, Clinics, and more.",
+      flowNote: "Platform role unlocks Inquiry Queue, Trap Queue, Clinics, etc. Interests are for staffing only.",
     }),
     step({
       id: "adv-admin-intake",
@@ -520,12 +516,12 @@ const EVENT_VOLUNTEER_TRACK: AdvancedTutorialTrack = {
     }),
     step({
       id: "adv-event-profile",
-      title: "Keep roles and contact info updated",
+      title: "Keep interests and contact info updated",
       description:
-        "My Profile holds your volunteer interests and certificate uploads. Accurate roles help admins invite you to the right events.",
+        "My Profile holds your volunteer interests and certificate uploads. Interests help admins match you to the right shifts — they don’t change which pages you can open.",
       icon: UserRound,
       navHref: "/profile",
-      flowNote: "Profile roles → which opportunities fit you.",
+      flowNote: "Interests → staffing fit; platform role → page access.",
     }),
     step({
       id: "adv-event-impact",
@@ -587,12 +583,12 @@ const GENERAL_TRACK: AdvancedTutorialTrack = {
     }),
     step({
       id: "adv-general-profile",
-      title: "Profile unlocks more work",
+      title: "Keep profile details current",
       description:
-        "Complete contact details, roles, and certificates on My Profile so admins can assign the right access.",
+        "Complete contact details, interests, and certificates on My Profile so organizers can match you to shifts. Page access still comes from your platform role.",
       icon: UserRound,
       navHref: "/profile",
-      flowNote: "Profile completeness → eligibility for more queues and teams.",
+      flowNote: "Profile completeness → better staffing matches.",
     }),
     step({
       id: "adv-general-impact",
@@ -615,13 +611,9 @@ function filterTrackSteps(
   };
 }
 
-function hasClinicVolunteerRole(profile: Profile): boolean {
-  const roles = profile.volunteer_roles ?? [];
-  return roles.includes("clinic_coordination") || roles.includes("colony_support");
-}
-
 /**
- * Pick the advanced workflow track that best matches platform role + volunteer interests.
+ * Pick the advanced workflow track that best matches platform role.
+ * Volunteer interests do not change the track — all volunteers share one path.
  */
 export function advancedTrackForProfile(profile: Profile | null): AdvancedTutorialTrack | null {
   const permissions = getProfilePermissions(profile);
@@ -636,14 +628,9 @@ export function advancedTrackForProfile(profile: Profile | null): AdvancedTutori
     track = INQUIRY_TRACK;
   } else if (role === "trap_team_lead") {
     track = TRAP_LEAD_TRACK;
-  } else if (canManageClinics(profile) || hasClinicVolunteerRole(profile)) {
-    track = CLINIC_TRACK;
-  } else if (isCaseWorker(profile)) {
-    track = CASE_VOLUNTEER_TRACK;
-  } else if (permissions.canClaimShifts) {
-    track = EVENT_VOLUNTEER_TRACK;
   } else {
-    track = GENERAL_TRACK;
+    // All volunteers (and any residual clinic interests) use the event/community track.
+    track = EVENT_VOLUNTEER_TRACK;
   }
 
   return filterTrackSteps(track, permissions);

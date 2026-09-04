@@ -131,6 +131,7 @@ export const ROLE_PERMISSIONS: Record<
       "/",
       "/intake",
       "/case",
+      "/trap-queue",
       "/hotspots",
       "/shift-board",
       "/team-feed",
@@ -158,7 +159,6 @@ export const ROLE_PERMISSIONS: Record<
     label: "Volunteer",
     routes: [
       "/",
-      "/trap-queue",
       "/shift-board",
       "/team-feed",
       "/my-impact",
