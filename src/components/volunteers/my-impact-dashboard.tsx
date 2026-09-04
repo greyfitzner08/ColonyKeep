@@ -34,8 +34,13 @@ import {
 } from "@/components/ui/alert-dialog";
 import { createClient } from "@/lib/supabase/client";
 import { formatDate } from "@/lib/utils";
-import type { VolunteerHours, Shift, Profile } from "@/lib/types";
+import type { VolunteerHours, Shift, Profile, HelpRequest } from "@/lib/types";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { getStatusLabel } from "@/lib/cases/statuses";
+import Link from "next/link";
+import { Badge } from "@/components/ui/badge";
+import { STATUS_COLORS } from "@/lib/constants";
+import { cn } from "@/lib/utils";
 
 const HOUR_TYPES = [
   { value: "trapping", label: "Trapping" },
@@ -79,7 +84,7 @@ function formatHourType(type: string) {
 interface MyImpactDashboardProps {
   hours: VolunteerHours[];
   shifts: Shift[];
-  casesWorked: number;
+  caseWorkHistory: HelpRequest[];
   profile: Profile | null;
 }
 
@@ -139,7 +144,7 @@ function HourFormFields({
   );
 }
 
-export function MyImpactDashboard({ hours, shifts, casesWorked, profile }: MyImpactDashboardProps) {
+export function MyImpactDashboard({ hours, shifts, caseWorkHistory, profile }: MyImpactDashboardProps) {
   const router = useRouter();
   const [logForm, setLogForm] = useState(defaultLogForm);
   const [editingEntry, setEditingEntry] = useState<VolunteerHours | null>(null);
@@ -239,7 +244,7 @@ export function MyImpactDashboard({ hours, shifts, casesWorked, profile }: MyImp
         </Card>
         <Card>
           <CardHeader><CardTitle className="text-sm">Cases Worked</CardTitle></CardHeader>
-          <CardContent><p className="text-2xl font-bold">{casesWorked}</p></CardContent>
+          <CardContent><p className="text-2xl font-bold">{caseWorkHistory.length}</p></CardContent>
         </Card>
         <Card>
           <CardHeader><CardTitle className="text-sm">Hour Types</CardTitle></CardHeader>
@@ -271,6 +276,51 @@ export function MyImpactDashboard({ hours, shifts, casesWorked, profile }: MyImp
           <Button onClick={logHours} className="md:col-span-2">
             Log Hours
           </Button>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Case work history</CardTitle>
+          <p className="text-sm text-muted-foreground font-normal">
+            Cases you claimed, annotated, reserved appointments for, or logged clinic results on.
+          </p>
+        </CardHeader>
+        <CardContent>
+          {caseWorkHistory.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              No case work yet. Activity on cases will appear here over time.
+            </p>
+          ) : (
+            <div className="space-y-2">
+              {caseWorkHistory.slice(0, 40).map((hr) => (
+                <Link
+                  key={hr.id}
+                  href={`/case/${hr.id}`}
+                  className="flex items-center justify-between gap-3 rounded-lg border px-3 py-2.5 transition-colors hover:bg-muted/50"
+                >
+                  <div className="min-w-0">
+                    <p className="font-medium truncate">{hr.case_number}</p>
+                    <p className="text-sm text-muted-foreground truncate">
+                      {hr.contact_name || hr.colony_city || "Case"}
+                      {hr.colony_zip ? ` · ${hr.colony_zip}` : ""}
+                    </p>
+                  </div>
+                  <Badge
+                    variant="secondary"
+                    className={cn("shrink-0", STATUS_COLORS[hr.status] ?? "")}
+                  >
+                    {getStatusLabel(hr.status)}
+                  </Badge>
+                </Link>
+              ))}
+              {caseWorkHistory.length > 40 && (
+                <p className="text-xs text-muted-foreground pt-1">
+                  Showing your 40 most recent cases.
+                </p>
+              )}
+            </div>
+          )}
         </CardContent>
       </Card>
 

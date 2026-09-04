@@ -35,17 +35,14 @@ export async function POST(request: NextRequest) {
   const actorEmail = profile!.email ?? "";
   const actorName = profile!.full_name ?? profile!.email ?? "";
   const priorHistory = normalizeHistoryLog(existing.history_log);
-  const recordInquiryHistory =
-    profile!.role === "inquiry_team" || isIntakeQueueStatus(status);
 
-  function appendHistory(actionName: "claim" | "unclaim", details: string): HistoryEntry[] | undefined {
-    if (!recordInquiryHistory || !actorEmail.trim()) return undefined;
+  function appendHistory(actionName: "claim" | "unclaim", details: string): HistoryEntry[] {
     const entry: HistoryEntry = {
       id: crypto.randomUUID(),
       timestamp: new Date().toISOString(),
       action: actionName,
-      actor_email: actorEmail,
-      actor_name: actorName,
+      actor_email: actorEmail || null,
+      actor_name: actorName || null,
       details,
     };
     return [...priorHistory, entry];
@@ -87,8 +84,9 @@ export async function POST(request: NextRequest) {
       updates.status = "new_intake";
     }
 
-    const history_log = appendHistory("unclaim", "Released inquiry claim");
-    if (history_log) updates.history_log = history_log;
+    if (actorEmail.trim()) {
+      updates.history_log = appendHistory("unclaim", "Released case claim");
+    }
 
     const { error } = await service.from("help_requests").update(updates).eq("id", helpRequestId);
 
@@ -123,11 +121,12 @@ export async function POST(request: NextRequest) {
     updates.status = "claimed";
   }
 
-  const history_log = appendHistory(
-    "claim",
-    isIntakeQueueStatus(status) ? "Claimed for inquiry review" : "Claimed for trap work"
-  );
-  if (history_log) updates.history_log = history_log;
+  if (actorEmail.trim()) {
+    updates.history_log = appendHistory(
+      "claim",
+      isIntakeQueueStatus(status) ? "Claimed for inquiry review" : "Claimed for trap work"
+    );
+  }
 
   const { error } = await service.from("help_requests").update(updates).eq("id", helpRequestId);
 

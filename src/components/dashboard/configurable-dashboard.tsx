@@ -38,7 +38,7 @@ interface ConfigurableDashboardProps {
     overdueFollowUps: boolean;
     shifts: boolean;
     myCases: boolean;
-    inquiryWorkHistory: boolean;
+    workHistory: boolean;
     myTrapWork: boolean;
     trapTeam: boolean;
     appointments: boolean;
@@ -47,7 +47,7 @@ interface ConfigurableDashboardProps {
   overdueFollowUps: { id: string; case_number: string; follow_up_due_date: string }[];
   myShifts: Shift[];
   myCases: HelpRequest[];
-  inquiryWorkHistory: HelpRequest[];
+  workHistory: HelpRequest[];
   teamCases: HelpRequest[];
   userEmail: string;
   intakeWorker: boolean;
@@ -97,7 +97,7 @@ export function ConfigurableDashboard({
   overdueFollowUps,
   myShifts,
   myCases,
-  inquiryWorkHistory,
+  workHistory,
   teamCases,
   userEmail,
   intakeWorker,
@@ -116,7 +116,7 @@ export function ConfigurableDashboard({
     if (sections.overdueFollowUps) ids.push("overdue-followups");
     if (sections.shifts) ids.push("shifts");
     if (sections.myCases) ids.push("my-cases");
-    if (sections.inquiryWorkHistory) ids.push("inquiry-work-history");
+    if (sections.workHistory) ids.push("work-history");
     if (sections.myTrapWork) ids.push("my-trap-work");
     if (sections.trapTeam) ids.push("trap-team");
     if (sections.communityStats) ids.push("community-stats");
@@ -226,18 +226,18 @@ export function ConfigurableDashboard({
             isAdmin={isAdmin}
           />
         );
-      case "inquiry-work-history":
+      case "work-history":
         return (
           <MyCasesSection
-            title="Inquiry work history"
-            description="Cases you previously reviewed that have left the inquiry queue (for example after routing to a trap team)."
-            cases={inquiryWorkHistory}
-            emptyMessage="No past inquiry cases yet. Route a claimed case to a trap team and it will show up here."
+            title="Work history"
+            description="Cases you have claimed, annotated, reserved appointments for, or logged clinic results on."
+            cases={workHistory}
+            emptyMessage="No case work yet. Claim a case, add a note, reserve a clinic slot, or log a clinic result and it will show up here."
             showClaimHint
-            hintHref="/intake"
-            hintLabel="Go to inquiry queue"
-            footerHref="/intake?scope=history"
-            footerLabel="Open full work history"
+            hintHref="/my-impact"
+            hintLabel="Open My Impact"
+            footerHref="/my-impact"
+            footerLabel="See full work history"
             canClaim={false}
             userEmail={userEmail}
             isAdmin={isAdmin}

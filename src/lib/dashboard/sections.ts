@@ -3,7 +3,7 @@ export type DashboardSectionId =
   | "overdue-followups"
   | "shifts"
   | "my-cases"
-  | "inquiry-work-history"
+  | "work-history"
   | "my-trap-work"
   | "trap-team"
   | "appointments"
@@ -13,7 +13,7 @@ export const DEFAULT_SECTION_ORDER: DashboardSectionId[] = [
   "overdue-followups",
   "shifts",
   "my-cases",
-  "inquiry-work-history",
+  "work-history",
   "my-trap-work",
   "trap-team",
   "community-stats",
@@ -26,7 +26,7 @@ export const SECTION_LABELS: Record<DashboardSectionId, string> = {
   "overdue-followups": "Overdue Follow-ups",
   shifts: "My Upcoming Shifts",
   "my-cases": "My Cases",
-  "inquiry-work-history": "Inquiry Work History",
+  "work-history": "Work History",
   "my-trap-work": "My Trap Work",
   "trap-team": "Trap Team",
   appointments: "Clinic appointments",
@@ -51,8 +51,12 @@ export function mergeSectionOrder(
 ): DashboardSectionId[] {
   const visible = new Set(visibleIds);
   const ordered: DashboardSectionId[] = [];
+  const legacyMap: Record<string, DashboardSectionId> = {
+    "inquiry-work-history": "work-history",
+  };
 
-  for (const id of savedOrder ?? DEFAULT_SECTION_ORDER) {
+  for (const raw of savedOrder ?? DEFAULT_SECTION_ORDER) {
+    const id = (legacyMap[raw] ?? raw) as DashboardSectionId;
     if (visible.has(id) && !ordered.includes(id)) {
       ordered.push(id);
     }
