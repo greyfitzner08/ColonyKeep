@@ -1038,7 +1038,7 @@ export function VolunteersManager({
           <Check className="h-4 w-4 mr-1" />
           {actingId === app.id
             ? "Working..."
-            : app.status === "inactive"
+            : app.status === "inactive" || app.status === "rejected"
               ? "Re-approve"
               : rolesReady
               ? context.canApproveWithPendingTraining && !context.allRequirementsMet
@@ -1060,18 +1060,34 @@ export function VolunteersManager({
             disabled={actingId === app.id}
           >
             <MessageCircle className="h-4 w-4 mr-1" />
-            {app.status === "needs_followup" ? "Update Follow-up" : "Follow-up"}
+            {app.status === "needs_followup"
+              ? "Update Follow-up"
+              : app.status === "rejected"
+                ? "Move to follow-up"
+                : "Follow-up"}
           </Button>
         )}
-        <Button
-          size="sm"
-          variant="destructive"
-          onClick={() => handleRejectApplication(app, context)}
-          disabled={actingId === app.id}
-        >
-          <X className="h-4 w-4 mr-1" />
-          {isRoleExpansion ? "Reject expansion" : "Reject"}
-        </Button>
+        {app.status !== "rejected" && (
+          <Button
+            size="sm"
+            variant="destructive"
+            onClick={() => handleRejectApplication(app, context)}
+            disabled={actingId === app.id}
+          >
+            <X className="h-4 w-4 mr-1" />
+            {isRoleExpansion ? "Reject expansion" : "Reject"}
+          </Button>
+        )}
+        {app.status === "rejected" && (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => void handleStatusChange(app, "pending")}
+            disabled={actingId === app.id}
+          >
+            Move to pending
+          </Button>
+        )}
       </div>
     ) : null;
 
@@ -1098,9 +1114,20 @@ export function VolunteersManager({
             </SelectContent>
           </Select>
           <p className="text-xs text-muted-foreground">
-            Inactive blocks login until the volunteer is set back to approved.
+            Status is not final. Rejected and inactive applications can be moved back to pending,
+            follow-up, or approved. Inactive blocks login until re-approved.
           </p>
         </div>
+
+        {app.status === "rejected" && (
+          <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-950">
+            <p className="font-medium">Rejected application</p>
+            <p className="mt-1">
+              This is not a dead end. Use the status menu or the buttons below to reopen as pending,
+              move to follow-up, mark inactive, or re-approve.
+            </p>
+          </div>
+        )}
 
         {app.status === "inactive" && (
           <div className="rounded-md border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-900">

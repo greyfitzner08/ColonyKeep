@@ -52,7 +52,11 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  if (status === "approved" && existing.status === "inactive") {
+  // Re-enable login when leaving inactive/rejected for an active application path.
+  if (
+    (existing.status === "inactive" || existing.status === "rejected") &&
+    (status === "approved" || status === "pending" || status === "needs_followup")
+  ) {
     const unbanResult = await unbanVolunteerAuthUser(service, existing.email);
     if (unbanResult && "error" in unbanResult) {
       return NextResponse.json({ error: unbanResult.error }, { status: 400 });

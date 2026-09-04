@@ -20,7 +20,12 @@ export type ApplicationStatusFilter =
 
 export type ApplicationViewMode = "cards" | "table";
 
-const REVIEWABLE_STATUSES = new Set(["pending", "needs_followup", "inactive"]);
+const REVIEWABLE_STATUSES = new Set([
+  "pending",
+  "needs_followup",
+  "inactive",
+  "rejected",
+]);
 
 export function canApproveImportedVolunteerWithPendingTraining(
   application: VolunteerApplication,
@@ -240,6 +245,12 @@ export function getApplicationReviewContext(
     needsAttention = true;
     attentionLabel = rolesReady ? "Follow-up — ready" : "Follow-up required";
     attentionDetail = application.admin_notes?.trim() || null;
+  } else if (application.status === "rejected") {
+    needsAttention = true;
+    attentionLabel = "Rejected — can reopen";
+    attentionDetail =
+      application.admin_notes?.trim() ||
+      "Change status or approve again when ready to reconsider.";
   } else if (hasPendingTraining) {
     needsAttention = true;
     attentionLabel = "Training pending";
@@ -307,7 +318,8 @@ export function attentionPriority(
   if (context.isRoleExpansion && context.rolesReady) return 4;
   if (application.status === "needs_followup") return 5;
   if (application.status === "pending") return 6;
-  return 7;
+  if (application.status === "rejected") return 7;
+  return 8;
 }
 
 export function countApplicationsNeedingAttention(
