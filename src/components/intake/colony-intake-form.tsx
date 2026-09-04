@@ -320,6 +320,9 @@ export function ColonyIntakeForm() {
               Your case number is <strong>{caseNumber}</strong>. Our team will review your report
               and contact you soon.
             </p>
+            <p className="pt-2 text-xs text-muted-foreground/80">
+              {INTAKE_COMMUNICATIONS_NOTICE}
+            </p>
           </CardContent>
         </Card>
       </div>
@@ -856,17 +859,15 @@ export function ColonyIntakeForm() {
                   Next <ChevronRight className="h-4 w-4" />
                 </Button>
               ) : (
-                <div className="flex flex-col items-end gap-2">
-                  <Button type="button" onClick={handleSubmit} disabled={submitting}>
-                    {submitting ? "Submitting..." : "Submit Request"}
-                  </Button>
-                  <p className="max-w-xs text-right text-xs text-muted-foreground/80">
-                    {INTAKE_COMMUNICATIONS_NOTICE}
-                  </p>
-                </div>
+                <Button type="button" onClick={handleSubmit} disabled={submitting}>
+                  {submitting ? "Submitting..." : "Submit Request"}
+                </Button>
               )}
             </div>
             {submitError && <p className="text-sm text-destructive">{submitError}</p>}
+            <p className="pt-2 text-center text-xs text-muted-foreground/80">
+              {INTAKE_COMMUNICATIONS_NOTICE}
+            </p>
           </CardContent>
         </Card>
       </div>
