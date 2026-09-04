@@ -3,11 +3,18 @@ import { getAppProfile } from "@/lib/auth";
 import { documentVisibleToProfile } from "@/lib/permissions";
 import { LibraryManager } from "@/components/resources/library-manager";
 import { PlatformTutorialTrigger } from "@/components/platform-tutorial/platform-tutorial-trigger";
+import { ensurePlatformUserFlowsDocument } from "@/lib/resources/ensure-platform-user-flows";
 import type { LibraryDocument } from "@/lib/types";
 
 export default async function ResourcesPage() {
   const supabase = await createClient();
   const profile = await getAppProfile();
+
+  try {
+    await ensurePlatformUserFlowsDocument();
+  } catch {
+    // Column may not exist yet on a fresh preview; page still loads other docs.
+  }
 
   const { data: documents } = await supabase
     .from("library_documents")

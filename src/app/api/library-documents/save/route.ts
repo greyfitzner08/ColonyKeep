@@ -19,15 +19,27 @@ export async function POST(request: NextRequest) {
     VALID_ROLES.has(role as UserRole)
   );
 
-  if (!body.title?.trim() || !body.file_url?.trim()) {
-    return NextResponse.json({ error: "Title and file URL are required" }, { status: 400 });
+  const title = typeof body.title === "string" ? body.title.trim() : "";
+  const fileUrl = typeof body.file_url === "string" ? body.file_url.trim() : "";
+  const bodyMarkdown =
+    typeof body.body_markdown === "string" ? body.body_markdown.trim() : "";
+
+  if (!title) {
+    return NextResponse.json({ error: "Title is required" }, { status: 400 });
+  }
+  if (!fileUrl && !bodyMarkdown) {
+    return NextResponse.json(
+      { error: "Add a file/link or write in-app guide content." },
+      { status: 400 }
+    );
   }
 
   const service = await createServiceClient();
   const payload = {
-    title: body.title.trim(),
+    title,
     description: body.description?.trim() || null,
-    file_url: body.file_url.trim(),
+    file_url: fileUrl,
+    body_markdown: bodyMarkdown || null,
     section: body.section?.trim() || "General",
     view_roles: viewRoles.length > 0 ? viewRoles : ["admin"],
     is_active: true,

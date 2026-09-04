@@ -539,6 +539,8 @@ export interface LibraryDocument {
   title: string;
   description: string | null;
   file_url: string;
+  /** In-app markdown guide; when set, Resources opens a reader instead of an external link. */
+  body_markdown: string | null;
   section: string;
   view_roles: string[];
   is_active: boolean;
