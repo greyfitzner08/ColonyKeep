@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireShiftAccess } from "@/lib/api/auth";
 import { isAppointmentDatePast } from "@/lib/appointments/slot-date";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createServiceClient } from "@/lib/supabase/server";
 
 type ClaimAction =
   | "claim"
@@ -32,16 +32,18 @@ export async function POST(request: NextRequest) {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!user?.email) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await request.json();
   const shiftId = body.shiftId as string | undefined;
   const action = body.action as ClaimAction | undefined;
-  const email = user.email!;
+  const email = user.email;
   const emailLower = email.toLowerCase();
   const isAdmin = profile?.role === "admin";
 
-  const { data: shift } = await supabase.from("shifts").select("*").eq("id", shiftId).single();
+  // Service role after auth: volunteers can no longer UPDATE shifts directly via RLS.
+  const service = await createServiceClient();
+  const { data: shift } = await service.from("shifts").select("*").eq("id", shiftId).single();
   if (!shift) return NextResponse.json({ error: "Shift not found" }, { status: 404 });
 
   let signedUp = [...(shift.signed_up_emails ?? [])];
@@ -112,7 +114,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid action" }, { status: 400 });
   }
 
-  const { error } = await supabase
+  const { error } = await service
     .from("shifts")
     .update({
       signed_up_emails: signedUp,
