@@ -15,11 +15,22 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { ROLE_PERMISSIONS } from "@/lib/constants";
+import { ROLE_PERMISSIONS, VOLUNTEER_ROLES, isKnownUserRole } from "@/lib/constants";
 import type { LibraryDocument, UserRole } from "@/lib/types";
 import { ExternalLink, Plus, Trash2, Upload } from "lucide-react";
 
 const ALL_ROLES = Object.keys(ROLE_PERMISSIONS) as UserRole[];
+
+function formatAccessRoleLabel(role: string): string {
+  if (isKnownUserRole(role)) return ROLE_PERMISSIONS[role].label;
+  const volunteerLabel = VOLUNTEER_ROLES.find((entry) => entry.value === role)?.label;
+  if (volunteerLabel) return volunteerLabel;
+  return role
+    .split(/[_-]+/)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+    .join(" ");
+}
 
 interface LibraryManagerProps {
   documents: LibraryDocument[];
@@ -80,7 +91,7 @@ export function LibraryManager({ documents: initial, isAdmin }: LibraryManagerPr
       file_url: doc.file_url,
       section: doc.section || "General",
       new_section: "",
-      view_roles: doc.view_roles,
+      view_roles: doc.view_roles.filter(isKnownUserRole),
     });
     setUploadedFileName(null);
     setError(null);
@@ -229,7 +240,7 @@ export function LibraryManager({ documents: initial, isAdmin }: LibraryManagerPr
                         <div className="flex flex-wrap gap-1">
                           {doc.view_roles.map((role) => (
                             <Badge key={role} variant="outline" className="text-xs">
-                              {ROLE_PERMISSIONS[role]?.label ?? role}
+                              {formatAccessRoleLabel(role)}
                             </Badge>
                           ))}
                         </div>

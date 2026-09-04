@@ -540,7 +540,7 @@ export interface LibraryDocument {
   description: string | null;
   file_url: string;
   section: string;
-  view_roles: UserRole[];
+  view_roles: string[];
   is_active: boolean;
   created_by_email: string | null;
   created_at: string;

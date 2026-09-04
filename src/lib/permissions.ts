@@ -253,7 +253,7 @@ export function canAccessRoute(profile: Profile | null, pathname: string): boole
 }
 
 export function documentVisibleToProfile(
-  viewRoles: UserRole[],
+  viewRoles: string[],
   profile: Profile | null,
   section?: string
 ): boolean {
