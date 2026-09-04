@@ -11,6 +11,16 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   AddressAutocomplete,
   formatAddressPartsLine,
 } from "@/components/forms/address-autocomplete";
@@ -123,6 +133,12 @@ interface EditFormState {
   notes: string;
 }
 
+type DeleteTarget = {
+  ids: string[];
+  title: string;
+  description: string;
+};
+
 function newKey(prefix: string) {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
@@ -209,6 +225,8 @@ export function ShiftBoard({
   const [additionalSlots, setAdditionalSlots] = useState<TimeSlotForm[]>([]);
   const [createTitle, setCreateTitle] = useState("Create Event");
   const [lockingEventName, setLockingEventName] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const filtered = typeFilter === "all"
     ? initial
@@ -414,6 +432,75 @@ export function ShiftBoard({
       body: JSON.stringify({ shiftId, action: "remove", email }),
     });
     router.refresh();
+  }
+
+  async function confirmDelete() {
+    if (!deleteTarget || deleteTarget.ids.length === 0) return;
+    setDeleting(true);
+    setFormError(null);
+    try {
+      const response = await fetch("/api/shifts/delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: deleteTarget.ids }),
+      });
+      const result = await response.json().catch(() => null);
+      if (!response.ok) {
+        setFormError(result?.error ?? "Unable to delete");
+        return;
+      }
+      setDeleteTarget(null);
+      setEditOpen(false);
+      setEditingShift(null);
+      router.refresh();
+    } finally {
+      setDeleting(false);
+    }
+  }
+
+  function requestDeleteShift(shift: Shift) {
+    const signupCount = shift.signed_up_emails?.length ?? 0;
+    setFormError(null);
+    setDeleteTarget({
+      ids: [shift.id],
+      title: "Delete this shift?",
+      description:
+        signupCount > 0
+          ? `This removes ${formatDate(shift.date)} (${formatTimeRange(shift.start_time, shift.end_time)}) and clears ${signupCount} signup${signupCount === 1 ? "" : "s"}.`
+          : `This removes ${formatDate(shift.date)} (${formatTimeRange(shift.start_time, shift.end_time)}).`,
+    });
+  }
+
+  function requestDeletePosition(eventName: string, positionName: string, shifts: Shift[]) {
+    const signupCount = shifts.reduce(
+      (sum, shift) => sum + (shift.signed_up_emails?.length ?? 0),
+      0
+    );
+    setFormError(null);
+    setDeleteTarget({
+      ids: shifts.map((shift) => shift.id),
+      title: `Delete position "${positionName}"?`,
+      description:
+        signupCount > 0
+          ? `This deletes ${shifts.length} shift${shifts.length === 1 ? "" : "s"} under ${eventName} and clears ${signupCount} signup${signupCount === 1 ? "" : "s"}.`
+          : `This deletes ${shifts.length} shift${shifts.length === 1 ? "" : "s"} under ${eventName}.`,
+    });
+  }
+
+  function requestDeleteEvent(eventName: string, shifts: Shift[]) {
+    const signupCount = shifts.reduce(
+      (sum, shift) => sum + (shift.signed_up_emails?.length ?? 0),
+      0
+    );
+    setFormError(null);
+    setDeleteTarget({
+      ids: shifts.map((shift) => shift.id),
+      title: `Delete event "${eventName}"?`,
+      description:
+        signupCount > 0
+          ? `This deletes the whole event (${shifts.length} shift${shifts.length === 1 ? "" : "s"}) and clears ${signupCount} signup${signupCount === 1 ? "" : "s"}.`
+          : `This deletes the whole event (${shifts.length} shift${shifts.length === 1 ? "" : "s"}).`,
+    });
   }
 
   function signupLabel(email: string) {
@@ -727,16 +814,27 @@ export function ShiftBoard({
                 summary={`${group.positions.length} position${group.positions.length === 1 ? "" : "s"} · ${group.shifts.length} shift${group.shifts.length === 1 ? "" : "s"} · ${filled}/${needed} filled · ${dateSummary}`}
                 headerAction={
                   isAdmin ? (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="shrink-0"
-                      onClick={() => openAddShiftsToEvent(group.name, group.shifts)}
-                    >
-                      <Plus className="h-4 w-4 mr-1" />
-                      Add shifts
-                    </Button>
+                    <div className="flex shrink-0 items-center gap-1.5">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => openAddShiftsToEvent(group.name, group.shifts)}
+                      >
+                        <Plus className="h-4 w-4 mr-1" />
+                        Add shifts
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-destructive hover:text-destructive"
+                        title="Delete event"
+                        onClick={() => requestDeleteEvent(group.name, group.shifts)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   ) : undefined
                 }
               >
@@ -759,6 +857,22 @@ export function ShiftBoard({
                         titleClassName="text-base"
                         summary={`${position.shifts.length} shift${position.shifts.length === 1 ? "" : "s"} · ${positionFilled}/${positionNeeded} volunteers`}
                         className="bg-muted/10"
+                        headerAction={
+                          isAdmin ? (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-destructive hover:text-destructive"
+                              title="Delete position"
+                              onClick={() =>
+                                requestDeletePosition(group.name, position.name, position.shifts)
+                              }
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          ) : undefined
+                        }
                       >
                         <div className="space-y-3">
                           {position.shifts.map((shift) => {
@@ -793,14 +907,25 @@ export function ShiftBoard({
                                       {shiftTypeLabel(shift.shift_type)}
                                     </Badge>
                                     {isAdmin && (
-                                      <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        className="h-8 w-8"
-                                        onClick={() => openEditDialog(shift)}
-                                      >
-                                        <Pencil className="h-4 w-4" />
-                                      </Button>
+                                      <>
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          className="h-8 w-8"
+                                          onClick={() => openEditDialog(shift)}
+                                        >
+                                          <Pencil className="h-4 w-4" />
+                                        </Button>
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          className="h-8 w-8 text-destructive hover:text-destructive"
+                                          title="Delete shift"
+                                          onClick={() => requestDeleteShift(shift)}
+                                        >
+                                          <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                      </>
                                     )}
                                   </div>
                                 </div>
@@ -1370,16 +1495,58 @@ export function ShiftBoard({
             </div>
 
             {formError && <p className="text-sm text-destructive">{formError}</p>}
-            <Button onClick={saveEditedShift} className="w-full" disabled={saving}>
-              {saving
-                ? "Saving..."
-                : additionalSlots.length > 0
-                  ? `Save + add ${additionalSlots.length} shift${additionalSlots.length === 1 ? "" : "s"}`
-                  : "Save Changes"}
-            </Button>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              {editingShift && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full text-destructive hover:text-destructive sm:w-auto"
+                  disabled={saving || deleting}
+                  onClick={() => requestDeleteShift(editingShift)}
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Delete shift
+                </Button>
+              )}
+              <Button onClick={saveEditedShift} className="w-full flex-1" disabled={saving || deleting}>
+                {saving
+                  ? "Saving..."
+                  : additionalSlots.length > 0
+                    ? `Save + add ${additionalSlots.length} shift${additionalSlots.length === 1 ? "" : "s"}`
+                    : "Save Changes"}
+              </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog
+        open={deleteTarget != null}
+        onOpenChange={(open) => {
+          if (!open && !deleting) setDeleteTarget(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{deleteTarget?.title ?? "Delete?"}</AlertDialogTitle>
+            <AlertDialogDescription>{deleteTarget?.description}</AlertDialogDescription>
+          </AlertDialogHeader>
+          {formError && <p className="text-sm text-destructive">{formError}</p>}
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(event) => {
+                event.preventDefault();
+                void confirmDelete();
+              }}
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting ? "Deleting..." : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
