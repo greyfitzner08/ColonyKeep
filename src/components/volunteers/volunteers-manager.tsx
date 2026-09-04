@@ -55,6 +55,7 @@ import { isKnownUserRole } from "@/lib/constants";
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import type {
   VolunteerApplication,
+  VolunteerApplicationStatus,
   TrapTeam,
   VolunteerRole,
   VolunteerRoleRequest,
@@ -80,6 +81,7 @@ import {
   Table2,
   Search,
   UserMinus,
+  Pencil,
 } from "lucide-react";
 
 interface VolunteersManagerProps {
@@ -97,6 +99,18 @@ const STATUS_COLORS: Record<string, string> = {
   needs_followup: "bg-orange-100 text-orange-800",
   inactive: "bg-slate-200 text-slate-700",
 };
+
+const APPLICATION_STATUS_OPTIONS: { value: VolunteerApplicationStatus; label: string }[] = [
+  { value: "pending", label: "Pending" },
+  { value: "needs_followup", label: "Needs follow-up" },
+  { value: "approved", label: "Approved" },
+  { value: "inactive", label: "Inactive" },
+  { value: "rejected", label: "Rejected" },
+];
+
+function usesEditOpenAction(status: VolunteerApplicationStatus) {
+  return status === "approved" || status === "inactive";
+}
 
 const ADMIN_CHECKBOX_FIELDS = [
   { key: "shadow_completed", label: "Shadow Completed" },
@@ -586,6 +600,56 @@ export function VolunteersManager({
     router.refresh();
   }
 
+  async function handleStatusChange(
+    app: VolunteerApplication,
+    nextStatus: VolunteerApplicationStatus
+  ) {
+    if (nextStatus === app.status) return;
+
+    if (
+      nextStatus === "approved" &&
+      (app.status === "pending" ||
+        app.status === "needs_followup" ||
+        app.status === "rejected")
+    ) {
+      await handleApproveApplication(app, getReviewContext(app), emailForApp(app));
+      return;
+    }
+
+    if (
+      nextStatus === "inactive" &&
+      !window.confirm(
+        `Mark ${app.full_name} as inactive? They will not be able to log in until re-approved.`
+      )
+    ) {
+      return;
+    }
+
+    clearActionError();
+    setActingId(app.id);
+    const response = await fetch("/api/volunteers/update-status", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        applicationId: app.id,
+        status: nextStatus,
+        adminNotes: actionNotes[app.id] ?? app.admin_notes ?? undefined,
+      }),
+    });
+    const result = await response.json().catch(() => null);
+    setActingId(null);
+    if (!response.ok) {
+      showActionError(getApiErrorMessage(result, "Unable to update status"));
+      return;
+    }
+    setApplicationPatches((current) => ({
+      ...current,
+      [app.id]: { ...current[app.id], status: nextStatus },
+    }));
+    clearActionError();
+    router.refresh();
+  }
+
   async function handleApproveApplication(
     app: VolunteerApplication,
     context: ApplicationReviewContext,
@@ -1013,6 +1077,31 @@ export function VolunteersManager({
 
     return (
       <div className="space-y-4">
+        <div className="space-y-2 rounded-md border p-3">
+          <Label htmlFor={`application-status-${app.id}`}>Status</Label>
+          <Select
+            value={app.status}
+            onValueChange={(value) =>
+              void handleStatusChange(app, value as VolunteerApplicationStatus)
+            }
+            disabled={actingId === app.id}
+          >
+            <SelectTrigger id={`application-status-${app.id}`} className="w-full sm:w-[240px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {APPLICATION_STATUS_OPTIONS.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <p className="text-xs text-muted-foreground">
+            Inactive blocks login until the volunteer is set back to approved.
+          </p>
+        </div>
+
         {app.status === "inactive" && (
           <div className="rounded-md border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-900">
             <p className="font-medium">Inactive volunteer</p>
@@ -1641,18 +1730,22 @@ export function VolunteersManager({
         minWidth: 96,
         headerClassName: "text-right",
         cellClassName: "text-right",
-        render: (app) => (
-          <div className="flex justify-end">
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              onClick={() => setReviewingApplicationId(app.id)}
-            >
-              Review
-            </Button>
-          </div>
-        ),
+        render: (app) => {
+          const isEdit = usesEditOpenAction(app.status);
+          return (
+            <div className="flex justify-end">
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => setReviewingApplicationId(app.id)}
+                aria-label={isEdit ? `Edit ${app.full_name}` : `Review ${app.full_name}`}
+              >
+                {isEdit ? <Pencil className="h-4 w-4" /> : "Review"}
+              </Button>
+            </div>
+          );
+        },
       },
     ];
   }, [profilesByEmail, roleCatalog, roleRequests]);
@@ -1789,7 +1882,7 @@ export function VolunteersManager({
                   )}
                   <Badge className={STATUS_COLORS[app.status]}>{app.status.replace(/_/g, " ")}</Badge>
                   {context.isRoleExpansion && context.newRoles.length > 0 ? (
-                    <div className="flex flex-col gap-2">
+                    <div className="flex flex-col gap-2 items-end">
                       <Button
                         type="button"
                         size="sm"
@@ -1808,8 +1901,17 @@ export function VolunteersManager({
                         size="sm"
                         variant="outline"
                         onClick={() => setReviewingApplicationId(app.id)}
+                        aria-label={
+                          usesEditOpenAction(app.status)
+                            ? `Edit ${app.full_name}`
+                            : `Review ${app.full_name}`
+                        }
                       >
-                        Review
+                        {usesEditOpenAction(app.status) ? (
+                          <Pencil className="h-4 w-4" />
+                        ) : (
+                          "Review"
+                        )}
                       </Button>
                     </div>
                   ) : (
@@ -1818,8 +1920,17 @@ export function VolunteersManager({
                       size="sm"
                       variant="outline"
                       onClick={() => setReviewingApplicationId(app.id)}
+                      aria-label={
+                        usesEditOpenAction(app.status)
+                          ? `Edit ${app.full_name}`
+                          : `Review ${app.full_name}`
+                      }
                     >
-                      Review
+                      {usesEditOpenAction(app.status) ? (
+                        <Pencil className="h-4 w-4" />
+                      ) : (
+                        "Review"
+                      )}
                     </Button>
                   )}
                 </div>
@@ -1863,6 +1974,7 @@ export function VolunteersManager({
               <DialogHeader>
                 <DialogTitle>{reviewingApplication.full_name}</DialogTitle>
                 <DialogDescription>
+                  {usesEditOpenAction(reviewingApplication.status) ? "Edit" : "Review"} ·{" "}
                   {reviewingApplication.email} · Applied{" "}
                   {formatDate(reviewingApplication.created_at)}
                 </DialogDescription>

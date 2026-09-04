@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireApiRole } from "@/lib/api/auth";
 import { createServiceClient } from "@/lib/supabase/server";
-import { banVolunteerAuthUser } from "@/lib/volunteers/approve-auth";
+import { banVolunteerAuthUser, unbanVolunteerAuthUser } from "@/lib/volunteers/approve-auth";
 import type { VolunteerApplicationStatus } from "@/lib/types";
 
 const ALLOWED_STATUSES = new Set<VolunteerApplicationStatus>([
-  "rejected",
+  "pending",
   "needs_followup",
+  "approved",
+  "rejected",
   "inactive",
 ]);
 
@@ -50,14 +52,25 @@ export async function POST(request: NextRequest) {
     }
   }
 
+  if (status === "approved" && existing.status === "inactive") {
+    const unbanResult = await unbanVolunteerAuthUser(service, existing.email);
+    if (unbanResult && "error" in unbanResult) {
+      return NextResponse.json({ error: unbanResult.error }, { status: 400 });
+    }
+  }
+
+  const updates: Record<string, string | null> = {
+    status,
+    reviewed_by: profile.email,
+    reviewed_at: new Date().toISOString(),
+  };
+  if (adminNotes !== undefined) {
+    updates.admin_notes = adminNotes?.trim() || null;
+  }
+
   const { error } = await service
     .from("volunteer_applications")
-    .update({
-      status,
-      admin_notes: adminNotes?.trim() || null,
-      reviewed_by: profile.email,
-      reviewed_at: new Date().toISOString(),
-    })
+    .update(updates)
     .eq("id", applicationId);
 
   if (error) {
