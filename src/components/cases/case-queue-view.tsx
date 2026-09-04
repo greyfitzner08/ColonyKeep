@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useDeferredValue, useMemo, useState } from "react";
 import { IntakeCaseGrid } from "@/components/cases/intake-case-grid";
 import { IntakeCaseTable } from "@/components/cases/intake-case-table";
 import { CaseQueueControls } from "@/components/cases/case-queue-controls";
@@ -33,11 +33,12 @@ export function CaseQueueView({
   const [view, setView] = useState<CaseViewMode>(initialView);
   const [sort, setSort] = useState<IntakeSortKey>(initialSort);
   const [search, setSearch] = useState("");
+  const deferredSearch = useDeferredValue(search);
 
   const visibleCases = useMemo(() => {
-    const searched = filterCasesBySearch(cases, search);
+    const searched = filterCasesBySearch(cases, deferredSearch);
     return sortIntakeCases(searched, sort);
-  }, [cases, search, sort]);
+  }, [cases, deferredSearch, sort]);
 
   return (
     <div className="space-y-4">
@@ -55,7 +56,7 @@ export function CaseQueueView({
 
       {visibleCases.length === 0 ? (
         <p className="text-muted-foreground py-6 text-center text-sm">
-          {search.trim() ? "No cases match your search." : "No cases to show."}
+          {deferredSearch.trim() ? "No cases match your search." : "No cases to show."}
         </p>
       ) : view === "table" ? (
         <IntakeCaseTable

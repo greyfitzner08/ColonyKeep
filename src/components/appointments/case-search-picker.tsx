@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useDeferredValue, useMemo, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -17,11 +17,12 @@ interface CaseSearchPickerProps {
 
 export function CaseSearchPicker({ options, value, onChange }: CaseSearchPickerProps) {
   const [query, setQuery] = useState("");
+  const deferredQuery = useDeferredValue(query);
   const selected = options.find((option) => option.id === value);
 
   const results = useMemo(
-    () => filterHelpRequestOptions(options, query),
-    [options, query]
+    () => filterHelpRequestOptions(options, deferredQuery),
+    [options, deferredQuery]
   );
 
   if (selected) {
@@ -54,6 +55,7 @@ export function CaseSearchPicker({ options, value, onChange }: CaseSearchPickerP
         onChange={(e) => setQuery(e.target.value)}
         placeholder="Type case # or contact name…"
         autoComplete="off"
+        spellCheck={false}
       />
       {results.length > 0 ? (
         <ul className="max-h-48 overflow-y-auto rounded-md border divide-y">
@@ -72,7 +74,7 @@ export function CaseSearchPicker({ options, value, onChange }: CaseSearchPickerP
             </li>
           ))}
         </ul>
-      ) : query.trim() ? (
+      ) : deferredQuery.trim() ? (
         <p className="text-sm text-muted-foreground px-1">No matching cases.</p>
       ) : (
         <p className="text-sm text-muted-foreground px-1">

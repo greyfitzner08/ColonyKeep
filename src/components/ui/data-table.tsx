@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { ArrowDown, ArrowUp, ArrowUpDown, Columns3, GripVertical, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -90,6 +90,7 @@ export function DataTable<T>({
     defaultSort ?? null
   );
   const [searchQuery, setSearchQuery] = useState("");
+  const deferredSearchQuery = useDeferredValue(searchQuery);
   const [columnsMenuOpen, setColumnsMenuOpen] = useState(false);
   const columnsMenuRef = useRef<HTMLDivElement>(null);
 
@@ -130,10 +131,11 @@ export function DataTable<T>({
   );
 
   const filteredRows = useMemo(() => {
-    const query = searchQuery.trim().toLowerCase();
-    if (!enableSearch || !query) return rows;
+    if (!enableSearch) return rows;
+    const query = deferredSearchQuery.trim().toLowerCase();
+    if (!query) return rows;
     return rows.filter((row) => resolveSearchText(row).toLowerCase().includes(query));
-  }, [enableSearch, rows, searchQuery, resolveSearchText]);
+  }, [enableSearch, rows, deferredSearchQuery, resolveSearchText]);
 
   const sortedRows = useMemo(() => {
     if (!sort) return filteredRows;
@@ -307,7 +309,7 @@ export function DataTable<T>({
     );
   }
 
-  const searchActive = enableSearch && searchQuery.trim().length > 0;
+  const searchActive = enableSearch && deferredSearchQuery.trim().length > 0;
   const showingCount = sortedRows.length;
   const totalCount = rows.length;
   const showToolbar = enableSearch || enableColumnVisibility;
@@ -330,6 +332,8 @@ export function DataTable<T>({
                   placeholder={searchPlaceholder}
                   className="pl-9"
                   aria-label={searchPlaceholder}
+                  autoComplete="off"
+                  spellCheck={false}
                 />
               </div>
             )}
