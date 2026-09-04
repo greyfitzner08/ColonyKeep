@@ -13,8 +13,11 @@ export async function POST(request: NextRequest) {
   } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { shiftId, action } = await request.json();
+  const body = await request.json();
+  const shiftId = body.shiftId as string | undefined;
+  const action = body.action as "claim" | "unclaim" | "remove" | undefined;
   const email = user.email!;
+  const isAdmin = profile?.role === "admin";
 
   const { data: shift } = await supabase.from("shifts").select("*").eq("id", shiftId).single();
   if (!shift) return NextResponse.json({ error: "Shift not found" }, { status: 404 });
@@ -36,6 +39,19 @@ export async function POST(request: NextRequest) {
     }
   } else if (action === "unclaim") {
     signedUp = signedUp.filter((e) => e !== email);
+  } else if (action === "remove") {
+    if (!isAdmin) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    const targetEmail = String(body.email ?? "")
+      .trim()
+      .toLowerCase();
+    if (!targetEmail) {
+      return NextResponse.json({ error: "Missing email" }, { status: 400 });
+    }
+    signedUp = signedUp.filter((e) => e.toLowerCase() !== targetEmail);
+  } else {
+    return NextResponse.json({ error: "Invalid action" }, { status: 400 });
   }
 
   const { error } = await supabase

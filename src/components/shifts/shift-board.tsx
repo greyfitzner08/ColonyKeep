@@ -88,6 +88,8 @@ interface ShiftBoardProps {
   shifts: Shift[];
   userEmail: string;
   isAdmin: boolean;
+  /** Admin-only map of lowercase email → display name for people signed up. */
+  signupNamesByEmail?: Record<string, string>;
 }
 
 interface TimeSlotForm {
@@ -186,7 +188,12 @@ function formFromShift(shift: Shift): EditFormState {
   };
 }
 
-export function ShiftBoard({ shifts: initial, userEmail, isAdmin }: ShiftBoardProps) {
+export function ShiftBoard({
+  shifts: initial,
+  userEmail,
+  isAdmin,
+  signupNamesByEmail = {},
+}: ShiftBoardProps) {
   const router = useRouter();
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [createOpen, setCreateOpen] = useState(false);
@@ -398,6 +405,20 @@ export function ShiftBoard({ shifts: initial, userEmail, isAdmin }: ShiftBoardPr
       body: JSON.stringify({ shiftId, action }),
     });
     router.refresh();
+  }
+
+  async function removeSignup(shiftId: string, email: string) {
+    await fetch("/api/shifts/claim", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ shiftId, action: "remove", email }),
+    });
+    router.refresh();
+  }
+
+  function signupLabel(email: string) {
+    const key = email.trim().toLowerCase();
+    return signupNamesByEmail[key] || email;
   }
 
   async function saveEventShifts() {
@@ -789,6 +810,36 @@ export function ShiftBoard({ shifts: initial, userEmail, isAdmin }: ShiftBoardPr
                                     ? ` · ${spotsLeft} spot${spotsLeft === 1 ? "" : "s"} left`
                                     : ""}
                                 </p>
+                                {isAdmin && signedUp.length > 0 && (
+                                  <ul className="space-y-1.5 rounded-md border bg-muted/20 px-3 py-2">
+                                    {signedUp.map((email) => (
+                                      <li
+                                        key={email}
+                                        className="flex items-start justify-between gap-3 text-sm"
+                                      >
+                                        <div className="min-w-0">
+                                          <p className="font-medium leading-snug">
+                                            {signupLabel(email)}
+                                          </p>
+                                          {signupLabel(email).toLowerCase() !== email.toLowerCase() && (
+                                            <p className="truncate text-xs text-muted-foreground">
+                                              {email}
+                                            </p>
+                                          )}
+                                        </div>
+                                        <Button
+                                          type="button"
+                                          variant="ghost"
+                                          size="sm"
+                                          className="h-7 shrink-0 px-2 text-xs text-destructive hover:text-destructive"
+                                          onClick={() => removeSignup(shift.id, email)}
+                                        >
+                                          Remove
+                                        </Button>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                )}
                                 {shift.notes && (
                                   <p className="text-sm leading-relaxed text-muted-foreground">
                                     {shift.notes}
