@@ -10,7 +10,7 @@ export default async function ClinicsPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold">Clinics</h1>
-        <p className="text-muted-foreground">Manage vet clinic partners and services</p>
+        <p className="text-muted-foreground">Manage clinics, packages, and services</p>
       </div>
       <ClinicsManager clinics={(clinics ?? []) as Clinic[]} />
     </div>

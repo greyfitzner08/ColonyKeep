@@ -58,25 +58,11 @@ function PackagesSummary({ clinic }: { clinic: Clinic }) {
   }
 
   return (
-    <ul className="space-y-2 text-sm">
+    <ul className="space-y-1 text-sm">
       {packages.map((pkg, index) => (
         <li key={`${pkg.name}-${index}`}>
-          <div className="font-medium">
-            {pkg.name.trim() || "Unnamed package"}
-            <span className="font-normal text-muted-foreground"> · {formatCurrency(pkg.price)}</span>
-          </div>
-          {pkg.services.length > 0 && (
-            <div className="mt-1 flex flex-wrap gap-1">
-              {pkg.services.map((service) => (
-                <span
-                  key={service}
-                  className="rounded border bg-muted/40 px-1.5 py-0.5 text-xs text-muted-foreground"
-                >
-                  {service}
-                </span>
-              ))}
-            </div>
-          )}
+          <span className="font-medium">{pkg.name.trim() || "Unnamed package"}</span>
+          <span className="text-muted-foreground"> · {formatCurrency(pkg.price)}</span>
         </li>
       ))}
     </ul>
@@ -225,21 +211,21 @@ export function ClinicPartnersTable({ clinics, onEdit }: ClinicPartnersTableProp
           <Input
             value={search}
             onChange={(event) => setSearch(event.target.value)}
-            placeholder="Search clinics, packages, services…"
+            placeholder="Search clinics, packages…"
             className="pl-9"
           />
         </div>
 
         <p className="text-sm text-muted-foreground">
-          Showing {filtered.length} of {clinics.length} clinic partners
+          Showing {filtered.length} of {clinics.length} clinics
         </p>
 
         <DataTable
-          tableId="clinic-partners"
+          tableId="clinics"
           columns={columns}
           rows={filtered}
           getRowKey={(clinic) => clinic.id}
-          emptyMessage="No clinic partners match your search."
+          emptyMessage="No clinics match your search."
           minTableWidth={980}
           enableSearch={false}
         />
