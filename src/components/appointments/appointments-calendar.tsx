@@ -21,13 +21,34 @@ import { ClaimAppointmentDialog } from "@/components/appointments/claim-appointm
 import { AppointmentDetailDialog } from "@/components/appointments/appointment-detail-dialog";
 import { APPOINTMENT_STATUS_COLORS } from "@/lib/constants";
 import { canUnreserveAppointment, shouldShowAppointmentStatusBadge } from "@/lib/appointments/clinic-result";
-import { isAppointmentDatePast } from "@/lib/appointments/slot-date";
+import { isAppointmentDatePast, enumerateRecurringDates } from "@/lib/appointments/slot-date";
 import { formatDate, cn } from "@/lib/utils";
 import type { Appointment, Clinic, Cat } from "@/lib/types";
 import type { HelpRequestOption } from "@/lib/cases/help-request-options";
 import { Plus, Calendar, ChevronLeft, ChevronRight } from "lucide-react";
 
 const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const WEEKDAY_OPTIONS = [
+  { value: 0, label: "Sun" },
+  { value: 1, label: "Mon" },
+  { value: 2, label: "Tue" },
+  { value: 3, label: "Wed" },
+  { value: 4, label: "Thu" },
+  { value: 5, label: "Fri" },
+  { value: 6, label: "Sat" },
+] as const;
+
+type AddAppointmentMode = "one" | "recurring";
+
+const EMPTY_ADD_FORM = {
+  mode: "one" as AddAppointmentMode,
+  clinic_id: "",
+  date: "",
+  start_date: "",
+  end_date: "",
+  weekdays: [2] as number[],
+  count: 1,
+};
 
 function toDateKey(date: Date): string {
   const year = date.getFullYear();
@@ -104,10 +125,10 @@ export function AppointmentsCalendar({
   const [detailDialog, setDetailDialog] = useState<Appointment | null>(null);
   const [unreserveId, setUnreserveId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
-  const [bulkDialog, setBulkDialog] = useState(false);
-  const [bulkForm, setBulkForm] = useState({ clinic_id: "", date: "", count: 5 });
-  const [bulkError, setBulkError] = useState<string | null>(null);
-  const [savingBulk, setSavingBulk] = useState(false);
+  const [addDialog, setAddDialog] = useState(false);
+  const [addForm, setAddForm] = useState(EMPTY_ADD_FORM);
+  const [addError, setAddError] = useState<string | null>(null);
+  const [savingAdd, setSavingAdd] = useState(false);
 
   const clinicColorMap = Object.fromEntries(
     clinics.map((c, i) => [c.id, CLINIC_COLORS[i % CLINIC_COLORS.length]])
@@ -209,38 +230,80 @@ export function AppointmentsCalendar({
     );
   }
 
-  async function bulkCreate() {
-    const clinic = clinics.find((c) => c.id === bulkForm.clinic_id);
+  function openAddDialog() {
+    setAddError(null);
+    setAddForm(EMPTY_ADD_FORM);
+    setAddDialog(true);
+  }
+
+  function toggleWeekday(day: number) {
+    setAddForm((current) => {
+      const has = current.weekdays.includes(day);
+      const weekdays = has
+        ? current.weekdays.filter((value) => value !== day)
+        : [...current.weekdays, day].sort((a, b) => a - b);
+      return { ...current, weekdays };
+    });
+  }
+
+  async function createAppointments() {
+    const clinic = clinics.find((c) => c.id === addForm.clinic_id);
     if (!clinic) {
-      setBulkError("Select a clinic before creating slots.");
+      setAddError("Select a clinic.");
       return;
     }
-    if (!bulkForm.date) {
-      setBulkError("Enter a date like September 4, 2026.");
-      return;
+
+    const count = Math.max(1, addForm.count || 1);
+    let dates: string[] = [];
+
+    if (addForm.mode === "one") {
+      if (!addForm.date) {
+        setAddError("Enter a date like September 4, 2026.");
+        return;
+      }
+      dates = [addForm.date];
+    } else {
+      if (!addForm.start_date || !addForm.end_date) {
+        setAddError("Enter a start and end date for the recurring schedule.");
+        return;
+      }
+      if (addForm.end_date < addForm.start_date) {
+        setAddError("End date must be on or after the start date.");
+        return;
+      }
+      if (addForm.weekdays.length === 0) {
+        setAddError("Pick at least one weekday.");
+        return;
+      }
+      dates = enumerateRecurringDates(addForm.start_date, addForm.end_date, addForm.weekdays);
+      if (dates.length === 0) {
+        setAddError("No dates match that weekday pattern in the selected range.");
+        return;
+      }
     }
-    setBulkError(null);
-    setSavingBulk(true);
+
+    setAddError(null);
+    setSavingAdd(true);
     const response = await fetch("/api/appointments/bulk-create", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         clinic_id: clinic.id,
         clinic_name: clinic.name,
-        date: bulkForm.date,
-        count: bulkForm.count,
+        dates,
+        count,
       }),
     });
     const result = await response.json().catch(() => null);
-    setSavingBulk(false);
+    setSavingAdd(false);
 
     if (!response.ok) {
-      setBulkError(result?.error ?? "Unable to create appointment slots");
+      setAddError(result?.error ?? "Unable to create appointments");
       return;
     }
 
-    setBulkDialog(false);
-    setBulkForm({ clinic_id: "", date: "", count: 5 });
+    setAddDialog(false);
+    setAddForm(EMPTY_ADD_FORM);
     router.refresh();
   }
 
@@ -288,7 +351,10 @@ export function AppointmentsCalendar({
           <Button variant={view === "list" ? "default" : "outline"} size="sm" onClick={() => setView("list")}>List</Button>
           <Button variant={view === "month" ? "default" : "outline"} size="sm" onClick={() => setView("month")}>Month</Button>
         </div>
-        <Button onClick={() => { setBulkError(null); setBulkDialog(true); }}><Plus className="h-4 w-4 mr-2" />Bulk Create Slots</Button>
+        <Button onClick={openAddDialog}>
+          <Plus className="h-4 w-4 mr-2" />
+          Add appointments
+        </Button>
       </div>
 
       <div className="flex flex-wrap gap-3">
@@ -484,42 +550,187 @@ export function AppointmentsCalendar({
         unreserveLoading={unreserveId === detailDialog?.id}
       />
 
-      <Dialog open={bulkDialog} onOpenChange={setBulkDialog}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>Bulk Create Slots</DialogTitle></DialogHeader>
+      <Dialog
+        open={addDialog}
+        onOpenChange={(open) => {
+          setAddDialog(open);
+          if (!open) {
+            setAddError(null);
+            setAddForm(EMPTY_ADD_FORM);
+          }
+        }}
+      >
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Add appointments</DialogTitle>
+            <DialogDescription>
+              Create one clinic appointment, or a recurring schedule across multiple dates.
+            </DialogDescription>
+          </DialogHeader>
           <div className="space-y-4">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              <button
+                type="button"
+                className={cn(
+                  "rounded-lg border px-3 py-3 text-left transition-colors",
+                  addForm.mode === "one"
+                    ? "border-primary bg-primary/5"
+                    : "hover:bg-muted/50"
+                )}
+                onClick={() => setAddForm((current) => ({ ...current, mode: "one" }))}
+              >
+                <p className="text-sm font-medium">One appointment</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  A single date at one clinic
+                </p>
+              </button>
+              <button
+                type="button"
+                className={cn(
+                  "rounded-lg border px-3 py-3 text-left transition-colors",
+                  addForm.mode === "recurring"
+                    ? "border-primary bg-primary/5"
+                    : "hover:bg-muted/50"
+                )}
+                onClick={() => setAddForm((current) => ({ ...current, mode: "recurring" }))}
+              >
+                <p className="text-sm font-medium">Recurring appointments</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Repeat on selected weekdays in a date range
+                </p>
+              </button>
+            </div>
+
             <div className="space-y-2">
               <Label>Clinic</Label>
-              <Select value={bulkForm.clinic_id} onValueChange={(v) => setBulkForm({ ...bulkForm, clinic_id: v })}>
-                <SelectTrigger><SelectValue placeholder="Select clinic" /></SelectTrigger>
+              <Select
+                value={addForm.clinic_id}
+                onValueChange={(value) => setAddForm((current) => ({ ...current, clinic_id: value }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select clinic" />
+                </SelectTrigger>
                 <SelectContent>
-                  {clinics.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                  {clinics.map((clinic) => (
+                    <SelectItem key={clinic.id} value={clinic.id}>
+                      {clinic.name}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
+
+            {addForm.mode === "one" ? (
+              <div className="space-y-2">
+                <Label htmlFor="add-appointment-date">Date</Label>
+                <DisplayDateInput
+                  id="add-appointment-date"
+                  value={addForm.date}
+                  onValueChange={(date) => setAddForm((current) => ({ ...current, date }))}
+                />
+              </div>
+            ) : (
+              <>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="add-appointment-start">Start date</Label>
+                    <DisplayDateInput
+                      id="add-appointment-start"
+                      value={addForm.start_date}
+                      onValueChange={(start_date) =>
+                        setAddForm((current) => ({ ...current, start_date }))
+                      }
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="add-appointment-end">End date</Label>
+                    <DisplayDateInput
+                      id="add-appointment-end"
+                      value={addForm.end_date}
+                      onValueChange={(end_date) =>
+                        setAddForm((current) => ({ ...current, end_date }))
+                      }
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>Repeat on</Label>
+                  <div className="flex flex-wrap gap-2">
+                    {WEEKDAY_OPTIONS.map((day) => {
+                      const selected = addForm.weekdays.includes(day.value);
+                      return (
+                        <button
+                          key={day.value}
+                          type="button"
+                          className={cn(
+                            "rounded-md border px-2.5 py-1.5 text-sm transition-colors",
+                            selected
+                              ? "border-primary bg-primary text-primary-foreground"
+                              : "hover:bg-muted/50"
+                          )}
+                          onClick={() => toggleWeekday(day.value)}
+                          aria-pressed={selected}
+                        >
+                          {day.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </>
+            )}
+
             <div className="space-y-2">
-              <Label htmlFor="bulk-create-date">Date</Label>
-              <DisplayDateInput
-                id="bulk-create-date"
-                value={bulkForm.date}
-                onValueChange={(date) => setBulkForm({ ...bulkForm, date })}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Number of Slots</Label>
+              <Label>
+                {addForm.mode === "one"
+                  ? "Appointments on this date"
+                  : "Appointments per selected day"}
+              </Label>
               <NumberInput
                 integer
                 min={1}
                 emptyValue={1}
-                value={bulkForm.count}
+                value={addForm.count}
                 onValueChange={(value) => {
-                  if (typeof value === "number") setBulkForm({ ...bulkForm, count: value });
+                  if (typeof value === "number") {
+                    setAddForm((current) => ({ ...current, count: value }));
+                  }
                 }}
               />
+              <p className="text-xs text-muted-foreground">
+                Each appointment is one reservable clinic slot.
+              </p>
             </div>
-            {bulkError && <p className="text-sm text-destructive">{bulkError}</p>}
-            <Button onClick={bulkCreate} className="w-full" disabled={savingBulk}>
-              {savingBulk ? "Creating..." : "Create Slots"}
+
+            {addForm.mode === "recurring" &&
+              addForm.start_date &&
+              addForm.end_date &&
+              addForm.weekdays.length > 0 && (
+                <p className="text-sm text-muted-foreground">
+                  {(() => {
+                    const dates = enumerateRecurringDates(
+                      addForm.start_date,
+                      addForm.end_date,
+                      addForm.weekdays
+                    );
+                    const total = dates.length * Math.max(1, addForm.count || 1);
+                    if (dates.length === 0) {
+                      return "No matching dates in this range yet.";
+                    }
+                    return `Will create ${total} appointment${total === 1 ? "" : "s"} across ${dates.length} day${dates.length === 1 ? "" : "s"}.`;
+                  })()}
+                </p>
+              )}
+
+            {addError && <p className="text-sm text-destructive">{addError}</p>}
+            <Button onClick={createAppointments} className="w-full" disabled={savingAdd}>
+              {savingAdd
+                ? "Creating…"
+                : addForm.mode === "one"
+                  ? addForm.count > 1
+                    ? `Add ${addForm.count} appointments`
+                    : "Add appointment"
+                  : "Add recurring appointments"}
             </Button>
           </div>
         </DialogContent>
