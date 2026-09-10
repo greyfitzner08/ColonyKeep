@@ -72,11 +72,13 @@ export function AddressAutocomplete({
   const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const lastDefaultRef = useRef(defaultValue);
   const selectingRef = useRef(false);
+  /** After a suggestion is chosen, ignore autocomplete until the user types again. */
+  const suppressSuggestionsRef = useRef(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const rootRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (selectingRef.current) {
+    if (selectingRef.current || suppressSuggestionsRef.current) {
       lastDefaultRef.current = defaultValue;
       return;
     }
@@ -87,7 +89,10 @@ export function AddressAutocomplete({
   }, [defaultValue, query]);
 
   useEffect(() => {
-    if (selectingRef.current) return;
+    if (selectingRef.current || suppressSuggestionsRef.current) {
+      clearTimeout(debounceRef.current);
+      return;
+    }
     if (query.length < 3) {
       setPredictions([]);
       setStatusError(null);
@@ -97,15 +102,16 @@ export function AddressAutocomplete({
 
     clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(async () => {
-      if (selectingRef.current) return;
+      if (selectingRef.current || suppressSuggestionsRef.current) return;
       try {
         const res = await fetch(`/api/places/autocomplete?input=${encodeURIComponent(query)}`);
         const data = await res.json();
-        if (selectingRef.current) return;
+        if (selectingRef.current || suppressSuggestionsRef.current) return;
         setPredictions(data.predictions ?? []);
         setStatusError(typeof data.error === "string" ? data.error : null);
         setOpen(true);
       } catch {
+        if (selectingRef.current || suppressSuggestionsRef.current) return;
         setPredictions([]);
         setStatusError("Could not load address suggestions.");
         setOpen(true);
@@ -144,6 +150,7 @@ export function AddressAutocomplete({
 
   async function applyPrediction(prediction: Prediction) {
     selectingRef.current = true;
+    suppressSuggestionsRef.current = true;
     clearTimeout(debounceRef.current);
     setOpen(false);
     setPredictions([]);
@@ -178,10 +185,10 @@ export function AddressAutocomplete({
 
     onSelect(parts);
     lastDefaultRef.current = parts.formatted_address ?? prediction.description;
-
-    window.setTimeout(() => {
-      selectingRef.current = false;
-    }, 300);
+    setOpen(false);
+    setPredictions([]);
+    setStatusError(null);
+    selectingRef.current = false;
   }
 
   const showMenu = open && (predictions.length > 0 || Boolean(statusError));
@@ -194,12 +201,14 @@ export function AddressAutocomplete({
         id={inputId}
         value={query}
         onChange={(e) => {
+          suppressSuggestionsRef.current = false;
           selectingRef.current = false;
           const value = e.target.value;
           setQuery(value);
           onAddressChange?.(value);
         }}
         onFocus={() => {
+          if (suppressSuggestionsRef.current) return;
           if (predictions.length > 0 || statusError) setOpen(true);
         }}
         placeholder={placeholder}
