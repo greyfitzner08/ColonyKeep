@@ -22,7 +22,11 @@ export default async function TeamDirectoryPage() {
         </p>
       </div>
 
-      <VolunteerDirectoryTable entries={entries} teams={teams} />
+      <VolunteerDirectoryTable
+        entries={entries}
+        teams={teams}
+        isAdmin={profile?.role === "admin"}
+      />
     </div>
   );
 }

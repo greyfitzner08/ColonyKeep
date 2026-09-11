@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Check, ClipboardCopy, Search } from "lucide-react";
+import { Check, Copy, Search } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,6 +21,7 @@ import type { VolunteerDirectoryEntry } from "@/lib/team-directory/load-director
 interface VolunteerDirectoryTableProps {
   entries: VolunteerDirectoryEntry[];
   teams: { id: string; name: string }[];
+  isAdmin?: boolean;
 }
 
 function matchesSearch(entry: VolunteerDirectoryEntry, query: string): boolean {
@@ -52,7 +53,11 @@ function uniqueEmails(entries: VolunteerDirectoryEntry[]): string[] {
   return emails;
 }
 
-export function VolunteerDirectoryTable({ entries, teams }: VolunteerDirectoryTableProps) {
+export function VolunteerDirectoryTable({
+  entries,
+  teams,
+  isAdmin = false,
+}: VolunteerDirectoryTableProps) {
   const [search, setSearch] = useState("");
   const [teamFilter, setTeamFilter] = useState<string>("all");
   const [roleFilter, setRoleFilter] = useState<VolunteerRole | "all">("all");
@@ -140,29 +145,38 @@ export function VolunteerDirectoryTable({ entries, teams }: VolunteerDirectoryTa
       {
         id: "email",
         label: "Email",
-        defaultWidth: 240,
+        defaultWidth: 320,
+        minWidth: 220,
+        wrap: true,
         sortValue: (entry) => entry.email ?? "",
         render: (entry) =>
           entry.email ? (
-            <div className="flex min-w-0 items-center gap-1">
+            <div className="flex w-max max-w-full items-start gap-2">
               <a
                 href={`mailto:${entry.email}`}
-                className="min-w-0 flex-1 break-all text-primary hover:underline select-text"
+                className="break-all text-primary hover:underline select-text"
               >
                 {entry.email}
               </a>
               <Button
                 type="button"
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7 shrink-0"
+                variant="outline"
+                size="sm"
+                className="h-7 shrink-0 gap-1 px-2 text-xs"
                 aria-label={`Copy ${entry.email}`}
+                title="Copy email"
                 onClick={() => copyEmail(entry.email!)}
               >
                 {copiedEmail === entry.email ? (
-                  <Check className="h-3.5 w-3.5 text-primary" />
+                  <>
+                    <Check className="h-3.5 w-3.5 text-primary" />
+                    Copied
+                  </>
                 ) : (
-                  <ClipboardCopy className="h-3.5 w-3.5" />
+                  <>
+                    <Copy className="h-3.5 w-3.5" />
+                    Copy
+                  </>
                 )}
               </Button>
             </div>
@@ -234,25 +248,27 @@ export function VolunteerDirectoryTable({ entries, teams }: VolunteerDirectoryTa
         <p className="text-sm text-muted-foreground">
           Showing {filtered.length} of {entries.length} team members
         </p>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          disabled={filteredEmailCount === 0}
-          onClick={copyAllEmails}
-        >
-          {allEmailsCopied ? (
-            <>
-              <Check className="mr-1 h-3.5 w-3.5" />
-              Copied!
-            </>
-          ) : (
-            <>
-              <ClipboardCopy className="mr-1 h-3.5 w-3.5" />
-              Copy {filteredEmailCount} email{filteredEmailCount === 1 ? "" : "s"}
-            </>
-          )}
-        </Button>
+        {isAdmin ? (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={filteredEmailCount === 0}
+            onClick={copyAllEmails}
+          >
+            {allEmailsCopied ? (
+              <>
+                <Check className="mr-1 h-3.5 w-3.5" />
+                Copied!
+              </>
+            ) : (
+              <>
+                <Copy className="mr-1 h-3.5 w-3.5" />
+                Copy {filteredEmailCount} email{filteredEmailCount === 1 ? "" : "s"}
+              </>
+            )}
+          </Button>
+        ) : null}
       </div>
 
       <DataTable
@@ -261,8 +277,9 @@ export function VolunteerDirectoryTable({ entries, teams }: VolunteerDirectoryTa
         rows={filtered}
         getRowKey={(entry) => entry.id}
         emptyMessage="No team members match your filters."
-        minTableWidth={820}
+        minTableWidth={900}
         enableSearch={false}
+        columnSizing="content"
       />
     </div>
   );
