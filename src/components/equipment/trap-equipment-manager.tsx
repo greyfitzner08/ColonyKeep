@@ -83,8 +83,15 @@ const UNASSIGNED = "__unassigned__";
 type EquipmentDialogSectionId = "trap" | "custody" | "loan" | "notes";
 
 const DEFAULT_OPEN_SECTIONS: Record<EquipmentDialogSectionId, boolean> = {
+  trap: false,
+  custody: false,
+  loan: true,
+  notes: false,
+};
+
+const NEW_EQUIPMENT_OPEN_SECTIONS: Record<EquipmentDialogSectionId, boolean> = {
   trap: true,
-  custody: true,
+  custody: false,
   loan: true,
   notes: false,
 };
@@ -95,6 +102,8 @@ function EquipmentDialogSection({
   open,
   onOpenChange,
   className,
+  headerClassName,
+  accent,
   children,
 }: {
   title: string;
@@ -102,28 +111,45 @@ function EquipmentDialogSection({
   open: boolean;
   onOpenChange: (open: boolean) => void;
   className?: string;
+  headerClassName?: string;
+  accent?: boolean;
   children: React.ReactNode;
 }) {
   return (
     <section className={cn("rounded-lg border", className)}>
       <button
         type="button"
-        className="flex w-full items-start gap-2 p-4 text-left hover:bg-muted/40"
+        className={cn(
+          "flex w-full items-start gap-2 p-4 text-left hover:bg-muted/40",
+          headerClassName
+        )}
         aria-expanded={open}
         onClick={() => onOpenChange(!open)}
       >
         <ChevronDown
           className={cn(
-            "mt-0.5 h-4 w-4 shrink-0 text-muted-foreground transition-transform",
+            "mt-0.5 h-4 w-4 shrink-0 transition-transform",
+            accent ? "text-primary" : "text-muted-foreground",
             !open && "-rotate-90"
           )}
         />
         <div className="min-w-0">
-          <p className="text-sm font-semibold">{title}</p>
-          <p className="text-xs text-muted-foreground">{description}</p>
+          <p className={cn("text-sm font-semibold", accent && "text-primary")}>{title}</p>
+          <p className={cn("text-xs", accent ? "text-primary/70" : "text-muted-foreground")}>
+            {description}
+          </p>
         </div>
       </button>
-      {open ? <div className="space-y-3 border-t px-4 pb-4 pt-3">{children}</div> : null}
+      {open ? (
+        <div
+          className={cn(
+            "space-y-3 border-t px-4 pb-4 pt-3",
+            accent && "border-primary/20"
+          )}
+        >
+          {children}
+        </div>
+      ) : null}
     </section>
   );
 }
@@ -259,7 +285,7 @@ export function TrapEquipmentManager({
       ...emptyForm,
       team_id: defaultTeamId ?? "",
     });
-    setOpenSections(DEFAULT_OPEN_SECTIONS);
+    setOpenSections(NEW_EQUIPMENT_OPEN_SECTIONS);
     setSaveError(null);
     setScanNotice(null);
     setDialogOpen(true);
@@ -286,7 +312,8 @@ export function TrapEquipmentManager({
     setOpenSections({
       ...DEFAULT_OPEN_SECTIONS,
       loan: item.status === "loaned",
-      notes: Boolean(item.notes?.trim()),
+      // When not loaned, open trap info so the form isn't all collapsed.
+      trap: item.status !== "loaned",
     });
     setSaveError(null);
     setScanNotice(null);
@@ -827,6 +854,53 @@ export function TrapEquipmentManager({
             <DialogTitle>{editing ? "Edit Equipment" : "Log Equipment"}</DialogTitle>
           </DialogHeader>
           <div className="space-y-5">
+            {form.status === "loaned" && (
+              <EquipmentDialogSection
+                title="Loan details"
+                description="Who currently has this trap. A borrower name is required."
+                open={openSections.loan}
+                onOpenChange={(open) => setSectionOpen("loan", open)}
+                accent
+                className="border-primary/40 bg-primary/5 shadow-sm shadow-primary/5"
+                headerClassName="hover:bg-primary/10"
+              >
+                <div className="space-y-2">
+                  <Label htmlFor="borrower-name">
+                    Borrower name <span className="text-destructive">*</span>
+                  </Label>
+                  <Input
+                    id="borrower-name"
+                    placeholder="Borrower full name"
+                    value={form.borrower_name}
+                    required
+                    onChange={(e) => setForm({ ...form, borrower_name: e.target.value })}
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="borrower-phone">Phone (optional)</Label>
+                    <Input
+                      id="borrower-phone"
+                      type="tel"
+                      placeholder="(555) 555-5555"
+                      value={form.borrower_phone}
+                      onChange={(e) => setForm({ ...form, borrower_phone: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="borrower-email">Email (optional)</Label>
+                    <Input
+                      id="borrower-email"
+                      type="email"
+                      placeholder="name@example.com"
+                      value={form.borrower_email}
+                      onChange={(e) => setForm({ ...form, borrower_email: e.target.value })}
+                    />
+                  </div>
+                </div>
+              </EquipmentDialogSection>
+            )}
+
             <EquipmentDialogSection
               title="Trap information"
               description="Identify the equipment and optional QR or physical label."
@@ -1028,51 +1102,6 @@ export function TrapEquipmentManager({
                 />
               </div>
             </EquipmentDialogSection>
-
-            {form.status === "loaned" && (
-              <EquipmentDialogSection
-                title="Loan details"
-                description="Who currently has this trap. A borrower name is required."
-                open={openSections.loan}
-                onOpenChange={(open) => setSectionOpen("loan", open)}
-                className="border-amber-200 bg-amber-50/40"
-              >
-                <div className="space-y-2">
-                  <Label htmlFor="borrower-name">
-                    Borrower name <span className="text-destructive">*</span>
-                  </Label>
-                  <Input
-                    id="borrower-name"
-                    placeholder="Borrower full name"
-                    value={form.borrower_name}
-                    required
-                    onChange={(e) => setForm({ ...form, borrower_name: e.target.value })}
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="borrower-phone">Phone (optional)</Label>
-                    <Input
-                      id="borrower-phone"
-                      type="tel"
-                      placeholder="(555) 555-5555"
-                      value={form.borrower_phone}
-                      onChange={(e) => setForm({ ...form, borrower_phone: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="borrower-email">Email (optional)</Label>
-                    <Input
-                      id="borrower-email"
-                      type="email"
-                      placeholder="name@example.com"
-                      value={form.borrower_email}
-                      onChange={(e) => setForm({ ...form, borrower_email: e.target.value })}
-                    />
-                  </div>
-                </div>
-              </EquipmentDialogSection>
-            )}
 
             <EquipmentDialogSection
               title="Notes"
