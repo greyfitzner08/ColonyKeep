@@ -12,12 +12,14 @@ interface DisplayDateInputProps
   onValueChange: (isoDate: string) => void;
 }
 
-/** Text date field that displays and accepts dates like "September 4, 2026". */
+/** Text date field: type MM/DD/YYYY; displays as "September 4, 2026". */
 export function DisplayDateInput({
   value,
   onValueChange,
   className,
   id,
+  placeholder = "MM/DD/YYYY",
+  onBlur,
   ...props
 }: DisplayDateInputProps) {
   const [text, setText] = useState(() => (value ? formatDate(value) : ""));
@@ -26,12 +28,25 @@ export function DisplayDateInput({
     setText(value ? formatDate(value) : "");
   }, [value]);
 
+  function commitDisplay() {
+    if (!text.trim()) {
+      setText("");
+      onValueChange("");
+      return;
+    }
+    const iso = parseDisplayDate(text);
+    if (iso) {
+      setText(formatDate(iso));
+      onValueChange(iso);
+    }
+  }
+
   return (
     <Input
       {...props}
       id={id}
       type="text"
-      placeholder="September 4, 2026"
+      placeholder={placeholder}
       autoComplete="off"
       className={cn(className)}
       value={text}
@@ -44,6 +59,16 @@ export function DisplayDateInput({
         }
         const iso = parseDisplayDate(next);
         if (iso) onValueChange(iso);
+      }}
+      onBlur={(e) => {
+        commitDisplay();
+        onBlur?.(e);
+      }}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") {
+          commitDisplay();
+        }
+        props.onKeyDown?.(e);
       }}
     />
   );

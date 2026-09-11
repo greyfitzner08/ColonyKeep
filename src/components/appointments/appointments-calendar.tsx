@@ -258,7 +258,7 @@ export function AppointmentsCalendar({
 
     if (addForm.mode === "one") {
       if (!addForm.date) {
-        setAddError("Enter a date like September 4, 2026.");
+        setAddError("Enter a date like 09/04/2026 or September 4, 2026.");
         return;
       }
       dates = [addForm.date];

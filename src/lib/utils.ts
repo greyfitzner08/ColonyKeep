@@ -66,7 +66,8 @@ export function formatDate(date: string | Date): string {
 
 /**
  * Parse a display date into YYYY-MM-DD.
- * Accepts "September 4, 2026", "Sept 4 2026", "4 September 2026", or "DD-MM-YYYY".
+ * Accepts "September 4, 2026", "Sept 4 2026", "4 September 2026",
+ * "MM/DD/YYYY", "M/D/YYYY", "MM-DD-YYYY", or "YYYY-MM-DD".
  */
 export function parseDisplayDate(value: string): string | null {
   const trimmed = value.trim().replace(/\s+/g, " ").replace(/,/g, "");
@@ -89,9 +90,15 @@ export function parseDisplayDate(value: string): string | null {
     return toIsoDate(year, month, day);
   }
 
-  const numeric = /^(\d{1,2})-(\d{1,2})-(\d{4})$/.exec(trimmed);
+  const iso = /^(\d{4})-(\d{2})-(\d{2})$/.exec(trimmed);
+  if (iso) {
+    return toIsoDate(Number(iso[1]), Number(iso[2]), Number(iso[3]));
+  }
+
+  // US numeric: MM/DD/YYYY or MM-DD-YYYY (also allows single-digit month/day).
+  const numeric = /^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/.exec(trimmed);
   if (numeric) {
-    return toIsoDate(Number(numeric[3]), Number(numeric[2]), Number(numeric[1]));
+    return toIsoDate(Number(numeric[3]), Number(numeric[1]), Number(numeric[2]));
   }
 
   return null;
