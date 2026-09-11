@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
-import { Plus, Pencil, Trash2, QrCode, Loader2, ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
+import { Plus, Pencil, Trash2, QrCode, Loader2, ArrowDown, ArrowUp, ArrowUpDown, ChevronDown } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -80,6 +80,54 @@ const emptyForm = {
 
 const UNASSIGNED = "__unassigned__";
 
+type EquipmentDialogSectionId = "trap" | "custody" | "loan" | "notes";
+
+const DEFAULT_OPEN_SECTIONS: Record<EquipmentDialogSectionId, boolean> = {
+  trap: true,
+  custody: true,
+  loan: true,
+  notes: false,
+};
+
+function EquipmentDialogSection({
+  title,
+  description,
+  open,
+  onOpenChange,
+  className,
+  children,
+}: {
+  title: string;
+  description: string;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  className?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className={cn("rounded-lg border", className)}>
+      <button
+        type="button"
+        className="flex w-full items-start gap-2 p-4 text-left hover:bg-muted/40"
+        aria-expanded={open}
+        onClick={() => onOpenChange(!open)}
+      >
+        <ChevronDown
+          className={cn(
+            "mt-0.5 h-4 w-4 shrink-0 text-muted-foreground transition-transform",
+            !open && "-rotate-90"
+          )}
+        />
+        <div className="min-w-0">
+          <p className="text-sm font-semibold">{title}</p>
+          <p className="text-xs text-muted-foreground">{description}</p>
+        </div>
+      </button>
+      {open ? <div className="space-y-3 border-t px-4 pb-4 pt-3">{children}</div> : null}
+    </section>
+  );
+}
+
 type EquipmentSortKey = "item" | "status" | "assigned" | "loaned";
 
 type SortDirection = "asc" | "desc";
@@ -109,6 +157,12 @@ export function TrapEquipmentManager({
   const [filterType, setFilterType] = useState("all");
   const [filterStatus, setFilterStatus] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [openSections, setOpenSections] =
+    useState<Record<EquipmentDialogSectionId, boolean>>(DEFAULT_OPEN_SECTIONS);
+
+  function setSectionOpen(id: EquipmentDialogSectionId, open: boolean) {
+    setOpenSections((current) => ({ ...current, [id]: open }));
+  }
 
   useEffect(() => {
     setRows(initialItems);
@@ -205,6 +259,7 @@ export function TrapEquipmentManager({
       ...emptyForm,
       team_id: defaultTeamId ?? "",
     });
+    setOpenSections(DEFAULT_OPEN_SECTIONS);
     setSaveError(null);
     setScanNotice(null);
     setDialogOpen(true);
@@ -227,6 +282,11 @@ export function TrapEquipmentManager({
       borrower_name: item.borrower_name ?? "",
       borrower_email: item.borrower_email ?? "",
       borrower_phone: item.borrower_phone ?? "",
+    });
+    setOpenSections({
+      ...DEFAULT_OPEN_SECTIONS,
+      loan: item.status === "loaned",
+      notes: Boolean(item.notes?.trim()),
     });
     setSaveError(null);
     setScanNotice(null);
@@ -273,6 +333,7 @@ export function TrapEquipmentManager({
     }
 
     if (form.status === "loaned" && !form.borrower_name.trim()) {
+      setSectionOpen("loan", true);
       setSaveError("Enter the borrower's name before marking this trap as loaned out.");
       return;
     }
@@ -766,14 +827,12 @@ export function TrapEquipmentManager({
             <DialogTitle>{editing ? "Edit Equipment" : "Log Equipment"}</DialogTitle>
           </DialogHeader>
           <div className="space-y-5">
-            <section className="space-y-3 rounded-lg border p-4">
-              <div>
-                <p className="text-sm font-semibold">Trap information</p>
-                <p className="text-xs text-muted-foreground">
-                  Identify the equipment and optional QR or physical label.
-                </p>
-              </div>
-
+            <EquipmentDialogSection
+              title="Trap information"
+              description="Identify the equipment and optional QR or physical label."
+              open={openSections.trap}
+              onOpenChange={(open) => setSectionOpen("trap", open)}
+            >
               <div className="flex gap-2">
                 <Button
                   type="button"
@@ -870,16 +929,14 @@ export function TrapEquipmentManager({
                   }}
                 />
               </div>
-            </section>
+            </EquipmentDialogSection>
 
-            <section className="space-y-3 rounded-lg border p-4">
-              <div>
-                <p className="text-sm font-semibold">Status & custody</p>
-                <p className="text-xs text-muted-foreground">
-                  Where the trap sits in inventory and who is responsible for it.
-                </p>
-              </div>
-
+            <EquipmentDialogSection
+              title="Status & custody"
+              description="Where the trap sits in inventory and who is responsible for it."
+              open={openSections.custody}
+              onOpenChange={(open) => setSectionOpen("custody", open)}
+            >
               <div className="space-y-2">
                 <Label>Status</Label>
                 <Select
@@ -893,7 +950,8 @@ export function TrapEquipmentManager({
                       borrower_email: status === "loaned" ? form.borrower_email : "",
                       borrower_phone: status === "loaned" ? form.borrower_phone : "",
                     });
-                    if (status === "loaned" && !form.borrower_name.trim()) {
+                    if (status === "loaned") {
+                      setSectionOpen("loan", true);
                       setSaveError(null);
                     }
                   }}
@@ -969,16 +1027,16 @@ export function TrapEquipmentManager({
                   onChange={(e) => setForm({ ...form, location: e.target.value })}
                 />
               </div>
-            </section>
+            </EquipmentDialogSection>
 
             {form.status === "loaned" && (
-              <section className="space-y-3 rounded-lg border border-amber-200 bg-amber-50/40 p-4">
-                <div>
-                  <p className="text-sm font-semibold">Loan details</p>
-                  <p className="text-xs text-muted-foreground">
-                    Who currently has this trap. A borrower name is required.
-                  </p>
-                </div>
+              <EquipmentDialogSection
+                title="Loan details"
+                description="Who currently has this trap. A borrower name is required."
+                open={openSections.loan}
+                onOpenChange={(open) => setSectionOpen("loan", open)}
+                className="border-amber-200 bg-amber-50/40"
+              >
                 <div className="space-y-2">
                   <Label htmlFor="borrower-name">
                     Borrower name <span className="text-destructive">*</span>
@@ -1013,21 +1071,22 @@ export function TrapEquipmentManager({
                     />
                   </div>
                 </div>
-              </section>
+              </EquipmentDialogSection>
             )}
 
-            <section className="space-y-3 rounded-lg border p-4">
-              <div>
-                <p className="text-sm font-semibold">Notes</p>
-                <p className="text-xs text-muted-foreground">Optional context for the next volunteer.</p>
-              </div>
+            <EquipmentDialogSection
+              title="Notes"
+              description="Optional context for the next volunteer."
+              open={openSections.notes}
+              onOpenChange={(open) => setSectionOpen("notes", open)}
+            >
               <Textarea
                 rows={2}
                 value={form.notes}
                 onChange={(e) => setForm({ ...form, notes: e.target.value })}
                 placeholder="Condition, pickup instructions, etc."
               />
-            </section>
+            </EquipmentDialogSection>
 
             {!isAdmin && defaultTeamId && (
               <p className="text-sm text-muted-foreground">
