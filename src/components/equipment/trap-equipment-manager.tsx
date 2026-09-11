@@ -170,6 +170,12 @@ export function TrapEquipmentManager({
     const current = rows.find((row) => row.id === id);
     if (!current) return;
 
+    if (patch.status === "loaned" && !current.borrower_name?.trim()) {
+      openEdit({ ...current, status: "loaned" });
+      setSaveError("Enter who this trap was loaned to before saving.");
+      return;
+    }
+
     let next: TrapEquipmentItem = { ...current, ...patch };
 
     if (patch.status && patch.status !== "loaned") {
@@ -263,6 +269,11 @@ export function TrapEquipmentManager({
   async function saveDialog() {
     if (form.is_labeled && !form.equipment_label.trim()) {
       setSaveError("Enter the label text (e.g. Trap #3)");
+      return;
+    }
+
+    if (form.status === "loaned" && !form.borrower_name.trim()) {
+      setSaveError("Enter the borrower's name before marking this trap as loaned out.");
       return;
     }
 
@@ -754,91 +765,98 @@ export function TrapEquipmentManager({
           <DialogHeader>
             <DialogTitle>{editing ? "Edit Equipment" : "Log Equipment"}</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4">
-            <div className="flex gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                className="flex-1"
-                onClick={() => setScannerOpen(true)}
-              >
-                <QrCode className="mr-2 h-4 w-4" />
-                Scan QR Code
-              </Button>
-            </div>
-            {scanNotice && (
-              <p className="text-sm text-primary bg-primary/10 rounded-md px-3 py-2">{scanNotice}</p>
-            )}
-
-            <div className="rounded-lg border p-3 space-y-3">
-              <div className="flex items-start gap-2">
-                <Checkbox
-                  id="equipment-labeled"
-                  checked={form.is_labeled}
-                  onCheckedChange={(checked) =>
-                    setForm({
-                      ...form,
-                      is_labeled: !!checked,
-                      equipment_label: checked ? form.equipment_label : "",
-                      quantity: checked ? 1 : form.quantity,
-                    })
-                  }
-                />
-                <div className="space-y-1">
-                  <Label htmlFor="equipment-labeled" className="font-medium">
-                    Equipment has a physical label
-                  </Label>
-                  <p className="text-sm text-muted-foreground">
-                    Check this for individually tagged traps like &quot;Trap #3&quot;.
-                  </p>
-                </div>
+          <div className="space-y-5">
+            <section className="space-y-3 rounded-lg border p-4">
+              <div>
+                <p className="text-sm font-semibold">Trap information</p>
+                <p className="text-xs text-muted-foreground">
+                  Identify the equipment and optional QR or physical label.
+                </p>
               </div>
-              {form.is_labeled && (
-                <div className="space-y-2 pl-6">
-                  <Label htmlFor="equipment-label">Label text</Label>
-                  <Input
-                    id="equipment-label"
-                    placeholder="e.g. Trap #3"
-                    value={form.equipment_label}
-                    onChange={(e) =>
-                      setForm({ ...form, equipment_label: e.target.value, quantity: 1 })
+
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => setScannerOpen(true)}
+                >
+                  <QrCode className="mr-2 h-4 w-4" />
+                  Scan QR Code
+                </Button>
+              </div>
+              {scanNotice && (
+                <p className="text-sm text-primary bg-primary/10 rounded-md px-3 py-2">{scanNotice}</p>
+              )}
+
+              <div className="space-y-3 rounded-md border bg-muted/30 p-3">
+                <div className="flex items-start gap-2">
+                  <Checkbox
+                    id="equipment-labeled"
+                    checked={form.is_labeled}
+                    onCheckedChange={(checked) =>
+                      setForm({
+                        ...form,
+                        is_labeled: !!checked,
+                        equipment_label: checked ? form.equipment_label : "",
+                        quantity: checked ? 1 : form.quantity,
+                      })
                     }
                   />
+                  <div className="space-y-1">
+                    <Label htmlFor="equipment-labeled" className="font-medium">
+                      Equipment has a physical label
+                    </Label>
+                    <p className="text-sm text-muted-foreground">
+                      Check this for individually tagged traps like &quot;Trap #3&quot;.
+                    </p>
+                  </div>
                 </div>
-              )}
-            </div>
+                {form.is_labeled && (
+                  <div className="space-y-2 pl-6">
+                    <Label htmlFor="equipment-label">Label text</Label>
+                    <Input
+                      id="equipment-label"
+                      placeholder="e.g. Trap #3"
+                      value={form.equipment_label}
+                      onChange={(e) =>
+                        setForm({ ...form, equipment_label: e.target.value, quantity: 1 })
+                      }
+                    />
+                  </div>
+                )}
+              </div>
 
-            <div className="space-y-2">
-              <Label>Equipment Type</Label>
-              <Select
-                value={form.equipment_type}
-                onValueChange={(value) =>
-                  setForm({ ...form, equipment_type: value as TrapEquipmentType })
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {TRAP_EQUIPMENT_TYPES.map((entry) => (
-                    <SelectItem key={entry.value} value={entry.value}>
-                      {entry.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+              <div className="space-y-2">
+                <Label>Equipment type</Label>
+                <Select
+                  value={form.equipment_type}
+                  onValueChange={(value) =>
+                    setForm({ ...form, equipment_type: value as TrapEquipmentType })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {TRAP_EQUIPMENT_TYPES.map((entry) => (
+                      <SelectItem key={entry.value} value={entry.value}>
+                        {entry.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
-            <div className="space-y-2">
-              <Label>Description (optional)</Label>
-              <Input
-                placeholder="e.g. Large Tomahawk, brand/model"
-                value={form.description}
-                onChange={(e) => setForm({ ...form, description: e.target.value })}
-              />
-            </div>
+              <div className="space-y-2">
+                <Label>Description (optional)</Label>
+                <Input
+                  placeholder="e.g. Large Tomahawk, brand/model"
+                  value={form.description}
+                  onChange={(e) => setForm({ ...form, description: e.target.value })}
+                />
+              </div>
 
-            <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Quantity</Label>
                 <NumberInput
@@ -852,6 +870,16 @@ export function TrapEquipmentManager({
                   }}
                 />
               </div>
+            </section>
+
+            <section className="space-y-3 rounded-lg border p-4">
+              <div>
+                <p className="text-sm font-semibold">Status & custody</p>
+                <p className="text-xs text-muted-foreground">
+                  Where the trap sits in inventory and who is responsible for it.
+                </p>
+              </div>
+
               <div className="space-y-2">
                 <Label>Status</Label>
                 <Select
@@ -865,6 +893,9 @@ export function TrapEquipmentManager({
                       borrower_email: status === "loaned" ? form.borrower_email : "",
                       borrower_phone: status === "loaned" ? form.borrower_phone : "",
                     });
+                    if (status === "loaned" && !form.borrower_name.trim()) {
+                      setSaveError(null);
+                    }
                   }}
                 >
                   <SelectTrigger>
@@ -879,57 +910,90 @@ export function TrapEquipmentManager({
                   </SelectContent>
                 </Select>
               </div>
-            </div>
 
-            <div className="space-y-2">
-              <Label>TNVR volunteer who keeps this</Label>
-              <Select
-                value={form.assigned_to_profile_id || UNASSIGNED}
-                onValueChange={(value) =>
-                  setForm({
-                    ...form,
-                    assigned_to_profile_id: value === UNASSIGNED ? "" : value,
-                  })
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Who stores / maintains this gear?" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={UNASSIGNED}>Unassigned</SelectItem>
-                  {volunteers.map((volunteer) => (
-                    <SelectItem key={volunteer.id} value={volunteer.id}>
-                      {volunteerDisplayName(volunteer)}
-                      {volunteer.phone ? ` · ${volunteer.phone}` : ""}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <p className="text-sm text-muted-foreground">
-                The team volunteer responsible for this equipment in inventory.
-              </p>
-            </div>
+              <div className="space-y-2">
+                <Label>TNVR volunteer who keeps this</Label>
+                <Select
+                  value={form.assigned_to_profile_id || UNASSIGNED}
+                  onValueChange={(value) =>
+                    setForm({
+                      ...form,
+                      assigned_to_profile_id: value === UNASSIGNED ? "" : value,
+                    })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Who stores / maintains this gear?" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={UNASSIGNED}>Unassigned</SelectItem>
+                    {volunteers.map((volunteer) => (
+                      <SelectItem key={volunteer.id} value={volunteer.id}>
+                        {volunteerDisplayName(volunteer)}
+                        {volunteer.phone ? ` · ${volunteer.phone}` : ""}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-sm text-muted-foreground">
+                  The team volunteer responsible for this equipment in inventory.
+                </p>
+              </div>
+
+              {isAdmin && teams.length > 0 && (
+                <div className="space-y-2">
+                  <Label>Trap team</Label>
+                  <Select
+                    value={form.team_id ?? ""}
+                    onValueChange={(value) => setForm({ ...form, team_id: value || null })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select team" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {sortTrapTeams(teams).map((team) => (
+                        <SelectItem key={team.id} value={team.id}>
+                          {team.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              <div className="space-y-2">
+                <Label>Storage location (optional)</Label>
+                <Input
+                  placeholder="e.g. Team lead garage, shed #2"
+                  value={form.location}
+                  onChange={(e) => setForm({ ...form, location: e.target.value })}
+                />
+              </div>
+            </section>
 
             {form.status === "loaned" && (
-              <div className="rounded-lg border p-3 space-y-3">
+              <section className="space-y-3 rounded-lg border border-amber-200 bg-amber-50/40 p-4">
                 <div>
-                  <Label className="font-medium">Public borrower contact</Label>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Person borrowing the gear (community member, not necessarily a volunteer).
+                  <p className="text-sm font-semibold">Loan details</p>
+                  <p className="text-xs text-muted-foreground">
+                    Who currently has this trap. A borrower name is required.
                   </p>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="borrower-name">Name</Label>
+                  <Label htmlFor="borrower-name">
+                    Borrower name <span className="text-destructive">*</span>
+                  </Label>
                   <Input
                     id="borrower-name"
                     placeholder="Borrower full name"
                     value={form.borrower_name}
+                    required
                     onChange={(e) => setForm({ ...form, borrower_name: e.target.value })}
                   />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="borrower-phone">Phone</Label>
+                    <Label htmlFor="borrower-phone">Phone (optional)</Label>
                     <Input
                       id="borrower-phone"
                       type="tel"
@@ -939,7 +1003,7 @@ export function TrapEquipmentManager({
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="borrower-email">Email</Label>
+                    <Label htmlFor="borrower-email">Email (optional)</Label>
                     <Input
                       id="borrower-email"
                       type="email"
@@ -949,47 +1013,21 @@ export function TrapEquipmentManager({
                     />
                   </div>
                 </div>
-              </div>
+              </section>
             )}
 
-            {isAdmin && teams.length > 0 && (
-              <div className="space-y-2">
-                <Label>Trap Team</Label>
-                <Select
-                  value={form.team_id ?? ""}
-                  onValueChange={(value) => setForm({ ...form, team_id: value || null })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select team" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {sortTrapTeams(teams).map((team) => (
-                      <SelectItem key={team.id} value={team.id}>
-                        {team.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+            <section className="space-y-3 rounded-lg border p-4">
+              <div>
+                <p className="text-sm font-semibold">Notes</p>
+                <p className="text-xs text-muted-foreground">Optional context for the next volunteer.</p>
               </div>
-            )}
-
-            <div className="space-y-2">
-              <Label>Storage Location (optional)</Label>
-              <Input
-                placeholder="e.g. Team lead garage, shed #2"
-                value={form.location}
-                onChange={(e) => setForm({ ...form, location: e.target.value })}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label>Notes (optional)</Label>
               <Textarea
                 rows={2}
                 value={form.notes}
                 onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                placeholder="Condition, pickup instructions, etc."
               />
-            </div>
+            </section>
 
             {!isAdmin && defaultTeamId && (
               <p className="text-sm text-muted-foreground">

@@ -92,7 +92,14 @@ export async function POST(request: NextRequest) {
   let borrowerEmail = trimOrNull(body.borrower_email);
   let borrowerPhone = trimOrNull(body.borrower_phone);
 
-  if (status !== "loaned") {
+  if (status === "loaned") {
+    if (!borrowerName) {
+      return NextResponse.json(
+        { error: "Enter the borrower's name before marking equipment as loaned out." },
+        { status: 400 }
+      );
+    }
+  } else {
     borrowerName = null;
     borrowerEmail = null;
     borrowerPhone = null;
