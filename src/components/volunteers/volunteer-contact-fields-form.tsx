@@ -23,6 +23,10 @@ interface VolunteerContactFieldsFormProps {
   onChange: (values: VolunteerContactFormValues) => void;
   emailReadOnly?: boolean;
   showBirthday?: boolean;
+  /** When false, phone is optional (admin corrections). Default true. */
+  requirePhone?: boolean;
+  /** When false, home address fields are optional (admin corrections). Default true. */
+  requireAddress?: boolean;
   idPrefix?: string;
 }
 
@@ -31,6 +35,8 @@ export function VolunteerContactFieldsForm({
   onChange,
   emailReadOnly = false,
   showBirthday = false,
+  requirePhone = true,
+  requireAddress = true,
   idPrefix = "volunteer-contact",
 }: VolunteerContactFieldsFormProps) {
   function update<K extends keyof VolunteerContactFormValues>(
@@ -66,13 +72,15 @@ export function VolunteerContactFieldsForm({
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor={`${idPrefix}-phone`}>Phone</Label>
+          <Label htmlFor={`${idPrefix}-phone`}>
+            Phone{!requirePhone ? " (optional)" : ""}
+          </Label>
           <Input
             id={`${idPrefix}-phone`}
             type="tel"
             value={values.phone}
             onChange={(event) => update("phone", event.target.value)}
-            required
+            required={requirePhone}
           />
         </div>
       </div>
@@ -94,16 +102,21 @@ export function VolunteerContactFieldsForm({
 
       <div className="space-y-3 rounded-lg border p-4">
         <div>
-          <p className="font-medium text-sm">Home address</p>
+          <p className="font-medium text-sm">
+            Home address{!requireAddress ? " (optional)" : ""}
+          </p>
           <p className="text-xs text-muted-foreground mt-1">
             Used for team coordination. Update this if you move.
+            {!requireAddress
+              ? " Leave blank if unknown — if you start an address, street, city, ZIP, and county are all required."
+              : null}
           </p>
         </div>
 
         <AddressAutocomplete
           label="Home street address"
           defaultValue={values.home_street}
-          required
+          required={requireAddress}
           onAddressChange={(address) => update("home_street", address)}
           onSelect={(parts) =>
             onChange({
@@ -124,6 +137,7 @@ export function VolunteerContactFieldsForm({
               id={`${idPrefix}-home-city`}
               value={values.home_city}
               onChange={(event) => update("home_city", event.target.value)}
+              required={requireAddress}
             />
           </div>
           <div className="space-y-2">
@@ -143,12 +157,14 @@ export function VolunteerContactFieldsForm({
               id={`${idPrefix}-home-zip`}
               value={values.home_zip}
               onChange={(event) => update("home_zip", event.target.value)}
+              required={requireAddress}
             />
           </div>
           <CountySelect
             id={`${idPrefix}-home-county`}
             value={values.home_county}
             onChange={(county) => update("home_county", county)}
+            required={requireAddress}
           />
         </div>
       </div>

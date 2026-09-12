@@ -49,9 +49,6 @@ export async function POST(request: NextRequest) {
     if (contactFields.full_name !== undefined && !contactFields.full_name) {
       return NextResponse.json({ error: "Name is required" }, { status: 400 });
     }
-    if (contactFields.phone !== undefined && !contactFields.phone) {
-      return NextResponse.json({ error: "Phone is required" }, { status: 400 });
-    }
 
     const mergedAddress = {
       home_street: contactFields.home_street ?? existingProfile.home_street,
@@ -68,9 +65,21 @@ export async function POST(request: NextRequest) {
       contactFields.home_zip !== undefined ||
       contactFields.home_county !== undefined;
 
-    if (addressTouched && !isHomeAddressComplete(mergedAddress)) {
+    const addressHasAnyValue = Boolean(
+      mergedAddress.home_street?.trim() ||
+        mergedAddress.home_city?.trim() ||
+        mergedAddress.home_state?.trim() ||
+        mergedAddress.home_zip?.trim() ||
+        mergedAddress.home_county?.trim()
+    );
+
+    // Allow clearing address entirely; only require a complete set when partially filled.
+    if (addressTouched && addressHasAnyValue && !isHomeAddressComplete(mergedAddress)) {
       return NextResponse.json(
-        { error: "Home street, city, ZIP code, and county are required" },
+        {
+          error:
+            "If you enter a home address, street, city, ZIP code, and county are all required.",
+        },
         { status: 400 }
       );
     }

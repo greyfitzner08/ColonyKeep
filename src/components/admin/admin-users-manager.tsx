@@ -325,9 +325,9 @@ export function AdminUsersManager({
 
       <p className="text-xs text-muted-foreground">
         Change platform roles inline in the table. Your own account cannot be changed here. Use Edit
-        for contact details, volunteer interests, and trap team assignment. Birthday is collected
-        when users log in. Use Find duplicates to merge accidental double accounts without losing
-        emails or case work.
+        for contact details, birthday, volunteer interests, and trap team assignment. Phone and
+        address are optional when editing. Use Find duplicates to merge accidental double accounts
+        without losing emails or case work.
       </p>
 
       <AdminUserEditDialog

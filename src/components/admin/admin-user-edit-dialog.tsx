@@ -52,7 +52,6 @@ interface AdminUserEditDialogProps {
   application: VolunteerApplication | undefined;
   teamEligible: boolean;
   onError: (message: string | null) => void;
-  relaxContactRequirements?: boolean;
 }
 
 export function AdminUserEditDialog({
@@ -64,7 +63,6 @@ export function AdminUserEditDialog({
   application,
   teamEligible,
   onError,
-  relaxContactRequirements = false,
 }: AdminUserEditDialogProps) {
   const router = useRouter();
   const assignableRoles = useMemo(
@@ -77,6 +75,7 @@ export function AdminUserEditDialog({
   const [teamId, setTeamId] = useState<string>("none");
   const [volunteerRoles, setVolunteerRoles] = useState<VolunteerRole[]>([]);
   const [saving, setSaving] = useState(false);
+  const [localError, setLocalError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -94,6 +93,7 @@ export function AdminUserEditDialog({
     });
     setTeamId(user.team_id ?? "none");
     setVolunteerRoles(user.volunteer_roles ?? []);
+    setLocalError(null);
   }, [user]);
 
   const otherRoleActive = user?.volunteer_roles?.includes(OTHER_VOLUNTEER_ROLE) ?? false;
@@ -104,10 +104,16 @@ export function AdminUserEditDialog({
     );
   }
 
+  function reportError(message: string) {
+    setLocalError(message);
+    onError(message);
+  }
+
   async function saveChanges() {
     if (!user) return;
 
     setSaving(true);
+    setLocalError(null);
     onError(null);
 
     const payload: Record<string, unknown> = { userId: user.id };
@@ -116,46 +122,51 @@ export function AdminUserEditDialog({
     const nextTeamId = teamId === "none" ? null : teamId;
 
     if (!contact.full_name.trim()) {
-      onError("Name is required");
+      reportError("Name is required");
       setSaving(false);
       return;
     }
-    if (!relaxContactRequirements) {
-      if (!contact.phone.trim()) {
-        onError("Phone is required");
-        setSaving(false);
-        return;
-      }
-      if (!isHomeAddressComplete(contact)) {
-        onError("Home street, city, ZIP code, and county are required");
-        setSaving(false);
-        return;
-      }
+
+    // Phone/address are optional for admin edits (imported users often lack them).
+    // If any address field is started, require a complete address.
+    const addressStarted = Boolean(
+      contact.home_street.trim() ||
+        contact.home_city.trim() ||
+        contact.home_state.trim() ||
+        contact.home_zip.trim() ||
+        contact.home_county.trim()
+    );
+    if (addressStarted && !isHomeAddressComplete(contact)) {
+      reportError("If you enter a home address, street, city, ZIP code, and county are all required.");
+      setSaving(false);
+      return;
     }
 
     if (contact.full_name.trim() !== (user.full_name ?? "")) payload.fullName = contact.full_name.trim();
     if (contact.email.trim() !== user.email) payload.email = contact.email.trim();
-    if (contact.phone.trim() !== (user.phone ?? "")) payload.phone = contact.phone.trim();
+    if (contact.phone.trim() !== (user.phone ?? "")) payload.phone = contact.phone.trim() || null;
     if ((contact.birthday.trim() || null) !== (user.birthday ?? null)) {
       payload.birthday = contact.birthday.trim() || null;
     }
     if (contact.home_street.trim() !== (user.home_street ?? "")) {
-      payload.home_street = contact.home_street.trim();
+      payload.home_street = contact.home_street.trim() || null;
     }
     if (contact.home_city.trim() !== (user.home_city ?? "")) {
-      payload.home_city = contact.home_city.trim();
+      payload.home_city = contact.home_city.trim() || null;
     }
     if (contact.home_state.trim() !== (user.home_state ?? "")) {
-      payload.home_state = contact.home_state.trim();
+      payload.home_state = contact.home_state.trim() || null;
     }
-    if (contact.home_zip.trim() !== (user.home_zip ?? "")) payload.home_zip = contact.home_zip.trim();
+    if (contact.home_zip.trim() !== (user.home_zip ?? "")) {
+      payload.home_zip = contact.home_zip.trim() || null;
+    }
     if (contact.home_county.trim() !== (user.home_county ?? "")) {
-      payload.home_county = contact.home_county.trim();
+      payload.home_county = contact.home_county.trim() || null;
     }
 
     if (nextPlatformRole !== user.role) {
       if (!nextPlatformRole) {
-        onError("Platform role is required");
+        reportError("Platform role is required");
         setSaving(false);
         return;
       }
@@ -199,7 +210,7 @@ export function AdminUserEditDialog({
     setSaving(false);
 
     if (!response.ok) {
-      onError(result?.error ?? "Unable to save user changes");
+      reportError(result?.error ?? "Unable to save user changes");
       return;
     }
 
@@ -225,11 +236,14 @@ export function AdminUserEditDialog({
             onChange={setContact}
             idPrefix={`admin-user-${user.id}`}
             showBirthday
+            requirePhone={false}
+            requireAddress={false}
           />
 
           <p className="text-xs text-muted-foreground -mt-2">
-            Birthday can be set or corrected here. Volunteers are also prompted for it on first
-            login if it is missing. Month and day only appear on the team feed.
+            Birthday, phone, and address can be set or corrected here. Phone and address are optional
+            for admin edits. Volunteers are also prompted for birthday on first login if it is
+            missing.
           </p>
 
           <div className="grid gap-4 sm:grid-cols-2">
@@ -322,13 +336,16 @@ export function AdminUserEditDialog({
           </div>
         </div>
 
-        <div className="flex justify-end gap-2 pt-2">
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
-          <Button type="button" onClick={saveChanges} disabled={saving}>
-            {saving ? "Saving…" : "Save changes"}
-          </Button>
+        <div className="flex flex-col gap-2 pt-2">
+          {localError && <p className="text-sm text-destructive">{localError}</p>}
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              Cancel
+            </Button>
+            <Button type="button" onClick={saveChanges} disabled={saving}>
+              {saving ? "Saving…" : "Save changes"}
+            </Button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>
