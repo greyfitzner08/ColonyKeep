@@ -136,6 +136,9 @@ export function AdminUserEditDialog({
     if (contact.full_name.trim() !== (user.full_name ?? "")) payload.fullName = contact.full_name.trim();
     if (contact.email.trim() !== user.email) payload.email = contact.email.trim();
     if (contact.phone.trim() !== (user.phone ?? "")) payload.phone = contact.phone.trim();
+    if ((contact.birthday.trim() || null) !== (user.birthday ?? null)) {
+      payload.birthday = contact.birthday.trim() || null;
+    }
     if (contact.home_street.trim() !== (user.home_street ?? "")) {
       payload.home_street = contact.home_street.trim();
     }
@@ -221,10 +224,12 @@ export function AdminUserEditDialog({
             values={contact}
             onChange={setContact}
             idPrefix={`admin-user-${user.id}`}
+            showBirthday
           />
 
           <p className="text-xs text-muted-foreground -mt-2">
-            Birthday is collected when the user logs in for the first time.
+            Birthday can be set or corrected here. Volunteers are also prompted for it on first
+            login if it is missing. Month and day only appear on the team feed.
           </p>
 
           <div className="grid gap-4 sm:grid-cols-2">

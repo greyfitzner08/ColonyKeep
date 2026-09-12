@@ -515,6 +515,7 @@ export function VolunteersManager({
       fullName: contact.full_name.trim(),
       email: contact.email.trim(),
       phone: contact.phone.trim() || null,
+      birthday: contact.birthday.trim() || null,
       homeStreet: contact.home_street.trim() || null,
       homeCity: contact.home_city.trim() || null,
       homeState: contact.home_state.trim() || null,
@@ -1276,8 +1277,7 @@ export function VolunteersManager({
           <div className="space-y-1">
             <p className="text-sm font-medium">Contact & address</p>
             <p className="text-xs text-muted-foreground">
-              Update contact info and address here. Birthday is collected when the volunteer logs in.
-              Save changes when done.
+              Update contact info, birthday, and address here. Save changes when done.
             </p>
           </div>
           <VolunteerContactFieldsForm
@@ -1286,6 +1286,7 @@ export function VolunteersManager({
               setContactEdits((current) => ({ ...current, [app.id]: values }))
             }
             idPrefix={`review-contact-${app.id}`}
+            showBirthday
           />
           {emailInvalid && (
             <p className="flex flex-wrap items-center gap-1 text-sm text-destructive">
