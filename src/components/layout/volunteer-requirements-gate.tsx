@@ -10,10 +10,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { LIABILITY_WAIVER_URL, POLICY_URL } from "@/lib/constants";
 import {
   getMissingUserCompletableRequirements,
-  missingRequirementLabels,
+  getRequiredUserCompletableRequirements,
   needsImportedUserRequirementConfirmation,
   volunteerRolesForRequirementCheck,
 } from "@/lib/volunteers/application-requirements";
+import { requirementLabel } from "@/lib/volunteers/role-requirements";
 import { volunteerRoleLabel, resolveVolunteerRoleCatalog } from "@/lib/volunteers/role-catalog";
 import type { Profile, VolunteerApplication } from "@/lib/types";
 
@@ -43,14 +44,17 @@ export function VolunteerRequirementsGate({
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
-  const initialMissing = getMissingUserCompletableRequirements(profile, application);
+  // Imported users must re-confirm even if CSV marked docs signed.
+  const fieldsToConfirm = importedConfirmationPending
+    ? getRequiredUserCompletableRequirements(profile, application)
+    : getMissingUserCompletableRequirements(profile, application);
+
   const pendingApplication = {
     ...application,
     liability_waiver_signed: liabilitySigned,
     policy_signed: policySigned,
   };
   const stillMissing = getMissingUserCompletableRequirements(profile, pendingApplication);
-
   const submitDisabled = submitting || stillMissing.length > 0;
 
   const roleCatalog = resolveVolunteerRoleCatalog([]);
@@ -105,12 +109,15 @@ export function VolunteerRequirementsGate({
                 {roles.map((role) => volunteerRoleLabel(role, roleCatalog)).join(", ")}
               </p>
               <p className="text-muted-foreground">
-                Still needed: {missingRequirementLabels(profile, application).join(", ")}
+                Still needed:{" "}
+                {stillMissing.length > 0
+                  ? stillMissing.map(requirementLabel).join(", ")
+                  : "None — ready to continue"}
               </p>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">
-              {initialMissing.includes("liability_waiver_signed") && (
+              {fieldsToConfirm.includes("liability_waiver_signed") && (
                 <div className="flex items-start gap-2">
                   <Checkbox
                     id="req-waiver"
@@ -135,7 +142,7 @@ export function VolunteerRequirementsGate({
                 </div>
               )}
 
-              {initialMissing.includes("policy_signed") && (
+              {fieldsToConfirm.includes("policy_signed") && (
                 <div className="flex items-start gap-2">
                   <Checkbox
                     id="req-policy"

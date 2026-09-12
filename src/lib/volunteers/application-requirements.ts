@@ -60,6 +60,27 @@ export function needsImportedUserRequirementConfirmation(
   return Boolean(application?.imported_via_csv) && !application?.user_requirements_completed_at;
 }
 
+/** User-completable docs required by the volunteer's roles (regardless of signed state). */
+export function getRequiredUserCompletableRequirements(
+  profile: Profile | null,
+  application: VolunteerApplication | null | undefined
+): RequirementField[] {
+  if (!profile || !application || application.status !== "approved") return [];
+
+  const roles = volunteerRolesForRequirementCheck(profile, application);
+  if (roles.length === 0) return [];
+
+  const required = new Set<RequirementField>();
+  for (const role of roles) {
+    for (const field of requirementsForRole(role)) {
+      if (USER_COMPLETABLE_REQUIREMENTS.includes(field)) {
+        required.add(field);
+      }
+    }
+  }
+  return Array.from(required);
+}
+
 export function getMissingUserCompletableRequirements(
   profile: Profile | null,
   application: VolunteerApplication | null | undefined
@@ -69,20 +90,17 @@ export function getMissingUserCompletableRequirements(
   const roles = volunteerRolesForRequirementCheck(profile, application);
   if (roles.length === 0) return [];
 
-  if (needsImportedUserRequirementConfirmation(application)) {
-    const required = new Set<RequirementField>();
-    for (const role of roles) {
-      for (const field of requirementsForRole(role)) {
-        if (USER_COMPLETABLE_REQUIREMENTS.includes(field)) {
-          required.add(field);
-        }
-      }
-    }
-    return Array.from(required);
-  }
-
   const source = volunteerRequirementSource(application, profile);
   const missing = new Set<RequirementField>();
+
+  // Imported/admin-created users must re-confirm docs, but once the passed
+  // application marks a field signed (form state or API payload), it is done.
+  if (needsImportedUserRequirementConfirmation(application)) {
+    for (const field of getRequiredUserCompletableRequirements(profile, application)) {
+      if (!source[field]) missing.add(field);
+    }
+    return Array.from(missing);
+  }
 
   for (const role of roles) {
     for (const field of missingRequirementsForRole(role, source)) {
@@ -102,6 +120,9 @@ export function requiresVolunteerRequirementCompletion(
   if (!profile || isExemptFromVolunteerApplication(profile)) return false;
   if (!application || application.status !== "approved") return false;
   if (!isKnownUserRole(profile.role)) return false;
+  // Always gate imported users until they finish confirmation, even if CSV
+  // already marked waiver/policy as signed.
+  if (needsImportedUserRequirementConfirmation(application)) return true;
   return getMissingUserCompletableRequirements(profile, application).length > 0;
 }
 
