@@ -14,6 +14,7 @@ import {
   requiresVolunteerApplication,
   requiresVolunteerRequirementCompletion,
 } from "@/lib/volunteers/application-requirements";
+import { loadVolunteerApplicationForEmail } from "@/lib/volunteers/load-application-for-profile";
 import { fetchTeamFeedActivity, type TeamFeedActivity } from "@/lib/team-feed/activity";
 import type { RoleDescription, VolunteerApplication } from "@/lib/types";
 
@@ -39,14 +40,21 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
 
   let application: VolunteerApplication | null = null;
   if (!isActualAdmin && profile?.email) {
-    const { data } = await supabase
-      .from("volunteer_applications")
-      .select("*")
-      .eq("email", profile.email)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    application = (data as VolunteerApplication | null) ?? null;
+    // Service role avoids RLS/email-case mismatches that can hide an approved
+    // application and incorrectly show "Application Under Review".
+    try {
+      const service = await createServiceClient();
+      application = await loadVolunteerApplicationForEmail(service, profile.email);
+    } catch {
+      const { data } = await supabase
+        .from("volunteer_applications")
+        .select("*")
+        .ilike("email", profile.email.trim())
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      application = (data as VolunteerApplication | null) ?? null;
+    }
   }
 
   if (!isActualAdmin && effectiveProfile && requiresVolunteerApplication(effectiveProfile, application)) {
@@ -63,7 +71,7 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
   }
 
   if (!isActualAdmin && effectiveProfile && isApplicationPendingReview(effectiveProfile, application)) {
-    return <VolunteerGate />;
+    return <VolunteerGate application={application} />;
   }
 
   if (
@@ -76,7 +84,7 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
   }
 
   if (!isKnownUserRole(effectiveProfile?.role)) {
-    return <VolunteerGate />;
+    return <VolunteerGate application={application} />;
   }
 
   const needsBirthday =

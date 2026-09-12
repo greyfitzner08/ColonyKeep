@@ -41,6 +41,8 @@ export function isApplicationPendingReview(
   application: VolunteerApplication | null | undefined
 ): boolean {
   if (!profile || isExemptFromVolunteerApplication(profile)) return false;
+  // Already has portal access — never trap them on the pending-review screen.
+  if (isKnownUserRole(profile.role)) return false;
   if (!application) return false;
   return application.status === "pending" || application.status === "needs_followup";
 }
