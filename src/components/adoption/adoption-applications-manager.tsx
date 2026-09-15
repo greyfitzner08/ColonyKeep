@@ -346,14 +346,25 @@ function ApplicationCard({
   const [status, setStatus] = useState<AdoptionApplicationStatus>(application.status);
   const [staffNotes, setStaffNotes] = useState(application.staff_notes ?? "");
   const [additionalNotes, setAdditionalNotes] = useState(application.additional_notes ?? "");
+  const [savedSnapshot, setSavedSnapshot] = useState({
+    status: application.status,
+    staffNotes: application.staff_notes ?? "",
+    additionalNotes: application.additional_notes ?? "",
+  });
   const [saving, setSaving] = useState(false);
+  const [justSaved, setJustSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const fullName = `${application.applicant_first_name} ${application.applicant_last_name}`.trim();
   const submittedLabel = new Date(application.created_at).toLocaleString();
+  const dirty =
+    status !== savedSnapshot.status ||
+    staffNotes !== savedSnapshot.staffNotes ||
+    additionalNotes !== savedSnapshot.additionalNotes;
 
   async function save() {
     setSaving(true);
+    setJustSaved(false);
     setError(null);
     const response = await fetch("/api/adoption/applications/update", {
       method: "POST",
@@ -371,7 +382,18 @@ function ApplicationCard({
       setError(result?.error ?? "Unable to update application");
       return;
     }
+    setSavedSnapshot({
+      status,
+      staffNotes,
+      additionalNotes,
+    });
+    setJustSaved(true);
     router.refresh();
+  }
+
+  function markEdited() {
+    if (justSaved) setJustSaved(false);
+    if (error) setError(null);
   }
 
   return (
@@ -404,7 +426,7 @@ function ApplicationCard({
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <RankBadge rank={ranking.rank} badCount={ranking.badCount} />
-              <Badge variant="secondary">{adoptionApplicationStatusLabel(application.status)}</Badge>
+              <Badge variant="secondary">{adoptionApplicationStatusLabel(status)}</Badge>
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
@@ -463,7 +485,10 @@ function ApplicationCard({
                 <Label>Status</Label>
                 <Select
                   value={status}
-                  onValueChange={(value) => setStatus(value as AdoptionApplicationStatus)}
+                  onValueChange={(value) => {
+                    markEdited();
+                    setStatus(value as AdoptionApplicationStatus);
+                  }}
                 >
                   <SelectTrigger className="max-w-xs">
                     <SelectValue />
@@ -482,7 +507,10 @@ function ApplicationCard({
                 <Textarea
                   rows={3}
                   value={staffNotes}
-                  onChange={(e) => setStaffNotes(e.target.value)}
+                  onChange={(e) => {
+                    markEdited();
+                    setStaffNotes(e.target.value);
+                  }}
                 />
               </div>
               <div className="space-y-2">
@@ -490,13 +518,38 @@ function ApplicationCard({
                 <Textarea
                   rows={3}
                   value={additionalNotes}
-                  onChange={(e) => setAdditionalNotes(e.target.value)}
+                  onChange={(e) => {
+                    markEdited();
+                    setAdditionalNotes(e.target.value);
+                  }}
                 />
               </div>
               {error ? <p className="text-sm text-destructive">{error}</p> : null}
-              <div className="flex justify-end">
-                <Button type="button" onClick={() => void save()} disabled={saving}>
-                  {saving ? "Saving…" : "Save review"}
+              <div className="flex items-center justify-end gap-3">
+                {justSaved && !dirty ? (
+                  <p className="text-sm text-emerald-700">Review saved</p>
+                ) : null}
+                <Button
+                  type="button"
+                  onClick={() => void save()}
+                  disabled={saving || !dirty}
+                  variant={justSaved && !dirty ? "outline" : "default"}
+                  className={cn(
+                    justSaved &&
+                      !dirty &&
+                      "border-emerald-300 bg-emerald-50 text-emerald-900 hover:bg-emerald-50"
+                  )}
+                >
+                  {saving ? (
+                    "Saving…"
+                  ) : justSaved && !dirty ? (
+                    <>
+                      <Check className="mr-1.5 h-4 w-4" />
+                      Saved
+                    </>
+                  ) : (
+                    "Save review"
+                  )}
                 </Button>
               </div>
             </TabsContent>
