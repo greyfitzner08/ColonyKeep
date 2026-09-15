@@ -564,15 +564,24 @@ interface AdoptionApplicationsManagerProps {
   applications: AdoptionApplication[];
 }
 
+const OPEN_APPLICATION_STATUSES = new Set<AdoptionApplicationStatus>([
+  "pending",
+  "in_review",
+]);
+
 export function AdoptionApplicationsManager({
   applications: initial,
 }: AdoptionApplicationsManagerProps) {
-  const [statusFilter, setStatusFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("open");
   const [rankFilter, setRankFilter] = useState("all");
 
   const rows = useMemo(() => {
     const filtered = initial.filter((row) => {
-      if (statusFilter !== "all" && row.status !== statusFilter) return false;
+      if (statusFilter === "open") {
+        if (!OPEN_APPLICATION_STATUSES.has(row.status)) return false;
+      } else if (statusFilter !== "all" && row.status !== statusFilter) {
+        return false;
+      }
       if (rankFilter !== "all") {
         const rank = rankAdoptionApplication(row.answers).rank;
         if (rank !== rankFilter) return false;
@@ -595,6 +604,7 @@ export function AdoptionApplicationsManager({
   const counts = useMemo(() => {
     const next = { good: 0, caution: 0, poor: 0 };
     for (const row of initial) {
+      if (!OPEN_APPLICATION_STATUSES.has(row.status)) continue;
       next[rankAdoptionApplication(row.answers).rank] += 1;
     }
     return next;
@@ -631,17 +641,18 @@ export function AdoptionApplicationsManager({
         <CardHeader className="pb-3">
           <CardTitle className="text-lg">Filters</CardTitle>
           <CardDescription>
-            Applications are ranked automatically and listed with good fits first.
+            Defaults to pending and in-review applications, ranked with good fits first.
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-wrap gap-4">
           <div className="space-y-2">
             <Label className="text-sm text-muted-foreground">Workflow status</Label>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-[180px]">
+              <SelectTrigger className="w-[220px]">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="open">Pending / In review</SelectItem>
                 <SelectItem value="all">All statuses</SelectItem>
                 {ADOPTION_APPLICATION_STATUSES.map((entry) => (
                   <SelectItem key={entry.value} value={entry.value}>
