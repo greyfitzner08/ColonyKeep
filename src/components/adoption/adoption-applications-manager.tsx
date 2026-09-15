@@ -34,6 +34,7 @@ import {
 import {
   ADOPTION_APPLICATION_RANKS,
   adoptionApplicationRankLabel,
+  adoptionApplicationRankShortLabel,
   adoptionApplicationRankSortValue,
   rankAdoptionApplication,
   type AdoptionApplicationRank,
@@ -151,7 +152,7 @@ function ScreeningTab({
         )}
       >
         <div className="flex flex-wrap items-center gap-2">
-          <p className="text-lg font-semibold tracking-tight">Auto rank</p>
+          <p className="text-lg font-semibold tracking-tight">Screening flags</p>
           <RankBadge rank={ranking.rank} badCount={ranking.badCount} />
         </div>
         {ranking.flags.length > 0 ? (
@@ -162,7 +163,7 @@ function ScreeningTab({
           </ul>
         ) : (
           <p className="text-sm text-muted-foreground">
-            No flagged answers on the screening questions.
+            No screening answers were flagged. This is not a final adoption decision.
           </p>
         )}
       </section>
@@ -170,7 +171,7 @@ function ScreeningTab({
       <section className="space-y-4">
         <SectionHeading
           title="Key screening answers"
-          description="Answers that feed the auto rank"
+          description="Answers that may need follow-up — not a final decision"
         />
         <div className="grid gap-4 sm:grid-cols-2">
           <Answer label="Lifelong commitment" value={yesLabel(answers.lifelong_commitment)} />
@@ -615,11 +616,11 @@ export function AdoptionApplicationsManager({
       <div className="grid gap-3 sm:grid-cols-3">
         {(
           [
-            ["good", counts.good, "Good fits"],
-            ["caution", counts.caution, "Needs review"],
-            ["poor", counts.poor, "Higher risk"],
+            ["good", counts.good],
+            ["caution", counts.caution],
+            ["poor", counts.poor],
           ] as const
-        ).map(([rank, count, label]) => (
+        ).map(([rank, count]) => (
           <button
             key={rank}
             type="button"
@@ -631,7 +632,7 @@ export function AdoptionApplicationsManager({
             )}
           >
             <p className="text-2xl font-semibold tracking-tight">{count}</p>
-            <p className="text-sm font-medium">{label}</p>
+            <p className="text-sm font-medium">{adoptionApplicationRankShortLabel(rank)}</p>
             <p className="text-xs text-muted-foreground">{adoptionApplicationRankLabel(rank)}</p>
           </button>
         ))}
@@ -641,7 +642,8 @@ export function AdoptionApplicationsManager({
         <CardHeader className="pb-3">
           <CardTitle className="text-lg">Filters</CardTitle>
           <CardDescription>
-            Defaults to pending and in-review applications, ranked with good fits first.
+            Defaults to pending and in-review. Colors flag screening answers only — not a final
+            adoption decision.
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-wrap gap-4">
@@ -663,7 +665,7 @@ export function AdoptionApplicationsManager({
             </Select>
           </div>
           <div className="space-y-2">
-            <Label className="text-sm text-muted-foreground">Auto rank</Label>
+            <Label className="text-sm text-muted-foreground">Screening flags</Label>
             <Select value={rankFilter} onValueChange={setRankFilter}>
               <SelectTrigger className="w-[220px]">
                 <SelectValue />

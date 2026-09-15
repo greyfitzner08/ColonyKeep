@@ -22,14 +22,19 @@ const RANK_ORDER: Record<AdoptionApplicationRank, number> = {
 export const ADOPTION_APPLICATION_RANKS: {
   value: AdoptionApplicationRank;
   label: string;
+  shortLabel: string;
 }[] = [
-  { value: "good", label: "Good" },
-  { value: "caution", label: "Potentially not good" },
-  { value: "poor", label: "Not a good application" },
+  { value: "good", label: "No flags", shortLabel: "Clear screening" },
+  { value: "caution", label: "Some flags", shortLabel: "Follow up" },
+  { value: "poor", label: "Many flags", shortLabel: "More follow-up" },
 ];
 
 export function adoptionApplicationRankLabel(rank: AdoptionApplicationRank): string {
   return ADOPTION_APPLICATION_RANKS.find((entry) => entry.value === rank)?.label ?? rank;
+}
+
+export function adoptionApplicationRankShortLabel(rank: AdoptionApplicationRank): string {
+  return ADOPTION_APPLICATION_RANKS.find((entry) => entry.value === rank)?.shortLabel ?? rank;
 }
 
 export function collectAdoptionApplicationBadFlags(
@@ -102,10 +107,10 @@ export function collectAdoptionApplicationBadFlags(
 }
 
 /**
- * Ranking:
- * - 0–1 bad answers → good
- * - 2–3 bad answers → potentially not good
- * - 4+ bad answers → not a good application
+ * Ranking by flagged screening answers only — not a final adoption decision:
+ * - 0–1 flags → no flags
+ * - 2–3 flags → some flags
+ * - 4+ flags → many flags
  */
 export function rankAdoptionApplication(
   answers: AdoptionApplicationAnswers | null | undefined
