@@ -65,6 +65,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid disease test status" }, { status: 400 });
   }
 
+  const profilePhotoUrl =
+    typeof body.profile_photo_url === "string" ? body.profile_photo_url.trim() || null : null;
+
   const payload = {
     name,
     age_description:
@@ -75,6 +78,7 @@ export async function POST(request: NextRequest) {
       typeof body.location_id === "string" && body.location_id.trim()
         ? body.location_id.trim()
         : null,
+    profile_photo_url: profilePhotoUrl,
     spayed_neutered: optionalBoolean(body.spayed_neutered),
     vaccinated: optionalBoolean(body.vaccinated),
     vaccination_notes:

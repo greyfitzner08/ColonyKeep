@@ -1,9 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import Link from "next/link";
-import { MapPin, Pencil, Plus, Trash2 } from "lucide-react";
+import { MapPin, Pencil, Plus, Trash2, Upload } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -46,6 +47,7 @@ type CatForm = {
   sex: AdoptableCatSex | "";
   status: AdoptableCatStatus;
   location_id: string;
+  profile_photo_url: string;
   spayed_neutered: boolean | null;
   vaccinated: boolean | null;
   vaccination_notes: string;
@@ -65,6 +67,7 @@ const emptyForm = (): CatForm => ({
   sex: "",
   status: "available",
   location_id: "",
+  profile_photo_url: "",
   spayed_neutered: null,
   vaccinated: null,
   vaccination_notes: "",
@@ -84,15 +87,19 @@ function yesNoUnknown(value: boolean | null): string {
 
 export function AdoptableCatsManager({ cats: initial, locations }: AdoptableCatsManagerProps) {
   const router = useRouter();
+  const photoInputRef = useRef<HTMLInputElement>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<AdoptableCat | null>(null);
   const [form, setForm] = useState<CatForm>(emptyForm());
   const [saving, setSaving] = useState(false);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>("all");
 
-  const activeLocations = locations.filter((location) => location.is_active || location.id === form.location_id);
+  const activeLocations = locations.filter(
+    (location) => location.is_active || location.id === form.location_id
+  );
 
   const rows = useMemo(() => {
     if (statusFilter === "all") return initial;
@@ -106,12 +113,27 @@ export function AdoptableCatsManager({ cats: initial, locations }: AdoptableCats
         label: "Cat",
         sortValue: (row) => row.name,
         render: (row) => (
-          <div>
-            <p className="font-medium">{row.name}</p>
-            <p className="text-xs text-muted-foreground">
-              {[row.age_description, row.sex ? row.sex : null].filter(Boolean).join(" · ") ||
-                "Age/sex not set"}
-            </p>
+          <div className="flex items-center gap-3">
+            {row.profile_photo_url ? (
+              <Image
+                src={row.profile_photo_url}
+                alt={row.name}
+                width={40}
+                height={40}
+                className="h-10 w-10 rounded-full object-cover"
+              />
+            ) : (
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted text-xs text-muted-foreground">
+                —
+              </div>
+            )}
+            <div>
+              <p className="font-medium">{row.name}</p>
+              <p className="text-xs text-muted-foreground">
+                {[row.age_description, row.sex ? row.sex : null].filter(Boolean).join(" · ") ||
+                  "Age/sex not set"}
+              </p>
+            </div>
           </div>
         ),
       },
@@ -189,6 +211,7 @@ export function AdoptableCatsManager({ cats: initial, locations }: AdoptableCats
       sex: cat.sex ?? "",
       status: cat.status,
       location_id: cat.location_id ?? "",
+      profile_photo_url: cat.profile_photo_url ?? "",
       spayed_neutered: cat.spayed_neutered,
       vaccinated: cat.vaccinated,
       vaccination_notes: cat.vaccination_notes ?? "",
@@ -203,6 +226,25 @@ export function AdoptableCatsManager({ cats: initial, locations }: AdoptableCats
     setDialogOpen(true);
   }
 
+  async function uploadPhoto(file: File) {
+    setUploadingPhoto(true);
+    setSaveError(null);
+    const data = new FormData();
+    data.append("file", file);
+    if (editing?.id) data.append("cat_id", editing.id);
+    const response = await fetch("/api/adoption/cats/photo", {
+      method: "POST",
+      body: data,
+    });
+    const result = await response.json().catch(() => null);
+    setUploadingPhoto(false);
+    if (!response.ok) {
+      setSaveError(result?.error ?? "Unable to upload photo");
+      return;
+    }
+    setForm((prev) => ({ ...prev, profile_photo_url: result.profile_photo_url ?? "" }));
+  }
+
   async function save() {
     setSaving(true);
     setSaveError(null);
@@ -214,6 +256,7 @@ export function AdoptableCatsManager({ cats: initial, locations }: AdoptableCats
         ...form,
         sex: form.sex || null,
         location_id: form.location_id || null,
+        profile_photo_url: form.profile_photo_url || null,
       }),
     });
     const result = await response.json().catch(() => null);
@@ -290,6 +333,64 @@ export function AdoptableCatsManager({ cats: initial, locations }: AdoptableCats
             <DialogTitle>{editing ? "Edit adoptable cat" : "Add adoptable cat"}</DialogTitle>
           </DialogHeader>
           <div className="space-y-5">
+            <section className="space-y-3 rounded-lg border p-4">
+              <p className="text-sm font-semibold">Profile photo</p>
+              <div className="flex items-center gap-4">
+                {form.profile_photo_url ? (
+                  <Image
+                    src={form.profile_photo_url}
+                    alt={form.name || "Cat photo"}
+                    width={80}
+                    height={80}
+                    className="h-20 w-20 rounded-full object-cover"
+                  />
+                ) : (
+                  <div className="flex h-20 w-20 items-center justify-center rounded-full bg-muted text-sm text-muted-foreground">
+                    No photo
+                  </div>
+                )}
+                <div className="space-y-2">
+                  <input
+                    ref={photoInputRef}
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp,image/gif"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) void uploadPhoto(file);
+                      e.target.value = "";
+                    }}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={uploadingPhoto}
+                    onClick={() => photoInputRef.current?.click()}
+                  >
+                    <Upload className="mr-2 h-4 w-4" />
+                    {uploadingPhoto
+                      ? "Uploading…"
+                      : form.profile_photo_url
+                        ? "Replace photo"
+                        : "Upload photo"}
+                  </Button>
+                  {form.profile_photo_url && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setForm({ ...form, profile_photo_url: "" })}
+                    >
+                      Remove photo
+                    </Button>
+                  )}
+                  <p className="text-xs text-muted-foreground">
+                    One profile photo. JPEG, PNG, WebP, or GIF up to 5MB.
+                  </p>
+                </div>
+              </div>
+            </section>
+
             <section className="space-y-3 rounded-lg border p-4">
               <p className="text-sm font-semibold">Cat details</p>
               <div className="grid gap-3 sm:grid-cols-2">
@@ -513,7 +614,7 @@ export function AdoptableCatsManager({ cats: initial, locations }: AdoptableCats
               <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
                 Cancel
               </Button>
-              <Button type="button" onClick={() => void save()} disabled={saving}>
+              <Button type="button" onClick={() => void save()} disabled={saving || uploadingPhoto}>
                 {saving ? "Saving…" : "Save cat"}
               </Button>
             </div>

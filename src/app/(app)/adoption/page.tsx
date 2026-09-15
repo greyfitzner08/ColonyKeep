@@ -37,12 +37,22 @@ export default async function AdoptionPage() {
             Adoption Specialists.
           </p>
         </div>
-        <Button type="button" variant="outline" asChild>
-          <Link href="/adoption/locations">
-            <MapPin className="mr-2 h-4 w-4" />
-            Manage locations
-          </Link>
-        </Button>
+        <div className="flex gap-2">
+          <Button type="button" variant="outline" asChild>
+            <Link href="/adoption/applications">Applications</Link>
+          </Button>
+          <Button type="button" variant="outline" asChild>
+            <Link href="/adoption/locations">
+              <MapPin className="mr-2 h-4 w-4" />
+              Manage locations
+            </Link>
+          </Button>
+          <Button type="button" variant="outline" asChild>
+            <Link href="/adopt" target="_blank">
+              Public form
+            </Link>
+          </Button>
+        </div>
       </div>
       <AdoptableCatsManager cats={catRows} locations={locationRows} />
     </div>

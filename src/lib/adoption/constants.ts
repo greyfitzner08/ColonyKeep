@@ -40,6 +40,7 @@ export interface AdoptableCat {
   sex: AdoptableCatSex | null;
   status: AdoptableCatStatus;
   location_id: string | null;
+  profile_photo_url: string | null;
   spayed_neutered: boolean | null;
   vaccinated: boolean | null;
   vaccination_notes: string | null;
