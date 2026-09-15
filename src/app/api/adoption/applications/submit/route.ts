@@ -8,6 +8,7 @@ import {
   type CatLivingPlan,
   type EmploymentStatus,
   type HomeActivity,
+  type HowHeardSource,
   type PetCurrentStatus,
   type RehomeCircumstance,
   type ResidenceType,
@@ -103,16 +104,27 @@ function parseAnswers(raw: unknown): AdoptionApplicationAnswers {
     "none_anticipated",
     "other",
   ]);
+  const howHeardSources = new Set<HowHeardSource>([
+    "pet_store",
+    "petfinder",
+    "adopt_a_pet",
+    "friend_family",
+    "facebook",
+    "instagram",
+    "other",
+  ]);
 
   const residence = asString(body.residence_type) as ResidenceType | "";
   const employmentStatus = asString(body.employment_status) as EmploymentStatus | "";
   const livingPlan = asString(body.living_plan) as CatLivingPlan | "";
+  const howHeard = asString(body.how_heard) as HowHeardSource | "";
 
   const petsRaw = Array.isArray(body.pets) ? body.pets : [];
   const pets = petsRaw.length > 0 ? petsRaw.map(parsePet) : [emptyAdoptionPet()];
 
   return {
-    how_heard: asString(body.how_heard),
+    how_heard: howHeardSources.has(howHeard as HowHeardSource) ? howHeard : "",
+    how_heard_other: asString(body.how_heard_other),
     lifelong_commitment: asYesNo(body.lifelong_commitment),
     housemate_name: asString(body.housemate_name),
     address_line_1: asString(body.address_line_1),

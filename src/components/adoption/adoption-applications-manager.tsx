@@ -22,6 +22,7 @@ import {
   CAT_LIVING_PLANS,
   EMPLOYMENT_STATUSES,
   HOME_ACTIVITY_OPTIONS,
+  HOW_HEARD_SOURCES,
   PET_CURRENT_STATUSES,
   REHOME_CIRCUMSTANCES,
   RESIDENCE_TYPES,
@@ -61,7 +62,14 @@ function AnswersPanel({ answers }: { answers: AdoptionApplicationAnswers }) {
     <div className="space-y-6 text-sm">
       <section className="space-y-3">
         <h3 className="font-semibold">Adoption interest</h3>
-        <Answer label="How heard" value={answers.how_heard} />
+        <Answer
+          label="How heard"
+          value={
+            answers.how_heard === "other"
+              ? answers.how_heard_other || "Other"
+              : labelFor(HOW_HEARD_SOURCES, answers.how_heard)
+          }
+        />
         <Answer label="Lifelong commitment" value={yesLabel(answers.lifelong_commitment)} />
       </section>
 

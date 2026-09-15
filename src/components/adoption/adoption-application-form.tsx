@@ -19,6 +19,7 @@ import {
   CAT_LIVING_PLANS,
   EMPLOYMENT_STATUSES,
   HOME_ACTIVITY_OPTIONS,
+  HOW_HEARD_SOURCES,
   PET_CURRENT_STATUSES,
   REHOME_CIRCUMSTANCES,
   RESIDENCE_TYPES,
@@ -30,6 +31,7 @@ import {
   type CatLivingPlan,
   type EmploymentStatus,
   type HomeActivity,
+  type HowHeardSource,
   type PetCurrentStatus,
   type RehomeCircumstance,
   type ResidenceType,
@@ -235,6 +237,10 @@ export function AdoptionApplicationForm({
   function validateStep(): string | null {
     if (step === 0) {
       if (!catInterestName.trim()) return "Please enter the cat or kitten you are interested in.";
+      if (!answers.how_heard) return "Please tell us how you heard about the cat.";
+      if (answers.how_heard === "other" && !answers.how_heard_other.trim()) {
+        return "Please describe how you heard about the cat.";
+      }
       if (!answers.lifelong_commitment) return "Please answer the lifelong commitment question.";
     }
     if (step === 1) {
@@ -375,12 +381,35 @@ export function AdoptionApplicationForm({
               />
             </Field>
             <Field label="How did you hear about the cat or kitten you are interested in adopting?">
-              <Textarea
-                rows={2}
-                value={answers.how_heard}
-                onChange={(e) => updateAnswers({ how_heard: e.target.value })}
-              />
+              <Select
+                value={answers.how_heard || "__none__"}
+                onValueChange={(value) =>
+                  updateAnswers({
+                    how_heard: value === "__none__" ? "" : (value as HowHeardSource),
+                  })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select an option" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">Select an option...</SelectItem>
+                  {HOW_HEARD_SOURCES.map((entry) => (
+                    <SelectItem key={entry.value} value={entry.value}>
+                      {entry.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </Field>
+            {answers.how_heard === "other" && (
+              <Field label="Please tell us how you heard about the cat">
+                <Input
+                  value={answers.how_heard_other}
+                  onChange={(e) => updateAnswers({ how_heard_other: e.target.value })}
+                />
+              </Field>
+            )}
             <Field label="Are you aware that adopting a cat is a significant, lifelong commitment?">
               <ChoiceGroup
                 name="lifelong"

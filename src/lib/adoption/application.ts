@@ -61,6 +61,15 @@ export type PetCurrentStatus =
   | "lost"
   | "other";
 
+export type HowHeardSource =
+  | "pet_store"
+  | "petfinder"
+  | "adopt_a_pet"
+  | "friend_family"
+  | "facebook"
+  | "instagram"
+  | "other";
+
 export interface AdoptionApplicationPet {
   name: string;
   age: string;
@@ -72,7 +81,8 @@ export interface AdoptionApplicationPet {
 }
 
 export interface AdoptionApplicationAnswers {
-  how_heard: string;
+  how_heard: HowHeardSource | "";
+  how_heard_other: string;
   lifelong_commitment: YesNo | "";
   housemate_name: string;
   address_line_1: string;
@@ -179,6 +189,16 @@ export const APPLICANT_AGE_RANGES = [
   "Prefer not to say",
 ] as const;
 
+export const HOW_HEARD_SOURCES: { value: HowHeardSource; label: string }[] = [
+  { value: "pet_store", label: "Saw at Pet Store" },
+  { value: "petfinder", label: "PetFinder" },
+  { value: "adopt_a_pet", label: "Adopt-A-Pet" },
+  { value: "friend_family", label: "Friend/Family" },
+  { value: "facebook", label: "Facebook" },
+  { value: "instagram", label: "Instagram" },
+  { value: "other", label: "Other" },
+];
+
 export const EMPLOYMENT_STATUSES: { value: EmploymentStatus; label: string }[] = [
   { value: "employed_full_time", label: "Employed full-time" },
   { value: "employed_part_time", label: "Employed part-time" },
@@ -243,6 +263,7 @@ export function emptyAdoptionPet(): AdoptionApplicationPet {
 export function emptyAdoptionAnswers(): AdoptionApplicationAnswers {
   return {
     how_heard: "",
+    how_heard_other: "",
     lifelong_commitment: "",
     housemate_name: "",
     address_line_1: "",
