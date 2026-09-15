@@ -100,3 +100,7 @@ DROP POLICY IF EXISTS "Adoption specialists manage cats" ON adoptable_cats;
 CREATE POLICY "Adoption specialists manage cats" ON adoptable_cats
   FOR ALL USING (has_adoption_specialist_role())
   WITH CHECK (has_adoption_specialist_role());
+
+REVOKE ALL ON FUNCTION public.has_adoption_specialist_role() FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.has_adoption_specialist_role() FROM anon;
+GRANT EXECUTE ON FUNCTION public.has_adoption_specialist_role() TO authenticated, service_role, postgres;
