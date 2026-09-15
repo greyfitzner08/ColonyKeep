@@ -1,9 +1,9 @@
 "use client";
 
-import { useMemo, useState, type ReactNode } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { ChevronDown } from "lucide-react";
+import { Check, ChevronDown, Copy } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,6 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import {
   ADOPTION_APPLICATION_STATUSES,
@@ -36,6 +37,7 @@ import {
   adoptionApplicationRankSortValue,
   rankAdoptionApplication,
   type AdoptionApplicationRank,
+  type AdoptionApplicationRankResult,
 } from "@/lib/adoption/rank";
 import { cn } from "@/lib/utils";
 
@@ -85,49 +87,121 @@ function Answer({ label, value }: { label: string; value?: string | null }) {
   );
 }
 
-function DetailSection({
-  title,
-  description,
-  defaultOpen = false,
-  children,
-}: {
-  title: string;
-  description?: string;
-  defaultOpen?: boolean;
-  children: ReactNode;
-}) {
-  const [open, setOpen] = useState(defaultOpen);
-
+function SectionHeading({ title, description }: { title: string; description?: string }) {
   return (
-    <div className="rounded-lg border bg-background/70">
-      <button
-        type="button"
-        className="flex w-full items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/40"
-        onClick={() => setOpen((value) => !value)}
-        aria-expanded={open}
-      >
-        <div className="min-w-0 flex-1">
-          <p className="text-base font-semibold leading-snug">{title}</p>
-          {description ? (
-            <p className="mt-0.5 text-sm text-muted-foreground">{description}</p>
-          ) : null}
-        </div>
-        <ChevronDown
-          className={cn(
-            "mt-0.5 h-4 w-4 shrink-0 text-muted-foreground transition-transform",
-            open && "rotate-180"
-          )}
-        />
-      </button>
-      {open ? <div className="space-y-4 border-t px-4 py-4">{children}</div> : null}
+    <div className="space-y-0.5 border-b pb-2">
+      <h3 className="text-base font-semibold tracking-tight">{title}</h3>
+      {description ? <p className="text-sm text-muted-foreground">{description}</p> : null}
     </div>
   );
 }
 
-function AnswersSections({ answers }: { answers: AdoptionApplicationAnswers }) {
+function CopyEmailButton({ email }: { email: string }) {
+  const [copied, setCopied] = useState(false);
+
+  async function copyEmail() {
+    await navigator.clipboard.writeText(email);
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 1500);
+  }
+
   return (
-    <div className="space-y-3">
-      <DetailSection title="Adoption interest" description="How they found the cat">
+    <Button
+      type="button"
+      variant="outline"
+      size="sm"
+      className="h-7 shrink-0 gap-1 px-2 text-xs"
+      aria-label={`Copy ${email}`}
+      title="Copy email"
+      onClick={(event) => {
+        event.stopPropagation();
+        void copyEmail();
+      }}
+    >
+      {copied ? (
+        <>
+          <Check className="h-3.5 w-3.5 text-primary" />
+          Copied
+        </>
+      ) : (
+        <>
+          <Copy className="h-3.5 w-3.5" />
+          Copy
+        </>
+      )}
+    </Button>
+  );
+}
+
+function ScreeningTab({
+  answers,
+  ranking,
+}: {
+  answers: AdoptionApplicationAnswers;
+  ranking: AdoptionApplicationRankResult;
+}) {
+  return (
+    <div className="space-y-5">
+      <section
+        className={cn(
+          "space-y-3 rounded-lg border p-4",
+          ranking.rank === "good" && "border-emerald-200 bg-emerald-50/70",
+          ranking.rank === "caution" && "border-amber-200 bg-amber-50/70",
+          ranking.rank === "poor" && "border-red-200 bg-red-50/70"
+        )}
+      >
+        <div className="flex flex-wrap items-center gap-2">
+          <p className="text-lg font-semibold tracking-tight">Auto rank</p>
+          <RankBadge rank={ranking.rank} badCount={ranking.badCount} />
+        </div>
+        {ranking.flags.length > 0 ? (
+          <ul className="list-disc space-y-1 pl-5 text-sm">
+            {ranking.flags.map((flag) => (
+              <li key={flag.id}>{flag.label}</li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            No flagged answers on the screening questions.
+          </p>
+        )}
+      </section>
+
+      <section className="space-y-4">
+        <SectionHeading
+          title="Key screening answers"
+          description="Answers that feed the auto rank"
+        />
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Answer label="Lifelong commitment" value={yesLabel(answers.lifelong_commitment)} />
+          <Answer label="Rents" value={yesLabel(answers.rents)} />
+          <Answer label="Cats approved (if renting)" value={yesLabel(answers.rent_cats_approved)} />
+          <Answer label="Allergic to cats" value={yesLabel(answers.allergic_to_cats)} />
+          <Answer label="Allergy explanation" value={answers.allergic_explanation} />
+          <Answer label="Living plan" value={labelFor(CAT_LIVING_PLANS, answers.living_plan)} />
+          <Answer label="Plan to declaw" value={yesLabel(answers.plan_to_declaw)} />
+          <Answer
+            label="Possible rehome circumstances"
+            value={[
+              ...answers.rehome_circumstances.map((v) => labelFor(REHOME_CIRCUMSTANCES, v)),
+              answers.rehome_other,
+            ]
+              .filter(Boolean)
+              .join(", ")}
+          />
+          <Answer label="Can pay vet costs" value={yesLabel(answers.can_pay_vet_costs)} />
+          <Answer label="Cat is family" value={yesLabel(answers.cat_is_family)} />
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function DetailsTab({ answers }: { answers: AdoptionApplicationAnswers }) {
+  return (
+    <div className="space-y-8">
+      <section className="space-y-4">
+        <SectionHeading title="Interest & housing" />
         <div className="grid gap-4 sm:grid-cols-2">
           <Answer
             label="How heard"
@@ -137,19 +211,13 @@ function AnswersSections({ answers }: { answers: AdoptionApplicationAnswers }) {
                 : labelFor(HOW_HEARD_SOURCES, answers.how_heard)
             }
           />
-          <Answer label="Lifelong commitment" value={yesLabel(answers.lifelong_commitment)} />
-        </div>
-      </DetailSection>
-
-      <DetailSection title="Contact & residence" description="Applicant location and housing">
-        <div className="grid gap-4 sm:grid-cols-2">
+          <Answer label="Housemate" value={answers.housemate_name} />
           <Answer
             label="Address"
             value={[answers.address_line_1, answers.address_line_2, answers.city, answers.state]
               .filter(Boolean)
               .join(", ")}
           />
-          <Answer label="Housemate" value={answers.housemate_name} />
           <Answer
             label="Residence type"
             value={
@@ -158,8 +226,6 @@ function AnswersSections({ answers }: { answers: AdoptionApplicationAnswers }) {
                 : labelFor(RESIDENCE_TYPES, answers.residence_type)
             }
           />
-          <Answer label="Rents" value={yesLabel(answers.rents)} />
-          <Answer label="Cats approved (if renting)" value={yesLabel(answers.rent_cats_approved)} />
           <Answer
             label="Landlord"
             value={[answers.landlord_name, answers.landlord_email, answers.landlord_phone]
@@ -167,9 +233,10 @@ function AnswersSections({ answers }: { answers: AdoptionApplicationAnswers }) {
               .join(" · ")}
           />
         </div>
-      </DetailSection>
+      </section>
 
-      <DetailSection title="Household" description="People, work, and home activity">
+      <section className="space-y-4">
+        <SectionHeading title="Household" />
         <div className="grid gap-4 sm:grid-cols-2">
           <Answer
             label="Employment"
@@ -193,32 +260,13 @@ function AnswersSections({ answers }: { answers: AdoptionApplicationAnswers }) {
               .filter(Boolean)
               .join(", ")}
           />
-          <Answer label="Allergic to cats" value={yesLabel(answers.allergic_to_cats)} />
-          <Answer label="Allergy explanation" value={answers.allergic_explanation} />
-        </div>
-      </DetailSection>
-
-      <DetailSection title="Cat care & commitment" description="Living plan and veterinary readiness">
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Answer label="Living plan" value={labelFor(CAT_LIVING_PLANS, answers.living_plan)} />
-          <Answer label="Plan to declaw" value={yesLabel(answers.plan_to_declaw)} />
           <Answer label="Hours alone / day" value={answers.hours_alone} />
           <Answer label="Backup caregiver" value={answers.backup_caregiver} />
-          <Answer
-            label="Possible rehome circumstances"
-            value={[
-              ...answers.rehome_circumstances.map((v) => labelFor(REHOME_CIRCUMSTANCES, v)),
-              answers.rehome_other,
-            ]
-              .filter(Boolean)
-              .join(", ")}
-          />
-          <Answer label="Can pay vet costs" value={yesLabel(answers.can_pay_vet_costs)} />
-          <Answer label="Cat is family" value={yesLabel(answers.cat_is_family)} />
         </div>
-      </DetailSection>
+      </section>
 
-      <DetailSection title="Pet history" description="Previous pets and veterinarian">
+      <section className="space-y-4">
+        <SectionHeading title="Pet history & references" />
         <div className="grid gap-4 sm:grid-cols-2">
           <Answer label="Pets in last 5 years" value={yesLabel(answers.had_pets_last_five_years)} />
           <Answer
@@ -228,33 +276,6 @@ function AnswersSections({ answers }: { answers: AdoptionApplicationAnswers }) {
               .join(" · ")}
           />
           <Answer label="Never had pet — vet plan" value={answers.never_had_pet_vet_plan} />
-        </div>
-        <div className="space-y-3">
-          {(answers.pets ?? []).map((pet, index) => (
-            <div key={index} className="rounded-md border bg-muted/20 p-3">
-              <p className="mb-3 text-sm font-semibold">Pet #{index + 1}</p>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <Answer label="Name" value={pet.name} />
-                <Answer label="Age" value={pet.age} />
-                <Answer label="Year acquired" value={pet.year_acquired} />
-                <Answer label="Type" value={pet.animal_type} />
-                <Answer label="Gender" value={pet.gender} />
-                <Answer
-                  label="Status"
-                  value={
-                    pet.current_status === "other"
-                      ? pet.current_status_other || "Other"
-                      : labelFor(PET_CURRENT_STATUSES, pet.current_status)
-                  }
-                />
-              </div>
-            </div>
-          ))}
-        </div>
-      </DetailSection>
-
-      <DetailSection title="References & comments">
-        <div className="grid gap-4 sm:grid-cols-2">
           <Answer
             label="Reference 1"
             value={[
@@ -277,9 +298,36 @@ function AnswersSections({ answers }: { answers: AdoptionApplicationAnswers }) {
               .filter(Boolean)
               .join(" · ")}
           />
+          <Answer label="Final comments" value={answers.final_comments} />
         </div>
-        <Answer label="Final comments" value={answers.final_comments} />
-      </DetailSection>
+
+        {(answers.pets ?? []).some((pet) => pet.name || pet.animal_type) ? (
+          <div className="space-y-3 pt-2">
+            {(answers.pets ?? []).map((pet, index) =>
+              pet.name || pet.animal_type ? (
+                <div key={index} className="rounded-lg border bg-muted/20 p-3">
+                  <p className="mb-3 text-sm font-semibold">Pet #{index + 1}</p>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <Answer label="Name" value={pet.name} />
+                    <Answer label="Age" value={pet.age} />
+                    <Answer label="Year acquired" value={pet.year_acquired} />
+                    <Answer label="Type" value={pet.animal_type} />
+                    <Answer label="Gender" value={pet.gender} />
+                    <Answer
+                      label="Status"
+                      value={
+                        pet.current_status === "other"
+                          ? pet.current_status_other || "Other"
+                          : labelFor(PET_CURRENT_STATUSES, pet.current_status)
+                      }
+                    />
+                  </div>
+                </div>
+              ) : null
+            )}
+          </div>
+        ) : null}
+      </section>
     </div>
   );
 }
@@ -293,6 +341,7 @@ function ApplicationCard({
 }) {
   const router = useRouter();
   const ranking = rankAdoptionApplication(application.answers);
+  const answers = application.answers ?? ({} as AdoptionApplicationAnswers);
   const [open, setOpen] = useState(defaultOpen);
   const [status, setStatus] = useState<AdoptionApplicationStatus>(application.status);
   const [staffNotes, setStaffNotes] = useState(application.staff_notes ?? "");
@@ -327,19 +376,24 @@ function ApplicationCard({
 
   return (
     <Card className={cn("overflow-hidden", cardToneClass(ranking.rank))}>
-      <button
-        type="button"
-        className="flex w-full items-start gap-3 px-5 py-4 text-left transition-colors hover:bg-background/40"
-        onClick={() => setOpen((value) => !value)}
-        aria-expanded={open}
-      >
-        <ChevronDown
-          className={cn(
-            "mt-1 h-5 w-5 shrink-0 text-muted-foreground transition-transform",
-            open && "rotate-180"
-          )}
-        />
-        <div className="min-w-0 flex-1 space-y-2">
+      <div className="flex w-full items-start gap-3 px-5 py-4">
+        <button
+          type="button"
+          className="mt-1 shrink-0 rounded-md p-0.5 text-muted-foreground transition-colors hover:bg-background/60"
+          onClick={() => setOpen((value) => !value)}
+          aria-expanded={open}
+          aria-label={open ? "Collapse application" : "Expand application"}
+        >
+          <ChevronDown
+            className={cn("h-5 w-5 transition-transform", open && "rotate-180")}
+          />
+        </button>
+
+        <button
+          type="button"
+          className="min-w-0 flex-1 space-y-2 text-left"
+          onClick={() => setOpen((value) => !value)}
+        >
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="min-w-0 space-y-1">
               <p className="text-xl font-semibold leading-tight tracking-tight">{fullName}</p>
@@ -354,61 +408,57 @@ function ApplicationCard({
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
-            <span>{application.applicant_email}</span>
-            <span className="hidden sm:inline">·</span>
             <span>{application.applicant_phone}</span>
             <span className="hidden sm:inline">·</span>
             <span>Submitted {submittedLabel}</span>
           </div>
+        </button>
+
+        <div className="flex shrink-0 flex-col items-end gap-2">
+          {application.cat?.profile_photo_url ? (
+            <Image
+              src={application.cat.profile_photo_url}
+              alt={application.cat_interest_name}
+              width={56}
+              height={56}
+              className="hidden h-14 w-14 rounded-full object-cover sm:block"
+            />
+          ) : null}
+          <div className="flex max-w-[240px] items-start gap-2">
+            <a
+              href={`mailto:${application.applicant_email}`}
+              className="break-all text-sm text-primary hover:underline"
+              onClick={(event) => event.stopPropagation()}
+            >
+              {application.applicant_email}
+            </a>
+            <CopyEmailButton email={application.applicant_email} />
+          </div>
         </div>
-        {application.cat?.profile_photo_url ? (
-          <Image
-            src={application.cat.profile_photo_url}
-            alt={application.cat_interest_name}
-            width={56}
-            height={56}
-            className="mt-0.5 hidden h-14 w-14 rounded-full object-cover sm:block"
-          />
-        ) : null}
-      </button>
+      </div>
 
       {open ? (
-        <CardContent className="space-y-4 border-t bg-background/50 pb-5 pt-4">
-          <section
-            className={cn(
-              "space-y-3 rounded-lg border p-4",
-              ranking.rank === "good" && "border-emerald-200 bg-emerald-50/70",
-              ranking.rank === "caution" && "border-amber-200 bg-amber-50/70",
-              ranking.rank === "poor" && "border-red-200 bg-red-50/70"
-            )}
-          >
-            <div className="flex flex-wrap items-center gap-2">
-              <p className="text-base font-semibold">Auto rank</p>
-              <RankBadge rank={ranking.rank} badCount={ranking.badCount} />
-            </div>
-            {ranking.flags.length > 0 ? (
-              <ul className="list-disc space-y-1 pl-5 text-sm">
-                {ranking.flags.map((flag) => (
-                  <li key={flag.id}>{flag.label}</li>
-                ))}
-              </ul>
-            ) : (
-              <p className="text-sm text-muted-foreground">
-                No flagged answers on the screening questions.
-              </p>
-            )}
-          </section>
+        <CardContent className="border-t bg-background/50 pb-5 pt-4">
+          <Tabs defaultValue="screening" className="space-y-4">
+            <TabsList className="grid h-auto w-full grid-cols-3 gap-1">
+              <TabsTrigger value="screening">Screening</TabsTrigger>
+              <TabsTrigger value="details">Full details</TabsTrigger>
+              <TabsTrigger value="review">Staff review</TabsTrigger>
+            </TabsList>
 
-          <AnswersSections
-            answers={application.answers ?? ({} as AdoptionApplicationAnswers)}
-          />
+            <TabsContent value="screening" className="mt-0">
+              <ScreeningTab answers={answers} ranking={ranking} />
+            </TabsContent>
 
-          <DetailSection
-            title="Internal use only"
-            description="Status and staff notes"
-            defaultOpen
-          >
-            <div className="space-y-4">
+            <TabsContent value="details" className="mt-0">
+              <DetailsTab answers={answers} />
+            </TabsContent>
+
+            <TabsContent value="review" className="mt-0 space-y-4">
+              <SectionHeading
+                title="Internal use only"
+                description="Update workflow status and keep staff notes with this application"
+              />
               <div className="space-y-2">
                 <Label>Status</Label>
                 <Select
@@ -449,8 +499,8 @@ function ApplicationCard({
                   {saving ? "Saving…" : "Save review"}
                 </Button>
               </div>
-            </div>
-          </DetailSection>
+            </TabsContent>
+          </Tabs>
         </CardContent>
       ) : null}
     </Card>
