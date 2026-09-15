@@ -7,6 +7,7 @@ import { PlatformTutorialGate } from "@/components/platform-tutorial/platform-tu
 import { PlatformTutorialNavigationProvider } from "@/components/platform-tutorial/tutorial-navigation-context";
 import { cn } from "@/lib/utils";
 import type { Profile, RoleDescription } from "@/lib/types";
+import type { AdoptionApplicationsActivity } from "@/lib/adoption/activity";
 import type { TeamFeedActivity } from "@/lib/team-feed/activity";
 
 interface AppShellFrameProps {
@@ -19,6 +20,7 @@ interface AppShellFrameProps {
   needsBirthday: boolean;
   showPlatformTutorial: boolean;
   teamFeedActivity: TeamFeedActivity | null;
+  adoptionApplicationsActivity: AdoptionApplicationsActivity | null;
 }
 
 export function AppShellFrame({
@@ -31,6 +33,7 @@ export function AppShellFrame({
   needsBirthday,
   showPlatformTutorial,
   teamFeedActivity,
+  adoptionApplicationsActivity,
 }: AppShellFrameProps) {
   const previewActive = Boolean(previewKey && previewLabel);
 
@@ -56,6 +59,7 @@ export function AppShellFrame({
           roleDescriptions={roleDescriptions}
           userName={effectiveProfile.full_name ?? effectiveProfile.email}
           teamFeedActivity={teamFeedActivity}
+          adoptionApplicationsActivity={adoptionApplicationsActivity}
         />
         <main
           className={cn(

@@ -15,6 +15,11 @@ import {
   requiresVolunteerRequirementCompletion,
 } from "@/lib/volunteers/application-requirements";
 import { loadVolunteerApplicationForEmail } from "@/lib/volunteers/load-application-for-profile";
+import {
+  fetchAdoptionApplicationsActivity,
+  type AdoptionApplicationsActivity,
+} from "@/lib/adoption/activity";
+import { canAccessAdoptions } from "@/lib/permissions";
 import { fetchTeamFeedActivity, type TeamFeedActivity } from "@/lib/team-feed/activity";
 import type { RoleDescription, VolunteerApplication } from "@/lib/types";
 
@@ -100,13 +105,18 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
     !previewKey;
 
   let teamFeedActivity: TeamFeedActivity | null = null;
+  let adoptionApplicationsActivity: AdoptionApplicationsActivity | null = null;
   if (effectiveProfile) {
     try {
       const supabase = await createClient();
       const service = await createServiceClient();
       teamFeedActivity = await fetchTeamFeedActivity(supabase, service, effectiveProfile);
+      if (canAccessAdoptions(effectiveProfile)) {
+        adoptionApplicationsActivity = await fetchAdoptionApplicationsActivity(service);
+      }
     } catch {
       teamFeedActivity = null;
+      adoptionApplicationsActivity = null;
     }
   }
 
@@ -120,6 +130,7 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
       needsBirthday={needsBirthday}
       showPlatformTutorial={showPlatformTutorial}
       teamFeedActivity={teamFeedActivity}
+      adoptionApplicationsActivity={adoptionApplicationsActivity}
     >
       {children}
     </AppShellFrame>

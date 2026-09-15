@@ -39,7 +39,9 @@ import { BrandMark } from "@/components/branding/brand-mark";
 import { LogoutButton } from "@/components/layout/logout-button";
 import { AdminRolePreviewControl } from "@/components/admin/admin-role-preview";
 import { PlatformTutorialTrigger } from "@/components/platform-tutorial/platform-tutorial-trigger";
+import { useAdoptionApplicationsNavIndicator } from "@/components/layout/use-adoption-applications-nav-indicator";
 import { useTeamFeedNavIndicator } from "@/components/layout/use-team-feed-nav-indicator";
+import type { AdoptionApplicationsActivity } from "@/lib/adoption/activity";
 import type { TeamFeedActivity } from "@/lib/team-feed/activity";
 
 interface NavItem {
@@ -156,6 +158,7 @@ interface SidebarProps {
   previewKey?: string | null;
   roleDescriptions?: RoleDescription[];
   teamFeedActivity?: TeamFeedActivity | null;
+  adoptionApplicationsActivity?: AdoptionApplicationsActivity | null;
 }
 
 export function Sidebar({
@@ -165,11 +168,16 @@ export function Sidebar({
   previewKey = null,
   roleDescriptions = [],
   teamFeedActivity = null,
+  adoptionApplicationsActivity = null,
 }: SidebarProps) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
   const { highlightedNav, tourActive } = useTutorialNavigation();
   const showTeamFeedIndicator = useTeamFeedNavIndicator(teamFeedActivity, profile?.id);
+  const showAdoptionApplicationsIndicator = useAdoptionApplicationsNavIndicator(
+    adoptionApplicationsActivity,
+    profile?.id
+  );
 
   const permissions = getProfilePermissions(profile);
   const allowedRoutes = permissions?.routes ?? [];
@@ -230,6 +238,12 @@ export function Sidebar({
                       <span
                         className="h-1.5 w-1.5 shrink-0 rounded-full bg-pink-400/75"
                         aria-label="New team feed activity"
+                      />
+                    )}
+                    {item.href === "/adoption/applications" && showAdoptionApplicationsIndicator && (
+                      <span
+                        className="h-1.5 w-1.5 shrink-0 rounded-full bg-pink-400/75"
+                        aria-label="New adoption application"
                       />
                     )}
                   </Link>

@@ -5,12 +5,13 @@ import { Button } from "@/components/ui/button";
 import { getAppProfile } from "@/lib/auth";
 import { canAccessAdoptions } from "@/lib/permissions";
 import { createServiceClient } from "@/lib/supabase/server";
+import { AdoptionApplicationsSeenTracker } from "@/components/layout/adoption-applications-seen-tracker";
 import { AdoptionApplicationsManager } from "@/components/adoption/adoption-applications-manager";
 import type { AdoptionApplication } from "@/lib/adoption/application";
 
 export default async function AdoptionApplicationsPage() {
   const profile = await getAppProfile();
-  if (!canAccessAdoptions(profile)) redirect("/");
+  if (!profile || !canAccessAdoptions(profile)) redirect("/");
 
   const service = await createServiceClient();
   const { data } = await service
@@ -22,6 +23,7 @@ export default async function AdoptionApplicationsPage() {
 
   return (
     <div className="space-y-6">
+      <AdoptionApplicationsSeenTracker profileId={profile.id} />
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-3xl font-bold">Adoption Applications</h1>
