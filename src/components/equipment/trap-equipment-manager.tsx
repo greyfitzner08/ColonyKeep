@@ -549,9 +549,12 @@ export function TrapEquipmentManager({
 
   function borrowerSummary(item: TrapEquipmentItem) {
     if (item.status !== "loaned") return null;
-    const contact = [item.borrower_phone, item.borrower_email].filter(Boolean).join(" · ");
+    const contact = [item.borrower_phone, item.borrower_email]
+      .map((value) => value?.trim())
+      .filter(Boolean)
+      .join(" · ");
     return {
-      name: item.borrower_name?.trim() || "Name needed",
+      name: item.borrower_name?.trim() || null,
       contact: contact || null,
     };
   }
@@ -685,14 +688,15 @@ export function TrapEquipmentManager({
           if (!borrower) {
             return <span className="text-muted-foreground">—</span>;
           }
+          if (!borrower.name) {
+            return <span className="text-sm text-amber-800">Name needed</span>;
+          }
           return (
             <div className="min-w-0 space-y-0.5">
               <p className="truncate text-sm font-medium">{borrower.name}</p>
               {borrower.contact ? (
                 <p className="truncate text-xs text-muted-foreground">{borrower.contact}</p>
-              ) : (
-                <p className="truncate text-xs text-muted-foreground">Add contact in Edit</p>
-              )}
+              ) : null}
             </div>
           );
         },
