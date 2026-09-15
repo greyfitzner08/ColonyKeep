@@ -44,6 +44,7 @@ export function IntakeCaseGrid({
           key={helpRequest.id}
           helpRequest={helpRequest}
           claimBeforeReview={claimBeforeReview}
+          statusDisplay="lifecycle"
           claim={
             canClaim || isAdmin || helpRequest.claimed_by_email === userEmail
               ? {

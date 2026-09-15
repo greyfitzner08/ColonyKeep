@@ -4,7 +4,12 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/componen
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { STATUS_COLORS } from "@/lib/constants";
-import { getStatusLabel } from "@/lib/cases/statuses";
+import {
+  getCaseLifecycleLabel,
+  getStatusLabel,
+  LIFECYCLE_STATUS_COLORS,
+  toCaseLifecycleStatus,
+} from "@/lib/cases/statuses";
 import { hasActiveMedicalFlag } from "@/lib/medical-flags";
 import { CaseFollowUpIndicator } from "@/components/cases/case-follow-up-indicator";
 import type { HelpRequest } from "@/lib/types";
@@ -21,9 +26,19 @@ interface CaseCardProps {
   };
   /** When true, claim before opening full review (intake queue). */
   claimBeforeReview?: boolean;
+  /**
+   * Inquiry queue uses lifecycle labels (Open / In progress / On hold).
+   * Trap queue keeps workflow milestones.
+   */
+  statusDisplay?: "lifecycle" | "workflow";
 }
 
-export function CaseCard({ helpRequest: hr, claim, claimBeforeReview = false }: CaseCardProps) {
+export function CaseCard({
+  helpRequest: hr,
+  claim,
+  claimBeforeReview = false,
+  statusDisplay = "workflow",
+}: CaseCardProps) {
   const medical = hasActiveMedicalFlag(
     hr.medical_flags ?? [],
     hr.medical_flag_dismissed,
@@ -38,6 +53,17 @@ export function CaseCard({ helpRequest: hr, claim, claimBeforeReview = false }: 
   const showAssignedToOther = claim && hr.claimed_by_email && !isMine && !canUnclaim;
   const lockOpenUntilClaim = claimBeforeReview && showClaimButton;
   const caseHref = `/case/${hr.id}`;
+  const lifecycle = toCaseLifecycleStatus(hr);
+  const statusBadge =
+    statusDisplay === "lifecycle" ? (
+      <Badge className={cn("text-xs", LIFECYCLE_STATUS_COLORS[lifecycle])}>
+        {getCaseLifecycleLabel(hr)}
+      </Badge>
+    ) : (
+      <Badge className={cn("text-xs", STATUS_COLORS[hr.status])}>
+        {getStatusLabel(hr.status, "trap")}
+      </Badge>
+    );
 
   const summary = (
     <>
@@ -52,9 +78,7 @@ export function CaseCard({ helpRequest: hr, claim, claimBeforeReview = false }: 
                 Medical
               </Badge>
             )}
-            <Badge className={cn("text-xs", STATUS_COLORS[hr.status])}>
-              {getStatusLabel(hr.status, "trap")}
-            </Badge>
+            {statusBadge}
           </div>
         </div>
       </CardHeader>
