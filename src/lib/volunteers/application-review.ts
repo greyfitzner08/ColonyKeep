@@ -11,6 +11,7 @@ import {
 
 export type ApplicationStatusFilter =
   | "needs_attention"
+  | "possible_duplicates"
   | "all"
   | "pending"
   | "approved"
@@ -284,9 +285,13 @@ export function applicationMatchesFilter(
   filter: ApplicationStatusFilter,
   profilesByEmail: Record<string, Profile>,
   roleRequests: VolunteerRoleRequest[] = [],
-  roleCatalog: RoleDescription[] = []
+  roleCatalog: RoleDescription[] = [],
+  duplicateApplicationIds: Set<string> = new Set()
 ): boolean {
   if (filter === "all") return true;
+  if (filter === "possible_duplicates") {
+    return duplicateApplicationIds.has(application.id);
+  }
   if (filter === "needs_attention") {
     return getApplicationReviewContext(
       application,

@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { getAppProfile } from "@/lib/auth";
 import { VolunteersManager } from "@/components/volunteers/volunteers-manager";
 import { VolunteerRoleRequestsPanel } from "@/components/volunteers/volunteer-role-requests-panel";
 import { fetchVolunteerRoleCatalogInputs } from "@/lib/volunteers/load-role-catalog";
@@ -11,6 +12,7 @@ interface VolunteersPageProps {
 export default async function VolunteersPage({ searchParams }: VolunteersPageProps) {
   const params = await searchParams;
   const supabase = await createClient();
+  const profile = await getAppProfile();
 
   let query = supabase.from("volunteer_applications").select("*").order("created_at", { ascending: false });
   if (params.status) {
@@ -29,7 +31,7 @@ export default async function VolunteersPage({ searchParams }: VolunteersPagePro
   ]);
 
   const profilesByEmail = Object.fromEntries(
-    (profiles ?? []).map((profile) => [profile.email.toLowerCase(), profile as Profile])
+    (profiles ?? []).map((entry) => [entry.email.toLowerCase(), entry as Profile])
   );
 
   return (
@@ -49,6 +51,7 @@ export default async function VolunteersPage({ searchParams }: VolunteersPagePro
         profilesByEmail={profilesByEmail}
         roleRequests={(roleRequests ?? []) as VolunteerRoleRequest[]}
         roleDescriptions={catalog}
+        currentUserId={profile?.id ?? ""}
       />
     </div>
   );

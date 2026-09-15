@@ -71,6 +71,16 @@ import { VolunteerContactFieldsForm,
 import { VolunteerRoleCheckboxList } from "@/components/volunteers/volunteer-role-checkbox-list";
 import { volunteerContactFromApplication } from "@/lib/volunteers/contact-fields";
 import {
+  applicationDuplicateReasonLabels,
+  applicationIdsInDuplicateGroups,
+  findDuplicateApplicationGroups,
+} from "@/lib/volunteers/find-duplicate-applications";
+import {
+  duplicateReasonLabels,
+  findDuplicateProfileGroups,
+} from "@/lib/admin/find-duplicate-profiles";
+import { AdminDuplicateAccountsDialog } from "@/components/admin/admin-duplicate-accounts-dialog";
+import {
   Check,
   X,
   MessageCircle,
@@ -82,6 +92,7 @@ import {
   Search,
   UserMinus,
   Pencil,
+  GitMerge,
 } from "lucide-react";
 
 interface VolunteersManagerProps {
@@ -90,6 +101,7 @@ interface VolunteersManagerProps {
   profilesByEmail: Record<string, Profile>;
   roleRequests?: VolunteerRoleRequest[];
   roleDescriptions?: RoleDescription[];
+  currentUserId?: string;
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -194,6 +206,7 @@ export function VolunteersManager({
   profilesByEmail,
   roleRequests = [],
   roleDescriptions = [],
+  currentUserId = "",
 }: VolunteersManagerProps) {
   const router = useRouter();
   const [reviewingApplicationId, setReviewingApplicationId] = useState<string | null>(null);
@@ -221,6 +234,7 @@ export function VolunteersManager({
   const [pendingReviewId, setPendingReviewId] = useState<string | null>(null);
   const [reviewPlatformRole, setReviewPlatformRole] = useState<UserRole | "none">("none");
   const [reviewTeamId, setReviewTeamId] = useState("none");
+  const [duplicatesOpen, setDuplicatesOpen] = useState(false);
 
   const roleCatalog = useMemo(() => roleDescriptions, [roleDescriptions]);
 
@@ -387,9 +401,35 @@ export function VolunteersManager({
     [mergedApplications, profilesByEmail, mergedRoleRequests, roleCatalog]
   );
 
+  const duplicateApplicationGroups = useMemo(
+    () => findDuplicateApplicationGroups(mergedApplications),
+    [mergedApplications]
+  );
+
+  const duplicateApplicationIds = useMemo(
+    () => applicationIdsInDuplicateGroups(duplicateApplicationGroups),
+    [duplicateApplicationGroups]
+  );
+
+  const duplicateProfileGroups = useMemo(
+    () => findDuplicateProfileGroups(profilesList),
+    [profilesList]
+  );
+
+  const duplicateApplicationCount = duplicateApplicationIds.size;
+  const hasDuplicateAlerts =
+    duplicateApplicationGroups.length > 0 || duplicateProfileGroups.length > 0;
+
   const filtered = useMemo(() => {
     let results = mergedApplications.filter((application) =>
-      applicationMatchesFilter(application, filter, profilesByEmail, mergedRoleRequests, roleCatalog)
+      applicationMatchesFilter(
+        application,
+        filter,
+        profilesByEmail,
+        mergedRoleRequests,
+        roleCatalog,
+        duplicateApplicationIds
+      )
     );
 
     if (interestFilter !== "all") {
@@ -431,6 +471,7 @@ export function VolunteersManager({
     profilesByEmail,
     mergedRoleRequests,
     roleCatalog,
+    duplicateApplicationIds,
   ]);
 
   function notesForApp(app: VolunteerApplication) {
@@ -1671,6 +1712,9 @@ export function VolunteersManager({
 
   function renderApplicationSummary(app: VolunteerApplication, context: ApplicationReviewContext) {
     const { rolesToReview, isRoleExpansion, approvedRoles } = context;
+    const duplicateGroup = duplicateApplicationGroups.find((group) =>
+      group.applications.some((entry) => entry.id === app.id)
+    );
     return (
       <>
         <div>
@@ -1679,6 +1723,22 @@ export function VolunteersManager({
             {app.email} · Applied {formatDate(app.created_at)}
           </p>
         </div>
+        {duplicateGroup && (
+          <div className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-950">
+            <p className="font-medium flex items-center gap-1.5">
+              <AlertTriangle className="h-4 w-4 shrink-0" />
+              Possible duplicate
+            </p>
+            <p className="mt-1 text-amber-900">
+              {applicationDuplicateReasonLabels(duplicateGroup.reasons)}. Matches{" "}
+              {duplicateGroup.applications
+                .filter((entry) => entry.id !== app.id)
+                .map((entry) => entry.full_name)
+                .join(", ")}
+              .
+            </p>
+          </div>
+        )}
         {isRoleExpansion && (
           <div className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-950">
             <p className="font-medium flex items-center gap-1.5">
@@ -1727,7 +1787,17 @@ export function VolunteersManager({
         sortValue: (app) => app.full_name,
         render: (app) => (
           <div className="min-w-0">
-            <p className="truncate font-medium">{app.full_name}</p>
+            <div className="flex items-center gap-2">
+              <p className="truncate font-medium">{app.full_name}</p>
+              {duplicateApplicationIds.has(app.id) && (
+                <Badge
+                  variant="outline"
+                  className="shrink-0 border-amber-400 bg-amber-50 text-[10px] text-amber-900"
+                >
+                  Duplicate?
+                </Badge>
+              )}
+            </div>
             <p className="truncate text-sm text-muted-foreground">{app.email}</p>
             <p className="text-xs text-muted-foreground">Applied {formatDate(app.created_at)}</p>
           </div>
@@ -1816,7 +1886,7 @@ export function VolunteersManager({
         },
       },
     ];
-  }, [profilesByEmail, roleCatalog, roleRequests]);
+  }, [profilesByEmail, roleCatalog, roleRequests, duplicateApplicationIds]);
 
   return (
     <div className="space-y-4">
@@ -1832,6 +1902,75 @@ export function VolunteersManager({
           role="alert"
         >
           {actionError}
+        </div>
+      )}
+
+      {hasDuplicateAlerts && (
+        <div
+          className="flex flex-col gap-3 rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950 sm:flex-row sm:items-center sm:justify-between"
+          role="status"
+        >
+          <div className="space-y-1">
+            <p className="font-medium flex items-center gap-1.5">
+              <AlertTriangle className="h-4 w-4 shrink-0" />
+              Possible duplicate volunteers detected
+            </p>
+            <p className="text-amber-900">
+              {duplicateApplicationGroups.length > 0 && (
+                <>
+                  {duplicateApplicationCount} application
+                  {duplicateApplicationCount === 1 ? "" : "s"} across{" "}
+                  {duplicateApplicationGroups.length} group
+                  {duplicateApplicationGroups.length === 1 ? "" : "s"}
+                  {duplicateApplicationGroups[0]
+                    ? ` (${applicationDuplicateReasonLabels(duplicateApplicationGroups[0].reasons)}${
+                        duplicateApplicationGroups.length > 1 ? ", …" : ""
+                      })`
+                    : ""}
+                  .
+                </>
+              )}
+              {duplicateProfileGroups.length > 0 && (
+                <>
+                  {duplicateApplicationGroups.length > 0 ? " " : ""}
+                  {duplicateProfileGroups.length} linked account group
+                  {duplicateProfileGroups.length === 1 ? "" : "s"} may need merging
+                  {duplicateProfileGroups[0]
+                    ? ` (${duplicateReasonLabels(duplicateProfileGroups[0].reasons)}${
+                        duplicateProfileGroups.length > 1 ? ", …" : ""
+                      })`
+                    : ""}
+                  .
+                </>
+              )}{" "}
+              Review matches, keep one application, and merge login accounts when two profiles exist.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2 shrink-0">
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="border-amber-400 bg-white"
+              onClick={() => setFilter("possible_duplicates")}
+            >
+              Show duplicates
+            </Button>
+            {currentUserId && (
+              <Button
+                type="button"
+                size="sm"
+                className="bg-amber-900 text-amber-50 hover:bg-amber-900/90"
+                onClick={() => {
+                  setActionError(null);
+                  setDuplicatesOpen(true);
+                }}
+              >
+                <GitMerge className="h-4 w-4 mr-1" />
+                Merge accounts
+              </Button>
+            )}
+          </div>
         </div>
       )}
 
@@ -1853,6 +1992,10 @@ export function VolunteersManager({
             <SelectContent>
               <SelectItem value="needs_attention">
                 Needs attention{attentionCount > 0 ? ` (${attentionCount})` : ""}
+              </SelectItem>
+              <SelectItem value="possible_duplicates">
+                Possible duplicates
+                {duplicateApplicationCount > 0 ? ` (${duplicateApplicationCount})` : ""}
               </SelectItem>
               <SelectItem value="all">All statuses</SelectItem>
               <SelectItem value="pending">Pending</SelectItem>
@@ -1879,6 +2022,20 @@ export function VolunteersManager({
         </div>
 
         <div className="flex items-center gap-2">
+          {currentUserId && (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                setActionError(null);
+                setDuplicatesOpen(true);
+              }}
+            >
+              <GitMerge className="h-4 w-4 mr-1" />
+              Find duplicates
+            </Button>
+          )}
           <VolunteerAddDialog
             roleDescriptions={roleCatalog}
             triggerVariant="icon"
@@ -1913,6 +2070,8 @@ export function VolunteersManager({
         <p className="text-sm text-muted-foreground">
           {searchQuery.trim()
             ? "No applications match your search."
+            : filter === "possible_duplicates"
+              ? "No possible duplicate applications right now."
             : filter === "needs_attention"
               ? "No applications need attention right now."
               : "No applications match your filters."}
@@ -1921,13 +2080,15 @@ export function VolunteersManager({
 
       {viewMode === "cards" && filtered.map((app) => {
         const context = getReviewContext(app);
+        const isPossibleDuplicate = duplicateApplicationIds.has(app.id);
 
         return (
           <Card
             key={app.id}
             className={cn(
               context.isRoleExpansion && !context.rolesReady && "border-amber-300 shadow-sm",
-              context.needsAttention && !context.isRoleExpansion && "border-primary/20"
+              isPossibleDuplicate && "border-amber-300 shadow-sm",
+              context.needsAttention && !context.isRoleExpansion && !isPossibleDuplicate && "border-primary/20"
             )}
           >
             <CardHeader>
@@ -1941,6 +2102,14 @@ export function VolunteersManager({
                     const isEdit = usesEditOpenAction(app.status);
                     return (
                       <>
+                        {isPossibleDuplicate && (
+                          <Badge
+                            variant="outline"
+                            className="border-amber-400 bg-amber-50 text-amber-900"
+                          >
+                            Duplicate?
+                          </Badge>
+                        )}
                         <Badge variant="outline" className={cn(badge.className)}>
                           {badge.label}
                         </Badge>
@@ -2005,6 +2174,7 @@ export function VolunteersManager({
           enableSearch={false}
           getRowClassName={(app) => {
             const context = getReviewContext(app);
+            if (duplicateApplicationIds.has(app.id)) return "bg-amber-50/60";
             return context.isRoleExpansion && !context.rolesReady ? "bg-amber-50/60" : undefined;
           }}
           emptyMessage="No applications match your filters."
@@ -2052,6 +2222,15 @@ export function VolunteersManager({
           )}
         </DialogContent>
       </Dialog>
+
+      {currentUserId ? (
+        <AdminDuplicateAccountsDialog
+          open={duplicatesOpen}
+          onOpenChange={setDuplicatesOpen}
+          currentUserId={currentUserId}
+          onError={setActionError}
+        />
+      ) : null}
     </div>
   );
 }
