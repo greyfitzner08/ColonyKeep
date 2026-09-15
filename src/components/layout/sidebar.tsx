@@ -124,6 +124,22 @@ function isRouteAllowed(href: string, allowedRoutes: string[]): boolean {
   );
 }
 
+function isNavItemActive(pathname: string, href: string, allHrefs: string[]): boolean {
+  if (pathname === href) return true;
+  if (href === "/") return false;
+  if (!pathname.startsWith(`${href}/`)) return false;
+
+  // Prefer a more specific sibling (e.g. /adoption/locations over /adoption).
+  const hasMoreSpecificMatch = allHrefs.some(
+    (other) =>
+      other !== href &&
+      other.length > href.length &&
+      (other.startsWith(`${href}/`) || other.startsWith(href)) &&
+      (pathname === other || pathname.startsWith(`${other}/`))
+  );
+  return !hasMoreSpecificMatch;
+}
+
 function visibleNavGroups(allowedRoutes: string[]): NavGroup[] {
   return NAV_GROUPS.map((group) => ({
     ...group,
@@ -156,6 +172,7 @@ export function Sidebar({
   const permissions = getProfilePermissions(profile);
   const allowedRoutes = permissions?.routes ?? [];
   const visibleGroups = visibleNavGroups(allowedRoutes);
+  const visibleHrefs = visibleGroups.flatMap((group) => group.items.map((item) => item.href));
 
   useEffect(() => {
     if (!tourActive || !highlightedNav || highlightedNav === "sidebar") return;
@@ -188,9 +205,7 @@ export function Sidebar({
               </p>
               {group.items.map((item) => {
                 const Icon = item.icon;
-                const active =
-                  pathname === item.href ||
-                  (item.href !== "/" && pathname.startsWith(item.href));
+                const active = isNavItemActive(pathname, item.href, visibleHrefs);
                 const tourHighlight = tourActive && highlightedNav === item.href;
                 return (
                   <Link
