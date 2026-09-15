@@ -1,6 +1,5 @@
 import { createServiceClient } from "@/lib/supabase/server";
 import { AdoptionApplicationForm } from "@/components/adoption/adoption-application-form";
-import type { AdoptableCat } from "@/lib/adoption/constants";
 
 export default async function AdoptPage({
   searchParams,
@@ -8,21 +7,21 @@ export default async function AdoptPage({
   searchParams: Promise<{ cat?: string }>;
 }) {
   const params = await searchParams;
-  const service = await createServiceClient();
-  const { data } = await service
-    .from("adoptable_cats")
-    .select("id, name, age_description, profile_photo_url, status")
-    .in("status", ["available", "pending"])
-    .order("name");
+  let initialCatInterestName = "";
 
-  const cats = (data ?? []) as Pick<
-    AdoptableCat,
-    "id" | "name" | "age_description" | "profile_photo_url" | "status"
-  >[];
+  if (params.cat?.trim()) {
+    const service = await createServiceClient();
+    const { data } = await service
+      .from("adoptable_cats")
+      .select("name")
+      .eq("id", params.cat.trim())
+      .maybeSingle();
+    initialCatInterestName = data?.name?.trim() ?? "";
+  }
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-background to-muted/40">
-      <AdoptionApplicationForm cats={cats} initialCatId={params.cat ?? null} />
+      <AdoptionApplicationForm initialCatInterestName={initialCatInterestName} />
     </main>
   );
 }

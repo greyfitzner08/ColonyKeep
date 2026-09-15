@@ -1,7 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import Image from "next/image";
+import { useState } from "react";
 import { CheckCircle, ChevronLeft, ChevronRight } from "lucide-react";
 import { BrandMark } from "@/components/branding/brand-mark";
 import { Button } from "@/components/ui/button";
@@ -23,6 +22,7 @@ import {
   PET_CURRENT_STATUSES,
   REHOME_CIRCUMSTANCES,
   RESIDENCE_TYPES,
+  APPLICANT_AGE_RANGES,
   emptyAdoptionAnswers,
   emptyAdoptionPet,
   type AdoptionApplicationAnswers,
@@ -37,7 +37,6 @@ import {
   type YesNoNa,
   type YesNoUnsure,
 } from "@/lib/adoption/application";
-import type { AdoptableCat } from "@/lib/adoption/constants";
 
 const STEPS = [
   "Interest",
@@ -196,23 +195,17 @@ function PetFields({
 }
 
 interface AdoptionApplicationFormProps {
-  cats: Pick<AdoptableCat, "id" | "name" | "age_description" | "profile_photo_url" | "status">[];
-  initialCatId?: string | null;
+  initialCatInterestName?: string;
 }
 
-export function AdoptionApplicationForm({ cats, initialCatId }: AdoptionApplicationFormProps) {
-  const availableCats = useMemo(
-    () => cats.filter((cat) => cat.status === "available" || cat.status === "pending"),
-    [cats]
-  );
-  const initialCat = availableCats.find((cat) => cat.id === initialCatId) ?? null;
-
+export function AdoptionApplicationForm({
+  initialCatInterestName = "",
+}: AdoptionApplicationFormProps) {
   const [step, setStep] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [catId, setCatId] = useState(initialCat?.id ?? "");
-  const [catInterestName, setCatInterestName] = useState(initialCat?.name ?? "");
+  const [catInterestName, setCatInterestName] = useState(initialCatInterestName);
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
@@ -313,7 +306,6 @@ export function AdoptionApplicationForm({ cats, initialCatId }: AdoptionApplicat
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        cat_id: catId || null,
         cat_interest_name: catInterestName,
         applicant_first_name: firstName,
         applicant_last_name: lastName,
@@ -376,44 +368,6 @@ export function AdoptionApplicationForm({ cats, initialCatId }: AdoptionApplicat
         {step === 0 && (
           <>
             <h2 className="text-lg font-semibold">Adoption interest</h2>
-            {availableCats.length > 0 && (
-              <Field label="Select a listed cat (optional)">
-                <Select
-                  value={catId || "__other__"}
-                  onValueChange={(value) => {
-                    if (value === "__other__") {
-                      setCatId("");
-                      return;
-                    }
-                    const cat = availableCats.find((entry) => entry.id === value);
-                    setCatId(value);
-                    if (cat) setCatInterestName(cat.name);
-                  }}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Choose a cat" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__other__">Other / type a name</SelectItem>
-                    {availableCats.map((cat) => (
-                      <SelectItem key={cat.id} value={cat.id}>
-                        {cat.name}
-                        {cat.age_description ? ` · ${cat.age_description}` : ""}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
-            )}
-            {catId && availableCats.find((c) => c.id === catId)?.profile_photo_url && (
-              <Image
-                src={availableCats.find((c) => c.id === catId)!.profile_photo_url!}
-                alt={catInterestName}
-                width={96}
-                height={96}
-                className="h-24 w-24 rounded-full object-cover"
-              />
-            )}
             <Field label="Name of the cat or kitten you are interested in adopting">
               <Input
                 value={catInterestName}
@@ -582,11 +536,24 @@ export function AdoptionApplicationForm({ cats, initialCatId }: AdoptionApplicat
               />
             </Field>
             <Field label="What age range do you fall into?">
-              <Input
-                placeholder="e.g. 25–34"
-                value={answers.age_range}
-                onChange={(e) => updateAnswers({ age_range: e.target.value })}
-              />
+              <Select
+                value={answers.age_range || "__none__"}
+                onValueChange={(value) =>
+                  updateAnswers({ age_range: value === "__none__" ? "" : value })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select age range" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">Select age range...</SelectItem>
+                  {APPLICANT_AGE_RANGES.map((range) => (
+                    <SelectItem key={range} value={range}>
+                      {range}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </Field>
             <Field label="How many adults live in your home?">
               <Input

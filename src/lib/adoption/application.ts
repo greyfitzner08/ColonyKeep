@@ -167,6 +167,18 @@ export const RESIDENCE_TYPES: { value: ResidenceType; label: string }[] = [
   { value: "other", label: "Other" },
 ];
 
+/** Common applicant age ranges for the adoption application. */
+export const APPLICANT_AGE_RANGES = [
+  "Under 18",
+  "18–24",
+  "25–34",
+  "35–44",
+  "45–54",
+  "55–64",
+  "65 or older",
+  "Prefer not to say",
+] as const;
+
 export const EMPLOYMENT_STATUSES: { value: EmploymentStatus; label: string }[] = [
   { value: "employed_full_time", label: "Employed full-time" },
   { value: "employed_part_time", label: "Employed part-time" },
