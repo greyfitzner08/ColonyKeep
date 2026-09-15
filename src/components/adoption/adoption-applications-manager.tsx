@@ -31,6 +31,13 @@ import {
   type AdoptionApplicationAnswers,
   type AdoptionApplicationStatus,
 } from "@/lib/adoption/application";
+import {
+  adoptionApplicationRankLabel,
+  adoptionApplicationRankSortValue,
+  rankAdoptionApplication,
+  type AdoptionApplicationRank,
+} from "@/lib/adoption/rank";
+import { cn } from "@/lib/utils";
 
 function labelFor(
   options: { value: string; label: string }[],
@@ -46,6 +53,27 @@ function yesLabel(value: string | null | undefined): string {
   if (value === "unsure") return "Unsure";
   if (value === "not_applicable") return "Not applicable";
   return value || "—";
+}
+
+function RankBadge({ rank, badCount }: { rank: AdoptionApplicationRank; badCount: number }) {
+  const styles: Record<AdoptionApplicationRank, string> = {
+    good: "border-transparent bg-emerald-100 text-emerald-900",
+    caution: "border-transparent bg-amber-100 text-amber-950",
+    poor: "border-transparent bg-red-100 text-red-900",
+  };
+
+  return (
+    <Badge variant="outline" className={styles[rank]}>
+      {adoptionApplicationRankLabel(rank)}
+      {badCount > 0 ? ` (${badCount})` : ""}
+    </Badge>
+  );
+}
+
+function rowHighlightClass(rank: AdoptionApplicationRank): string {
+  if (rank === "good") return "bg-emerald-50/80";
+  if (rank === "caution") return "bg-amber-50/80";
+  return "bg-red-50/80";
 }
 
 function Answer({ label, value }: { label: string; value?: string | null }) {
@@ -224,12 +252,35 @@ export function AdoptionApplicationsManager({
   const [error, setError] = useState<string | null>(null);
 
   const rows = useMemo(() => {
-    if (statusFilter === "all") return initial;
-    return initial.filter((row) => row.status === statusFilter);
+    const filtered =
+      statusFilter === "all"
+        ? initial
+        : initial.filter((row) => row.status === statusFilter);
+
+    return [...filtered].sort((a, b) => {
+      const rankA = rankAdoptionApplication(a.answers);
+      const rankB = rankAdoptionApplication(b.answers);
+      const rankDiff =
+        adoptionApplicationRankSortValue(rankA.rank) -
+        adoptionApplicationRankSortValue(rankB.rank);
+      if (rankDiff !== 0) return rankDiff;
+      if (rankA.badCount !== rankB.badCount) return rankA.badCount - rankB.badCount;
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    });
   }, [initial, statusFilter]);
 
   const columns = useMemo<DataTableColumn<AdoptionApplication>[]>(
     () => [
+      {
+        id: "rank",
+        label: "Auto rank",
+        sortValue: (row) =>
+          adoptionApplicationRankSortValue(rankAdoptionApplication(row.answers).rank),
+        render: (row) => {
+          const result = rankAdoptionApplication(row.answers);
+          return <RankBadge rank={result.rank} badCount={result.badCount} />;
+        },
+      },
       {
         id: "applicant",
         label: "Applicant",
@@ -351,7 +402,11 @@ export function AdoptionApplicationsManager({
         columns={columns}
         rows={rows}
         getRowKey={(row) => row.id}
+        getRowClassName={(row) =>
+          rowHighlightClass(rankAdoptionApplication(row.answers).rank)
+        }
         emptyMessage="No adoption applications yet."
+        defaultSort={{ columnId: "rank", direction: "asc" }}
       />
 
       <Dialog open={!!selected} onOpenChange={(openState) => !openState && setSelected(null)}>
@@ -365,6 +420,36 @@ export function AdoptionApplicationsManager({
           </DialogHeader>
           {selected && (
             <div className="space-y-6">
+              {(() => {
+                const ranking = rankAdoptionApplication(selected.answers);
+                return (
+                  <section
+                    className={cn(
+                      "space-y-3 rounded-lg border p-4",
+                      ranking.rank === "good" && "border-emerald-200 bg-emerald-50/70",
+                      ranking.rank === "caution" && "border-amber-200 bg-amber-50/70",
+                      ranking.rank === "poor" && "border-red-200 bg-red-50/70"
+                    )}
+                  >
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="text-sm font-semibold">Auto rank</p>
+                      <RankBadge rank={ranking.rank} badCount={ranking.badCount} />
+                    </div>
+                    {ranking.flags.length > 0 ? (
+                      <ul className="list-disc space-y-1 pl-5 text-sm">
+                        {ranking.flags.map((flag) => (
+                          <li key={flag.id}>{flag.label}</li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">
+                        No flagged answers on the screening questions.
+                      </p>
+                    )}
+                  </section>
+                );
+              })()}
+
               <div className="grid gap-3 sm:grid-cols-2 text-sm">
                 <Answer label="Email" value={selected.applicant_email} />
                 <Answer label="Phone" value={selected.applicant_phone} />
