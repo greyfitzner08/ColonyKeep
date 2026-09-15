@@ -7,7 +7,6 @@ import { Plus, Pencil, Trash2, QrCode, Loader2, ArrowDown, ArrowUp, ArrowUpDown,
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { NumberInput } from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -64,7 +63,6 @@ interface TrapEquipmentManagerProps {
 const emptyForm = {
   equipment_type: "gravity_trap" as TrapEquipmentType,
   description: "",
-  quantity: 1,
   status: "available" as TrapEquipmentStatus,
   team_id: "" as string | null,
   location: "",
@@ -218,7 +216,7 @@ export function TrapEquipmentManager({
         id: item.id,
         equipment_type: item.equipment_type,
         description: item.description,
-        quantity: item.quantity,
+        quantity: 1,
         status: item.status,
         team_id: teamId,
         team_name: teamName,
@@ -296,7 +294,6 @@ export function TrapEquipmentManager({
     setForm({
       equipment_type: item.equipment_type,
       description: item.description ?? "",
-      quantity: item.quantity,
       status: item.status,
       team_id: item.team_id ?? "",
       location: item.location ?? "",
@@ -331,7 +328,6 @@ export function TrapEquipmentManager({
       is_labeled: parsed.is_labeled ?? prev.is_labeled,
       equipment_label: parsed.equipment_label ?? prev.equipment_label,
       qr_code_data: parsed.qr_code_data,
-      quantity: parsed.is_labeled || parsed.equipment_label ? 1 : prev.quantity,
     }));
     setScanNotice("QR code scanned — review the fields below and save.");
   }, []);
@@ -378,7 +374,7 @@ export function TrapEquipmentManager({
         id: editing?.id,
         equipment_type: form.equipment_type,
         description: form.description.trim() || null,
-        quantity: form.quantity,
+        quantity: 1,
         status: form.status,
         team_id: teamId,
         team_name: teamName,
@@ -585,11 +581,6 @@ export function TrapEquipmentManager({
             <div className="min-w-0 space-y-0.5">
               <div className="flex items-baseline gap-1.5">
                 <span className="font-medium leading-snug">{title}</span>
-                {item.quantity > 1 && (
-                  <Badge variant="secondary" className="shrink-0 px-1.5 py-0 text-[11px] font-medium">
-                    ×{item.quantity}
-                  </Badge>
-                )}
               </div>
               <p className="truncate text-xs text-muted-foreground">
                 {[showType ? typeLabel : null, item.description?.trim() || null]
@@ -932,7 +923,6 @@ export function TrapEquipmentManager({
                         ...form,
                         is_labeled: !!checked,
                         equipment_label: checked ? form.equipment_label : "",
-                        quantity: checked ? 1 : form.quantity,
                       })
                     }
                   />
@@ -953,7 +943,7 @@ export function TrapEquipmentManager({
                       placeholder="e.g. Trap #3"
                       value={form.equipment_label}
                       onChange={(e) =>
-                        setForm({ ...form, equipment_label: e.target.value, quantity: 1 })
+                        setForm({ ...form, equipment_label: e.target.value })
                       }
                     />
                   </div>
@@ -987,20 +977,6 @@ export function TrapEquipmentManager({
                   placeholder="e.g. Large Tomahawk, brand/model"
                   value={form.description}
                   onChange={(e) => setForm({ ...form, description: e.target.value })}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>Quantity</Label>
-                <NumberInput
-                  integer
-                  min={1}
-                  emptyValue={1}
-                  value={form.quantity}
-                  disabled={form.is_labeled}
-                  onValueChange={(value) => {
-                    if (typeof value === "number") setForm({ ...form, quantity: value });
-                  }}
                 />
               </div>
             </EquipmentDialogSection>

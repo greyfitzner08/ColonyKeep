@@ -31,16 +31,12 @@ export async function POST(request: NextRequest) {
   const body = await request.json();
   const equipmentType = body.equipment_type as TrapEquipmentType;
   const status = (body.status ?? "available") as TrapEquipmentStatus;
-  const quantity = Number(body.quantity ?? 1);
 
   if (!VALID_TYPES.includes(equipmentType)) {
     return NextResponse.json({ error: "Invalid equipment type" }, { status: 400 });
   }
   if (!VALID_STATUSES.includes(status)) {
     return NextResponse.json({ error: "Invalid status" }, { status: 400 });
-  }
-  if (!Number.isFinite(quantity) || quantity < 1) {
-    return NextResponse.json({ error: "Quantity must be at least 1" }, { status: 400 });
   }
 
   const isAdmin = profile!.role === "admin";
@@ -108,7 +104,7 @@ export async function POST(request: NextRequest) {
   const payload = {
     equipment_type: equipmentType,
     description: body.description ?? null,
-    quantity: Math.floor(quantity),
+    quantity: 1,
     status,
     team_id: teamId,
     team_name: teamName,
