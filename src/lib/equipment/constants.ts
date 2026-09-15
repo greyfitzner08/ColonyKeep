@@ -5,6 +5,7 @@ export const TRAP_EQUIPMENT_TYPES: { value: TrapEquipmentType; label: string }[]
   { value: "drop_trap", label: "Drop Trap" },
   { value: "transfer_trap", label: "Transfer Trap" },
   { value: "set_over_trap", label: "Set Over Trap" },
+  { value: "spring_load_trap", label: "Spring Load Trap" },
   { value: "microchip_scanner", label: "Microchip Scanner" },
   { value: "trap_divider", label: "Trap Divider" },
   { value: "other", label: "Other" },

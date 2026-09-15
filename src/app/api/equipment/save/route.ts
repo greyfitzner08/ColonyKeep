@@ -9,6 +9,7 @@ const VALID_TYPES: TrapEquipmentType[] = [
   "drop_trap",
   "transfer_trap",
   "set_over_trap",
+  "spring_load_trap",
   "microchip_scanner",
   "trap_divider",
   "other",
