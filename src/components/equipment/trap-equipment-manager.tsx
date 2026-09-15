@@ -355,6 +355,12 @@ export function TrapEquipmentManager({
       return;
     }
 
+    if (form.equipment_type === "other" && !form.description.trim()) {
+      setSectionOpen("trap", true);
+      setSaveError("Enter what this other equipment item is.");
+      return;
+    }
+
     if (form.status === "loaned" && !form.borrower_name.trim()) {
       setSectionOpen("loan", true);
       setSaveError("Enter the borrower's name before marking this trap as loaned out.");
@@ -424,6 +430,9 @@ export function TrapEquipmentManager({
   function itemTitle(item: TrapEquipmentItem) {
     if ((item.is_labeled ?? false) && item.equipment_label) {
       return item.equipment_label;
+    }
+    if (item.equipment_type === "other" && item.description?.trim()) {
+      return item.description.trim();
     }
     return equipmentTypeLabel(item.equipment_type);
   }
@@ -576,14 +585,18 @@ export function TrapEquipmentManager({
         render: (item) => {
           const title = itemTitle(item);
           const typeLabel = equipmentTypeLabel(item.equipment_type);
+          const description = item.description?.trim() || null;
           const showType = title !== typeLabel;
+          const showDescription =
+            Boolean(description) &&
+            !(item.equipment_type === "other" && description === title);
           return (
             <div className="min-w-0 space-y-0.5">
               <div className="flex items-baseline gap-1.5">
                 <span className="font-medium leading-snug">{title}</span>
               </div>
               <p className="truncate text-xs text-muted-foreground">
-                {[showType ? typeLabel : null, item.description?.trim() || null]
+                {[showType ? typeLabel : null, showDescription ? description : null]
                   .filter(Boolean)
                   .join(" · ") || "—"}
               </p>
@@ -971,14 +984,25 @@ export function TrapEquipmentManager({
                 </Select>
               </div>
 
-              <div className="space-y-2">
-                <Label>Description (optional)</Label>
-                <Input
-                  placeholder="e.g. Large Tomahawk, brand/model"
-                  value={form.description}
-                  onChange={(e) => setForm({ ...form, description: e.target.value })}
-                />
-              </div>
+              {form.equipment_type === "other" ? (
+                <div className="space-y-2">
+                  <Label>What is this item?</Label>
+                  <Input
+                    placeholder="e.g. Net, carrier, scale"
+                    value={form.description}
+                    onChange={(e) => setForm({ ...form, description: e.target.value })}
+                  />
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <Label>Description (optional)</Label>
+                  <Input
+                    placeholder="e.g. Large Tomahawk, brand/model"
+                    value={form.description}
+                    onChange={(e) => setForm({ ...form, description: e.target.value })}
+                  />
+                </div>
+              )}
             </EquipmentDialogSection>
 
             <EquipmentDialogSection

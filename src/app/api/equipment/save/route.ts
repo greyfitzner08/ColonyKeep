@@ -8,6 +8,7 @@ const VALID_TYPES: TrapEquipmentType[] = [
   "gravity_trap",
   "drop_trap",
   "transfer_trap",
+  "set_over_trap",
   "microchip_scanner",
   "trap_divider",
   "other",
@@ -37,6 +38,15 @@ export async function POST(request: NextRequest) {
   }
   if (!VALID_STATUSES.includes(status)) {
     return NextResponse.json({ error: "Invalid status" }, { status: 400 });
+  }
+
+  const description =
+    typeof body.description === "string" ? body.description.trim() || null : null;
+  if (equipmentType === "other" && !description) {
+    return NextResponse.json(
+      { error: "Describe what this other equipment item is" },
+      { status: 400 }
+    );
   }
 
   const isAdmin = profile!.role === "admin";
@@ -103,7 +113,7 @@ export async function POST(request: NextRequest) {
 
   const payload = {
     equipment_type: equipmentType,
-    description: body.description ?? null,
+    description,
     quantity: 1,
     status,
     team_id: teamId,

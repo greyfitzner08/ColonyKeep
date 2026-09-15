@@ -80,6 +80,7 @@ export type TrapEquipmentType =
   | "gravity_trap"
   | "drop_trap"
   | "transfer_trap"
+  | "set_over_trap"
   | "microchip_scanner"
   | "trap_divider"
   | "other";
