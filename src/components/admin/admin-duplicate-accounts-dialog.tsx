@@ -52,6 +52,39 @@ function roleLabel(role: UserRole | null): string {
   return ROLE_PERMISSIONS[role].label;
 }
 
+function displayValue(value: string | null | undefined): string {
+  const trimmed = (value ?? "").trim();
+  return trimmed || "—";
+}
+
+function buildProfileCompareRows(
+  keep: DuplicateProfileSummary,
+  merge: DuplicateProfileSummary
+): Array<{ label: string; keep: string; merge: string; differs: boolean }> {
+  const rows = [
+    { label: "Name", keep: displayValue(keep.full_name), merge: displayValue(merge.full_name) },
+    { label: "Email / login", keep: displayValue(keep.email), merge: displayValue(merge.email) },
+    { label: "Phone", keep: displayValue(keep.phone), merge: displayValue(merge.phone) },
+    {
+      label: "Birthday",
+      keep: keep.birthday ? formatDate(keep.birthday) : "—",
+      merge: merge.birthday ? formatDate(merge.birthday) : "—",
+    },
+    { label: "Platform role", keep: roleLabel(keep.role), merge: roleLabel(merge.role) },
+    {
+      label: "Volunteer roles",
+      keep: keep.volunteer_roles.length > 0 ? keep.volunteer_roles.join(", ") : "—",
+      merge: merge.volunteer_roles.length > 0 ? merge.volunteer_roles.join(", ") : "—",
+    },
+    {
+      label: "Joined",
+      keep: formatDate(keep.created_at),
+      merge: formatDate(merge.created_at),
+    },
+  ];
+  return rows.map((row) => ({ ...row, differs: row.keep !== row.merge }));
+}
+
 export function AdminDuplicateAccountsDialog({
   open,
   onOpenChange,
@@ -154,10 +187,24 @@ export function AdminDuplicateAccountsDialog({
             <GitMerge className="h-5 w-5" />
             Merge duplicate accounts
           </DialogTitle>
-          <DialogDescription>
-            Review likely duplicates, choose which account to keep, and merge the other into it.
-            Both emails are preserved (the merged email becomes an alias). Cases, appointments,
-            shifts, and hours from both accounts stay attached to the kept account.
+          <DialogDescription asChild>
+            <div className="space-y-2 text-sm text-muted-foreground">
+              <p>
+                Compare accounts side by side, choose which one to keep, then merge the other into
+                it.
+              </p>
+              <ol className="list-decimal space-y-1 pl-5">
+                <li>Amber rows are fields that differ between the two accounts.</li>
+                <li>
+                  Click <span className="font-medium text-foreground">Keep</span> on the account
+                  whose email should remain the login.
+                </li>
+                <li>
+                  Merge fills blank fields on the kept account from the other, combines volunteer
+                  roles, saves the other email as an alias, and moves cases/shifts/hours over.
+                </li>
+              </ol>
+            </div>
           </DialogDescription>
         </DialogHeader>
 
@@ -283,7 +330,36 @@ export function AdminDuplicateAccountsDialog({
                 </div>
 
                 {keepProfile && mergeProfile && (
-                  <div className="rounded-md border bg-muted/20 p-3 text-sm space-y-2">
+                  <div className="rounded-md border bg-muted/20 p-3 text-sm space-y-3">
+                    <div className="overflow-x-auto rounded-md border bg-background">
+                      <table className="w-full min-w-[520px] text-sm">
+                        <thead className="bg-muted/40 text-left">
+                          <tr>
+                            <th className="px-3 py-2 font-medium">Field</th>
+                            <th className="px-3 py-2 font-medium bg-emerald-50/80">
+                              Keep · {keepProfile.full_name || keepProfile.email}
+                            </th>
+                            <th className="px-3 py-2 font-medium bg-amber-50/80">
+                              Merge away · {mergeProfile.full_name || mergeProfile.email}
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {buildProfileCompareRows(keepProfile, mergeProfile).map((row) => (
+                            <tr
+                              key={row.label}
+                              className={cn("border-t", row.differs && "bg-amber-50/70")}
+                            >
+                              <td className="px-3 py-2 text-muted-foreground">{row.label}</td>
+                              <td className={cn("px-3 py-2", row.differs && "font-medium")}>
+                                {row.keep}
+                              </td>
+                              <td className="px-3 py-2">{row.merge}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
                     <p>
                       <span className="font-medium">Keep:</span>{" "}
                       {keepProfile.full_name || keepProfile.email} ({keepProfile.email})
@@ -298,12 +374,12 @@ export function AdminDuplicateAccountsDialog({
                         email on the kept account.
                       </li>
                       <li>
-                        Claimed cases, appointments, shifts, hours, and related records from the
-                        merged account move to the kept account (nothing is dropped).
+                        When a field differs, the kept value wins; blank kept fields are filled from
+                        the merged account. Volunteer roles are combined.
                       </li>
                       <li>
-                        Profile details fill in missing fields and combine volunteer roles. The
-                        merged login is removed.
+                        Claimed cases, appointments, shifts, hours, and related records from the
+                        merged account move to the kept account (nothing is dropped).
                       </li>
                     </ul>
                     <Button

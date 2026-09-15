@@ -79,6 +79,7 @@ import {
   duplicateReasonLabels,
   findDuplicateProfileGroups,
 } from "@/lib/admin/find-duplicate-profiles";
+import { VolunteerDuplicatesDialog } from "@/components/volunteers/volunteer-duplicates-dialog";
 import { AdminDuplicateAccountsDialog } from "@/components/admin/admin-duplicate-accounts-dialog";
 import {
   Check,
@@ -235,6 +236,7 @@ export function VolunteersManager({
   const [reviewPlatformRole, setReviewPlatformRole] = useState<UserRole | "none">("none");
   const [reviewTeamId, setReviewTeamId] = useState("none");
   const [duplicatesOpen, setDuplicatesOpen] = useState(false);
+  const [accountMergeOpen, setAccountMergeOpen] = useState(false);
 
   const roleCatalog = useMemo(() => roleDescriptions, [roleDescriptions]);
 
@@ -1943,33 +1945,27 @@ export function VolunteersManager({
                   .
                 </>
               )}{" "}
-              Review matches, keep one application, and merge login accounts when two profiles exist.
+              Open Review duplicates to compare fields side by side, choose which record to keep, and
+              merge or remove the other.
             </p>
           </div>
           <div className="flex flex-wrap gap-2 shrink-0">
             <Button
               type="button"
               size="sm"
-              variant="outline"
-              className="border-amber-400 bg-white"
-              onClick={() => setFilter("possible_duplicates")}
-            >
-              Show duplicates
-            </Button>
-            {currentUserId && (
-              <Button
-                type="button"
-                size="sm"
-                className="bg-amber-900 text-amber-50 hover:bg-amber-900/90"
-                onClick={() => {
-                  setActionError(null);
+              className="bg-amber-900 text-amber-50 hover:bg-amber-900/90"
+              onClick={() => {
+                setActionError(null);
+                if (duplicateApplicationGroups.length > 0) {
                   setDuplicatesOpen(true);
-                }}
-              >
-                <GitMerge className="h-4 w-4 mr-1" />
-                Merge accounts
-              </Button>
-            )}
+                } else {
+                  setAccountMergeOpen(true);
+                }
+              }}
+            >
+              <GitMerge className="h-4 w-4 mr-1" />
+              Review duplicates
+            </Button>
           </div>
         </div>
       )}
@@ -2029,11 +2025,15 @@ export function VolunteersManager({
               variant="outline"
               onClick={() => {
                 setActionError(null);
-                setDuplicatesOpen(true);
+                if (duplicateApplicationGroups.length > 0) {
+                  setDuplicatesOpen(true);
+                } else {
+                  setAccountMergeOpen(true);
+                }
               }}
             >
               <GitMerge className="h-4 w-4 mr-1" />
-              Find duplicates
+              Review duplicates
             </Button>
           )}
           <VolunteerAddDialog
@@ -2224,12 +2224,23 @@ export function VolunteersManager({
       </Dialog>
 
       {currentUserId ? (
-        <AdminDuplicateAccountsDialog
-          open={duplicatesOpen}
-          onOpenChange={setDuplicatesOpen}
-          currentUserId={currentUserId}
-          onError={setActionError}
-        />
+        <>
+          <VolunteerDuplicatesDialog
+            open={duplicatesOpen}
+            onOpenChange={setDuplicatesOpen}
+            groups={duplicateApplicationGroups}
+            profilesByEmail={profilesByEmail}
+            roleCatalog={roleCatalog}
+            currentUserId={currentUserId}
+            onError={setActionError}
+          />
+          <AdminDuplicateAccountsDialog
+            open={accountMergeOpen}
+            onOpenChange={setAccountMergeOpen}
+            currentUserId={currentUserId}
+            onError={setActionError}
+          />
+        </>
       ) : null}
     </div>
   );
