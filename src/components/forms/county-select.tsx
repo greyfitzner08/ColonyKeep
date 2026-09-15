@@ -84,8 +84,9 @@ export function CountySelect({
 
       {otherMode && (
         <Input
-          value={isCustomCounty(value) ? value : ""}
-          onChange={(event) => onChange(normalizeCountyName(event.target.value))}
+          value={otherMode && !canonicalServiceCounty(value) ? value : ""}
+          onChange={(event) => onChange(event.target.value)}
+          onBlur={(event) => onChange(normalizeCountyName(event.target.value))}
           placeholder="Enter county name"
           required={required}
           aria-label={`${label} (other)`}
