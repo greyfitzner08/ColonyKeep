@@ -8,7 +8,8 @@ export type RequirementField =
   | "shadow_completed"
   | "liability_waiver_signed"
   | "policy_signed"
-  | "event_crash_course";
+  | "event_crash_course"
+  | "adoption_training";
 
 export const REQUIREMENT_FIELD_OPTIONS: { key: RequirementField; label: string }[] = [
   { key: "liability_waiver_signed", label: "Liability waiver" },
@@ -17,6 +18,7 @@ export const REQUIREMENT_FIELD_OPTIONS: { key: RequirementField; label: string }
   { key: "shadow_completed", label: "Shadow completed" },
   { key: "tnvr_certificate_uploaded", label: "TNVR certificate" },
   { key: "event_crash_course", label: "Event crash course" },
+  { key: "adoption_training", label: "Adoption training" },
 ];
 
 export interface RoleRequirement {
@@ -49,6 +51,12 @@ export const VOLUNTEER_ROLE_REQUIREMENTS: RoleRequirement[] = [
   { role: "videographer", label: "Videographer", requires: [] },
   { role: "community_outreach", label: "Community Outreach", requires: BASE_REQUIREMENTS },
   { role: "colony_support", label: "Colony Support", requires: BASE_REQUIREMENTS },
+  { role: "clinic_coordination", label: "Clinic Coordination", requires: BASE_REQUIREMENTS },
+  {
+    role: "adoption_specialist",
+    label: "Adoption Specialist",
+    requires: [...BASE_REQUIREMENTS, "adoption_training"],
+  },
   { role: "youth_volunteer", label: "Youth Volunteer", requires: BASE_REQUIREMENTS },
   { role: "other", label: "Other", requires: BASE_REQUIREMENTS },
 ];
@@ -158,6 +166,7 @@ export function requirementLabel(field: RequirementField): string {
     liability_waiver_signed: "Liability waiver",
     policy_signed: "Policy Acknowledgement",
     event_crash_course: "Event crash course",
+    adoption_training: "Adoption training",
   };
   return labels[field];
 }

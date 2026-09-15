@@ -8,6 +8,7 @@ const ALLOWED_FIELDS = new Set<RequirementField>([
   "intake_training",
   "tnvr_certificate_uploaded",
   "event_crash_course",
+  "adoption_training",
 ]);
 
 export async function POST(request: NextRequest) {

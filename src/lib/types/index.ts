@@ -50,6 +50,7 @@ export type VolunteerRole =
   | "community_outreach"
   | "colony_support"
   | "clinic_coordination"
+  | "adoption_specialist"
   | "youth_volunteer"
   | "other";
 
@@ -431,6 +432,7 @@ export interface VolunteerApplication {
   tnvr_certificate_uploaded: boolean;
   tnvr_certificate_url: string | null;
   event_crash_course: boolean;
+  adoption_training: boolean;
   admin_notes: string | null;
   imported_via_csv: boolean;
   user_requirements_completed_at: string | null;
@@ -615,6 +617,7 @@ export interface VolunteerRoleRequest {
   liability_waiver_signed: boolean;
   policy_signed: boolean;
   event_crash_course: boolean;
+  adoption_training: boolean;
   admin_notes: string | null;
   reviewed_by: string | null;
   reviewed_at: string | null;

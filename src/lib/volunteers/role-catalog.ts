@@ -9,8 +9,11 @@ const DEFAULT_ROLE_DESCRIPTIONS: RoleDescription[] = VOLUNTEER_ROLES.map((role) 
   id: `default-${role.value}`,
   role_id: role.value,
   label: role.label,
-  description: `Support the TNVR mission as a ${role.label.toLowerCase()}.`,
-  is_signup_active: true,
+  description:
+    role.value === "adoption_specialist"
+      ? "Manage adoptable cats, foster and pet-store placements, and adoption program records. Requires adoption training before access is granted."
+      : `Support the TNVR mission as a ${role.label.toLowerCase()}.`,
+  is_signup_active: role.value !== "adoption_specialist",
   requirements:
     VOLUNTEER_ROLE_REQUIREMENTS.find((entry) => entry.role === role.value)?.requires.map(String) ??
     [],

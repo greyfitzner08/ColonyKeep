@@ -8,6 +8,7 @@ const ALLOWED_FIELDS = [
   "intake_training",
   "tnvr_certificate_uploaded",
   "event_crash_course",
+  "adoption_training",
 ] as const;
 
 type AllowedField = (typeof ALLOWED_FIELDS)[number];

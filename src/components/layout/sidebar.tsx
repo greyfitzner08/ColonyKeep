@@ -10,6 +10,7 @@ import {
   Calendar,
   Building2,
   Map,
+  MapPin,
   Users,
   CalendarDays,
   MessageSquare,
@@ -24,6 +25,7 @@ import {
   Package,
   UserRound,
   Contact,
+  PawPrint,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getProfilePermissions } from "@/lib/permissions";
@@ -77,6 +79,14 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { href: "/clinics", label: "Clinics", icon: Building2 },
       { href: "/clinic-events", label: "Clinic Events", icon: Stethoscope },
+    ],
+  },
+  {
+    id: "adoption",
+    label: "Adoption",
+    items: [
+      { href: "/adoption", label: "Adoptable Cats", icon: PawPrint },
+      { href: "/adoption/locations", label: "Locations", icon: MapPin },
     ],
   },
   {

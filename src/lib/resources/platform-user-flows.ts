@@ -1,14 +1,14 @@
 /** Default handbook content for the Platform User Flows resource (seeded into library_documents). */
 export const PLATFORM_USER_FLOWS_MARKDOWN = `# ColonyKeep user flows — start to finish
 
-This guide explains how access works in the app. **Page access is controlled by platform role only**:
+This guide explains how access works in the app. **Page access is controlled by platform role**, with one interest-based exception:
 
 - **Administrator**
 - **Inquiry Team**
 - **TNVR Team** (trap team lead)
-- **Volunteer** (every volunteer sees the same tools)
+- **Volunteer** (every volunteer sees the same core tools)
 
-**Volunteer interests** (trapper, event volunteer, clinic coordination, etc.) are for staffing, labeling, and matching people to shifts — they do **not** unlock different pages.
+**Volunteer interests** (trapper, event volunteer, clinic coordination, etc.) are for staffing, labeling, and matching people to shifts. **Exception:** **Adoption Specialist** unlocks the **Adoption** nav (adoptable cats and locations) after **adoption training** is verified and the interest is granted.
 
 ---
 

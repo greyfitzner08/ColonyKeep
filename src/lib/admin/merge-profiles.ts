@@ -125,6 +125,7 @@ async function mergeVolunteerApplications(
       secondaryApp.tnvr_certificate_url
     ),
     event_crash_course: primaryApp.event_crash_course || secondaryApp.event_crash_course,
+    adoption_training: primaryApp.adoption_training || secondaryApp.adoption_training,
   };
 
   const { error: updateError } = await service

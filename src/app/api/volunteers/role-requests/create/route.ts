@@ -67,6 +67,7 @@ export async function POST(request: NextRequest) {
     liability_waiver_signed: application?.liability_waiver_signed ?? false,
     policy_signed: application?.policy_signed ?? false,
     event_crash_course: application?.event_crash_course ?? false,
+    adoption_training: application?.adoption_training ?? false,
   };
 
   const { data, error } = await service

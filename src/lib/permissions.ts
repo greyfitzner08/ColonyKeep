@@ -8,8 +8,8 @@ import type { Profile, UserRole } from "@/lib/types";
  * - trap_team_lead (TNVR)
  * - volunteer (same tools for every volunteer interest)
  *
- * Volunteer interests (trapper, event volunteer, etc.) are for staffing/labeling,
- * not for unlocking different pages.
+ * Volunteer interests (trapper, event volunteer, etc.) are for staffing/labeling.
+ * Exception: Adoption Specialist interest unlocks /adoption after adoption training.
  */
 
 export interface ProfilePermissions {
@@ -27,6 +27,7 @@ export interface ProfilePermissions {
   canViewReports: boolean;
   canManageAdmin: boolean;
   canViewVolunteerDirectory: boolean;
+  canAccessAdoptions: boolean;
 }
 
 /** @deprecated Interests no longer gate clinic access; kept for call-site compatibility. */
@@ -89,6 +90,13 @@ export function canViewVolunteerDirectory(profile: Profile | null): boolean {
   return Boolean(profile.birthday && isAdult(profile.birthday));
 }
 
+/** Adoption program — admins or volunteers with Adoption Specialist interest. */
+export function canAccessAdoptions(profile: Profile | null): boolean {
+  if (!profile?.role) return false;
+  if (profile.role === "admin") return true;
+  return (profile.volunteer_roles ?? []).includes("adoption_specialist");
+}
+
 export function getProfilePermissions(profile: Profile | null): ProfilePermissions | null {
   if (!profile?.role) return null;
 
@@ -97,6 +105,7 @@ export function getProfilePermissions(profile: Profile | null): ProfilePermissio
   const appointments = canManageAppointments(profile);
   const shifts = canClaimShifts(profile);
   const volunteerDirectory = canViewVolunteerDirectory(profile);
+  const adoptions = canAccessAdoptions(profile);
 
   if (role === "admin") {
     return {
@@ -120,6 +129,7 @@ export function getProfilePermissions(profile: Profile | null): ProfilePermissio
         "/resources",
         "/equipment",
         "/community-partners",
+        "/adoption",
       ],
       canEditCases: true,
       canViewIntakeQueue: true,
@@ -133,6 +143,7 @@ export function getProfilePermissions(profile: Profile | null): ProfilePermissio
       canViewReports: true,
       canManageAdmin: true,
       canViewVolunteerDirectory: true,
+      canAccessAdoptions: true,
     };
   }
 
@@ -147,6 +158,10 @@ export function getProfilePermissions(profile: Profile | null): ProfilePermissio
 
   if (volunteerDirectory) {
     routes.add("/team-directory");
+  }
+
+  if (adoptions) {
+    routes.add("/adoption");
   }
 
   if (role === "inquiry_team") {
@@ -185,6 +200,7 @@ export function getProfilePermissions(profile: Profile | null): ProfilePermissio
     canViewReports: false,
     canManageAdmin: false,
     canViewVolunteerDirectory: volunteerDirectory,
+    canAccessAdoptions: adoptions,
   };
 }
 
@@ -197,6 +213,10 @@ export function canAccessRoute(profile: Profile | null, pathname: string): boole
 
   if (pathname === "/community-partners" || pathname.startsWith("/community-partners/")) {
     return canManageCommunityPartners(profile);
+  }
+
+  if (pathname === "/adoption" || pathname.startsWith("/adoption/")) {
+    return canAccessAdoptions(profile);
   }
 
   const permissions = getProfilePermissions(profile);

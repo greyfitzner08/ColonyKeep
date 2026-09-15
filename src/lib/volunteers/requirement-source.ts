@@ -14,5 +14,6 @@ export function volunteerRequirementSource(
     tnvr_certificate_uploaded:
       application?.tnvr_certificate_uploaded ?? profile.tnvr_certificate_uploaded ?? false,
     event_crash_course: application?.event_crash_course ?? false,
+    adoption_training: application?.adoption_training ?? false,
   };
 }

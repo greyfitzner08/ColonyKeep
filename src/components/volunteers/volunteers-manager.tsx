@@ -158,6 +158,7 @@ const ADMIN_CHECKBOX_FIELDS = [
   { key: "intake_training", label: "Intake Training" },
   { key: "tnvr_certificate_uploaded", label: "TNVR Certificate" },
   { key: "event_crash_course", label: "Event Crash Course" },
+  { key: "adoption_training", label: "Adoption Training" },
 ] as const;
 
 function requirementFieldsForRoles(
