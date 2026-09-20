@@ -86,7 +86,6 @@ export function CaseIntakeSection({
   canCloseCase,
   readOnly = false,
 }: CaseIntakeSectionProps) {
-  const isInquiryTeam = userRole === "inquiry_team";
   const lifecycle = toCaseLifecycleStatus(hr);
 
   return (
@@ -108,45 +107,30 @@ export function CaseIntakeSection({
       <CaseCollapsibleSection title="Case management" defaultOpen>
         <div className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {isInquiryTeam ? (
-              <div className="space-y-2">
-                <Label>Status</Label>
-                <div className="flex h-10 items-center">
-                  <Badge className={cn("text-sm", LIFECYCLE_STATUS_COLORS[lifecycle])}>
-                    {getCaseLifecycleLabel(hr)}
-                  </Badge>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Claim first, confirm details are complete, then route to a trap team.
-                  Intake does not close cases.
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                <Label>Status</Label>
-                <Select
-                  value={lifecycle}
-                  onValueChange={(v) =>
-                    onChange({
-                      ...hr,
-                      status: applyCaseLifecycleStatus(hr.status, v as CaseLifecycleStatus),
-                    })
-                  }
-                  disabled={readOnly}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {CASE_LIFECYCLE_STATUSES.map((s) => (
-                      <SelectItem key={s.value} value={s.value}>
-                        {s.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
+            <div className="space-y-2">
+              <Label>Status</Label>
+              <Select
+                value={lifecycle}
+                onValueChange={(v) =>
+                  onChange({
+                    ...hr,
+                    status: applyCaseLifecycleStatus(hr.status, v as CaseLifecycleStatus),
+                  })
+                }
+                disabled={readOnly}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {CASE_LIFECYCLE_STATUSES.map((s) => (
+                    <SelectItem key={s.value} value={s.value}>
+                      {s.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
             <div className="space-y-2">
               <Label>Trap team</Label>
               <Select
@@ -159,7 +143,7 @@ export function CaseIntakeSection({
                     assigned_team_name: team?.name ?? null,
                   });
                 }}
-                disabled={userRole === "inquiry_team" || readOnly}
+                disabled={readOnly}
               >
                 <SelectTrigger>
                   <SelectValue />

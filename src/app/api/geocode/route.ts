@@ -5,7 +5,6 @@ import { geocodeStreetAddress } from "@/lib/geocode";
 export async function POST(request: NextRequest) {
   const { response } = await requireApiRole([
     "admin",
-    "inquiry_team",
     "trap_team_lead",
     "volunteer",
   ]);

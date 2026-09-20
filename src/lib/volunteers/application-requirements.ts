@@ -10,7 +10,6 @@ import {
 
 /** Platform roles that do not require a volunteer application on file. */
 export const STAFF_ROLES_EXEMPT_FROM_APPLICATION: UserRole[] = [
-  "inquiry_team",
   "trap_team_lead",
 ];
 

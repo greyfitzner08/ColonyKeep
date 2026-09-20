@@ -1,6 +1,5 @@
 export type UserRole =
   | "admin"
-  | "inquiry_team"
   | "trap_team_lead"
   | "volunteer";
 

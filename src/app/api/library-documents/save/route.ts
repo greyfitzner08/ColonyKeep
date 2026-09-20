@@ -5,7 +5,6 @@ import type { UserRole } from "@/lib/types";
 
 const VALID_ROLES = new Set<UserRole>([
   "admin",
-  "inquiry_team",
   "trap_team_lead",
   "volunteer",
 ]);

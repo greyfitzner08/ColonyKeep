@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { AlertTriangle, Calendar, Inbox, Kanban } from "lucide-react";
+import { AlertTriangle, Calendar, Kanban } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -28,7 +28,6 @@ interface ConfigurableDashboardProps {
   profileId: string;
   userName: string;
   quickLinks: {
-    intake: boolean;
     trap: boolean;
     appointments: boolean;
   };
@@ -63,7 +62,6 @@ interface ConfigurableDashboardProps {
 }
 
 const QUICK_LINKS = [
-  { key: "intake" as const, href: "/intake", label: "Inquiry Queue", icon: Inbox },
   { key: "trap" as const, href: "/trap-queue", label: "Trap Queue", icon: Kanban },
   { key: "appointments" as const, href: "/appointments", label: "Appointments", icon: Calendar },
 ];

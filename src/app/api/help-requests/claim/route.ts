@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireCaseWorker } from "@/lib/api/auth";
 import { canShowIntakeClaimActions } from "@/lib/cases/case-assignment";
-import { isIntakeQueueStatus } from "@/lib/cases/statuses";
 import { normalizeHistoryLog } from "@/lib/cases/history-log";
 import { createServiceClient } from "@/lib/supabase/server";
 import type { HelpRequestStatus, HistoryEntry } from "@/lib/types";
@@ -66,7 +65,7 @@ export async function POST(request: NextRequest) {
 
     if (!canManageClaim && !isAdmin) {
       return NextResponse.json(
-        { error: "This case is no longer in the inquiry queue." },
+        { error: "You cannot unclaim this case." },
         { status: 400 }
       );
     }
@@ -103,29 +102,26 @@ export async function POST(request: NextRequest) {
 
   if (!canShowIntakeClaimActions(profile!.role, status)) {
     return NextResponse.json(
-      { error: "Inquiry team can only claim cases still in the inquiry queue." },
+      { error: "You do not have permission to claim this case." },
       { status: 400 }
     );
   }
 
-  const trapClaimStatuses = new Set(["routed_to_trap_team", "claimed"]);
+  const trapClaimStatuses = new Set(["routed_to_trap_team", "claimed", "needs_more_info"]);
 
   const updates: Record<string, unknown> = {
     claimed_by_email: profile!.email,
     claimed_by_name: profile!.full_name ?? profile!.email,
   };
 
-  if (status === "new_intake") {
-    updates.status = "under_review";
+  if (status === "new_intake" || status === "under_review" || status === "needs_more_info") {
+    updates.status = "claimed";
   } else if (trapClaimStatuses.has(status)) {
     updates.status = "claimed";
   }
 
   if (actorEmail.trim()) {
-    updates.history_log = appendHistory(
-      "claim",
-      isIntakeQueueStatus(status) ? "Claimed for inquiry review" : "Claimed for trap work"
-    );
+    updates.history_log = appendHistory("claim", "Claimed for trap work");
   }
 
   const { error } = await service.from("help_requests").update(updates).eq("id", helpRequestId);

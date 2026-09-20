@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireApiRole } from "@/lib/api/auth";
-import { applyTrapTeamAssignment } from "@/lib/cases/assign-team-by-zip";
+import { applyCaseTrapTeamAssignment } from "@/lib/cases/assign-case-team";
 import { mapImportRowToHelpRequest } from "@/lib/cases/import-mapper";
 import { parseCaseImportCsv } from "@/lib/cases/parse-case-import-csv";
 import { sanitizeHelpRequestRecord } from "@/lib/cases/help-request-insert";
@@ -56,10 +56,12 @@ export async function POST(request: NextRequest) {
       continue;
     }
 
-    const colonyZip = String(mapped.record.colony_zip ?? "");
     const record = sanitizeHelpRequestRecord(
-      applyTrapTeamAssignment(mapped.record, colonyZip, teams ?? [])
+      applyCaseTrapTeamAssignment(mapped.record, teams ?? [])
     );
+    if (!record.status) {
+      record.status = "routed_to_trap_team";
+    }
 
     const { data, error } = await service
       .from("help_requests")

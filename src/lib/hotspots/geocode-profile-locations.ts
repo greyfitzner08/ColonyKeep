@@ -7,7 +7,6 @@ import type { UserRole, VolunteerRole } from "@/lib/types";
 
 const MAP_PROFILE_ROLES: UserRole[] = [
   "admin",
-  "inquiry_team",
   "trap_team_lead",
   "volunteer",
 ];

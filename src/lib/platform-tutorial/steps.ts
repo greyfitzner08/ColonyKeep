@@ -1,7 +1,6 @@
 import type { LucideIcon } from "lucide-react";
 import {
   LayoutDashboard,
-  Inbox,
   Kanban,
   Calendar,
   CalendarDays,
@@ -66,19 +65,10 @@ export const PLATFORM_TUTORIAL_STEPS: PlatformTutorialStep[] = [
     navigateOnStep: false,
   },
   {
-    id: "inquiry-queue",
-    title: "Inquiry queue",
-    description:
-      "New help requests land here. Claim a case before reviewing details, confirm information is complete, then route it to a trap team — inquiry reviews cases and does not close them.",
-    icon: Inbox,
-    navHref: "/intake",
-    visible: (p) => p.canViewIntakeQueue,
-  },
-  {
     id: "trap-queue",
     title: "Trap queue",
     description:
-      "Cases ready for field work appear here. Trap teams coordinate trapping, transport, and recovery.",
+      "New community requests land here automatically — assigned by colony ZIP, or to Trap School when 5 or fewer cats/kittens are reported. Claim a case before editing.",
     icon: Kanban,
     navHref: "/trap-queue",
     visible: (p) => p.canViewTrapQueue,

@@ -1,6 +1,5 @@
 import type { LucideIcon } from "lucide-react";
 import {
-  ArrowRightLeft,
   BarChart3,
   BookOpen,
   Building2,
@@ -9,7 +8,6 @@ import {
   ClipboardCheck,
   Compass,
   Heart,
-  Inbox,
   Kanban,
   Map,
   MessageSquare,
@@ -62,16 +60,16 @@ const ADMIN_TRACK: AdvancedTutorialTrack = {
         "Approve volunteer applications and assign platform roles in Volunteers. Platform role controls which queues and pages someone can open — fixing access problems usually starts here.",
       icon: Users,
       navHref: "/volunteers",
-      flowNote: "Platform role unlocks Inquiry Queue, Trap Queue, Clinics, etc. Interests are for staffing only.",
+      flowNote: "Platform role unlocks Trap Queue, Clinics, etc. Interests are for staffing only.",
     }),
     step({
       id: "adv-admin-intake",
-      title: "Cases enter through intake",
+      title: "Cases land in the Trap Queue",
       description:
-        "New colony requests land in the Inquiry Queue. Staff claim them, gather details, and either resolve early or move them toward field work.",
-      icon: Inbox,
-      navHref: "/intake",
-      flowNote: "Claimed / routed cases become trap-team work — they don’t stay only in intake.",
+        "New colony requests auto-assign to a trap team by ZIP, or to Trap School when 5 or fewer cats/kittens are reported. Staff claim them from the Trap Queue and work field logistics.",
+      icon: Kanban,
+      navHref: "/trap-queue",
+      flowNote: "Public form → auto team assignment → Trap Queue.",
     }),
     step({
       id: "adv-admin-trap",
@@ -89,7 +87,7 @@ const ADMIN_TRACK: AdvancedTutorialTrack = {
         "Hotspots shows colony locations from help requests. Use it with the queues — not instead of them — when planning routes or spotting nearby colonies.",
       icon: Map,
       navHref: "/hotspots",
-      flowNote: "Map pins ↔ Inquiry / Trap Queue records for the same cases.",
+      flowNote: "Map pins ↔ Trap Queue records for the same cases.",
     }),
     step({
       id: "adv-admin-appointments",
@@ -148,67 +146,6 @@ const ADMIN_TRACK: AdvancedTutorialTrack = {
   ],
 };
 
-const INQUIRY_TRACK: AdvancedTutorialTrack = {
-  id: "inquiry",
-  title: "Inquiry team workflow",
-  summary: "How inquiry reviews new cases and hands them off to trap teams.",
-  roleLabel: "Inquiry Team",
-  steps: [
-    step({
-      id: "adv-inquiry-welcome",
-      title: "Your role on inquiry",
-      description:
-        "You review new cases — you do not close them. Claim a case first so nobody else works it at the same time, confirm the details are complete, then route it to a trap team.",
-      icon: Sparkles,
-    }),
-    step({
-      id: "adv-inquiry-intake",
-      title: "Claim before you review",
-      description:
-        "In the Inquiry Queue, claim an unassigned case first. That locks it to you. Only after claiming should you open the full case to check contact, colony, and notes.",
-      icon: Inbox,
-      navHref: "/intake",
-      flowNote: "Action: Claim to review → Review details → Route to trap team (never Close).",
-    }),
-    step({
-      id: "adv-inquiry-route",
-      title: "Route when details are complete",
-      description:
-        "If information is missing, mark Needs more info. When the case is ready for field work, use Route to trap team. Closing is for trap leads/admins after field outcomes — not intake.",
-      icon: ArrowRightLeft,
-      navHref: "/intake",
-      navigateOnStep: false,
-      flowNote: "Inquiry reviews and routes · Trap teams own field work, timelines, and closure.",
-    }),
-    step({
-      id: "adv-inquiry-trap",
-      title: "See the case after handoff",
-      description:
-        "Routed cases leave the Inquiry Queue and show up in the Trap Queue for field coordination. Find cases you previously worked under Work history on the Dashboard or My Impact — view-only after handoff.",
-      icon: Kanban,
-      navHref: "/trap-queue",
-      flowNote: "Same case, different stage — don’t recreate it as a new intake.",
-    }),
-    step({
-      id: "adv-inquiry-feed",
-      title: "Share on Team Feed",
-      description:
-        "Think of Team Feed as the team’s social board — share fun moments, successes, celebrations, and life updates with everyone.",
-      icon: MessageSquare,
-      navHref: "/team-feed",
-      flowNote: "Feed is for community · Case details stay on the case.",
-    }),
-    step({
-      id: "adv-inquiry-profile",
-      title: "Keep your profile current",
-      description:
-        "Contact info and roles on My Profile affect how others reach you and which tools you can use.",
-      icon: UserRound,
-      navHref: "/profile",
-    }),
-  ],
-};
-
 const TRAP_LEAD_TRACK: AdvancedTutorialTrack = {
   id: "trap_team_lead",
   title: "Trap team lead workflow",
@@ -219,26 +156,26 @@ const TRAP_LEAD_TRACK: AdvancedTutorialTrack = {
       id: "adv-trap-welcome",
       title: "Your role leading field work",
       description:
-        "You coordinate trapping through recovery. This walkthrough ties the Trap Queue to equipment, appointments, and how intake hands work to you.",
+        "You coordinate trapping through recovery. New requests auto-assign to your team (or Trap School for small colonies). This walkthrough ties the Trap Queue to equipment and appointments.",
       icon: Sparkles,
     }),
     step({
       id: "adv-trap-queue",
       title: "Run the day from Trap Queue",
       description:
-        "Active field cases live here. Update status as cats are trapped, transported, recovered, and returned so inquiry and clinic folks stay in sync.",
+        "Active field cases live here. Update status as cats are trapped, transported, recovered, and returned so clinic folks stay in sync.",
       icon: Kanban,
       navHref: "/trap-queue",
       flowNote: "Action: open case → update status / cats → leave notes for the next person.",
     }),
     step({
-      id: "adv-trap-intake",
-      title: "Know where cases came from",
+      id: "adv-trap-claim",
+      title: "Claim before you edit",
       description:
-        "Inquiry may still hold context from first contact. If details are missing, check the case history rather than starting a duplicate request.",
-      icon: Inbox,
-      navHref: "/intake",
-      flowNote: "Intake creates/qualifies · Trap Queue executes.",
+        "Claim an unassigned case so nobody else works it at the same time. If details are missing, check case history or mark Needs more info rather than starting a duplicate request.",
+      icon: Kanban,
+      navHref: "/trap-queue",
+      flowNote: "Public form auto-assigns · Trap Queue owns field work.",
     }),
     step({
       id: "adv-trap-map",
@@ -389,24 +326,14 @@ const CASE_VOLUNTEER_TRACK: AdvancedTutorialTrack = {
       flowNote: "Dashboard summarizes · Queues hold the live case actions.",
     }),
     step({
-      id: "adv-case-intake",
-      title: "Intake when you support first contact",
-      description:
-        "If you have intake access, claim requests carefully and leave clear notes. Incomplete details here slow trap nights later.",
-      icon: Inbox,
-      navHref: "/intake",
-      visible: (p) => p.canViewIntakeQueue,
-      flowNote: "Good intake notes → faster trap-team decisions.",
-    }),
-    step({
       id: "adv-case-trap",
       title: "Execute in Trap Queue",
       description:
-        "Update the case as you trap, transport, or recover cats. Status is how leads and intake know what’s left to do.",
+        "New requests land here automatically. Claim a case, then update it as you trap, transport, or recover cats. Status is how leads know what’s left to do.",
       icon: Kanban,
       navHref: "/trap-queue",
       visible: (p) => p.canViewTrapQueue,
-      flowNote: "Action: claim/update case → log progress → hand off cleanly.",
+      flowNote: "Auto-assigned by ZIP or Trap School · Claim before editing.",
     }),
     step({
       id: "adv-case-equipment",
@@ -624,8 +551,6 @@ export function advancedTrackForProfile(profile: Profile | null): AdvancedTutori
 
   if (role === "admin") {
     track = ADMIN_TRACK;
-  } else if (role === "inquiry_team") {
-    track = INQUIRY_TRACK;
   } else if (role === "trap_team_lead") {
     track = TRAP_LEAD_TRACK;
   } else {

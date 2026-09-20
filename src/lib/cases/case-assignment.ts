@@ -1,4 +1,3 @@
-import { isIntakeQueueStatus } from "@/lib/cases/statuses";
 import type { HelpRequest, HelpRequestStatus, UserRole } from "@/lib/types";
 
 export function releaseIntakeAssignmentFields<T extends Partial<HelpRequest>>(record: T): T {
@@ -10,13 +9,10 @@ export function releaseIntakeAssignmentFields<T extends Partial<HelpRequest>>(re
   };
 }
 
-/** Inquiry team only manages claims while a case is still in the inquiry queue. */
+/** Claim actions are available to case workers on active trap cases. */
 export function canShowIntakeClaimActions(
   role: UserRole | null | undefined,
-  status: HelpRequestStatus
+  _status: HelpRequestStatus
 ): boolean {
-  if (role === "inquiry_team") {
-    return isIntakeQueueStatus(status);
-  }
-  return true;
+  return role === "admin" || role === "trap_team_lead";
 }

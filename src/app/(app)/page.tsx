@@ -42,7 +42,7 @@ export default async function DashboardPage() {
   const today = todayIsoDate();
   const caseWorker = isCaseWorker(profile);
   const trapWorker = profile.role === "admin" || profile.role === "trap_team_lead";
-  const intakeWorker = profile.role === "admin" || profile.role === "inquiry_team";
+  const intakeWorker = false;
   const showShifts = canClaimShifts(profile);
   const showAppointments = canManageAppointments(profile);
   const showProgramAppointments = profile.role === "admin";
@@ -165,11 +165,10 @@ export default async function DashboardPage() {
   }
 
   const trapTeamDescription = profile.team_id
-    ? "Field cases for trapping and transport: assigned to your trap team or personally claimed by you. For inquiry follow-ups you claimed yourself, see My Cases."
+    ? "Field cases for trapping and transport: assigned to your trap team or personally claimed by you."
     : "Trap and transport cases you personally claimed. Join a trap team to also see team-assigned cases.";
 
   const quickLinks = {
-    intake: Boolean(intakeWorker),
     trap: Boolean(trapWorker),
     appointments: Boolean(showAppointments),
   };

@@ -4,10 +4,8 @@ import { intakeClaimRequiredResponse } from "@/lib/cases/intake-claim-api";
 import { createServiceClient } from "@/lib/supabase/server";
 import type { HelpRequestStatus, HistoryEntry } from "@/lib/types";
 
-const NEEDS_INFO_FROM_STATUSES = new Set<HelpRequestStatus>(["new_intake", "under_review"]);
-
 export async function POST(request: NextRequest) {
-  const { profile, response } = await requireApiRole(["admin", "inquiry_team"]);
+  const { profile, response } = await requireApiRole(["admin", "trap_team_lead"]);
   if (response) return response;
 
   const body = await request.json();
@@ -29,9 +27,16 @@ export async function POST(request: NextRequest) {
   }
 
   const status = existing.status as HelpRequestStatus;
-  if (!NEEDS_INFO_FROM_STATUSES.has(status)) {
+  const allowed = new Set<HelpRequestStatus>([
+    "new_intake",
+    "under_review",
+    "routed_to_trap_team",
+    "claimed",
+    "needs_more_info",
+  ]);
+  if (!allowed.has(status)) {
     return NextResponse.json(
-      { error: "Only new or in-review inquiry cases can be marked as needing more information." },
+      { error: "Only open trap-queue cases can be marked as needing more information." },
       { status: 400 }
     );
   }

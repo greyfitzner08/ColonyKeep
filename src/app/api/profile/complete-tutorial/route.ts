@@ -6,7 +6,6 @@ export async function POST() {
   const { profile, response } = await requireApiRole([
     "admin",
     "volunteer",
-    "inquiry_team",
     "trap_team_lead",
   ]);
   if (response) return response;

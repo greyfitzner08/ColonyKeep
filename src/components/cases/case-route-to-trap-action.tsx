@@ -22,7 +22,7 @@ export function CaseRouteToTrapAction({
 }: CaseRouteToTrapActionProps) {
   const router = useRouter();
   const [routing, setRouting] = useState(false);
-  const canRoute = userRole === "admin" || userRole === "inquiry_team";
+  const canRoute = userRole === "admin";
   const showButton = canRoute && isIntakeQueueStatus(status);
 
   if (!showButton) {

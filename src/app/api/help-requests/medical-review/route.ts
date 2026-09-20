@@ -5,7 +5,7 @@ import { createServiceClient } from "@/lib/supabase/server";
 import type { HelpRequestStatus } from "@/lib/types";
 
 export async function POST(request: NextRequest) {
-  const { profile, response } = await requireApiRole(["admin", "inquiry_team"]);
+  const { profile, response } = await requireApiRole(["admin", "trap_team_lead"]);
   if (response) return response;
 
   const body = await request.json();

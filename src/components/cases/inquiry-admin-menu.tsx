@@ -22,7 +22,7 @@ export function InquiryAdminMenu() {
         variant="outline"
         size="icon"
         onClick={() => setOpen(true)}
-        aria-label="Inquiry queue admin tools"
+        aria-label="Case admin tools"
       >
         <Settings className="h-4 w-4" />
       </Button>
@@ -30,9 +30,9 @@ export function InquiryAdminMenu() {
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>Inquiry queue admin</DialogTitle>
+            <DialogTitle>Case admin tools</DialogTitle>
             <DialogDescription>
-              Import legacy cases, assign trap teams by colony ZIP, and manage bulk updates.
+              Import legacy cases, assign trap teams by colony size/ZIP, and manage bulk updates.
             </DialogDescription>
           </DialogHeader>
           <CaseImporter variant="panel" />

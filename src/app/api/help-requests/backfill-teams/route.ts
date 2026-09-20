@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireApiRole } from "@/lib/api/auth";
-import { applyTrapTeamAssignment } from "@/lib/cases/assign-team-by-zip";
+import { applyCaseTrapTeamAssignment } from "@/lib/cases/assign-case-team";
 import { createServiceClient } from "@/lib/supabase/server";
 
 export async function POST(_request: NextRequest) {
@@ -15,7 +15,7 @@ export async function POST(_request: NextRequest) {
 
   const { data: cases, error: fetchError } = await service
     .from("help_requests")
-    .select("id, colony_zip, assigned_team_id")
+    .select("id, colony_zip, cats_over_8_weeks, kittens_under_8_weeks, assigned_team_id")
     .is("assigned_team_id", null);
 
   if (fetchError) {
@@ -24,7 +24,14 @@ export async function POST(_request: NextRequest) {
 
   let updated = 0;
   for (const row of cases ?? []) {
-    const assignment = applyTrapTeamAssignment({}, row.colony_zip, teams ?? []);
+    const assignment = applyCaseTrapTeamAssignment(
+      {
+        colony_zip: row.colony_zip,
+        cats_over_8_weeks: row.cats_over_8_weeks,
+        kittens_under_8_weeks: row.kittens_under_8_weeks,
+      },
+      teams ?? []
+    );
     if (!assignment.assigned_team_id) continue;
 
     const { error } = await service
@@ -32,6 +39,7 @@ export async function POST(_request: NextRequest) {
       .update({
         assigned_team_id: assignment.assigned_team_id,
         assigned_team_name: assignment.assigned_team_name,
+        assigned_team: assignment.assigned_team_name,
       })
       .eq("id", row.id);
 

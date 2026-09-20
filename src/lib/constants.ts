@@ -111,7 +111,6 @@ export const ROLE_PERMISSIONS: Record<
     label: "Administrator",
     routes: [
       "/",
-      "/intake",
       "/trap-queue",
       "/appointments",
       "/clinics",
@@ -126,25 +125,10 @@ export const ROLE_PERMISSIONS: Record<
       "/resources",
     ],
   },
-  inquiry_team: {
-    label: "Inquiry Team",
-    routes: [
-      "/",
-      "/intake",
-      "/case",
-      "/trap-queue",
-      "/hotspots",
-      "/shift-board",
-      "/team-feed",
-      "/my-impact",
-      "/resources",
-    ],
-  },
   trap_team_lead: {
     label: "TNVR Team",
     routes: [
       "/",
-      "/intake",
       "/case",
       "/trap-queue",
       "/appointments",

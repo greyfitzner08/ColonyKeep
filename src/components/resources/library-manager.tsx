@@ -50,7 +50,7 @@ const emptyForm = {
   body_markdown: "",
   section: "General",
   new_section: "",
-  view_roles: ["admin", "inquiry_team", "trap_team_lead", "volunteer"] as UserRole[],
+  view_roles: ["admin", "trap_team_lead", "volunteer"] as UserRole[],
 };
 
 export function LibraryManager({ documents: initial, isAdmin }: LibraryManagerProps) {

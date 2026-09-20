@@ -12,6 +12,9 @@ import {
 import { TrapQueueFilters } from "@/components/trap-queue/trap-queue-filters";
 import { TrapQueueShell } from "@/components/trap-queue/trap-queue-shell";
 import { CaseQueueView } from "@/components/cases/case-queue-view";
+import { InquiryAdminMenu } from "@/components/cases/inquiry-admin-menu";
+import { ShareRequestFormLink } from "@/components/cases/share-request-form-link";
+import { getServerAppUrl } from "@/lib/app-url";
 import type { HelpRequest } from "@/lib/types";
 
 interface TrapQueuePageProps {
@@ -23,10 +26,7 @@ export default async function TrapQueuePage({ searchParams }: TrapQueuePageProps
   const supabase = await createClient();
   const profile = await getAppProfile();
   const canWorkCases = isCaseWorker(profile);
-  const isTrapRole =
-    profile?.role === "admin" ||
-    profile?.role === "trap_team_lead" ||
-    profile?.role === "inquiry_team";
+  const isTrapRole = profile?.role === "admin" || profile?.role === "trap_team_lead";
 
   const isHistoryScope = params.scope === "history";
   const defaultView: TrapQueueView = "all";
@@ -61,8 +61,11 @@ export default async function TrapQueuePage({ searchParams }: TrapQueuePageProps
       : view === "unassigned"
         ? "Cases not yet assigned to a trap team."
         : view === "all"
-          ? "All active trapping cases across every team."
+          ? "All active trapping cases across every team. New requests auto-assign by ZIP, or to Trap School when 5 or fewer cats/kittens are reported."
           : `Cases assigned to ${viewLabel}.`;
+
+  const canImport = profile?.role === "admin";
+  const requestFormUrl = `${await getServerAppUrl()}/request`;
 
   return (
     <div className="space-y-6">
@@ -73,16 +76,27 @@ export default async function TrapQueuePage({ searchParams }: TrapQueuePageProps
           </h1>
           <p className="text-muted-foreground">{viewDescription}</p>
           <p className="text-sm text-muted-foreground">{cases.length} cases in this view</p>
+          {!isHistoryScope && (
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <ShareRequestFormLink requestFormUrl={requestFormUrl} />
+              <span className="text-sm text-muted-foreground">
+                Share with community members — submissions land here automatically
+              </span>
+            </div>
+          )}
         </div>
-        <Suspense fallback={<div className="h-10 w-[260px] animate-pulse rounded-md bg-muted" />}>
-          <TrapQueueFilters
-            teams={teams ?? []}
-            myTeamId={profile?.team_id ?? null}
-            myTeamName={myTeam?.name ?? null}
-            isTrapRole={isTrapRole}
-            showWorkHistory
-          />
-        </Suspense>
+        <div className="flex flex-wrap items-center gap-2">
+          {canImport && !isHistoryScope && <InquiryAdminMenu />}
+          <Suspense fallback={<div className="h-10 w-[260px] animate-pulse rounded-md bg-muted" />}>
+            <TrapQueueFilters
+              teams={teams ?? []}
+              myTeamId={profile?.team_id ?? null}
+              myTeamName={myTeam?.name ?? null}
+              isTrapRole={isTrapRole}
+              showWorkHistory
+            />
+          </Suspense>
+        </div>
       </div>
 
       <Suspense fallback={<div className="h-40 animate-pulse rounded-lg bg-muted" />}>

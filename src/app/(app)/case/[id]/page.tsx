@@ -6,11 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { STATUS_COLORS } from "@/lib/constants";
 import { hasActiveMedicalFlag } from "@/lib/medical-flags";
 import {
-  getCaseLifecycleLabel,
   getStatusLabel,
-  isIntakeQueueStatus,
-  LIFECYCLE_STATUS_COLORS,
-  toCaseLifecycleStatus,
 } from "@/lib/cases/statuses";
 import {
   canIntakeReviewerWorkCase,
@@ -23,7 +19,6 @@ import { canAddCaseHistoryNote } from "@/lib/cases/case-permissions";
 import { normalizeHistoryLog } from "@/lib/cases/history-log";
 import { isCaseWorker, canManageAppointments } from "@/lib/permissions";
 import { CaseClaimActions } from "@/components/cases/case-claim-actions";
-import { CaseRouteToTrapAction } from "@/components/cases/case-route-to-trap-action";
 import { CaseNeedsMoreInfoAction } from "@/components/cases/case-needs-more-info-action";
 import type { HelpRequest, Cat, Appointment, ClinicFix } from "@/lib/types";
 
@@ -72,16 +67,8 @@ export default async function CasePage({ params }: CasePageProps) {
     hr.medical_flag_forced
   );
 
-  const isInquiryViewer = profile?.role === "inquiry_team";
-  const isTrapViewer =
-    profile?.role === "trap_team_lead" || profile?.role === "volunteer";
-  const lifecycle = toCaseLifecycleStatus(hr);
-  const statusLabel = isTrapViewer
-    ? getStatusLabel(hr.status, "trap")
-    : getCaseLifecycleLabel(hr);
-  const statusColor = isTrapViewer
-    ? STATUS_COLORS[hr.status]
-    : LIFECYCLE_STATUS_COLORS[lifecycle];
+  const statusLabel = getStatusLabel(hr.status, "trap");
+  const statusColor = STATUS_COLORS[hr.status];
   const actorEmail = profile?.email ?? "";
   const requiresClaim = intakeCaseRequiresClaim(profile?.role, hr.status);
   const canWorkCase = canIntakeReviewerWorkCase({
@@ -92,17 +79,11 @@ export default async function CasePage({ params }: CasePageProps) {
   });
   const claimGate =
     requiresClaim && !canWorkCase
-      ? isInquiryViewer && !isIntakeQueueStatus(hr.status)
-        ? {
-            kind: "other" as const,
-            message:
-              "This case has left the inquiry queue. Inquiry can view it but cannot edit. Trap team volunteers claim it to make changes.",
-          }
-        : intakeClaimGateMessage({
-            claimedByEmail: hr.claimed_by_email,
-            claimedByName: hr.claimed_by_name,
-            actorEmail,
-          })
+      ? intakeClaimGateMessage({
+          claimedByEmail: hr.claimed_by_email,
+          claimedByName: hr.claimed_by_name,
+          actorEmail,
+        })
       : null;
 
   return (
@@ -132,19 +113,11 @@ export default async function CasePage({ params }: CasePageProps) {
               emphasizeClaim={Boolean(claimGate?.kind === "unclaimed")}
             />
             {canWorkCase && (
-              <>
-                <CaseRouteToTrapAction
-                  helpRequestId={hr.id}
-                  status={hr.status}
-                  colonyZip={hr.colony_zip}
-                  userRole={profile?.role ?? null}
-                />
-                <CaseNeedsMoreInfoAction
-                  helpRequestId={hr.id}
-                  status={hr.status}
-                  userRole={profile?.role ?? null}
-                />
-              </>
+              <CaseNeedsMoreInfoAction
+                helpRequestId={hr.id}
+                status={hr.status}
+                userRole={profile?.role ?? null}
+              />
             )}
           </div>
           <div className="text-base text-muted-foreground">
@@ -161,11 +134,6 @@ export default async function CasePage({ params }: CasePageProps) {
             {claimGate.kind === "unclaimed" ? "Claim required before editing" : "Case already claimed"}
           </p>
           <p className="mt-1">{claimGate.message}</p>
-          {isInquiryViewer && (
-            <p className="mt-2 text-xs opacity-90">
-              Intake reviews details for completeness, then routes to a trap team. Intake does not close cases.
-            </p>
-          )}
         </div>
       )}
 
@@ -177,9 +145,7 @@ export default async function CasePage({ params }: CasePageProps) {
         clinicFixes={(clinicFixes ?? []) as ClinicFix[]}
         teams={teams ?? []}
         userRole={profile?.role ?? null}
-        canReviewMedical={
-          (profile?.role === "admin" || profile?.role === "inquiry_team") && canWorkCase
-        }
+        canReviewMedical={(profile?.role === "admin" || profile?.role === "trap_team_lead") && canWorkCase}
         canAddHistoryNote={canAddCaseHistoryNote(profile) && canWorkCase}
         canLogClinicFix={canManageAppointments(profile) && canWorkCase}
         userName={profile?.full_name ?? profile?.email ?? "Team member"}

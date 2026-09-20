@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { createClient } from "@/lib/supabase/client";
-import { findTrapTeamForZip } from "@/lib/cases/assign-team-by-zip";
+import { applyCaseTrapTeamAssignment } from "@/lib/cases/assign-case-team";
 import { releaseIntakeAssignmentFields } from "@/lib/cases/case-assignment";
 import { detectMedicalKeywords, mergeMedicalFlags } from "@/lib/medical-flags";
 import { canCloseCase } from "@/lib/cases/case-permissions";
@@ -138,12 +138,19 @@ export function CaseDetailTabs({
   }
 
   function withTeamAssignment(next: HelpRequest): HelpRequest {
-    const match = findTrapTeamForZip(next.colony_zip, teams);
-    if (!match) return next;
+    const assigned = applyCaseTrapTeamAssignment(
+      {
+        colony_zip: next.colony_zip,
+        cats_over_8_weeks: next.cats_over_8_weeks,
+        kittens_under_8_weeks: next.kittens_under_8_weeks,
+      },
+      teams
+    );
+    if (!assigned.assigned_team_id) return next;
     return {
       ...next,
-      assigned_team_id: match.id,
-      assigned_team_name: match.name,
+      assigned_team_id: assigned.assigned_team_id ?? null,
+      assigned_team_name: assigned.assigned_team_name ?? null,
     };
   }
 
@@ -159,7 +166,7 @@ export function CaseDetailTabs({
 
     const supabase = createClient();
     const payload = withTeamAssignment({ ...next, medical_flags: medicalFlags });
-    const includeStatus = options?.includeStatus ?? userRole !== "inquiry_team";
+    const includeStatus = options?.includeStatus ?? true;
     const routedToTrap = includeStatus && payload.status === "routed_to_trap_team";
     const persistedPayload = routedToTrap ? releaseIntakeAssignmentFields(payload) : payload;
 
@@ -346,10 +353,6 @@ export function CaseDetailTabs({
 
   async function closeCase() {
     if (!showCloseCase || readOnly) return;
-    if (userRole === "inquiry_team") {
-      setSaveError("Intake does not close cases. Route the case to a trap team instead.");
-      return;
-    }
 
     setIntakeSaveState("saving");
     setSaveError(null);
@@ -390,7 +393,7 @@ export function CaseDetailTabs({
       <TabsList className="flex h-auto w-full flex-wrap justify-start gap-1">
         <TabsTrigger value="reporter">Reporter</TabsTrigger>
         <TabsTrigger value="colony">Colony</TabsTrigger>
-        <TabsTrigger value="intake">Inquiry Team</TabsTrigger>
+        <TabsTrigger value="intake">Case details</TabsTrigger>
         <TabsTrigger value="appointments">Appointments ({appointments.length})</TabsTrigger>
         <TabsTrigger value="history">History</TabsTrigger>
       </TabsList>

@@ -2,12 +2,12 @@ import type { HelpRequestStatus, UserRole } from "@/lib/types";
 
 /** Roles that must hold a case claim before editing. Admins are exempt. */
 export function isClaimRestrictedRole(role: UserRole | null | undefined): boolean {
-  return role === "inquiry_team" || role === "trap_team_lead" || role === "volunteer";
+  return role === "trap_team_lead" || role === "volunteer";
 }
 
-/** @deprecated Prefer isClaimRestrictedRole — inquiry was the original claim-gated role. */
-export function isIntakeReviewRole(role: UserRole | null | undefined): boolean {
-  return role === "inquiry_team";
+/** @deprecated Prefer isClaimRestrictedRole. */
+export function isIntakeReviewRole(_role: UserRole | null | undefined): boolean {
+  return false;
 }
 
 /**
@@ -22,8 +22,8 @@ export function intakeCaseRequiresClaim(
 }
 
 /**
- * Whether the actor may edit / route / annotate this case.
- * Admins are never blocked. Inquiry and TNVR roles must hold the claim.
+ * Whether the actor may edit / annotate this case.
+ * Admins are never blocked. TNVR roles must hold the claim.
  */
 export function canIntakeReviewerWorkCase(options: {
   role: UserRole | null | undefined;

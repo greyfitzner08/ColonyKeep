@@ -5,7 +5,6 @@ export const ROLE_PREVIEW_COOKIE = "tnvr_admin_role_preview";
 
 /** Platform roles admins can preview (interests are not access tiers). */
 export const PLATFORM_ROLE_PREVIEW_OPTIONS: { key: UserRole; label: string }[] = [
-  { key: "inquiry_team", label: "Inquiry team" },
   { key: "trap_team_lead", label: "TNVR team" },
   { key: "volunteer", label: "Volunteer" },
 ];
@@ -26,6 +25,11 @@ export function parseRolePreviewCookie(
   // Legacy interest cookies collapse to volunteer platform access.
   if (value.startsWith("v:")) {
     return { userRole: "volunteer", volunteerRoles: [] };
+  }
+
+  // Retired Inquiry Team preview → TNVR team tools.
+  if (value === "inquiry_team") {
+    return { userRole: "trap_team_lead", volunteerRoles: [] };
   }
 
   if (PLATFORM_ROLE_PREVIEW_OPTIONS.some((entry) => entry.key === value)) {

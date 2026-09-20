@@ -4,7 +4,6 @@ import type { Profile, UserRole } from "@/lib/types";
 /**
  * Access tiers are driven by platform role only:
  * - admin
- * - inquiry_team
  * - trap_team_lead (TNVR)
  * - volunteer (same tools for every volunteer interest)
  *
@@ -57,14 +56,10 @@ export function canManageTrapEquipment(profile: Profile | null): boolean {
   return hasTnvrVolunteerRole(profile);
 }
 
-/** Case queues — admin, inquiry, or TNVR platform roles only. */
+/** Case queues — admin or TNVR platform roles only. */
 export function isCaseWorker(profile: Profile | null): boolean {
   if (!profile?.role) return false;
-  return (
-    profile.role === "admin" ||
-    profile.role === "inquiry_team" ||
-    profile.role === "trap_team_lead"
-  );
+  return profile.role === "admin" || profile.role === "trap_team_lead";
 }
 
 export function canManageAppointments(profile: Profile | null): boolean {
@@ -113,7 +108,6 @@ export function getProfilePermissions(profile: Profile | null): ProfilePermissio
       routes: [
         "/",
         "/profile",
-        "/intake",
         "/trap-queue",
         "/appointments",
         "/clinics",
@@ -132,7 +126,7 @@ export function getProfilePermissions(profile: Profile | null): ProfilePermissio
         "/adoption",
       ],
       canEditCases: true,
-      canViewIntakeQueue: true,
+      canViewIntakeQueue: false,
       canViewTrapQueue: true,
       canManageAppointments: true,
       canClaimShifts: true,
@@ -164,14 +158,7 @@ export function getProfilePermissions(profile: Profile | null): ProfilePermissio
     routes.add("/adoption");
   }
 
-  if (role === "inquiry_team") {
-    routes.add("/intake");
-    routes.add("/trap-queue");
-    routes.add("/hotspots");
-  }
-
   if (role === "trap_team_lead") {
-    routes.add("/intake");
     routes.add("/trap-queue");
     routes.add("/hotspots");
     routes.add("/appointments");
@@ -180,7 +167,6 @@ export function getProfilePermissions(profile: Profile | null): ProfilePermissio
 
   const labels: Record<UserRole, string> = {
     admin: "Administrator",
-    inquiry_team: "Inquiry Team",
     trap_team_lead: "TNVR Team",
     volunteer: "Volunteer",
   };
@@ -189,7 +175,7 @@ export function getProfilePermissions(profile: Profile | null): ProfilePermissio
     label: labels[role] ?? "Volunteer",
     routes: Array.from(routes),
     canEditCases: caseWorker,
-    canViewIntakeQueue: caseWorker,
+    canViewIntakeQueue: false,
     canViewTrapQueue: caseWorker,
     canManageAppointments: appointments,
     canClaimShifts: shifts,

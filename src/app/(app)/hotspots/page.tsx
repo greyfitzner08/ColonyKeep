@@ -31,8 +31,7 @@ export default async function HotspotsPage() {
       <div>
         <h1 className="text-2xl font-bold sm:text-3xl">Hotspots Map</h1>
         <p className="text-sm text-muted-foreground sm:text-base">
-          Inquiry and trap queue colonies, volunteers who opted in, and colony feeders across the
-          service area
+          Trap queue colonies, volunteers who opted in, and colony feeders across the service area
           {coloniesMapped > 0 && ` · ${coloniesMapped} colonies mapped`}
           {feeders.length > 0 && ` · ${feeders.length} feeder${feeders.length === 1 ? "" : "s"} mapped`}
         </p>

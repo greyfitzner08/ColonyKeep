@@ -19,8 +19,14 @@ export function CaseNeedsMoreInfoAction({
 }: CaseNeedsMoreInfoActionProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-  const canMark = userRole === "admin" || userRole === "inquiry_team";
-  const showButton = canMark && (status === "new_intake" || status === "under_review");
+  const canMark = userRole === "admin" || userRole === "trap_team_lead";
+  const showButton =
+    canMark &&
+    (status === "routed_to_trap_team" ||
+      status === "claimed" ||
+      status === "new_intake" ||
+      status === "under_review" ||
+      status === "needs_more_info");
 
   if (!showButton) {
     return null;

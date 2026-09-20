@@ -171,9 +171,6 @@ export function inquiryTeamManagesStatus(status: HelpRequestStatus) {
 export function getStatusOptionsForRole(role: UserRole | null | undefined) {
   const deprecated = new Set(DEPRECATED_HELP_REQUEST_STATUSES);
 
-  if (role === "inquiry_team") {
-    return filterStatusOptions(INTAKE_FILTER_STATUSES);
-  }
   if (role === "trap_team_lead" || role === "volunteer") {
     return filterStatusOptions(TRAP_EDITABLE_STATUSES);
   }

@@ -25,7 +25,14 @@ export async function getCurrentProfile(): Promise<Profile | null> {
     .eq("id", user.id)
     .single();
 
-  return data as Profile | null;
+  if (!data) return null;
+
+  const profile = data as Profile;
+  // Retired platform role — treat as TNVR until DB migration remaps rows.
+  if ((profile.role as string) === "inquiry_team") {
+    return { ...profile, role: "trap_team_lead" };
+  }
+  return profile;
 }
 
 /** Profile with admin role preview applied (for UI and route access). */

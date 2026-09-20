@@ -5,7 +5,6 @@ import { usePathname } from "next/navigation";
 import type { LucideIcon } from "lucide-react";
 import {
   LayoutDashboard,
-  Inbox,
   Kanban,
   Calendar,
   Building2,
@@ -69,7 +68,6 @@ const NAV_GROUPS: NavGroup[] = [
     id: "cases",
     label: "Operations",
     items: [
-      { href: "/intake", label: "Inquiry Queue", icon: Inbox },
       { href: "/trap-queue", label: "Trap Queue", icon: Kanban },
       { href: "/appointments", label: "Appointments", icon: Calendar },
       { href: "/hotspots", label: "Hotspots Map", icon: Map },

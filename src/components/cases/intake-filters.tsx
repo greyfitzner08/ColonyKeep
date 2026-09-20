@@ -18,7 +18,7 @@ interface IntakeFiltersProps {
 export function IntakeFilters({ teams, showWorkHistory = false }: IntakeFiltersProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const intakeStatuses = getStatusOptionsForRole("inquiry_team");
+  const intakeStatuses = getStatusOptionsForRole("admin");
   const view = (searchParams.get("view") ?? "cards") as CaseViewMode;
   const sort = (searchParams.get("sort") ?? "date_desc") as IntakeSortKey;
   const search = searchParams.get("q") ?? "";

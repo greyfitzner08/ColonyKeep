@@ -7,7 +7,10 @@ import {
   hasSupabaseAdminConfig,
   hasSupabaseServerConfig,
 } from "@/lib/supabase/env";
-import { applyTrapTeamAssignment } from "@/lib/cases/assign-team-by-zip";
+import {
+  applyCaseTrapTeamAssignment,
+  resolveCaseTrapTeamAssignment,
+} from "@/lib/cases/assign-case-team";
 import { mapCommunityIntakeToHelpRequest } from "@/lib/cases/public-intake";
 import { sanitizeHelpRequestRecord } from "@/lib/cases/help-request-insert";
 import { geocodeAddress, geocodeStreetAddress } from "@/lib/geocode";
@@ -74,11 +77,35 @@ export async function POST(request: NextRequest) {
       .select("id, name, zip_codes, is_active")
       .eq("is_active", true);
 
-    const assigned = applyTrapTeamAssignment(
-      mapped.record,
-      String(mapped.record.colony_zip ?? ""),
-      teams ?? []
-    );
+    const assignment = resolveCaseTrapTeamAssignment({
+      colonyZip: String(mapped.record.colony_zip ?? ""),
+      catsOver8Weeks:
+        typeof mapped.record.cats_over_8_weeks === "number"
+          ? mapped.record.cats_over_8_weeks
+          : null,
+      kittensUnder8Weeks:
+        typeof mapped.record.kittens_under_8_weeks === "number"
+          ? mapped.record.kittens_under_8_weeks
+          : null,
+      teams: teams ?? [],
+    });
+
+    const assigned = applyCaseTrapTeamAssignment(mapped.record, teams ?? []);
+    if (assignment) {
+      const history = Array.isArray(assigned.history_log) ? [...assigned.history_log] : [];
+      history.push({
+        timestamp: new Date().toISOString(),
+        action: "routed_to_trap_team",
+        actor_email: null,
+        actor_name: "System",
+        details:
+          assignment.reason === "trap_school"
+            ? `Auto-assigned to ${assignment.name} (5 or fewer cats/kittens reported)`
+            : `Auto-assigned to ${assignment.name} by colony ZIP`,
+      });
+      assigned.history_log = history;
+      assigned.status = "routed_to_trap_team";
+    }
 
     const record = sanitizeHelpRequestRecord(assigned);
 

@@ -122,7 +122,7 @@ export function mapCommunityIntakeToHelpRequest(
 
   const record = {
     ...mapped.record,
-    status: "new_intake",
+    status: "routed_to_trap_team",
     colony_lat:
       typeof body.colony_lat === "number" ? body.colony_lat : null,
     colony_lng:
