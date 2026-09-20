@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Cat, ChevronLeft, ChevronRight, CheckCircle, User } from "lucide-react";
+import { Cat, ChevronLeft, ChevronRight, CheckCircle, User, ExternalLink } from "lucide-react";
 import { BrandMark } from "@/components/branding/brand-mark";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,6 +22,11 @@ import { AddressAutocomplete } from "@/components/forms/address-autocomplete";
 import { CountySelect } from "@/components/forms/county-select";
 import { INTAKE_COMMUNICATIONS_NOTICE } from "@/lib/constants";
 import { resolveCountyFromAutocomplete } from "@/lib/counties";
+import {
+  MECKLENBURG_RESOURCES_URL,
+  getMecklenburgServiceAreaBlock,
+  isMecklenburgCountyName,
+} from "@/lib/mecklenburg-service-area";
 import type { CommunityIntakeSubmission } from "@/lib/cases/public-intake";
 import {
   buildFeederFieldsFromIntake,
@@ -155,6 +160,34 @@ function formatHomeAddress(form: CommunityIntakeSubmission) {
     .join(", ");
 }
 
+function OutOfServiceAreaNotice({ reason }: { reason: "county" | "zip" }) {
+  return (
+    <div
+      role="alert"
+      className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-amber-950 space-y-2"
+    >
+      <p className="font-semibold">
+        {reason === "zip"
+          ? "That ZIP code is outside Mecklenburg County"
+          : "We can only help in Mecklenburg County right now"}
+      </p>
+      <p className="text-sm leading-relaxed">
+        Friends of Feral Felines is unable to help with colonies in other counties at this time.
+        Please use the link below to find TNVR and community-cat resources in neighboring counties.
+      </p>
+      <a
+        href={MECKLENBURG_RESOURCES_URL}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="inline-flex items-center gap-1.5 text-sm font-medium text-amber-950 underline underline-offset-2 hover:text-amber-900"
+      >
+        Community cat resources by county
+        <ExternalLink className="h-3.5 w-3.5" aria-hidden />
+      </a>
+    </div>
+  );
+}
+
 const CONTACT_ADDRESS_FIELDS = new Set<keyof CommunityIntakeSubmission>([
   "contact_street",
   "contact_city",
@@ -218,12 +251,25 @@ export function ColonyIntakeForm() {
         colony_address: "",
         colony_city: "",
         colony_state: "",
-        colony_county: "",
+        // Keep the service-area county the user already confirmed.
+        colony_county: prev.colony_county || prev.contact_county,
         colony_zip: "",
         colony_lat: null,
         colony_lng: null,
       }));
     }
+  }
+
+  function setServiceCounty(county: string) {
+    const normalized = isMecklenburgCountyName(county) ? "Mecklenburg" : county;
+    setForm((prev) => {
+      const next = {
+        ...prev,
+        colony_county: normalized,
+        contact_county: colonySameAsHome ? normalized : prev.contact_county || normalized,
+      };
+      return colonySameAsHome ? copyHomeAddressToColony(next) : next;
+    });
   }
 
   function intakeFormForSubmission(current = form) {
@@ -255,13 +301,24 @@ export function ColonyIntakeForm() {
   const showFeederPreview = reporterIsColonyFeeder(form);
   const feederPreview = showFeederPreview ? buildFeederFieldsFromIntake(intakeFormForSubmission()) : null;
 
+  const serviceCounty = form.colony_county || form.contact_county;
+  const serviceZip = form.colony_zip || form.contact_zip;
+  const serviceAreaBlock = getMecklenburgServiceAreaBlock({
+    county: serviceCounty,
+    zip: serviceZip,
+  });
+  const inServiceCounty = isMecklenburgCountyName(serviceCounty);
+  const formUnlocked = inServiceCounty && serviceAreaBlock === null;
+
   function canAdvanceFromStep(currentStep: number) {
+    if (!formUnlocked) return false;
     if (currentStep === 0) {
       return Boolean(
         form.contact_first_name &&
           form.contact_last_name &&
           form.contact_email &&
-          form.contact_phone
+          form.contact_phone &&
+          serviceCounty
       );
     }
     if (currentStep === 1) {
@@ -274,6 +331,7 @@ export function ColonyIntakeForm() {
   }
 
   function goToNextStep() {
+    if (!canAdvanceFromStep(step)) return;
     if (step === 1 && colonySameAsHome) {
       setForm((prev) => copyHomeAddressToColony(prev));
     }
@@ -282,13 +340,27 @@ export function ColonyIntakeForm() {
 
   async function handleSubmit() {
     setSubmitError(null);
+
+    const submission = {
+      ...intakeFormForSubmission(),
+      consent_communications: true,
+    };
+    const submitBlock = getMecklenburgServiceAreaBlock({
+      county: submission.colony_county || submission.contact_county,
+      zip: submission.colony_zip || submission.contact_zip,
+    });
+    if (!isMecklenburgCountyName(submission.colony_county || submission.contact_county) || submitBlock) {
+      setSubmitError(
+        submitBlock === "zip"
+          ? "That ZIP code is outside Mecklenburg County. We can only help colonies in Mecklenburg County at this time."
+          : "We can only help colonies in Mecklenburg County at this time."
+      );
+      return;
+    }
+
     setSubmitting(true);
 
     try {
-      const submission = {
-        ...intakeFormForSubmission(),
-        consent_communications: true,
-      };
       const response = await fetch("/api/help-requests/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -333,9 +405,9 @@ export function ColonyIntakeForm() {
           <Link href="/login" className="mb-4 inline-flex justify-center text-primary">
             <BrandMark nameClassName="text-xl text-primary" />
           </Link>
-          <h1 className="text-2xl font-bold">Report a Cat Colony</h1>
+          <h1 className="text-2xl font-bold">Report a Cat Colony in Mecklenburg County</h1>
           <p className="text-muted-foreground mt-1">
-            Community inquiry form — your report goes directly into our inquiry queue
+            We currently serve colonies in Mecklenburg County, NC. Your report goes to our team.
           </p>
           <p className="mx-auto mt-3 max-w-xl text-sm leading-relaxed text-foreground/80">
             {INTAKE_COMMUNICATIONS_NOTICE}
@@ -369,6 +441,8 @@ export function ColonyIntakeForm() {
 
         <Card>
           <CardContent className="pt-6 space-y-4">
+            {serviceAreaBlock && <OutOfServiceAreaNotice reason={serviceAreaBlock} />}
+
             {STEPS[step].category !== "review" && (
               <FormSectionBanner
                 variant={STEPS[step].category}
@@ -383,54 +457,72 @@ export function ColonyIntakeForm() {
 
             {step === 0 && (
               <>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Your first name</Label>
-                    <Input
-                      value={form.contact_first_name}
-                      onChange={(e) => update("contact_first_name", e.target.value)}
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Your last name</Label>
-                    <Input
-                      value={form.contact_last_name}
-                      onChange={(e) => update("contact_last_name", e.target.value)}
-                      required
-                    />
-                  </div>
-                </div>
-                <AddressAutocomplete
-                  label="Your home street address"
-                  defaultValue={form.contact_street}
+                <CountySelect
+                  label="County where the colony is located"
+                  value={serviceCounty}
+                  onChange={setServiceCounty}
                   required
-                  onAddressChange={(address) => update("contact_street", address)}
-                  onSelect={(parts) => {
-                    update("contact_street", parts.address);
-                    update("contact_city", parts.city);
-                    update("contact_state", parts.state);
-                    update("contact_zip", parts.zip);
-                    update("contact_county", resolveCountyFromAutocomplete(parts.county, parts.state));
-                  }}
                 />
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Your city</Label>
-                    <Input
-                      value={form.contact_city}
-                      onChange={(e) => update("contact_city", e.target.value)}
-                    />
+                {!serviceCounty.trim() && (
+                  <p className="text-sm text-muted-foreground">
+                    Select Mecklenburg County to continue with this form.
+                  </p>
+                )}
+
+                <fieldset disabled={!formUnlocked} className="space-y-4 disabled:opacity-60">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Your first name</Label>
+                      <Input
+                        value={form.contact_first_name}
+                        onChange={(e) => update("contact_first_name", e.target.value)}
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Your last name</Label>
+                      <Input
+                        value={form.contact_last_name}
+                        onChange={(e) => update("contact_last_name", e.target.value)}
+                        required
+                      />
+                    </div>
                   </div>
-                  <div className="space-y-2">
-                    <Label>Your state</Label>
-                    <Input
-                      value={form.contact_state}
-                      onChange={(e) => update("contact_state", e.target.value)}
-                    />
+                  <AddressAutocomplete
+                    label="Your home street address"
+                    defaultValue={form.contact_street}
+                    required
+                    onAddressChange={(address) => update("contact_street", address)}
+                    onSelect={(parts) => {
+                      update("contact_street", parts.address);
+                      update("contact_city", parts.city);
+                      update("contact_state", parts.state);
+                      update("contact_zip", parts.zip);
+                      const resolved = resolveCountyFromAutocomplete(parts.county, parts.state);
+                      if (resolved) {
+                        update("contact_county", resolved);
+                        if (colonySameAsHome) {
+                          update("colony_county", resolved);
+                        }
+                      }
+                    }}
+                  />
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Your city</Label>
+                      <Input
+                        value={form.contact_city}
+                        onChange={(e) => update("contact_city", e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Your state</Label>
+                      <Input
+                        value={form.contact_state}
+                        onChange={(e) => update("contact_state", e.target.value)}
+                      />
+                    </div>
                   </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Your ZIP code</Label>
                     <Input
@@ -438,60 +530,54 @@ export function ColonyIntakeForm() {
                       onChange={(e) => update("contact_zip", e.target.value)}
                     />
                   </div>
-                  <CountySelect
-                    label="Your county"
-                    value={form.contact_county}
-                    onChange={(county) => update("contact_county", county)}
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Your email</Label>
-                  <Input
-                    type="email"
-                    value={form.contact_email}
-                    onChange={(e) => update("contact_email", e.target.value)}
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Your phone number</Label>
-                  <Input
-                    type="tel"
-                    value={form.contact_phone}
-                    onChange={(e) => update("contact_phone", e.target.value)}
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Your relationship to the cats</Label>
-                  <Input
-                    value={form.relationship_to_cats}
-                    onChange={(e) => handleRelationshipChange(e.target.value)}
-                    placeholder="e.g. Feeder, property owner, neighbor"
-                  />
-                </div>
-                <div className="flex items-start gap-2 rounded-lg border bg-muted/30 p-3">
-                  <Checkbox
-                    id="colony_same_as_home"
-                    checked={colonySameAsHome}
-                    onCheckedChange={(checked) => setColonySameAsHomeChecked(!!checked)}
-                    className="mt-0.5"
-                  />
-                  <div className="space-y-1">
-                    <Label htmlFor="colony_same_as_home" className="font-normal leading-snug">
-                      The cat colony is at this same address
-                    </Label>
-                    <p className="text-sm text-muted-foreground">
-                      Check this if you don&apos;t need to enter a separate colony location later.
-                    </p>
+                  <div className="space-y-2">
+                    <Label>Your email</Label>
+                    <Input
+                      type="email"
+                      value={form.contact_email}
+                      onChange={(e) => update("contact_email", e.target.value)}
+                      required
+                    />
                   </div>
-                </div>
+                  <div className="space-y-2">
+                    <Label>Your phone number</Label>
+                    <Input
+                      type="tel"
+                      value={form.contact_phone}
+                      onChange={(e) => update("contact_phone", e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Your relationship to the cats</Label>
+                    <Input
+                      value={form.relationship_to_cats}
+                      onChange={(e) => handleRelationshipChange(e.target.value)}
+                      placeholder="e.g. Feeder, property owner, neighbor"
+                    />
+                  </div>
+                  <div className="flex items-start gap-2 rounded-lg border bg-muted/30 p-3">
+                    <Checkbox
+                      id="colony_same_as_home"
+                      checked={colonySameAsHome}
+                      onCheckedChange={(checked) => setColonySameAsHomeChecked(!!checked)}
+                      className="mt-0.5"
+                    />
+                    <div className="space-y-1">
+                      <Label htmlFor="colony_same_as_home" className="font-normal leading-snug">
+                        The cat colony is at this same address
+                      </Label>
+                      <p className="text-sm text-muted-foreground">
+                        Check this if you don&apos;t need to enter a separate colony location later.
+                      </p>
+                    </div>
+                  </div>
+                </fieldset>
               </>
             )}
 
             {step === 1 && (
-              <>
+              <fieldset disabled={!formUnlocked} className="space-y-4 disabled:opacity-60">
                 <div className="flex items-start gap-2 rounded-lg border p-3">
                   <Checkbox
                     id="colony_same_as_home_step1"
@@ -535,10 +621,11 @@ export function ColonyIntakeForm() {
                             update("contact_city", parts.city);
                             update("contact_state", parts.state);
                             update("contact_zip", parts.zip);
-                            update(
-                              "contact_county",
-                              resolveCountyFromAutocomplete(parts.county, parts.state)
-                            );
+                            const resolved = resolveCountyFromAutocomplete(parts.county, parts.state);
+                            if (resolved) {
+                              update("contact_county", resolved);
+                              update("colony_county", resolved);
+                            }
                           }}
                         />
                         <div className="grid grid-cols-2 gap-4">
@@ -558,19 +645,11 @@ export function ColonyIntakeForm() {
                             />
                           </div>
                         </div>
-                        <div className="grid grid-cols-2 gap-4">
-                          <div className="space-y-2">
-                            <Label>Your ZIP code</Label>
-                            <Input
-                              value={form.contact_zip}
-                              onChange={(e) => update("contact_zip", e.target.value)}
-                              required
-                            />
-                          </div>
-                          <CountySelect
-                            label="Your county"
-                            value={form.contact_county}
-                            onChange={(county) => update("contact_county", county)}
+                        <div className="space-y-2">
+                          <Label>Your ZIP code</Label>
+                          <Input
+                            value={form.contact_zip}
+                            onChange={(e) => update("contact_zip", e.target.value)}
                             required
                           />
                         </div>
@@ -590,7 +669,8 @@ export function ColonyIntakeForm() {
                         update("colony_address", parts.address);
                         update("colony_city", parts.city);
                         update("colony_state", parts.state);
-                        update("colony_county", resolveCountyFromAutocomplete(parts.county, parts.state));
+                        const resolved = resolveCountyFromAutocomplete(parts.county, parts.state);
+                        if (resolved) update("colony_county", resolved);
                         update("colony_zip", parts.zip);
                         if (parts.lat) update("colony_lat", parts.lat);
                         if (parts.lng) update("colony_lng", parts.lng);
@@ -625,7 +705,7 @@ export function ColonyIntakeForm() {
                       <CountySelect
                         label="Colony county"
                         value={form.colony_county}
-                        onChange={(county) => update("colony_county", county)}
+                        onChange={setServiceCounty}
                         required
                       />
                     </div>
@@ -639,7 +719,7 @@ export function ColonyIntakeForm() {
                     onChange={(e) => update("apartment_name", e.target.value)}
                   />
                 </div>
-              </>
+              </fieldset>
             )}
 
             {step === 2 && (
@@ -859,7 +939,7 @@ export function ColonyIntakeForm() {
                   Next <ChevronRight className="h-4 w-4" />
                 </Button>
               ) : (
-                <Button type="button" onClick={handleSubmit} disabled={submitting}>
+                <Button type="button" onClick={handleSubmit} disabled={submitting || !formUnlocked}>
                   {submitting ? "Submitting..." : "Submit Request"}
                 </Button>
               )}

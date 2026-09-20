@@ -101,7 +101,7 @@ export function VolunteerGate({ application = null }: VolunteerGateProps) {
             <Button asChild variant="ghost">
               <Link href="/request">
                 <Cat className="mr-2 h-4 w-4" />
-                Report a Cat Colony
+                Report a Cat Colony in Mecklenburg County
               </Link>
             </Button>
           </div>

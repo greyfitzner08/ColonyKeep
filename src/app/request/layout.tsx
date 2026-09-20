@@ -4,8 +4,9 @@ import { getPlatformBranding } from "@/lib/branding-server";
 export async function generateMetadata(): Promise<Metadata> {
   const branding = await getPlatformBranding();
   return {
-    title: `Report a Cat Colony — ${branding.app_name}`,
-    description: "Public community form to request help with a cat colony",
+    title: `Report a Cat Colony in Mecklenburg County — ${branding.app_name}`,
+    description:
+      "Public form to report a cat colony in Mecklenburg County, NC to Friends of Feral Felines",
   };
 }
 

@@ -14,6 +14,11 @@ import {
 import { mapCommunityIntakeToHelpRequest } from "@/lib/cases/public-intake";
 import { sanitizeHelpRequestRecord } from "@/lib/cases/help-request-insert";
 import { geocodeAddress, geocodeStreetAddress } from "@/lib/geocode";
+import {
+  MECKLENBURG_RESOURCES_URL,
+  getMecklenburgServiceAreaBlock,
+  isMecklenburgCountyName,
+} from "@/lib/mecklenburg-service-area";
 
 async function getWriteClient(): Promise<SupabaseClient | null> {
   if (hasSupabaseAdminConfig()) {
@@ -61,6 +66,27 @@ export async function POST(request: NextRequest) {
 
   if (mapped.error || !mapped.record) {
     return NextResponse.json({ error: mapped.error ?? "Invalid submission" }, { status: 400 });
+  }
+
+  const colonyCounty = String(mapped.record.colony_county ?? "");
+  const colonyZip = String(mapped.record.colony_zip ?? "");
+  const serviceAreaBlock =
+    !isMecklenburgCountyName(colonyCounty)
+      ? ("county" as const)
+      : getMecklenburgServiceAreaBlock({ county: colonyCounty, zip: colonyZip });
+
+  if (serviceAreaBlock) {
+    return NextResponse.json(
+      {
+        error:
+          serviceAreaBlock === "zip"
+            ? `That ZIP code is outside Mecklenburg County. Friends of Feral Felines currently serves Mecklenburg County only. Find neighboring-county resources at ${MECKLENBURG_RESOURCES_URL}`
+            : `Friends of Feral Felines currently serves Mecklenburg County only. Find neighboring-county resources at ${MECKLENBURG_RESOURCES_URL}`,
+        resourcesUrl: MECKLENBURG_RESOURCES_URL,
+        reason: serviceAreaBlock,
+      },
+      { status: 400 }
+    );
   }
 
   try {
