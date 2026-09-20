@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo } from "react";
-import { AlertTriangle } from "lucide-react";
+import { useMemo, useState } from "react";
+import { AlertTriangle, Check, Copy } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
@@ -20,6 +20,47 @@ import { formatDateTime } from "@/lib/utils";
 import { postCaseClaim } from "@/lib/cases/case-claim-api";
 import type { HelpRequest } from "@/lib/types";
 import { cn } from "@/lib/utils";
+
+function CopyEmailButton({ email }: { email: string }) {
+  const [copied, setCopied] = useState(false);
+
+  async function copyEmail() {
+    try {
+      await navigator.clipboard.writeText(email);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1500);
+    } catch {
+      // Clipboard can fail without permission; leave button in default state.
+    }
+  }
+
+  return (
+    <Button
+      type="button"
+      variant="outline"
+      size="sm"
+      className="h-7 shrink-0 gap-1 px-2 text-xs"
+      aria-label={`Copy ${email}`}
+      title="Copy email"
+      onClick={(event) => {
+        event.stopPropagation();
+        void copyEmail();
+      }}
+    >
+      {copied ? (
+        <>
+          <Check className="h-3.5 w-3.5 text-primary" />
+          Copied
+        </>
+      ) : (
+        <>
+          <Copy className="h-3.5 w-3.5" />
+          Copy
+        </>
+      )}
+    </Button>
+  );
+}
 
 interface IntakeCaseTableProps {
   cases: HelpRequest[];
@@ -160,6 +201,43 @@ export function IntakeCaseTable({
           "—",
       },
       {
+        id: "submitter_email",
+        label: "Submitter email",
+        defaultWidth: 240,
+        minWidth: 160,
+        wrap: true,
+        sortValue: (helpRequest) => helpRequest.contact_email ?? "",
+        render: (helpRequest) => {
+          const email = helpRequest.contact_email?.trim();
+          if (!email) {
+            return <span className="text-muted-foreground">—</span>;
+          }
+          const submitterName =
+            [helpRequest.contact_first_name, helpRequest.contact_last_name]
+              .filter(Boolean)
+              .join(" ")
+              .trim() || helpRequest.contact_name?.trim();
+
+          return (
+            <div className="flex min-w-0 items-start gap-2">
+              <div className="min-w-0 flex-1">
+                {submitterName ? (
+                  <p className="truncate text-sm font-medium leading-tight">{submitterName}</p>
+                ) : null}
+                <a
+                  href={`mailto:${email}`}
+                  className="block truncate text-sm text-primary hover:underline"
+                  title={email}
+                >
+                  {email}
+                </a>
+              </div>
+              <CopyEmailButton email={email} />
+            </div>
+          );
+        },
+      },
+      {
         id: "submitted",
         label: "Submitted",
         sortValue: (helpRequest) => helpRequest.created_at,
@@ -170,6 +248,7 @@ export function IntakeCaseTable({
       {
         id: "actions",
         label: "Actions",
+        hideable: false,
         render: (helpRequest) => {
           const isMine = helpRequest.claimed_by_email === userEmail;
           const isUnclaimed = !helpRequest.claimed_by_email;
@@ -214,7 +293,7 @@ export function IntakeCaseTable({
 
   return (
     <DataTable
-      tableId="intake-cases"
+      tableId={statusLabelContext === "trap" ? "trap-queue-cases" : "intake-cases"}
       columns={columns}
       rows={cases}
       getRowKey={(helpRequest) => helpRequest.id}
