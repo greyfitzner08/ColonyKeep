@@ -81,7 +81,11 @@ export default async function TrapQueuePage({ searchParams }: TrapQueuePageProps
         actions={
           <>
             {!isHistoryScope && <ShareRequestFormLink requestFormUrl={requestFormUrl} />}
-            {canImport && !isHistoryScope && <InquiryAdminMenu />}
+            {canImport && !isHistoryScope && (
+              <InquiryAdminMenu
+                submitterEmails={cases.map((helpRequest) => helpRequest.contact_email)}
+              />
+            )}
             <Suspense fallback={<div className="h-9 w-[220px] animate-pulse rounded-md bg-muted" />}>
               <TrapQueueFilters
                 teams={teams ?? []}
