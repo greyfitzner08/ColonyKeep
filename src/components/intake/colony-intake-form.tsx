@@ -309,6 +309,9 @@ export function ColonyIntakeForm() {
   });
   const inServiceCounty = isMecklenburgCountyName(serviceCounty);
   const formUnlocked = inServiceCounty && serviceAreaBlock === null;
+  // Only lock non-county fields when the county itself is out of area.
+  // A bad ZIP must stay editable so typos can be fixed.
+  const remainderLocked = Boolean(serviceCounty.trim()) && !inServiceCounty;
 
   function canAdvanceFromStep(currentStep: number) {
     if (!formUnlocked) return false;
@@ -469,7 +472,7 @@ export function ColonyIntakeForm() {
                   </p>
                 )}
 
-                <fieldset disabled={!formUnlocked} className="space-y-4 disabled:opacity-60">
+                <fieldset disabled={remainderLocked} className="space-y-4 disabled:opacity-60">
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label>Your first name</Label>
@@ -528,7 +531,15 @@ export function ColonyIntakeForm() {
                     <Input
                       value={form.contact_zip}
                       onChange={(e) => update("contact_zip", e.target.value)}
+                      inputMode="numeric"
+                      autoComplete="postal-code"
                     />
+                    {serviceAreaBlock === "zip" && (
+                      <p className="text-sm text-amber-900">
+                        Edit the ZIP above if this was a typo — the form will unlock once it matches
+                        Mecklenburg County.
+                      </p>
+                    )}
                   </div>
                   <div className="space-y-2">
                     <Label>Your email</Label>
@@ -577,7 +588,7 @@ export function ColonyIntakeForm() {
             )}
 
             {step === 1 && (
-              <fieldset disabled={!formUnlocked} className="space-y-4 disabled:opacity-60">
+              <fieldset disabled={remainderLocked} className="space-y-4 disabled:opacity-60">
                 <div className="flex items-start gap-2 rounded-lg border p-3">
                   <Checkbox
                     id="colony_same_as_home_step1"
@@ -651,7 +662,15 @@ export function ColonyIntakeForm() {
                             value={form.contact_zip}
                             onChange={(e) => update("contact_zip", e.target.value)}
                             required
+                            inputMode="numeric"
+                            autoComplete="postal-code"
                           />
+                          {serviceAreaBlock === "zip" && (
+                            <p className="text-sm text-amber-900">
+                              Edit the ZIP above if this was a typo — the form will unlock once it
+                              matches Mecklenburg County.
+                            </p>
+                          )}
                         </div>
                       </div>
                     )}
@@ -700,7 +719,15 @@ export function ColonyIntakeForm() {
                           value={form.colony_zip}
                           onChange={(e) => update("colony_zip", e.target.value)}
                           required
+                          inputMode="numeric"
+                          autoComplete="postal-code"
                         />
+                        {serviceAreaBlock === "zip" && (
+                          <p className="text-sm text-amber-900">
+                            Edit the ZIP above if this was a typo — the form will unlock once it
+                            matches Mecklenburg County.
+                          </p>
+                        )}
                       </div>
                       <CountySelect
                         label="Colony county"
