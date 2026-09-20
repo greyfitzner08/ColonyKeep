@@ -13,6 +13,7 @@ import { TrapTeamPanel } from "@/components/dashboard/trap-team-panel";
 import { DashboardSectionShell } from "@/components/dashboard/dashboard-section-shell";
 import { PendingClinicResultsBanner } from "@/components/appointments/pending-clinic-results-banner";
 import type { ClinicResultAppointment } from "@/components/appointments/log-clinic-result-dialog";
+import { PageHeader } from "@/components/layout/page-header";
 import { formatDate } from "@/lib/utils";
 import type { HelpRequest, Shift } from "@/lib/types";
 import type { TrapTeamDashboardData } from "@/lib/dashboard/trap-team-data";
@@ -306,30 +307,35 @@ export function ConfigurableDashboard({
 
   return (
     <div className="space-y-8">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold">Dashboard</h1>
-          <p className="text-muted-foreground">Welcome back, {userName}</p>
-          <p className="text-xs text-muted-foreground mt-1">
-            Drag sections by the handle to reorder. Collapse any section you don&apos;t need right now.
-          </p>
-        </div>
-        {QUICK_LINKS.some((link) => quickLinks[link.key]) && (
-          <div className="flex flex-wrap gap-2">
-            {QUICK_LINKS.filter((link) => quickLinks[link.key]).map((link) => {
-              const Icon = link.icon;
-              return (
-                <Button key={link.href} asChild variant="outline">
-                  <Link href={link.href}>
-                    <Icon className="h-4 w-4 mr-2" />
-                    {link.label}
-                  </Link>
-                </Button>
-              );
-            })}
-          </div>
-        )}
-      </div>
+      <PageHeader
+        title="Dashboard"
+        description={
+          <>
+            <span className="text-muted-foreground">Welcome back, {userName}</span>
+            <span className="mt-1 block text-xs text-muted-foreground">
+              Drag sections by the handle to reorder. Collapse any section you don&apos;t need right
+              now.
+            </span>
+          </>
+        }
+        actions={
+          QUICK_LINKS.some((link) => quickLinks[link.key]) ? (
+            <>
+              {QUICK_LINKS.filter((link) => quickLinks[link.key]).map((link) => {
+                const Icon = link.icon;
+                return (
+                  <Button key={link.href} asChild size="sm" variant="outline">
+                    <Link href={link.href}>
+                      <Icon className="mr-1.5 h-4 w-4" />
+                      {link.label}
+                    </Link>
+                  </Button>
+                );
+              })}
+            </>
+          ) : undefined
+        }
+      />
 
       <PendingClinicResultsBanner appointments={pendingClinicResults} />
 

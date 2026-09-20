@@ -4,9 +4,10 @@ import { getAppProfile } from "@/lib/auth";
 import { canAccessAdoptions } from "@/lib/permissions";
 import { createServiceClient } from "@/lib/supabase/server";
 import { AdoptableCatsManager } from "@/components/adoption/adoptable-cats-manager";
+import { PageHeader } from "@/components/layout/page-header";
 import type { AdoptableCat, AdoptionLocation } from "@/lib/adoption/constants";
 import { Button } from "@/components/ui/button";
-import { MapPin } from "lucide-react";
+import { ExternalLink, MapPin } from "lucide-react";
 
 export default async function AdoptionPage() {
   const profile = await getAppProfile();
@@ -29,31 +30,29 @@ export default async function AdoptionPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-3xl font-bold">Adoptable Cats</h1>
-          <p className="text-muted-foreground">
-            Track cats in the adoption program — medical status, placement location, and notes for
-            Adoption Specialists.
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <Button type="button" variant="outline" asChild>
-            <Link href="/adoption/applications">Applications</Link>
-          </Button>
-          <Button type="button" variant="outline" asChild>
-            <Link href="/adoption/locations">
-              <MapPin className="mr-2 h-4 w-4" />
-              Manage locations
-            </Link>
-          </Button>
-          <Button type="button" variant="outline" asChild>
-            <Link href="/adopt" target="_blank">
-              Public form
-            </Link>
-          </Button>
-        </div>
-      </div>
+      <PageHeader
+        title="Adoptable Cats"
+        description="Track cats in the adoption program — medical status, placement location, and notes for Adoption Specialists."
+        actions={
+          <>
+            <Button type="button" size="sm" variant="outline" asChild>
+              <Link href="/adoption/applications">Applications</Link>
+            </Button>
+            <Button type="button" size="sm" variant="outline" asChild>
+              <Link href="/adoption/locations">
+                <MapPin className="mr-1.5 h-4 w-4" />
+                Locations
+              </Link>
+            </Button>
+            <Button type="button" size="sm" variant="outline" asChild>
+              <Link href="/adopt" target="_blank">
+                <ExternalLink className="mr-1.5 h-4 w-4" />
+                Public form
+              </Link>
+            </Button>
+          </>
+        }
+      />
       <AdoptableCatsManager cats={catRows} locations={locationRows} />
     </div>
   );

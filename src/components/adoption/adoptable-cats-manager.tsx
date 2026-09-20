@@ -306,14 +306,14 @@ export function AdoptableCatsManager({ cats: initial, locations }: AdoptableCats
           </Select>
         </div>
         <div className="flex gap-2">
-          <Button type="button" variant="outline" asChild>
+          <Button type="button" size="sm" variant="outline" asChild>
             <Link href="/adoption/locations">
-              <MapPin className="mr-2 h-4 w-4" />
+              <MapPin className="mr-1.5 h-4 w-4" />
               Locations
             </Link>
           </Button>
-          <Button type="button" onClick={openNew}>
-            <Plus className="mr-2 h-4 w-4" />
+          <Button type="button" size="sm" onClick={openNew}>
+            <Plus className="mr-1.5 h-4 w-4" />
             Add cat
           </Button>
         </div>

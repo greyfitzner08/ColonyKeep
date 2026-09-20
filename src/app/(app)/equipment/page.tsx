@@ -4,6 +4,7 @@ import { getAppProfile } from "@/lib/auth";
 import { canManageTrapEquipment } from "@/lib/permissions";
 import { buildVolunteerOptions } from "@/lib/equipment/volunteers";
 import { TrapEquipmentManager } from "@/components/equipment/trap-equipment-manager";
+import { PageHeader } from "@/components/layout/page-header";
 import type { TrapEquipmentItem, TrapTeam } from "@/lib/types";
 
 export default async function EquipmentPage() {
@@ -61,14 +62,14 @@ export default async function EquipmentPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Trap Equipment</h1>
-        <p className="text-muted-foreground">
-          Track traps, scanners, and field gear. Assign a TNVR volunteer who keeps each item, and
-          record public borrower contact info when gear is loaned out.
-          {userTeam ? ` Viewing inventory for ${userTeam.name}.` : " Viewing all teams."}
-        </p>
-      </div>
+      <PageHeader
+        title="Trap Equipment"
+        description={
+          userTeam
+            ? `Track traps, scanners, and field gear for ${userTeam.name}. Assign a TNVR volunteer who keeps each item, and record borrower contact when gear is loaned out.`
+            : "Track traps, scanners, and field gear. Assign a TNVR volunteer who keeps each item, and record borrower contact when gear is loaned out."
+        }
+      />
       <TrapEquipmentManager
         items={(items ?? []) as TrapEquipmentItem[]}
         teams={(teams ?? []) as TrapTeam[]}

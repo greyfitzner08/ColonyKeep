@@ -21,6 +21,7 @@ export function InquiryAdminMenu() {
         type="button"
         variant="outline"
         size="icon"
+        className="h-9 w-9 shrink-0"
         onClick={() => setOpen(true)}
         aria-label="Case admin tools"
       >

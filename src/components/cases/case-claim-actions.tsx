@@ -47,10 +47,11 @@ export function CaseClaimActions({
   }
 
   return (
-    <div className="flex flex-wrap gap-2">
+    <>
       {canShowClaim && (
         <Button
-          size={emphasizeClaim ? "default" : "sm"}
+          size="sm"
+          variant={emphasizeClaim ? "default" : "outline"}
           onClick={() => mutate("claim")}
         >
           {emphasizeClaim ? "Claim to edit" : "Claim case"}
@@ -61,6 +62,6 @@ export function CaseClaimActions({
           {isMine ? "Unclaim" : "Release claim"}
         </Button>
       )}
-    </div>
+    </>
   );
 }

@@ -9,8 +9,8 @@ export function ShareRequestFormLink({ requestFormUrl }: ShareRequestFormLinkPro
   return (
     <Button type="button" variant="outline" size="sm" asChild>
       <a href={requestFormUrl} target="_blank" rel="noopener noreferrer">
-        <ExternalLink className="h-4 w-4 mr-2" />
-        Open request form
+        <ExternalLink className="mr-1.5 h-4 w-4" />
+        Request form
       </a>
     </Button>
   );

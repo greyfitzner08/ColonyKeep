@@ -740,14 +740,14 @@ export function TrapEquipmentManager({
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap justify-end gap-2">
-        <Button variant="outline" onClick={() => setScannerOpen(true)}>
-          <QrCode className="mr-2 h-4 w-4" />
-          Scan QR Code
+      <div className="flex flex-wrap items-center justify-end gap-2">
+        <Button size="sm" variant="outline" onClick={() => setScannerOpen(true)}>
+          <QrCode className="mr-1.5 h-4 w-4" />
+          Scan QR
         </Button>
-        <Button onClick={openNew}>
-          <Plus className="mr-2 h-4 w-4" />
-          Log Equipment
+        <Button size="sm" onClick={openNew}>
+          <Plus className="mr-1.5 h-4 w-4" />
+          Log equipment
         </Button>
       </div>
 
@@ -765,14 +765,14 @@ export function TrapEquipmentManager({
           <div className="flex flex-wrap items-center gap-2">
             <Input
               id="equipment-search"
-              className="h-9 min-w-[200px] flex-1"
+              className="h-9 min-w-[200px] flex-1 sm:max-w-xs"
               placeholder="Search label, location, volunteer, borrower…"
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
             />
             {isAdmin && teams.length > 0 && (
               <Select value={filterTeamId} onValueChange={setFilterTeamId}>
-                <SelectTrigger className="h-9 w-[160px]">
+                <SelectTrigger className="h-9 w-[150px]">
                   <SelectValue placeholder="All teams" />
                 </SelectTrigger>
                 <SelectContent>
@@ -786,7 +786,7 @@ export function TrapEquipmentManager({
               </Select>
             )}
             <Select value={filterType} onValueChange={setFilterType}>
-              <SelectTrigger className="h-9 w-[160px]">
+              <SelectTrigger className="h-9 w-[150px]">
                 <SelectValue placeholder="All types" />
               </SelectTrigger>
               <SelectContent>
@@ -799,7 +799,7 @@ export function TrapEquipmentManager({
               </SelectContent>
             </Select>
             <Select value={filterStatus} onValueChange={setFilterStatus}>
-              <SelectTrigger className="h-9 w-[150px]">
+              <SelectTrigger className="h-9 w-[140px]">
                 <SelectValue placeholder="All statuses" />
               </SelectTrigger>
               <SelectContent>
@@ -812,7 +812,7 @@ export function TrapEquipmentManager({
               </SelectContent>
             </Select>
             {filtersActive && (
-              <Button variant="ghost" className="h-9" onClick={clearFilters}>
+              <Button variant="ghost" size="sm" className="h-9" onClick={clearFilters}>
                 Clear
               </Button>
             )}

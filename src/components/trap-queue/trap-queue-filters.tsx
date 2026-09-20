@@ -31,7 +31,7 @@ export function TrapQueueFilters({
   }
 
   return (
-    <div className="flex flex-wrap gap-3">
+    <div className="flex flex-wrap items-center gap-2">
       {showWorkHistory && (
         <Select
           value={scope}
@@ -46,7 +46,7 @@ export function TrapQueueFilters({
             })
           }
         >
-          <SelectTrigger className="w-[200px]">
+          <SelectTrigger className="h-9 w-[160px]">
             <SelectValue placeholder="View" />
           </SelectTrigger>
           <SelectContent>
@@ -69,7 +69,7 @@ export function TrapQueueFilters({
             })
           }
         >
-          <SelectTrigger className="w-[260px]">
+          <SelectTrigger className="h-9 w-[200px] sm:w-[220px]">
             <SelectValue placeholder="Select queue" />
           </SelectTrigger>
           <SelectContent>

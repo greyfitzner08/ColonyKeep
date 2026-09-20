@@ -58,7 +58,7 @@ export function CaseNeedsMoreInfoAction({
       disabled={loading}
       title="Mark this case as waiting on more information from the reporter."
     >
-      <MessageCircleQuestion className="h-4 w-4 mr-2" />
+      <MessageCircleQuestion className="mr-1.5 h-4 w-4" />
       {loading ? "Updating…" : "Needs more info"}
     </Button>
   );

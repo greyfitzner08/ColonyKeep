@@ -5,6 +5,7 @@ import { getAppProfile } from "@/lib/auth";
 import { canAccessAdoptions } from "@/lib/permissions";
 import { createServiceClient } from "@/lib/supabase/server";
 import { AdoptionLocationsManager } from "@/components/adoption/adoption-locations-manager";
+import { PageHeader } from "@/components/layout/page-header";
 import type { AdoptionLocation } from "@/lib/adoption/constants";
 import { Button } from "@/components/ui/button";
 
@@ -31,21 +32,18 @@ export default async function AdoptionLocationsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="space-y-3">
-        <Button type="button" variant="ghost" size="sm" className="-ml-2" asChild>
-          <Link href="/adoption">
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to adoptable cats
-          </Link>
-        </Button>
-        <div>
-          <h1 className="text-3xl font-bold">Adoption Locations</h1>
-          <p className="text-muted-foreground">
-            Pet stores and foster homes where adoptable cats are placed, with contact and address
-            details.
-          </p>
-        </div>
-      </div>
+      <PageHeader
+        title="Adoption Locations"
+        description="Pet stores and foster homes where adoptable cats are placed, with contact and address details."
+        actions={
+          <Button type="button" variant="outline" size="sm" asChild>
+            <Link href="/adoption">
+              <ArrowLeft className="mr-1.5 h-4 w-4" />
+              Adoptable cats
+            </Link>
+          </Button>
+        }
+      />
       <AdoptionLocationsManager locations={rows} />
     </div>
   );

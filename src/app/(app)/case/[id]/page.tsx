@@ -20,6 +20,7 @@ import { normalizeHistoryLog } from "@/lib/cases/history-log";
 import { isCaseWorker, canManageAppointments } from "@/lib/permissions";
 import { CaseClaimActions } from "@/components/cases/case-claim-actions";
 import { CaseNeedsMoreInfoAction } from "@/components/cases/case-needs-more-info-action";
+import { PageHeader } from "@/components/layout/page-header";
 import type { HelpRequest, Cat, Appointment, ClinicFix } from "@/lib/types";
 
 interface CasePageProps {
@@ -88,20 +89,27 @@ export default async function CasePage({ params }: CasePageProps) {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex flex-wrap items-center gap-3">
-          <h1 className="text-2xl font-bold sm:text-3xl">{hr.case_number}</h1>
-          <Badge className={cn("text-sm", statusColor)}>
-            {statusLabel}
-          </Badge>
-          {medical && (
-            <Badge variant="destructive" className="gap-1">
-              <AlertTriangle className="h-3 w-3" /> Medical
-            </Badge>
-          )}
-        </div>
-        <div className="flex flex-col items-start gap-2 sm:items-end">
-          <div className="flex flex-wrap gap-2">
+      <PageHeader
+        title={
+          <>
+            <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{hr.case_number}</h1>
+            <Badge className={cn("text-sm", statusColor)}>{statusLabel}</Badge>
+            {medical && (
+              <Badge variant="destructive" className="gap-1">
+                <AlertTriangle className="h-3 w-3" /> Medical
+              </Badge>
+            )}
+          </>
+        }
+        description={
+          <p className="text-muted-foreground">
+            {hr.contact_name}
+            {hr.colony_zip ? ` · ${hr.colony_zip}` : ""}
+            {hr.assigned_team_name ? ` · ${hr.assigned_team_name}` : ""}
+          </p>
+        }
+        actions={
+          <>
             <CaseClaimActions
               helpRequestId={hr.id}
               status={hr.status}
@@ -119,14 +127,9 @@ export default async function CasePage({ params }: CasePageProps) {
                 userRole={profile?.role ?? null}
               />
             )}
-          </div>
-          <div className="text-base text-muted-foreground">
-            {hr.contact_name}
-            {hr.colony_zip ? ` · ${hr.colony_zip}` : ""}
-            {hr.assigned_team_name ? ` · ${hr.assigned_team_name}` : ""}
-          </div>
-        </div>
-      </div>
+          </>
+        }
+      />
 
       {claimGate && (
         <div className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-50">

@@ -3,7 +3,6 @@ import { createClient } from "@/lib/supabase/server";
 import { getAppProfile } from "@/lib/auth";
 import { sortCasesMedicalFirst } from "@/lib/cases/sort-cases";
 import { fetchUserCaseWorkHistory } from "@/lib/cases/user-work-history";
-import { isCaseWorker } from "@/lib/permissions";
 import {
   buildTrapQueueQuery,
   trapQueueViewLabel,
@@ -14,6 +13,7 @@ import { TrapQueueShell } from "@/components/trap-queue/trap-queue-shell";
 import { CaseQueueView } from "@/components/cases/case-queue-view";
 import { InquiryAdminMenu } from "@/components/cases/inquiry-admin-menu";
 import { ShareRequestFormLink } from "@/components/cases/share-request-form-link";
+import { PageHeader } from "@/components/layout/page-header";
 import { getServerAppUrl } from "@/lib/app-url";
 import type { HelpRequest } from "@/lib/types";
 
@@ -25,7 +25,6 @@ export default async function TrapQueuePage({ searchParams }: TrapQueuePageProps
   const params = await searchParams;
   const supabase = await createClient();
   const profile = await getAppProfile();
-  const canWorkCases = isCaseWorker(profile);
   const isTrapRole = profile?.role === "admin" || profile?.role === "trap_team_lead";
 
   const isHistoryScope = params.scope === "history";
@@ -69,35 +68,32 @@ export default async function TrapQueuePage({ searchParams }: TrapQueuePageProps
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">
-            {isHistoryScope ? "My work history" : "Trap Queue"}
-          </h1>
-          <p className="text-muted-foreground">{viewDescription}</p>
-          <p className="text-sm text-muted-foreground">{cases.length} cases in this view</p>
-          {!isHistoryScope && (
-            <div className="mt-2 flex flex-wrap items-center gap-2">
-              <ShareRequestFormLink requestFormUrl={requestFormUrl} />
-              <span className="text-sm text-muted-foreground">
-                Share with community members — submissions land here automatically
-              </span>
-            </div>
-          )}
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {canImport && !isHistoryScope && <InquiryAdminMenu />}
-          <Suspense fallback={<div className="h-10 w-[260px] animate-pulse rounded-md bg-muted" />}>
-            <TrapQueueFilters
-              teams={teams ?? []}
-              myTeamId={profile?.team_id ?? null}
-              myTeamName={myTeam?.name ?? null}
-              isTrapRole={isTrapRole}
-              showWorkHistory
-            />
-          </Suspense>
-        </div>
-      </div>
+      <PageHeader
+        title={isHistoryScope ? "My work history" : "Trap Queue"}
+        description={
+          <>
+            <span className="text-muted-foreground">{viewDescription}</span>
+            <span className="mt-1 block text-sm text-muted-foreground">
+              {cases.length} cases in this view
+            </span>
+          </>
+        }
+        actions={
+          <>
+            {!isHistoryScope && <ShareRequestFormLink requestFormUrl={requestFormUrl} />}
+            {canImport && !isHistoryScope && <InquiryAdminMenu />}
+            <Suspense fallback={<div className="h-9 w-[220px] animate-pulse rounded-md bg-muted" />}>
+              <TrapQueueFilters
+                teams={teams ?? []}
+                myTeamId={profile?.team_id ?? null}
+                myTeamName={myTeam?.name ?? null}
+                isTrapRole={isTrapRole}
+                showWorkHistory
+              />
+            </Suspense>
+          </>
+        }
+      />
 
       <Suspense fallback={<div className="h-40 animate-pulse rounded-lg bg-muted" />}>
         {isHistoryScope ? (

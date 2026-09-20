@@ -1,12 +1,13 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ClipboardList, ExternalLink } from "lucide-react";
+import { ExternalLink, PawPrint } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getAppProfile } from "@/lib/auth";
 import { canAccessAdoptions } from "@/lib/permissions";
 import { createServiceClient } from "@/lib/supabase/server";
 import { AdoptionApplicationsSeenTracker } from "@/components/layout/adoption-applications-seen-tracker";
 import { AdoptionApplicationsManager } from "@/components/adoption/adoption-applications-manager";
+import { PageHeader } from "@/components/layout/page-header";
 import type { AdoptionApplication } from "@/lib/adoption/application";
 
 export default async function AdoptionApplicationsPage() {
@@ -24,28 +25,26 @@ export default async function AdoptionApplicationsPage() {
   return (
     <div className="space-y-6">
       <AdoptionApplicationsSeenTracker profileId={profile.id} />
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-3xl font-bold">Adoption Applications</h1>
-          <p className="text-muted-foreground">
-            Review public adoption applications, update status, and keep staff notes.
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <Button type="button" variant="outline" asChild>
-            <Link href="/adoption">
-              <ClipboardList className="mr-2 h-4 w-4" />
-              Adoptable cats
-            </Link>
-          </Button>
-          <Button type="button" variant="outline" asChild>
-            <Link href="/adopt" target="_blank">
-              <ExternalLink className="mr-2 h-4 w-4" />
-              Public form
-            </Link>
-          </Button>
-        </div>
-      </div>
+      <PageHeader
+        title="Adoption Applications"
+        description="Review public adoption applications, update status, and keep staff notes."
+        actions={
+          <>
+            <Button type="button" size="sm" variant="outline" asChild>
+              <Link href="/adoption">
+                <PawPrint className="mr-1.5 h-4 w-4" />
+                Adoptable cats
+              </Link>
+            </Button>
+            <Button type="button" size="sm" variant="outline" asChild>
+              <Link href="/adopt" target="_blank">
+                <ExternalLink className="mr-1.5 h-4 w-4" />
+                Public form
+              </Link>
+            </Button>
+          </>
+        }
+      />
       <AdoptionApplicationsManager applications={applications} />
     </div>
   );

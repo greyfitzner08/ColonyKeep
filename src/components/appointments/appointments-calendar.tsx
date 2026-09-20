@@ -346,13 +346,13 @@ export function AppointmentsCalendar({
         </div>
       )}
 
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div className="flex gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
           <Button variant={view === "list" ? "default" : "outline"} size="sm" onClick={() => setView("list")}>List</Button>
           <Button variant={view === "month" ? "default" : "outline"} size="sm" onClick={() => setView("month")}>Month</Button>
         </div>
-        <Button onClick={openAddDialog}>
-          <Plus className="h-4 w-4 mr-2" />
+        <Button size="sm" onClick={openAddDialog}>
+          <Plus className="mr-1.5 h-4 w-4" />
           Add appointments
         </Button>
       </div>
