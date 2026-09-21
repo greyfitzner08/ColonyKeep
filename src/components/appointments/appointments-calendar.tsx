@@ -20,6 +20,14 @@ import { DisplayDateInput } from "@/components/ui/display-date-input";
 import { ClaimAppointmentDialog } from "@/components/appointments/claim-appointment-dialog";
 import { AppointmentDetailDialog } from "@/components/appointments/appointment-detail-dialog";
 import { APPOINTMENT_STATUS_COLORS } from "@/lib/constants";
+import {
+  APPOINTMENT_WEEKDAY_LABELS,
+  appointmentDateKey,
+  buildMonthGrid,
+  groupAppointmentsByDate,
+  monthLabel,
+  toDateKey,
+} from "@/lib/appointments/calendar-grid";
 import { canUnreserveAppointment, shouldShowAppointmentStatusBadge } from "@/lib/appointments/clinic-result";
 import { isAppointmentDatePast, enumerateRecurringDates } from "@/lib/appointments/slot-date";
 import { formatDate, cn } from "@/lib/utils";
@@ -27,7 +35,6 @@ import type { Appointment, Clinic, Cat } from "@/lib/types";
 import type { HelpRequestOption } from "@/lib/cases/help-request-options";
 import { Plus, Calendar, ChevronLeft, ChevronRight } from "lucide-react";
 
-const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const WEEKDAY_OPTIONS = [
   { value: 0, label: "Sun" },
   { value: 1, label: "Mon" },
@@ -49,44 +56,6 @@ const EMPTY_ADD_FORM = {
   weekdays: [2] as number[],
   count: 1,
 };
-
-function toDateKey(date: Date): string {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
-
-/** Normalize DB/calendar date strings to YYYY-MM-DD for grouping. */
-function appointmentDateKey(date: string): string {
-  const trimmed = date.trim();
-  const match = /^(\d{4}-\d{2}-\d{2})/.exec(trimmed);
-  return match ? match[1] : trimmed.slice(0, 10);
-}
-
-function buildMonthGrid(year: number, month: number) {
-  const firstDay = new Date(year, month, 1);
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const startWeekday = firstDay.getDay();
-  const totalCells = Math.ceil((startWeekday + daysInMonth) / 7) * 7;
-
-  return Array.from({ length: totalCells }, (_, index) => {
-    const dayOffset = index - startWeekday + 1;
-    const date = new Date(year, month, dayOffset);
-    return {
-      date: toDateKey(date),
-      day: date.getDate(),
-      inMonth: date.getMonth() === month,
-    };
-  });
-}
-
-function monthLabel(year: number, month: number) {
-  return new Date(year, month, 1).toLocaleDateString("en-US", {
-    month: "long",
-    year: "numeric",
-  });
-}
 
 const CLINIC_COLORS = [
   "border-l-blue-500",
@@ -136,15 +105,7 @@ export function AppointmentsCalendar({
 
   const filtered = initial.filter((a) => selectedClinics.includes(a.clinic_id));
 
-  const grouped = filtered.reduce(
-    (acc, appt) => {
-      const key = appointmentDateKey(appt.date);
-      if (!acc[key]) acc[key] = [];
-      acc[key].push(appt);
-      return acc;
-    },
-    {} as Record<string, Appointment[]>
-  );
+  const grouped = groupAppointmentsByDate(filtered);
 
   const monthGrid = buildMonthGrid(monthCursor.year, monthCursor.month);
   const selectedDayAppointments = selectedDate ? grouped[selectedDate] ?? [] : [];
@@ -415,7 +376,7 @@ export function AppointmentsCalendar({
           <div className="overflow-x-auto rounded-lg border">
             <div className="min-w-[32rem]">
             <div className="grid grid-cols-7 bg-muted/50 border-b">
-              {WEEKDAY_LABELS.map((label) => (
+              {APPOINTMENT_WEEKDAY_LABELS.map((label) => (
                 <div key={label} className="px-1 py-2 text-center text-[10px] font-medium text-muted-foreground sm:px-2 sm:text-xs">
                   <span className="sm:hidden">{label.slice(0, 1)}</span>
                   <span className="hidden sm:inline">{label}</span>
