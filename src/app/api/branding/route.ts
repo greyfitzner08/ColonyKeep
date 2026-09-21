@@ -4,6 +4,7 @@ import {
   DEFAULT_PRIMARY_COLOR,
   DEFAULT_SIDEBAR_COLOR,
   isValidHexColor,
+  normalizeGoogleCalendarEmbedUrl,
   normalizeHexColor,
   normalizePlatformBranding,
   type PlatformBranding,
@@ -11,6 +12,7 @@ import {
 import { createServiceClient } from "@/lib/supabase/server";
 
 const MAX_NAME_LENGTH = 80;
+const MAX_CALENDAR_EMBED_LENGTH = 2000;
 
 function validateName(name: unknown): string | null {
   if (typeof name !== "string") return null;
@@ -44,7 +46,7 @@ function validateThemeColor(value: unknown, fallback: string): string | null {
 }
 
 const BRANDING_SELECT =
-  "app_name, logo_url, logo_light_url, primary_color, sidebar_color" as const;
+  "app_name, logo_url, logo_light_url, primary_color, sidebar_color, google_calendar_embed_url" as const;
 
 export async function GET() {
   try {
@@ -123,6 +125,29 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  const calendarRaw = (body as { google_calendar_embed_url?: unknown }).google_calendar_embed_url;
+  if (typeof calendarRaw === "string" && calendarRaw.length > MAX_CALENDAR_EMBED_LENGTH) {
+    return NextResponse.json(
+      { error: "Google Calendar embed URL is too long." },
+      { status: 400 }
+    );
+  }
+  const calendarEmbed =
+    calendarRaw === undefined
+      ? null
+      : normalizeGoogleCalendarEmbedUrl(
+          typeof calendarRaw === "string" || calendarRaw === null ? calendarRaw : undefined
+        );
+  if (calendarEmbed === undefined) {
+    return NextResponse.json(
+      {
+        error:
+          "Paste a Google Calendar embed URL (calendar.google.com/calendar/embed?…) or the full iframe HTML.",
+      },
+      { status: 400 }
+    );
+  }
+
   const service = await createServiceClient();
   const payload = {
     id: 1,
@@ -131,6 +156,7 @@ export async function POST(request: NextRequest) {
     logo_light_url: logoLightResult === undefined ? null : logoLightResult,
     primary_color: primaryColor,
     sidebar_color: sidebarColor,
+    google_calendar_embed_url: calendarEmbed,
     updated_by: profile!.id,
   };
 

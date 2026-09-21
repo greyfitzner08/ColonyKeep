@@ -19,7 +19,9 @@ export const getPlatformBranding = cache(async (): Promise<PlatformBranding> => 
 
     const { data, error } = await client
       .from("platform_branding")
-      .select("app_name, logo_url, logo_light_url, primary_color, sidebar_color")
+      .select(
+        "app_name, logo_url, logo_light_url, primary_color, sidebar_color, google_calendar_embed_url"
+      )
       .eq("id", 1)
       .maybeSingle();
 

@@ -13,6 +13,8 @@ export interface PlatformBranding {
   logo_light_url: string | null;
   primary_color: string;
   sidebar_color: string;
+  /** Public Google Calendar iframe embed URL shown on Shift Board. */
+  google_calendar_embed_url: string | null;
 }
 
 export function defaultPlatformBranding(): PlatformBranding {
@@ -22,6 +24,7 @@ export function defaultPlatformBranding(): PlatformBranding {
     logo_light_url: null,
     primary_color: DEFAULT_PRIMARY_COLOR,
     sidebar_color: DEFAULT_SIDEBAR_COLOR,
+    google_calendar_embed_url: null,
   };
 }
 
@@ -39,6 +42,34 @@ export function normalizeHexColor(
   return `#${value.trim().slice(1).toUpperCase()}`;
 }
 
+/**
+ * Normalize a pasted Google Calendar embed value into an https iframe src.
+ * Accepts a bare embed URL or full iframe HTML from Google Calendar settings.
+ * Returns null for empty input, undefined when the value is invalid.
+ */
+export function normalizeGoogleCalendarEmbedUrl(
+  value: string | null | undefined
+): string | null | undefined {
+  if (value === null || value === undefined) return null;
+  if (typeof value !== "string") return undefined;
+  let trimmed = value.trim();
+  if (!trimmed) return null;
+
+  const iframeSrc = trimmed.match(/src\s*=\s*["']([^"']+)["']/i)?.[1];
+  if (iframeSrc) trimmed = iframeSrc.trim();
+
+  try {
+    const url = new URL(trimmed);
+    if (url.protocol !== "https:") return undefined;
+    const host = url.hostname.toLowerCase();
+    if (host !== "calendar.google.com" && host !== "www.google.com") return undefined;
+    if (!url.pathname.includes("/calendar/embed")) return undefined;
+    return url.toString();
+  } catch {
+    return undefined;
+  }
+}
+
 export function normalizePlatformBranding(
   row:
     | {
@@ -47,6 +78,7 @@ export function normalizePlatformBranding(
         logo_light_url?: string | null;
         primary_color?: string | null;
         sidebar_color?: string | null;
+        google_calendar_embed_url?: string | null;
       }
     | null
     | undefined
@@ -54,12 +86,14 @@ export function normalizePlatformBranding(
   const name = row?.app_name?.trim();
   const logo = row?.logo_url?.trim();
   const logoLight = row?.logo_light_url?.trim();
+  const calendarEmbed = normalizeGoogleCalendarEmbedUrl(row?.google_calendar_embed_url);
   return {
     app_name: name || DEFAULT_APP_NAME,
     logo_url: logo || null,
     logo_light_url: logoLight || null,
     primary_color: normalizeHexColor(row?.primary_color, DEFAULT_PRIMARY_COLOR),
     sidebar_color: normalizeHexColor(row?.sidebar_color, DEFAULT_SIDEBAR_COLOR),
+    google_calendar_embed_url: calendarEmbed === undefined ? null : calendarEmbed,
   };
 }
 

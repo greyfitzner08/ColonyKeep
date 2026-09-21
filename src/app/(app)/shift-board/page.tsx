@@ -1,12 +1,15 @@
 import { createClient } from "@/lib/supabase/server";
 import { getAppProfile } from "@/lib/auth";
+import { getPlatformBranding } from "@/lib/branding-server";
 import { ShiftBoard } from "@/components/shifts/shift-board";
+import { GoogleCalendarEmbed } from "@/components/shifts/google-calendar-embed";
 import type { Shift } from "@/lib/types";
 
 export default async function ShiftBoardPage() {
   const supabase = await createClient();
   const profile = await getAppProfile();
   const isAdmin = profile?.role === "admin";
+  const branding = await getPlatformBranding();
 
   const { data: shifts } = await supabase
     .from("shifts")
@@ -47,6 +50,9 @@ export default async function ShiftBoardPage() {
           Open an event to sign up. If a slot is full, join the waitlist.
         </p>
       </div>
+      {branding.google_calendar_embed_url && (
+        <GoogleCalendarEmbed embedUrl={branding.google_calendar_embed_url} />
+      )}
       <ShiftBoard
         shifts={typedShifts}
         userEmail={profile?.email ?? ""}

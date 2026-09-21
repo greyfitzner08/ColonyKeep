@@ -28,6 +28,7 @@ type BrandingPayload = {
   logo_light_url: string | null;
   primary_color: string;
   sidebar_color: string;
+  google_calendar_embed_url: string | null;
 };
 
 type LogoSlot = "dark" | "light";
@@ -82,6 +83,9 @@ export function BrandingSettings({ branding }: BrandingSettingsProps) {
   const [logoLightUrl, setLogoLightUrl] = useState<string | null>(branding.logo_light_url);
   const [primaryColor, setPrimaryColor] = useState(branding.primary_color);
   const [sidebarColor, setSidebarColor] = useState(branding.sidebar_color);
+  const [calendarEmbedUrl, setCalendarEmbedUrl] = useState(
+    branding.google_calendar_embed_url ?? ""
+  );
   const [saving, setSaving] = useState(false);
   const [uploadingSlot, setUploadingSlot] = useState<LogoSlot | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -122,6 +126,7 @@ export function BrandingSettings({ branding }: BrandingSettingsProps) {
       setLogoLightUrl(saved.logo_light_url);
       setPrimaryColor(saved.primary_color);
       setSidebarColor(saved.sidebar_color);
+      setCalendarEmbedUrl(saved.google_calendar_embed_url ?? "");
     }
     setSavedMessage("Branding saved. Theme colors apply across the app after refresh.");
     router.refresh();
@@ -137,6 +142,7 @@ export function BrandingSettings({ branding }: BrandingSettingsProps) {
       logo_light_url: logoLightUrl,
       primary_color: normalizeHexColor(primaryColor, DEFAULT_PRIMARY_COLOR),
       sidebar_color: normalizeHexColor(sidebarColor, DEFAULT_SIDEBAR_COLOR),
+      google_calendar_embed_url: calendarEmbedUrl.trim() || null,
       ...overrides,
     };
   }
@@ -375,6 +381,36 @@ export function BrandingSettings({ branding }: BrandingSettingsProps) {
                 onChange={setSidebarColor}
               />
             </div>
+          </div>
+
+          <div className="space-y-2 rounded-lg border p-4">
+            <div>
+              <p className="text-sm font-medium">Public Google Calendar</p>
+              <p className="text-xs text-muted-foreground">
+                Shown on the Shift Board for all volunteers. In Google Calendar → Settings →
+                Integrate calendar, copy the embed URL (or the full iframe HTML). The calendar must
+                be set to public.
+              </p>
+            </div>
+            <Label htmlFor="branding-google-calendar">Embed URL</Label>
+            <Input
+              id="branding-google-calendar"
+              value={calendarEmbedUrl}
+              onChange={(event) => setCalendarEmbedUrl(event.target.value)}
+              placeholder="https://calendar.google.com/calendar/embed?src=…"
+              className="font-mono text-sm"
+            />
+            {calendarEmbedUrl.trim() && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                disabled={busy}
+                onClick={() => setCalendarEmbedUrl("")}
+              >
+                Clear calendar
+              </Button>
+            )}
           </div>
 
           {error && <p className="text-sm text-destructive">{error}</p>}
