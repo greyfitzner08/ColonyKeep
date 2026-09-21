@@ -77,6 +77,9 @@ import {
   findDuplicateApplicationGroups,
 } from "@/lib/volunteers/find-duplicate-applications";
 import {
+  duplicatePairKeysForIds,
+} from "@/lib/admin/dismissed-duplicates";
+import {
   duplicateReasonLabels,
   findDuplicateProfileGroups,
 } from "@/lib/admin/find-duplicate-profiles";
@@ -103,6 +106,10 @@ interface VolunteersManagerProps {
   roleRequests?: VolunteerRoleRequest[];
   roleDescriptions?: RoleDescription[];
   currentUserId?: string;
+  /** Sorted `idA:idB` keys for application pairs already marked keep-both. */
+  dismissedApplicationPairKeys?: string[];
+  /** Sorted `idA:idB` keys for profile pairs already marked keep-both. */
+  dismissedProfilePairKeys?: string[];
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -208,6 +215,8 @@ export function VolunteersManager({
   roleRequests = [],
   roleDescriptions = [],
   currentUserId = "",
+  dismissedApplicationPairKeys = [],
+  dismissedProfilePairKeys = [],
 }: VolunteersManagerProps) {
   const router = useRouter();
   const [reviewingApplicationId, setReviewingApplicationId] = useState<string | null>(null);
@@ -217,6 +226,29 @@ export function VolunteersManager({
   const [roleRequestPatches, setRoleRequestPatches] = useState<
     Record<string, Partial<VolunteerRoleRequest>>
   >({});
+  const [localDismissedApplicationKeys, setLocalDismissedApplicationKeys] = useState<string[]>(
+    dismissedApplicationPairKeys
+  );
+  const [localDismissedProfileKeys, setLocalDismissedProfileKeys] = useState<string[]>(
+    dismissedProfilePairKeys
+  );
+
+  useEffect(() => {
+    setLocalDismissedApplicationKeys(dismissedApplicationPairKeys);
+  }, [dismissedApplicationPairKeys]);
+
+  useEffect(() => {
+    setLocalDismissedProfileKeys(dismissedProfilePairKeys);
+  }, [dismissedProfilePairKeys]);
+
+  const dismissedApplicationKeySet = useMemo(
+    () => new Set(localDismissedApplicationKeys),
+    [localDismissedApplicationKeys]
+  );
+  const dismissedProfileKeySet = useMemo(
+    () => new Set(localDismissedProfileKeys),
+    [localDismissedProfileKeys]
+  );
   const [filter, setFilter] = useState<ApplicationStatusFilter>("all");
   const [viewMode, setViewMode] = useState<ApplicationViewMode>("cards");
   const [interestFilter, setInterestFilter] = useState("all");
@@ -404,8 +436,8 @@ export function VolunteersManager({
   );
 
   const duplicateApplicationGroups = useMemo(
-    () => findDuplicateApplicationGroups(mergedApplications),
-    [mergedApplications]
+    () => findDuplicateApplicationGroups(mergedApplications, dismissedApplicationKeySet),
+    [mergedApplications, dismissedApplicationKeySet]
   );
 
   const duplicateApplicationIds = useMemo(
@@ -414,8 +446,8 @@ export function VolunteersManager({
   );
 
   const duplicateProfileGroups = useMemo(
-    () => findDuplicateProfileGroups(profilesList),
-    [profilesList]
+    () => findDuplicateProfileGroups(profilesList, dismissedProfileKeySet),
+    [profilesList, dismissedProfileKeySet]
   );
 
   const duplicateApplicationCount = duplicateApplicationIds.size;
@@ -2239,6 +2271,11 @@ export function VolunteersManager({
             roleCatalog={roleCatalog}
             currentUserId={currentUserId}
             onError={setActionError}
+            onDismissed={(applicationIds) => {
+              setLocalDismissedApplicationKeys((current) =>
+                Array.from(new Set([...current, ...duplicatePairKeysForIds(applicationIds)]))
+              );
+            }}
           />
           <AdminDuplicateAccountsDialog
             open={accountMergeOpen}

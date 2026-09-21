@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireApiRole } from "@/lib/api/auth";
+import { rowsToDismissedPairKeySet } from "@/lib/admin/dismissed-duplicates";
 import { findDuplicateProfileGroups } from "@/lib/admin/find-duplicate-profiles";
 import { createServiceClient } from "@/lib/supabase/server";
 import type { Profile } from "@/lib/types";
@@ -9,16 +10,25 @@ export async function GET() {
   if (response) return response;
 
   const service = await createServiceClient();
-  const { data, error } = await service
-    .from("profiles")
-    .select("*")
-    .order("full_name", { ascending: true });
+  const [{ data, error }, { data: dismissedRows, error: dismissedError }] = await Promise.all([
+    service.from("profiles").select("*").order("full_name", { ascending: true }),
+    service
+      .from("dismissed_duplicate_pairs")
+      .select("left_id, right_id")
+      .eq("entity_type", "profile"),
+  ]);
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 400 });
   }
+  if (dismissedError) {
+    return NextResponse.json({ error: dismissedError.message }, { status: 400 });
+  }
 
-  const groups = findDuplicateProfileGroups((data ?? []) as Profile[]);
+  const groups = findDuplicateProfileGroups(
+    (data ?? []) as Profile[],
+    rowsToDismissedPairKeySet(dismissedRows)
+  );
 
   return NextResponse.json({
     groups: groups.map((group) => ({

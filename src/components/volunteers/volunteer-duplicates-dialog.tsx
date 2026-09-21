@@ -32,6 +32,8 @@ interface VolunteerDuplicatesDialogProps {
   roleCatalog: RoleDescription[];
   currentUserId: string;
   onError: (message: string | null) => void;
+  /** Called after a group is dismissed so the parent can drop it from local state. */
+  onDismissed?: (applicationIds: string[]) => void;
 }
 
 type CompareRow = {
@@ -183,11 +185,13 @@ export function VolunteerDuplicatesDialog({
   roleCatalog,
   currentUserId,
   onError,
+  onDismissed,
 }: VolunteerDuplicatesDialogProps) {
   const router = useRouter();
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
   const [keepApplicationId, setKeepApplicationId] = useState<string | null>(null);
   const [working, setWorking] = useState(false);
+  const [dismissing, setDismissing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -325,6 +329,36 @@ export function VolunteerDuplicatesDialog({
     onOpenChange(false);
   }
 
+  async function dismissGroup() {
+    if (!selectedGroup || selectedGroup.applications.length < 2) return;
+
+    setDismissing(true);
+    setError(null);
+    onError(null);
+
+    const applicationIds = selectedGroup.applications.map((app) => app.id);
+    const response = await fetch("/api/admin/duplicates/dismiss", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        entityType: "application",
+        ids: applicationIds,
+      }),
+    });
+    const result = await response.json().catch(() => null);
+    setDismissing(false);
+
+    if (!response.ok) {
+      const message = getApiErrorMessage(result, "Unable to dismiss this duplicate group");
+      setError(message);
+      onError(message);
+      return;
+    }
+
+    onDismissed?.(applicationIds);
+    router.refresh();
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
@@ -345,6 +379,11 @@ export function VolunteerDuplicatesDialog({
                 <li>
                   Confirm below. If both have login accounts, we merge them into the kept email and
                   fill blank fields from the other. If not, we only remove the duplicate application.
+                </li>
+                <li>
+                  If these are different people (or you want to keep both), use{" "}
+                  <span className="font-medium text-foreground">Not a duplicate</span> to hide the
+                  group.
                 </li>
               </ol>
             </div>
@@ -568,13 +607,33 @@ export function VolunteerDuplicatesDialog({
         {error && <p className="text-sm text-destructive">{error}</p>}
 
         <DialogFooter className="gap-2 sm:justify-between">
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              Cancel
+            </Button>
+            {selectedGroup && selectedGroup.applications.length >= 2 ? (
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={working || dismissing}
+                onClick={() => void dismissGroup()}
+              >
+                {dismissing ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Saving…
+                  </>
+                ) : (
+                  "Not a duplicate / keep both"
+                )}
+              </Button>
+            ) : null}
+          </div>
           <Button
             type="button"
             disabled={
               working ||
+              dismissing ||
               !keepApplication ||
               !discardApplication ||
               mergeBlockedBecauseSelf ||

@@ -4,6 +4,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { VolunteersManager } from "@/components/volunteers/volunteers-manager";
 import { VolunteerRoleRequestsPanel } from "@/components/volunteers/volunteer-role-requests-panel";
 import { fetchVolunteerRoleCatalogInputs } from "@/lib/volunteers/load-role-catalog";
+import { rowsToDismissedPairKeySet } from "@/lib/admin/dismissed-duplicates";
 import type { VolunteerApplication, TrapTeam, VolunteerRoleRequest, Profile } from "@/lib/types";
 
 interface VolunteersPageProps {
@@ -29,16 +30,33 @@ export default async function VolunteersPage({ searchParams }: VolunteersPagePro
     { data: roleRequests },
     { data: profiles },
     { catalog },
+    { data: dismissedPairs },
   ] = await Promise.all([
     query,
     supabase.from("trap_teams").select("*").eq("is_active", true),
     supabase.from("volunteer_role_requests").select("*").order("created_at", { ascending: false }),
     supabase.from("profiles").select("*"),
     fetchVolunteerRoleCatalogInputs(supabase),
+    supabase.from("dismissed_duplicate_pairs").select("entity_type, left_id, right_id"),
   ]);
 
   const profilesByEmail = Object.fromEntries(
     (profiles ?? []).map((entry) => [entry.email.toLowerCase(), entry as Profile])
+  );
+
+  const dismissedApplicationPairKeys = Array.from(
+    rowsToDismissedPairKeySet(
+      (dismissedPairs ?? [])
+        .filter((row) => row.entity_type === "application")
+        .map((row) => ({ left_id: row.left_id, right_id: row.right_id }))
+    )
+  );
+  const dismissedProfilePairKeys = Array.from(
+    rowsToDismissedPairKeySet(
+      (dismissedPairs ?? [])
+        .filter((row) => row.entity_type === "profile")
+        .map((row) => ({ left_id: row.left_id, right_id: row.right_id }))
+    )
   );
 
   return (
@@ -55,6 +73,8 @@ export default async function VolunteersPage({ searchParams }: VolunteersPagePro
         roleRequests={(roleRequests ?? []) as VolunteerRoleRequest[]}
         roleDescriptions={catalog}
         currentUserId={profile?.id ?? ""}
+        dismissedApplicationPairKeys={dismissedApplicationPairKeys}
+        dismissedProfilePairKeys={dismissedProfilePairKeys}
       />
     </div>
   );

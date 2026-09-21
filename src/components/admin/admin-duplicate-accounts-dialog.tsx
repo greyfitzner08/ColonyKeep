@@ -94,6 +94,7 @@ export function AdminDuplicateAccountsDialog({
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [merging, setMerging] = useState(false);
+  const [dismissing, setDismissing] = useState(false);
   const [groups, setGroups] = useState<DuplicateGroupPayload[]>([]);
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
   const [keepProfileId, setKeepProfileId] = useState<string | null>(null);
@@ -179,6 +180,35 @@ export function AdminDuplicateAccountsDialog({
     await loadDuplicates();
   }
 
+  async function dismissGroup() {
+    if (!selectedGroup || selectedGroup.profiles.length < 2) return;
+
+    setDismissing(true);
+    setError(null);
+    onError(null);
+
+    const response = await fetch("/api/admin/duplicates/dismiss", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        entityType: "profile",
+        ids: selectedGroup.profiles.map((profile) => profile.id),
+      }),
+    });
+    const result = await response.json().catch(() => null);
+    setDismissing(false);
+
+    if (!response.ok) {
+      const message = getApiErrorMessage(result, "Unable to dismiss this duplicate group");
+      setError(message);
+      onError(message);
+      return;
+    }
+
+    router.refresh();
+    await loadDuplicates();
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
@@ -202,6 +232,11 @@ export function AdminDuplicateAccountsDialog({
                 <li>
                   Merge fills blank fields on the kept account from the other, combines volunteer
                   roles, saves the other email as an alias, and moves cases/shifts/hours over.
+                </li>
+                <li>
+                  If these are different people (or you want to keep both accounts), use{" "}
+                  <span className="font-medium text-foreground">Not a duplicate</span> to hide the
+                  group from this list.
                 </li>
               </ol>
             </div>
@@ -385,7 +420,7 @@ export function AdminDuplicateAccountsDialog({
                     <Button
                       type="button"
                       className="mt-2"
-                      disabled={merging || keepProfileId === mergeProfileId}
+                      disabled={merging || dismissing || keepProfileId === mergeProfileId}
                       onClick={() => void runMerge()}
                     >
                       {merging ? (
@@ -399,6 +434,28 @@ export function AdminDuplicateAccountsDialog({
                     </Button>
                   </div>
                 )}
+
+                <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-dashed px-3 py-2">
+                  <p className="text-sm text-muted-foreground">
+                    Different people, or you want to keep both accounts as-is?
+                  </p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={dismissing || merging || !selectedGroup}
+                    onClick={() => void dismissGroup()}
+                  >
+                    {dismissing ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Saving…
+                      </>
+                    ) : (
+                      "Not a duplicate / keep both"
+                    )}
+                  </Button>
+                </div>
               </div>
             )}
           </div>

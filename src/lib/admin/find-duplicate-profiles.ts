@@ -55,8 +55,12 @@ export function duplicateReasonLabels(reasons: DuplicateMatchReason[]): string {
 /**
  * Groups likely duplicate profiles for admin review.
  * Exact same email is not treated as a pair (profiles should already be unique by login email).
+ * Pass dismissedPairKeys (`idA:idB` sorted) to hide pairs already marked keep-both.
  */
-export function findDuplicateProfileGroups(profiles: Profile[]): DuplicateProfileGroup[] {
+export function findDuplicateProfileGroups(
+  profiles: Profile[],
+  dismissedPairKeys: ReadonlySet<string> = new Set()
+): DuplicateProfileGroup[] {
   const byPhone = new Map<string, Profile[]>();
   const byNameBirthday = new Map<string, Profile[]>();
   const byName = new Map<string, Profile[]>();
@@ -106,6 +110,12 @@ export function findDuplicateProfileGroups(profiles: Profile[]): DuplicateProfil
   for (const list of byNameBirthday.values()) addPairs(list, "name_birthday");
   // Always surface exact same-name accounts — admins decide whether they are true duplicates.
   for (const list of byName.values()) addPairs(list, "name");
+
+  for (const key of Array.from(pairReasons.keys())) {
+    if (dismissedPairKeys.has(key)) {
+      pairReasons.delete(key);
+    }
+  }
 
   // Union-find style clustering of connected pairs
   const parent = new Map<string, string>();

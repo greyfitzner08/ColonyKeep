@@ -56,9 +56,11 @@ export function applicationDuplicateReasonLabels(reasons: ApplicationDuplicateRe
 /**
  * Groups likely duplicate volunteer applications for admin review.
  * Includes exact email matches (profiles are unique by email; applications are not).
+ * Pass dismissedPairKeys (`idA:idB` sorted) to hide pairs already marked keep-both.
  */
 export function findDuplicateApplicationGroups(
-  applications: VolunteerApplication[]
+  applications: VolunteerApplication[],
+  dismissedPairKeys: ReadonlySet<string> = new Set()
 ): DuplicateApplicationGroup[] {
   const byEmail = new Map<string, VolunteerApplication[]>();
   const byPhone = new Map<string, VolunteerApplication[]>();
@@ -116,6 +118,12 @@ export function findDuplicateApplicationGroups(
   for (const list of byPhone.values()) addPairs(list, "phone");
   for (const list of byNameBirthday.values()) addPairs(list, "name_birthday");
   for (const list of byName.values()) addPairs(list, "name");
+
+  for (const key of Array.from(pairReasons.keys())) {
+    if (dismissedPairKeys.has(key)) {
+      pairReasons.delete(key);
+    }
+  }
 
   const parent = new Map<string, string>();
   function find(id: string): string {
