@@ -1,4 +1,5 @@
 import { HotspotsShell } from "@/components/maps/hotspots-shell";
+import { PageHeader } from "@/components/layout/page-header";
 import { getHotspotsData } from "@/lib/hotspots/cached-loaders";
 import { getAppProfile } from "@/lib/auth";
 import { isCaseWorker } from "@/lib/permissions";
@@ -13,13 +14,15 @@ export default async function HotspotsPage() {
 
   if (error) {
     return (
-      <div className="space-y-4 sm:space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold sm:text-3xl">Hotspots Map</h1>
-          <p className="text-sm text-destructive sm:text-base">
-            Unable to load colony hotspots: {error}
-          </p>
-        </div>
+      <div className="space-y-6">
+        <PageHeader
+          title="Hotspots Map"
+          description={
+            <p className="max-w-3xl text-destructive leading-relaxed">
+              Unable to load colony hotspots: {error}
+            </p>
+          }
+        />
       </div>
     );
   }
@@ -27,15 +30,19 @@ export default async function HotspotsPage() {
   const coloniesMapped = helpRequests.filter((hr) => hr.colony_lat && hr.colony_lng).length;
 
   return (
-    <div className="space-y-4 sm:space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold sm:text-3xl">Hotspots Map</h1>
-        <p className="text-sm text-muted-foreground sm:text-base">
-          Trap queue colonies, volunteers who opted in, and colony feeders across the service area
-          {coloniesMapped > 0 && ` · ${coloniesMapped} colonies mapped`}
-          {feeders.length > 0 && ` · ${feeders.length} feeder${feeders.length === 1 ? "" : "s"} mapped`}
-        </p>
-      </div>
+    <div className="space-y-6">
+      <PageHeader
+        title="Hotspots Map"
+        description={[
+          "Trap queue colonies, volunteers who opted in, and colony feeders across the service area",
+          coloniesMapped > 0 ? `${coloniesMapped} colonies mapped` : null,
+          feeders.length > 0
+            ? `${feeders.length} feeder${feeders.length === 1 ? "" : "s"} mapped`
+            : null,
+        ]
+          .filter(Boolean)
+          .join(" · ")}
+      />
       <HotspotsShell
         helpRequests={helpRequests}
         feeders={feeders}

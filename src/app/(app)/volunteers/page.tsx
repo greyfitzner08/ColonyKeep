@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { getAppProfile } from "@/lib/auth";
+import { PageHeader } from "@/components/layout/page-header";
 import { VolunteersManager } from "@/components/volunteers/volunteers-manager";
 import { VolunteerRoleRequestsPanel } from "@/components/volunteers/volunteer-role-requests-panel";
 import { fetchVolunteerRoleCatalogInputs } from "@/lib/volunteers/load-role-catalog";
@@ -14,19 +15,25 @@ export default async function VolunteersPage({ searchParams }: VolunteersPagePro
   const supabase = await createClient();
   const profile = await getAppProfile();
 
-  let query = supabase.from("volunteer_applications").select("*").order("created_at", { ascending: false });
+  let query = supabase
+    .from("volunteer_applications")
+    .select("*")
+    .order("created_at", { ascending: false });
   if (params.status) {
     query = query.eq("status", params.status);
   }
 
-  const [{ data: applications }, { data: teams }, { data: roleRequests }, { data: profiles }, { catalog }] =
-    await Promise.all([
+  const [
+    { data: applications },
+    { data: teams },
+    { data: roleRequests },
+    { data: profiles },
+    { catalog },
+  ] = await Promise.all([
     query,
     supabase.from("trap_teams").select("*").eq("is_active", true),
     supabase.from("volunteer_role_requests").select("*").order("created_at", { ascending: false }),
-    supabase
-      .from("profiles")
-      .select("*"),
+    supabase.from("profiles").select("*"),
     fetchVolunteerRoleCatalogInputs(supabase),
   ]);
 
@@ -36,15 +43,11 @@ export default async function VolunteersPage({ searchParams }: VolunteersPagePro
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Volunteer Applications</h1>
-        <p className="text-muted-foreground">
-          Review applications, approved volunteer interests, and role expansion requests
-        </p>
-      </div>
-      <VolunteerRoleRequestsPanel
-        requests={(roleRequests ?? []) as VolunteerRoleRequest[]}
+      <PageHeader
+        title="Volunteer Applications"
+        description="Review applications, approved volunteer interests, and role expansion requests"
       />
+      <VolunteerRoleRequestsPanel requests={(roleRequests ?? []) as VolunteerRoleRequest[]} />
       <VolunteersManager
         applications={(applications ?? []) as VolunteerApplication[]}
         teams={(teams ?? []) as TrapTeam[]}

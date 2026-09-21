@@ -3,6 +3,7 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { getAppProfile } from "@/lib/auth";
 import { canViewVolunteerDirectory } from "@/lib/permissions";
 import { loadVolunteerDirectory } from "@/lib/team-directory/load-directory";
+import { PageHeader } from "@/components/layout/page-header";
 import { VolunteerDirectoryTable } from "@/components/team-directory/volunteer-directory-table";
 
 export default async function TeamDirectoryPage() {
@@ -14,14 +15,10 @@ export default async function TeamDirectoryPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold sm:text-3xl">Team Directory</h1>
-        <p className="text-sm text-muted-foreground sm:text-base">
-          Contact information for approved volunteers and staff. Available to team members 18 and
-          older.
-        </p>
-      </div>
-
+      <PageHeader
+        title="Team Directory"
+        description="Contact information for approved volunteers and staff. Available to team members 18 and older."
+      />
       <VolunteerDirectoryTable
         entries={entries}
         teams={teams}

@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getAppProfile } from "@/lib/auth";
 import { documentVisibleToProfile } from "@/lib/permissions";
 import { LibraryManager } from "@/components/resources/library-manager";
+import { PageHeader } from "@/components/layout/page-header";
 import { PlatformTutorialTrigger } from "@/components/platform-tutorial/platform-tutorial-trigger";
 import { ensurePlatformUserFlowsDocument } from "@/lib/resources/ensure-platform-user-flows";
 import type { LibraryDocument } from "@/lib/types";
@@ -22,26 +23,22 @@ export default async function ResourcesPage() {
     .order("section")
     .order("title");
 
-  const visibleDocuments = ((documents ?? []) as LibraryDocument[]).filter((doc) =>
-    doc.is_active !== false && documentVisibleToProfile(doc.view_roles, profile, doc.section)
+  const visibleDocuments = ((documents ?? []) as LibraryDocument[]).filter(
+    (doc) =>
+      doc.is_active !== false && documentVisibleToProfile(doc.view_roles, profile, doc.section)
   );
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Resources</h1>
-        <p className="text-muted-foreground">
-          Handbook, SOPs, and other reference documents for your team
-        </p>
-      </div>
+      <PageHeader
+        title="Resources"
+        description="Handbook, SOPs, and other reference documents for your team"
+      />
       <PlatformTutorialTrigger
         profile={profile}
         userName={profile?.full_name ?? profile?.email}
       />
-      <LibraryManager
-        documents={visibleDocuments}
-        isAdmin={profile?.role === "admin"}
-      />
+      <LibraryManager documents={visibleDocuments} isAdmin={profile?.role === "admin"} />
     </div>
   );
 }

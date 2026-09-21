@@ -15,6 +15,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { PageHeader } from "@/components/layout/page-header";
 import { NewsletterSignupPanel } from "@/components/reports/newsletter-signup-panel";
 import { PivotReportBuilder } from "@/components/reports/pivot-report-builder";
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
@@ -193,10 +194,10 @@ export function ReportsDashboard({
   return (
     <div className="space-y-6">
       <div className="print:hidden">
-        <h1 className="text-3xl font-bold">Reports</h1>
-        <p className="text-muted-foreground">
-          Build pivot tables, run quick operational reports, and export or print results.
-        </p>
+        <PageHeader
+          title="Reports"
+          description="Build pivot tables, run quick operational reports, and export or print results."
+        />
       </div>
 
       <Tabs defaultValue="pivot" className="space-y-4 print:block">

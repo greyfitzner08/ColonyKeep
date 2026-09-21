@@ -1,4 +1,5 @@
 import { CommunityPartnersManager } from "@/components/community-partners/community-partners-manager";
+import { PageHeader } from "@/components/layout/page-header";
 import { createClient } from "@/lib/supabase/server";
 import type { CommunityPartner, CommunityPartnerContact } from "@/lib/types";
 
@@ -24,13 +25,10 @@ export default async function CommunityPartnersPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Community Partners</h1>
-        <p className="text-muted-foreground">
-          Local businesses, rescues, grantors, and other organizations you partner with for events,
-          outreach, and fundraising
-        </p>
-      </div>
+      <PageHeader
+        title="Community Partners"
+        description="Local businesses, rescues, grantors, and other organizations you partner with for events, outreach, and fundraising"
+      />
       <CommunityPartnersManager partners={partners} />
     </div>
   );

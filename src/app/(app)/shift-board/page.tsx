@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { getAppProfile } from "@/lib/auth";
 import { getPlatformBranding } from "@/lib/branding-server";
+import { PageHeader } from "@/components/layout/page-header";
 import { ShiftBoard } from "@/components/shifts/shift-board";
 import { GoogleCalendarEmbed } from "@/components/shifts/google-calendar-embed";
 import type { Shift } from "@/lib/types";
@@ -44,12 +45,10 @@ export default async function ShiftBoardPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Shift Board</h1>
-        <p className="text-muted-foreground">
-          Open an event to sign up. If a slot is full, join the waitlist.
-        </p>
-      </div>
+      <PageHeader
+        title="Shift Board"
+        description="Open an event to sign up. If a slot is full, join the waitlist."
+      />
       {branding.google_calendar_embed_url && (
         <GoogleCalendarEmbed embedUrl={branding.google_calendar_embed_url} />
       )}

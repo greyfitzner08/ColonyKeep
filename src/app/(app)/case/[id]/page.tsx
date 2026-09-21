@@ -102,7 +102,7 @@ export default async function CasePage({ params }: CasePageProps) {
           </>
         }
         description={
-          <p className="text-muted-foreground">
+          <p className="max-w-3xl text-muted-foreground leading-relaxed">
             {hr.contact_name}
             {hr.colony_zip ? ` · ${hr.colony_zip}` : ""}
             {hr.assigned_team_name ? ` · ${hr.assigned_team_name}` : ""}

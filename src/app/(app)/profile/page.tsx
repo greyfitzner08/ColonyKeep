@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { getAppProfile } from "@/lib/auth";
+import { PageHeader } from "@/components/layout/page-header";
 import { VolunteerProfileContactPanel } from "@/components/volunteers/volunteer-profile-contact-panel";
 import { VolunteerContactPrivacyPanel } from "@/components/volunteers/volunteer-contact-privacy-panel";
 import { VolunteerProfileRoles } from "@/components/volunteers/volunteer-profile-roles";
@@ -20,13 +21,11 @@ export default async function ProfilePage() {
   ]);
 
   return (
-    <div className="space-y-6 max-w-2xl">
-      <div>
-        <h1 className="text-3xl font-bold">My Profile</h1>
-        <p className="text-muted-foreground">
-          Update your contact details, privacy settings, and volunteer roles.
-        </p>
-      </div>
+    <div className="max-w-2xl space-y-6">
+      <PageHeader
+        title="My Profile"
+        description="Update your contact details, privacy settings, and volunteer roles."
+      />
       <VolunteerProfileContactPanel profile={profile} />
       <VolunteerContactPrivacyPanel profile={profile} />
       <VolunteerProfileRoles

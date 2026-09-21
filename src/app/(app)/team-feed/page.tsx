@@ -1,5 +1,6 @@
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { getAppProfile } from "@/lib/auth";
+import { PageHeader } from "@/components/layout/page-header";
 import { TeamFeed } from "@/components/team/team-feed";
 import { TeamFeedSeenTracker } from "@/components/layout/team-feed-seen-tracker";
 import { announcementVisibleToProfile } from "@/lib/team-feed/visibility";
@@ -36,12 +37,10 @@ export default async function TeamFeedPage() {
   return (
     <div className="space-y-6">
       {profile?.id && <TeamFeedSeenTracker profileId={profile.id} />}
-      <div>
-        <h1 className="text-2xl font-bold sm:text-3xl">Team Feed</h1>
-        <p className="text-sm text-muted-foreground sm:text-base">
-          Share updates with everyone, your trap team, or specific roles
-        </p>
-      </div>
+      <PageHeader
+        title="Team Feed"
+        description="Share updates with everyone, your trap team, or specific roles"
+      />
       <TeamFeed
         announcements={announcements}
         profile={profile}

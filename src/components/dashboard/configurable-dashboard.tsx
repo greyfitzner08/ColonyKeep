@@ -306,13 +306,13 @@ export function ConfigurableDashboard({
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <PageHeader
         title="Dashboard"
         description={
           <>
-            <span className="text-muted-foreground">Welcome back, {userName}</span>
-            <span className="mt-1 block text-xs text-muted-foreground">
+            <span className="text-muted-foreground leading-relaxed">Welcome back, {userName}</span>
+            <span className="mt-1 block text-sm text-muted-foreground leading-relaxed">
               Drag sections by the handle to reorder. Collapse any section you don&apos;t need right
               now.
             </span>

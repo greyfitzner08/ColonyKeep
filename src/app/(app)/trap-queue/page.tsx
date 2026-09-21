@@ -11,6 +11,7 @@ import {
 import { TrapQueueShell } from "@/components/trap-queue/trap-queue-shell";
 import { InquiryAdminMenu } from "@/components/cases/inquiry-admin-menu";
 import { ShareRequestFormLink } from "@/components/cases/share-request-form-link";
+import { PageHeader } from "@/components/layout/page-header";
 import { getServerAppUrl } from "@/lib/app-url";
 import type { HelpRequest } from "@/lib/types";
 
@@ -65,15 +66,15 @@ export default async function TrapQueuePage({ searchParams }: TrapQueuePageProps
 
   return (
     <div className="space-y-6">
-      <header className="space-y-2">
-        <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
-          {isHistoryScope ? "My work history" : "Trap Queue"}
-        </h1>
-        <p className="max-w-2xl text-muted-foreground leading-relaxed">{viewDescription}</p>
-        <p className="text-sm font-medium text-foreground/80">
-          {cases.length} {cases.length === 1 ? "case" : "cases"} in this view
-        </p>
-      </header>
+      <PageHeader
+        title={isHistoryScope ? "My work history" : "Trap Queue"}
+        description={viewDescription}
+        meta={
+          <p className="text-sm font-medium text-foreground/80">
+            {cases.length} {cases.length === 1 ? "case" : "cases"} in this view
+          </p>
+        }
+      />
 
       <Suspense fallback={<div className="h-40 animate-pulse rounded-lg bg-muted" />}>
         <TrapQueueShell

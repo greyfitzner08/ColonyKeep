@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { ClinicsManager } from "@/components/clinics/clinics-manager";
+import { PageHeader } from "@/components/layout/page-header";
 import type { Clinic } from "@/lib/types";
 
 export default async function ClinicsPage() {
@@ -8,10 +9,7 @@ export default async function ClinicsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Clinics</h1>
-        <p className="text-muted-foreground">Manage clinics, packages, and services</p>
-      </div>
+      <PageHeader title="Clinics" description="Manage clinics, packages, and services" />
       <ClinicsManager clinics={(clinics ?? []) as Clinic[]} />
     </div>
   );

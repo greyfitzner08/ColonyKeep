@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getAppProfile } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { AdminPanel } from "@/components/admin/admin-panel";
+import { PageHeader } from "@/components/layout/page-header";
 import { getPlatformBranding } from "@/lib/branding-server";
 import { fetchVolunteerRoleCatalogInputs } from "@/lib/volunteers/load-role-catalog";
 import type { Profile, TrapTeam, VolunteerApplication } from "@/lib/types";
@@ -27,10 +28,10 @@ export default async function AdminPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Admin Settings</h1>
-        <p className="text-muted-foreground">Manage users, teams, branding, and role descriptions</p>
-      </div>
+      <PageHeader
+        title="Admin Settings"
+        description="Manage users, teams, branding, and role descriptions"
+      />
       <AdminPanel
         users={(users ?? []) as Profile[]}
         teams={(teams ?? []) as TrapTeam[]}

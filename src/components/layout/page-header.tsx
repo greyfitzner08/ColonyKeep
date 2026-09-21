@@ -10,8 +10,8 @@ interface PageHeaderProps {
 }
 
 /**
- * Shared page chrome: title/description on the left, a single aligned action
- * toolbar on the right (doesn’t stack buttons on top of each other).
+ * Shared page chrome: title/description on the left, optional actions on the right.
+ * Keep vertical rhythm consistent across authenticated app pages.
  */
 export function PageHeader({ title, description, meta, actions, className }: PageHeaderProps) {
   return (
@@ -21,7 +21,7 @@ export function PageHeader({ title, description, meta, actions, className }: Pag
         className
       )}
     >
-      <div className="min-w-0 space-y-1">
+      <div className="min-w-0 space-y-2">
         <div className="flex flex-wrap items-center gap-2 sm:gap-3">
           {typeof title === "string" ? (
             <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{title}</h1>
@@ -31,12 +31,12 @@ export function PageHeader({ title, description, meta, actions, className }: Pag
         </div>
         {description ? (
           typeof description === "string" ? (
-            <p className="max-w-3xl text-muted-foreground">{description}</p>
+            <p className="max-w-3xl text-muted-foreground leading-relaxed">{description}</p>
           ) : (
             description
           )
         ) : null}
-        {meta ? <div className="pt-1">{meta}</div> : null}
+        {meta ? <div className="pt-0.5">{meta}</div> : null}
       </div>
       {actions ? (
         <div className="flex w-full min-w-0 shrink-0 flex-wrap items-center gap-2 lg:w-auto lg:justify-end lg:pt-1">

@@ -515,7 +515,7 @@ export function ClinicEventsManager({ events, clinics, bookings }: ClinicEventsM
         booking.selected_addons.length === 0 ? (
           <span className="text-muted-foreground">—</span>
         ) : (
-          <div className="space-y-1">
+          <div className="space-y-2">
             {booking.selected_addons.map((addon) => {
               const paid = booking.addon_payments?.[addon] ?? false;
               return (
@@ -551,8 +551,8 @@ export function ClinicEventsManager({ events, clinics, bookings }: ClinicEventsM
   ], [updatingBookingId, toggleAddonPayment, updateBookingStatus]);
 
   const formFields = (
-    <div className="space-y-3">
-      <div className="space-y-1">
+    <div className="space-y-4">
+      <div className="space-y-2">
         <div className="flex items-center justify-between gap-2">
           <Label>Clinic</Label>
           <Button
@@ -590,7 +590,7 @@ export function ClinicEventsManager({ events, clinics, bookings }: ClinicEventsM
               Saves to Clinics and selects it for this event. You can add hours and packages later.
             </p>
           </div>
-          <div className="space-y-1">
+          <div className="space-y-2">
             <Label htmlFor="inline-clinic-name">Name</Label>
             <Input
               id="inline-clinic-name"
@@ -611,7 +611,7 @@ export function ClinicEventsManager({ events, clinics, bookings }: ClinicEventsM
               }))
             }
           />
-          <div className="space-y-1">
+          <div className="space-y-2">
             <Label htmlFor="inline-clinic-phone">Phone (optional)</Label>
             <Input
               id="inline-clinic-phone"
@@ -632,8 +632,8 @@ export function ClinicEventsManager({ events, clinics, bookings }: ClinicEventsM
         </div>
       )}
 
-      <div className="space-y-1"><Label>Title</Label><Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} /></div>
-      <div className="space-y-1">
+      <div className="space-y-2"><Label>Title</Label><Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} /></div>
+      <div className="space-y-2">
         <Label htmlFor="clinic-event-date">Date</Label>
         <DisplayDateInput
           id="clinic-event-date"
@@ -641,8 +641,8 @@ export function ClinicEventsManager({ events, clinics, bookings }: ClinicEventsM
           onValueChange={(date) => setForm({ ...form, date })}
         />
       </div>
-      <div className="space-y-1"><Label>Location</Label><Input value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} /></div>
-      <div className="space-y-1">
+      <div className="space-y-2"><Label>Location</Label><Input value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} /></div>
+      <div className="space-y-2">
         <Label>Total Spots</Label>
         <NumberInput
           integer
@@ -665,9 +665,9 @@ export function ClinicEventsManager({ events, clinics, bookings }: ClinicEventsM
         value={form.service_catalog}
         onChange={(service_catalog) => setForm({ ...form, service_catalog })}
       />
-      <div className="space-y-1"><Label>Payment URL</Label><Input value={form.payment_url} onChange={(e) => setForm({ ...form, payment_url: e.target.value })} /></div>
-      <div className="space-y-1"><Label>Description</Label><Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></div>
-      <div className="space-y-1">
+      <div className="space-y-2"><Label>Payment URL</Label><Input value={form.payment_url} onChange={(e) => setForm({ ...form, payment_url: e.target.value })} /></div>
+      <div className="space-y-2"><Label>Description</Label><Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></div>
+      <div className="space-y-2">
         <Label>After-signup message (shown on the confirmation screen)</Label>
         <Textarea
           value={form.pending_email_message}
@@ -675,7 +675,7 @@ export function ClinicEventsManager({ events, clinics, bookings }: ClinicEventsM
           rows={3}
         />
       </div>
-      <div className="space-y-1">
+      <div className="space-y-2">
         <Label>Notes for when you email confirmations by hand</Label>
         <Textarea
           value={form.confirmed_email_message}
@@ -683,7 +683,7 @@ export function ClinicEventsManager({ events, clinics, bookings }: ClinicEventsM
           rows={3}
         />
       </div>
-      <div className="space-y-1"><Label>Internal notes</Label><Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></div>
+      <div className="space-y-2"><Label>Internal notes</Label><Textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></div>
       <div className="flex items-center gap-2">
         <input
           type="checkbox"
