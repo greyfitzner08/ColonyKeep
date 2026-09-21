@@ -35,13 +35,26 @@
   * {
     @apply border-border;
   }
+  html {
+    @apply overflow-x-clip;
+  }
   body {
-    @apply bg-background text-foreground text-base;
+    @apply bg-background text-foreground text-base overflow-x-clip;
   }
 }
 
+/* Leaflet map popups should not force horizontal page scroll on phones */
 .leaflet-container {
   width: 100%;
   height: 100%;
   z-index: 0;
 }
+.leaflet-popup-content-wrapper,
+.leaflet-popup-content {
+  max-width: min(280px, 70vw) !important;
+}
+.leaflet-popup-content {
+  margin: 0.75rem !important;
+  word-break: break-word;
+}
+

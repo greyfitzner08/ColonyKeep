@@ -762,17 +762,17 @@ export function TrapEquipmentManager({
         </Card>
       ) : (
         <div className="space-y-3">
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
             <Input
               id="equipment-search"
-              className="h-9 min-w-[200px] flex-1 sm:max-w-xs"
+              className="h-9 w-full min-w-0 flex-1 sm:min-w-[200px] sm:max-w-xs"
               placeholder="Search label, location, volunteer, borrower…"
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
             />
             {isAdmin && teams.length > 0 && (
               <Select value={filterTeamId} onValueChange={setFilterTeamId}>
-                <SelectTrigger className="h-9 w-[150px]">
+                <SelectTrigger className="h-9 w-full sm:w-[150px]">
                   <SelectValue placeholder="All teams" />
                 </SelectTrigger>
                 <SelectContent>
@@ -786,7 +786,7 @@ export function TrapEquipmentManager({
               </Select>
             )}
             <Select value={filterType} onValueChange={setFilterType}>
-              <SelectTrigger className="h-9 w-[150px]">
+              <SelectTrigger className="h-9 w-full sm:w-[150px]">
                 <SelectValue placeholder="All types" />
               </SelectTrigger>
               <SelectContent>
@@ -799,7 +799,7 @@ export function TrapEquipmentManager({
               </SelectContent>
             </Select>
             <Select value={filterStatus} onValueChange={setFilterStatus}>
-              <SelectTrigger className="h-9 w-[140px]">
+              <SelectTrigger className="h-9 w-full sm:w-[140px]">
                 <SelectValue placeholder="All statuses" />
               </SelectTrigger>
               <SelectContent>
@@ -884,7 +884,7 @@ export function TrapEquipmentManager({
                     onChange={(e) => setForm({ ...form, borrower_name: e.target.value })}
                   />
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="borrower-phone">Phone (optional)</Label>
                     <Input

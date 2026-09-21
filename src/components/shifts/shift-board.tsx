@@ -1358,7 +1358,7 @@ export function ShiftBoard({
                           </div>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                           <div className="space-y-1">
                             <Label>Start</Label>
                             <Input
@@ -1506,7 +1506,7 @@ export function ShiftBoard({
                 onChange={(e) => setEditForm({ ...editForm, date: e.target.value })}
               />
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="space-y-1">
                 <Label>Start</Label>
                 <Input
@@ -1617,7 +1617,7 @@ export function ShiftBoard({
                         />
                       </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                       <div className="space-y-1">
                         <Label>Start</Label>
                         <Input

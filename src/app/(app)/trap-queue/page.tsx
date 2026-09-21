@@ -86,18 +86,21 @@ export default async function TrapQueuePage({ searchParams }: TrapQueuePageProps
                 submitterEmails={cases.map((helpRequest) => helpRequest.contact_email)}
               />
             )}
-            <Suspense fallback={<div className="h-9 w-[220px] animate-pulse rounded-md bg-muted" />}>
-              <TrapQueueFilters
-                teams={teams ?? []}
-                myTeamId={profile?.team_id ?? null}
-                myTeamName={myTeam?.name ?? null}
-                isTrapRole={isTrapRole}
-                showWorkHistory
-              />
-            </Suspense>
           </>
         }
       />
+
+      <div className="rounded-lg border bg-muted/20 p-3 sm:p-4">
+        <Suspense fallback={<div className="h-9 w-full max-w-xs animate-pulse rounded-md bg-muted" />}>
+          <TrapQueueFilters
+            teams={teams ?? []}
+            myTeamId={profile?.team_id ?? null}
+            myTeamName={myTeam?.name ?? null}
+            isTrapRole={isTrapRole}
+            showWorkHistory
+          />
+        </Suspense>
+      </div>
 
       <Suspense fallback={<div className="h-40 animate-pulse rounded-lg bg-muted" />}>
         {isHistoryScope ? (

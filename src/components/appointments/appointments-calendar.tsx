@@ -412,11 +412,13 @@ export function AppointmentsCalendar({
             </Button>
           </div>
 
-          <div className="rounded-lg border overflow-hidden">
+          <div className="overflow-x-auto rounded-lg border">
+            <div className="min-w-[32rem]">
             <div className="grid grid-cols-7 bg-muted/50 border-b">
               {WEEKDAY_LABELS.map((label) => (
-                <div key={label} className="px-2 py-2 text-center text-xs font-medium text-muted-foreground">
-                  {label}
+                <div key={label} className="px-1 py-2 text-center text-[10px] font-medium text-muted-foreground sm:px-2 sm:text-xs">
+                  <span className="sm:hidden">{label.slice(0, 1)}</span>
+                  <span className="hidden sm:inline">{label}</span>
                 </div>
               ))}
             </div>
@@ -432,7 +434,7 @@ export function AppointmentsCalendar({
                     type="button"
                     onClick={() => handleDayClick(cell.date)}
                     className={cn(
-                      "min-h-24 border-b border-r p-2 text-left transition-colors hover:bg-muted/40",
+                      "min-h-16 border-b border-r p-1 text-left transition-colors hover:bg-muted/40 sm:min-h-24 sm:p-2",
                       !cell.inMonth && "bg-muted/20 text-muted-foreground",
                       isSelected && "bg-primary/10 ring-1 ring-inset ring-primary/30",
                       isToday && cell.inMonth && "font-semibold"
@@ -440,32 +442,40 @@ export function AppointmentsCalendar({
                   >
                     <span className="text-sm">{cell.day}</span>
                     {dayAppointments.length > 0 && (
-                      <div className="mt-2 space-y-1">
-                        {dayAppointments.slice(0, 2).map((appt) => (
-                          <div
-                            key={appt.id}
-                            className={cn(
-                              "truncate rounded px-1.5 py-0.5 text-[10px] text-white",
-                              appt.status === "available" && !isAppointmentDatePast(appt.date)
-                                ? "bg-green-600"
-                                : appt.status === "available"
-                                  ? "bg-muted-foreground"
-                                  : "bg-blue-600"
-                            )}
-                          >
-                            {appt.clinic_name}
-                          </div>
-                        ))}
-                        {dayAppointments.length > 2 && (
-                          <p className="text-[10px] text-muted-foreground">
-                            +{dayAppointments.length - 2} more
-                          </p>
-                        )}
+                      <div className="mt-1 space-y-1 sm:mt-2">
+                        <div className="sm:hidden">
+                          <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-primary/15 px-1.5 text-[10px] font-medium text-primary">
+                            {dayAppointments.length}
+                          </span>
+                        </div>
+                        <div className="hidden space-y-1 sm:block">
+                          {dayAppointments.slice(0, 2).map((appt) => (
+                            <div
+                              key={appt.id}
+                              className={cn(
+                                "truncate rounded px-1.5 py-0.5 text-[10px] text-white",
+                                appt.status === "available" && !isAppointmentDatePast(appt.date)
+                                  ? "bg-green-600"
+                                  : appt.status === "available"
+                                    ? "bg-muted-foreground"
+                                    : "bg-blue-600"
+                              )}
+                            >
+                              {appt.clinic_name}
+                            </div>
+                          ))}
+                          {dayAppointments.length > 2 && (
+                            <p className="text-[10px] text-muted-foreground">
+                              +{dayAppointments.length - 2} more
+                            </p>
+                          )}
+                        </div>
                       </div>
                     )}
                   </button>
                 );
               })}
+            </div>
             </div>
           </div>
 

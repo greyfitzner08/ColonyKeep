@@ -408,7 +408,7 @@ export function ColonyIntakeForm() {
           <Link href="/login" className="mb-4 inline-flex justify-center text-primary">
             <BrandMark nameClassName="text-xl text-primary" />
           </Link>
-          <h1 className="text-2xl font-bold">Report a Cat Colony in Mecklenburg County</h1>
+          <h1 className="text-xl font-bold sm:text-2xl">Report a Cat Colony in Mecklenburg County</h1>
           <p className="text-muted-foreground mt-1">
             We currently serve colonies in Mecklenburg County, NC. Your report goes to our team.
           </p>
@@ -473,7 +473,7 @@ export function ColonyIntakeForm() {
                 )}
 
                 <fieldset disabled={remainderLocked} className="space-y-4 disabled:opacity-60">
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <div className="space-y-2">
                       <Label>Your first name</Label>
                       <Input
@@ -510,7 +510,7 @@ export function ColonyIntakeForm() {
                       }
                     }}
                   />
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <div className="space-y-2">
                       <Label>Your city</Label>
                       <Input
@@ -639,7 +639,7 @@ export function ColonyIntakeForm() {
                             }
                           }}
                         />
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                           <div className="space-y-2">
                             <Label>Your city</Label>
                             <Input
@@ -695,7 +695,7 @@ export function ColonyIntakeForm() {
                         if (parts.lng) update("colony_lng", parts.lng);
                       }}
                     />
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                       <div className="space-y-2">
                         <Label>Colony City</Label>
                         <Input
@@ -712,7 +712,7 @@ export function ColonyIntakeForm() {
                         />
                       </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                       <div className="space-y-2">
                         <Label>Colony ZIP Code</Label>
                         <Input
@@ -751,7 +751,7 @@ export function ColonyIntakeForm() {
 
             {step === 2 && (
               <>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
                     <Label>Cats over 8 weeks</Label>
                     <NumberInput

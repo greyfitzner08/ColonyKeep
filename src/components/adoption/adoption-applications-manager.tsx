@@ -463,7 +463,7 @@ function ApplicationCard({
       {open ? (
         <CardContent className="border-t bg-background/50 pb-5 pt-4">
           <Tabs defaultValue="screening" className="space-y-4">
-            <TabsList className="grid h-auto w-full grid-cols-3 gap-1">
+            <TabsList className="grid h-auto w-full grid-cols-1 gap-1 sm:grid-cols-3">
               <TabsTrigger value="screening">Screening</TabsTrigger>
               <TabsTrigger value="details">Full details</TabsTrigger>
               <TabsTrigger value="review">Staff review</TabsTrigger>
@@ -646,11 +646,11 @@ export function AdoptionApplicationsManager({
             adoption decision.
           </CardDescription>
         </CardHeader>
-        <CardContent className="flex flex-wrap gap-4">
-          <div className="space-y-2">
+        <CardContent className="flex w-full flex-col gap-4 sm:flex-row sm:flex-wrap">
+          <div className="w-full space-y-2 sm:w-auto">
             <Label className="text-sm text-muted-foreground">Workflow status</Label>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-[220px]">
+              <SelectTrigger className="w-full sm:w-[220px]">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -664,10 +664,10 @@ export function AdoptionApplicationsManager({
               </SelectContent>
             </Select>
           </div>
-          <div className="space-y-2">
+          <div className="w-full space-y-2 sm:w-auto">
             <Label className="text-sm text-muted-foreground">Screening flags</Label>
             <Select value={rankFilter} onValueChange={setRankFilter}>
-              <SelectTrigger className="w-[220px]">
+              <SelectTrigger className="w-full sm:w-[220px]">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>

@@ -120,7 +120,7 @@ export function TrapTeamPanel({
           <div className="flex flex-wrap gap-2">
             {isAdmin && teams.length > 1 && (
               <Select value={teamId} onValueChange={handleTeamChange}>
-                <SelectTrigger className="w-[200px]">
+                <SelectTrigger className="w-full sm:w-[200px]">
                   <SelectValue placeholder="Select team" />
                 </SelectTrigger>
                 <SelectContent>

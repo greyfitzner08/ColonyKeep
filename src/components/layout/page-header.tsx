@@ -39,7 +39,7 @@ export function PageHeader({ title, description, meta, actions, className }: Pag
         {meta ? <div className="pt-1">{meta}</div> : null}
       </div>
       {actions ? (
-        <div className="flex shrink-0 flex-wrap items-center gap-2 lg:justify-end lg:pt-1">
+        <div className="flex w-full min-w-0 shrink-0 flex-wrap items-center gap-2 lg:w-auto lg:justify-end lg:pt-1">
           {actions}
         </div>
       ) : null}

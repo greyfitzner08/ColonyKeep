@@ -2,6 +2,7 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { FilterToolbar } from "@/components/layout/filter-toolbar";
 import { sortTrapTeams } from "@/lib/trap-teams/sort-teams";
 
 interface TrapQueueFiltersProps {
@@ -31,7 +32,7 @@ export function TrapQueueFilters({
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
+    <FilterToolbar>
       {showWorkHistory && (
         <Select
           value={scope}
@@ -46,7 +47,7 @@ export function TrapQueueFilters({
             })
           }
         >
-          <SelectTrigger className="h-9 w-[160px]">
+          <SelectTrigger className="h-9 w-full sm:w-[160px]">
             <SelectValue placeholder="View" />
           </SelectTrigger>
           <SelectContent>
@@ -69,7 +70,7 @@ export function TrapQueueFilters({
             })
           }
         >
-          <SelectTrigger className="h-9 w-[200px] sm:w-[220px]">
+          <SelectTrigger className="h-9 w-full sm:w-[220px]">
             <SelectValue placeholder="Select queue" />
           </SelectTrigger>
           <SelectContent>
@@ -88,6 +89,6 @@ export function TrapQueueFilters({
           </SelectContent>
         </Select>
       )}
-    </div>
+    </FilterToolbar>
   );
 }

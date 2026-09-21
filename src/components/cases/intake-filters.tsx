@@ -55,10 +55,10 @@ export function IntakeFilters({ teams, showWorkHistory = false }: IntakeFiltersP
         />
       </div>
 
-      <div className="flex flex-wrap gap-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
         {showWorkHistory && (
           <Select value={scope} onValueChange={(v) => updateFilter("scope", v)}>
-            <SelectTrigger className="w-[200px]">
+            <SelectTrigger className="w-full sm:w-[200px]">
               <SelectValue placeholder="View" />
             </SelectTrigger>
             <SelectContent>
@@ -74,7 +74,7 @@ export function IntakeFilters({ teams, showWorkHistory = false }: IntakeFiltersP
               value={searchParams.get("status") ?? "all"}
               onValueChange={(v) => updateFilter("status", v)}
             >
-              <SelectTrigger className="w-[180px]">
+              <SelectTrigger className="w-full sm:w-[180px]">
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
@@ -88,7 +88,7 @@ export function IntakeFilters({ teams, showWorkHistory = false }: IntakeFiltersP
             </Select>
 
             <Select value={searchParams.get("team") ?? "all"} onValueChange={(v) => updateFilter("team", v)}>
-              <SelectTrigger className="w-[180px]">
+              <SelectTrigger className="w-full sm:w-[180px]">
                 <SelectValue placeholder="Team" />
               </SelectTrigger>
               <SelectContent>
@@ -106,7 +106,7 @@ export function IntakeFilters({ teams, showWorkHistory = false }: IntakeFiltersP
               value={searchParams.get("medical") ?? "all"}
               onValueChange={(v) => updateFilter("medical", v)}
             >
-              <SelectTrigger className="w-[180px]">
+              <SelectTrigger className="w-full sm:w-[180px]">
                 <SelectValue placeholder="Medical" />
               </SelectTrigger>
               <SelectContent>

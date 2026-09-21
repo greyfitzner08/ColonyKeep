@@ -333,7 +333,7 @@ export function HotspotsMap({
                 }}
               >
                 <Popup>
-                  <div className="space-y-1.5 text-sm min-w-[200px]">
+                  <div className="space-y-1.5 text-sm max-w-[min(280px,70vw)] w-full">
                     <p className="font-semibold">{hr.case_number}</p>
                     <p className="text-muted-foreground">{colonyAddress(hr)}</p>
                     <p>
@@ -365,7 +365,7 @@ export function HotspotsMap({
                 }}
               >
                 <Popup>
-                  <div className="space-y-1.5 text-sm min-w-[180px]">
+                  <div className="space-y-1.5 text-sm max-w-[min(280px,70vw)] w-full">
                     <p className="font-semibold">{volunteer.full_name ?? "Team member"}</p>
                     {volunteer.volunteer_roles.length > 0 ? (
                       <div className="flex flex-wrap gap-1">
@@ -412,7 +412,7 @@ export function HotspotsMap({
                 }}
               >
                 <Popup>
-                  <div className="space-y-1.5 text-sm min-w-[200px]">
+                  <div className="space-y-1.5 text-sm max-w-[min(280px,70vw)] w-full">
                     <p className="font-semibold">{feeder.feeder_name ?? "Colony feeder"}</p>
                     <p className="text-muted-foreground">{feederAddress(feeder)}</p>
                     {feeder.feeder_phone && (

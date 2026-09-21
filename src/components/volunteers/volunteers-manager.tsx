@@ -1984,7 +1984,7 @@ export function VolunteersManager({
           </div>
 
           <Select value={filter} onValueChange={(value) => setFilter(value as ApplicationStatusFilter)}>
-            <SelectTrigger className="w-[240px]"><SelectValue placeholder="Status" /></SelectTrigger>
+            <SelectTrigger className="w-full sm:w-[240px]"><SelectValue placeholder="Status" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="needs_attention">
                 Needs attention{attentionCount > 0 ? ` (${attentionCount})` : ""}
@@ -2003,7 +2003,7 @@ export function VolunteersManager({
           </Select>
 
           <Select value={interestFilter} onValueChange={setInterestFilter}>
-            <SelectTrigger className="w-[240px]"><SelectValue placeholder="Volunteer interest" /></SelectTrigger>
+            <SelectTrigger className="w-full sm:w-[240px]"><SelectValue placeholder="Volunteer interest" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All interests</SelectItem>
               {applicationRoleOptions.map((entry) => (
@@ -2017,7 +2017,7 @@ export function VolunteersManager({
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {currentUserId && (
             <Button
               type="button"

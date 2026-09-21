@@ -21,13 +21,13 @@ export function CaseQueueControls({
   onSortChange,
 }: CaseQueueControlsProps) {
   return (
-    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-      <div className="flex items-center gap-1 w-fit rounded-lg border bg-background p-1">
+    <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex w-full items-center gap-1 rounded-lg border bg-background p-1 sm:w-fit">
         <Button
           type="button"
           size="sm"
           variant={view === "cards" ? "secondary" : "ghost"}
-          className={cn("gap-2", view === "cards" && "shadow-none")}
+          className={cn("flex-1 gap-2 sm:flex-none", view === "cards" && "shadow-none")}
           onClick={() => onViewChange("cards")}
         >
           <LayoutGrid className="h-4 w-4" />
@@ -37,7 +37,7 @@ export function CaseQueueControls({
           type="button"
           size="sm"
           variant={view === "table" ? "secondary" : "ghost"}
-          className={cn("gap-2", view === "table" && "shadow-none")}
+          className={cn("flex-1 gap-2 sm:flex-none", view === "table" && "shadow-none")}
           onClick={() => onViewChange("table")}
         >
           <Table2 className="h-4 w-4" />
@@ -46,7 +46,7 @@ export function CaseQueueControls({
       </div>
 
       <Select value={sort} onValueChange={(value) => onSortChange(value as IntakeSortKey)}>
-        <SelectTrigger className="w-[220px]">
+        <SelectTrigger className="w-full sm:w-[220px]">
           <SelectValue placeholder="Sort by" />
         </SelectTrigger>
         <SelectContent>

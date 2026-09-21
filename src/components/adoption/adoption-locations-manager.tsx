@@ -266,7 +266,7 @@ export function AdoptionLocationsManager({ locations: initial }: AdoptionLocatio
                 }))
               }
             />
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label>City</Label>
                 <Input
@@ -293,7 +293,7 @@ export function AdoptionLocationsManager({ locations: initial }: AdoptionLocatio
                 onChange={(e) => setForm({ ...form, contact_name: e.target.value })}
               />
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label>Contact phone</Label>
                 <Input
