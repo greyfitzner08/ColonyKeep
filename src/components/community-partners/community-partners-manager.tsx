@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Download, Eye, Pencil, Plus, Search, Trash2 } from "lucide-react";
+import { Check, Copy, Download, Eye, Pencil, Plus, Search, Trash2 } from "lucide-react";
 import { CommunityPartnerImporter } from "@/components/community-partners/partner-importer";
 import { PartnerContactsEditor } from "@/components/community-partners/partner-contacts-editor";
 import { AddressAutocomplete } from "@/components/forms/address-autocomplete";
@@ -116,6 +116,31 @@ function matchesSearch(partner: CommunityPartner, query: string): boolean {
     .toLowerCase();
 
   return haystack.includes(query);
+}
+
+/** Unique emails from filtered partners (org + contacts), skipping do-not-contact rows. */
+function uniquePartnerEmails(partners: CommunityPartner[]): string[] {
+  const seen = new Set<string>();
+  const emails: string[] = [];
+
+  function add(raw: string | null | undefined) {
+    const trimmed = raw?.trim();
+    if (!trimmed) return;
+    const normalized = trimmed.toLowerCase();
+    if (seen.has(normalized)) return;
+    seen.add(normalized);
+    emails.push(trimmed);
+  }
+
+  for (const partner of partners) {
+    if (partner.partnership_status === "do_not_contact") continue;
+    add(partner.email);
+    for (const contact of partner.contacts ?? []) {
+      add(contact.email);
+    }
+  }
+
+  return emails;
 }
 
 function partnerAddress(partner: CommunityPartner): string {
@@ -267,6 +292,7 @@ export function CommunityPartnersManager({ partners: initial }: CommunityPartner
   const [deleteTarget, setDeleteTarget] = useState<CommunityPartner | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [viewingPartner, setViewingPartner] = useState<CommunityPartner | null>(null);
+  const [emailsCopied, setEmailsCopied] = useState(false);
 
   const filtered = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -276,6 +302,19 @@ export function CommunityPartnersManager({ partners: initial }: CommunityPartner
       return matchesSearch(partner, query);
     });
   }, [initial, search, typeFilter]);
+
+  const filteredEmails = useMemo(() => uniquePartnerEmails(filtered), [filtered]);
+
+  async function copyAllEmails() {
+    if (filteredEmails.length === 0) return;
+    try {
+      await navigator.clipboard.writeText(filteredEmails.join("\n"));
+      setEmailsCopied(true);
+      window.setTimeout(() => setEmailsCopied(false), 2000);
+    } catch {
+      // Browser may block clipboard; leave button ready for another try.
+    }
+  }
 
   function openNew() {
     setEditing(null);
@@ -504,6 +543,25 @@ export function CommunityPartnersManager({ partners: initial }: CommunityPartner
           </Select>
         </div>
         <div className="flex flex-wrap gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={filteredEmails.length === 0}
+            onClick={() => void copyAllEmails()}
+          >
+            {emailsCopied ? (
+              <>
+                <Check className="mr-2 h-4 w-4" />
+                Copied!
+              </>
+            ) : (
+              <>
+                <Copy className="mr-2 h-4 w-4" />
+                Copy {filteredEmails.length} email{filteredEmails.length === 1 ? "" : "s"}
+              </>
+            )}
+          </Button>
           <Button variant="outline" size="sm" onClick={() => exportPartnersCsv(filtered)}>
             <Download className="mr-2 h-4 w-4" />
             Export CSV
