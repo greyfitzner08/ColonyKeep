@@ -1,6 +1,7 @@
 import type {
   HelpRequestStatus,
   ShiftRequiredRole,
+  ShiftSignupMode,
   ShiftType,
   UserRole,
   VolunteerRole,
@@ -61,10 +62,27 @@ export const SHIFT_TYPES: { value: ShiftType; label: string }[] = [
 ];
 
 export const SHIFT_REQUIRED_ROLES: { value: ShiftRequiredRole; label: string }[] = [
-  { value: "any", label: "Any Volunteer" },
-  { value: "tnvr_volunteer", label: "TNVR Certified" },
+  { value: "any", label: "Any volunteer" },
+  { value: "tnvr_volunteer", label: "TNVR certified (trapping / transport / recovery)" },
   { value: "intake_representative", label: "Intake Representative" },
   { value: "event_volunteer", label: "Event Volunteer" },
+];
+
+export const SHIFT_SIGNUP_MODES: {
+  value: ShiftSignupMode;
+  label: string;
+  hint: string;
+}[] = [
+  {
+    value: "coverage",
+    label: "Coverage (set number of spots)",
+    hint: "Fill a limited number of roles. Extra people can join a waitlist.",
+  },
+  {
+    value: "attendance",
+    label: "Attendance (who’s coming)",
+    hint: "Open RSVP — track who’s attending or can’t make it. No spot limit.",
+  },
 ];
 
 export const MEDICAL_KEYWORDS = [

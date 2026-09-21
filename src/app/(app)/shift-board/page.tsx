@@ -22,7 +22,7 @@ export default async function ShiftBoardPage() {
   const rosterEmails = Array.from(
     new Set(
       typedShifts.flatMap((shift) =>
-        [...(shift.signed_up_emails ?? []), ...(shift.waitlist_emails ?? [])]
+        [...(shift.signed_up_emails ?? []), ...(shift.waitlist_emails ?? []), ...(shift.declined_emails ?? [])]
           .map((email) => email.trim())
           .filter(Boolean)
       )
@@ -47,7 +47,7 @@ export default async function ShiftBoardPage() {
     <div className="space-y-6">
       <PageHeader
         title="Shift Board"
-        description="Open an event to sign up. If a slot is full, join the waitlist."
+        description="Coverage shifts fill a set number of spots (with role requirements and waitlists). Attendance slots collect who’s coming or can’t make it — no spot limit."
       />
       {branding.google_calendar_embed_url && (
         <GoogleCalendarEmbed embedUrl={branding.google_calendar_embed_url} />
@@ -56,6 +56,15 @@ export default async function ShiftBoardPage() {
         shifts={typedShifts}
         userEmail={profile?.email ?? ""}
         isAdmin={isAdmin}
+        eligibilityProfile={
+          profile
+            ? {
+                role: profile.role,
+                volunteer_roles: profile.volunteer_roles ?? [],
+                tnvr_certificate_uploaded: Boolean(profile.tnvr_certificate_uploaded),
+              }
+            : null
+        }
         signupNamesByEmail={signupNamesByEmail}
       />
     </div>

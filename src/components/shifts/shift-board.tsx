@@ -24,9 +24,15 @@ import {
   formatAddressPartsLine,
 } from "@/components/forms/address-autocomplete";
 import { isAppointmentDatePast } from "@/lib/appointments/slot-date";
-import { SHIFT_REQUIRED_ROLES, SHIFT_TYPES } from "@/lib/constants";
+import { SHIFT_REQUIRED_ROLES, SHIFT_SIGNUP_MODES, SHIFT_TYPES } from "@/lib/constants";
+import {
+  isAttendanceShift,
+  shiftRequiredRoleLabel,
+  shiftSignupBlockedReason,
+  type ShiftEligibilityProfile,
+} from "@/lib/shifts/eligibility";
 import { formatDate, formatTimeRange, cn } from "@/lib/utils";
-import type { Shift, ShiftRequiredRole, ShiftType } from "@/lib/types";
+import type { Shift, ShiftRequiredRole, ShiftSignupMode, ShiftType } from "@/lib/types";
 import { ChevronDown, Plus, Pencil, Trash2 } from "lucide-react";
 
 function shiftIdentityKey(input: {
@@ -49,6 +55,8 @@ interface ShiftBoardProps {
   shifts: Shift[];
   userEmail: string;
   isAdmin: boolean;
+  /** Used to gate coverage slots by approved volunteer interests. */
+  eligibilityProfile?: ShiftEligibilityProfile | null;
   /** Admin-only map of lowercase email → display name for people signed up. */
   signupNamesByEmail?: Record<string, string>;
 }
@@ -68,6 +76,7 @@ interface PositionForm {
   name: string;
   shift_type: ShiftType;
   required_roles: ShiftRequiredRole;
+  signup_mode: ShiftSignupMode;
   slots: TimeSlotForm[];
 }
 
@@ -76,6 +85,7 @@ interface EditFormState {
   position_name: string;
   shift_type: ShiftType;
   required_roles: ShiftRequiredRole;
+  signup_mode: ShiftSignupMode;
   date: string;
   start_time: string;
   end_time: string;
@@ -93,7 +103,7 @@ type PendingDestructiveAction =
       confirmLabel: string;
     }
   | {
-      type: "remove_signup" | "remove_waitlist";
+      type: "remove_signup" | "remove_waitlist" | "remove_decline";
       shiftId: string;
       email: string;
       title: string;
@@ -124,6 +134,7 @@ function emptyPosition(defaults?: Partial<Omit<PositionForm, "slots">> & { slots
     name: "",
     shift_type: "event",
     required_roles: "any",
+    signup_mode: "coverage",
     slots: [emptySlot()],
     ...defaults,
   };
@@ -134,6 +145,7 @@ const EMPTY_EDIT: EditFormState = {
   position_name: "",
   shift_type: "event",
   required_roles: "any",
+  signup_mode: "coverage",
   date: "",
   start_time: "",
   end_time: "",
@@ -157,11 +169,12 @@ function formFromShift(shift: Shift): EditFormState {
     position_name: shift.position_name?.trim() ?? "",
     shift_type: shift.shift_type,
     required_roles: shift.required_roles,
+    signup_mode: shift.signup_mode === "attendance" ? "attendance" : "coverage",
     date: shift.date,
     start_time: shift.start_time.slice(0, 5),
     end_time: shift.end_time.slice(0, 5),
     location: shift.location,
-    volunteers_needed: shift.volunteers_needed,
+    volunteers_needed: Math.max(1, shift.volunteers_needed || 1),
     notes: shift.notes ?? "",
   };
 }
@@ -170,6 +183,7 @@ export function ShiftBoard({
   shifts: initial,
   userEmail,
   isAdmin,
+  eligibilityProfile = null,
   signupNamesByEmail = {},
 }: ShiftBoardProps) {
   const router = useRouter();
@@ -234,7 +248,20 @@ export function ShiftBoard({
           (sum, shift) => sum + (shift.signed_up_emails?.length ?? 0),
           0
         );
-        const needed = sorted.reduce((sum, shift) => sum + shift.volunteers_needed, 0);
+        const coverageFilled = sorted.reduce((sum, shift) => {
+          if (isAttendanceShift(shift)) return sum;
+          return sum + (shift.signed_up_emails?.length ?? 0);
+        }, 0);
+        const attendanceFilled = sorted.reduce((sum, shift) => {
+          if (!isAttendanceShift(shift)) return sum;
+          return sum + (shift.signed_up_emails?.length ?? 0);
+        }, 0);
+        const needed = sorted.reduce((sum, shift) => {
+          if (isAttendanceShift(shift)) return sum;
+          return sum + Math.max(0, shift.volunteers_needed);
+        }, 0);
+        const hasAttendance = sorted.some((shift) => isAttendanceShift(shift));
+        const hasCoverage = sorted.some((shift) => !isAttendanceShift(shift));
 
         return {
           name,
@@ -242,7 +269,11 @@ export function ShiftBoard({
           whenLabel,
           startDate,
           filled,
+          coverageFilled,
+          attendanceFilled,
           needed,
+          hasAttendance,
+          hasCoverage,
           positions: Array.from(byPosition.entries()).map(([positionName, positionShifts]) => ({
             name: positionName,
             shifts: positionShifts,
@@ -281,6 +312,7 @@ export function ShiftBoard({
       emptyPosition({
         shift_type: sample?.shift_type ?? "event",
         required_roles: sample?.required_roles ?? "any",
+        signup_mode: sample?.signup_mode === "attendance" ? "attendance" : "coverage",
         slots: [emptySlot()],
       }),
     ]);
@@ -406,17 +438,29 @@ export function ShiftBoard({
 
   async function claimShift(
     shiftId: string,
-    action: "claim" | "unclaim" | "waitlist" | "leave_waitlist"
+    action:
+      | "claim"
+      | "unclaim"
+      | "waitlist"
+      | "leave_waitlist"
+      | "decline"
+      | "leave_decline"
   ) {
-    if (action === "claim" || action === "waitlist") {
+    if (action === "claim" || action === "waitlist" || action === "decline") {
       const shift = initial.find((row) => row.id === shiftId);
       if (shift && isAppointmentDatePast(shift.date)) return;
     }
-    await fetch("/api/shifts/claim", {
+    const response = await fetch("/api/shifts/claim", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ shiftId, action }),
     });
+    const result = await response.json().catch(() => null);
+    if (!response.ok) {
+      setFormError(result?.error ?? "Unable to update signup");
+      return;
+    }
+    setFormError(null);
     router.refresh();
   }
 
@@ -436,13 +480,23 @@ export function ShiftBoard({
     setDeleting(true);
     setFormError(null);
     try {
-      if (deleteTarget.type === "remove_signup" || deleteTarget.type === "remove_waitlist") {
+      if (
+        deleteTarget.type === "remove_signup" ||
+        deleteTarget.type === "remove_waitlist" ||
+        deleteTarget.type === "remove_decline"
+      ) {
+        const action =
+          deleteTarget.type === "remove_waitlist"
+            ? "remove_waitlist"
+            : deleteTarget.type === "remove_decline"
+              ? "remove_decline"
+              : "remove";
         const response = await fetch("/api/shifts/claim", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             shiftId: deleteTarget.shiftId,
-            action: deleteTarget.type === "remove_waitlist" ? "remove_waitlist" : "remove",
+            action,
             email: deleteTarget.email,
           }),
         });
@@ -452,7 +506,9 @@ export function ShiftBoard({
             result?.error ??
               (deleteTarget.type === "remove_waitlist"
                 ? "Unable to remove from waitlist"
-                : "Unable to remove signup")
+                : deleteTarget.type === "remove_decline"
+                  ? "Unable to remove decline"
+                  : "Unable to remove signup")
           );
           return;
         }
@@ -550,6 +606,18 @@ export function ShiftBoard({
     });
   }
 
+  function requestRemoveDecline(shiftId: string, email: string) {
+    const name = signupLabel(email);
+    openDestructiveConfirm({
+      type: "remove_decline",
+      shiftId,
+      email,
+      title: "Remove “can’t attend” response?",
+      description: `This clears ${name}’s “can’t make it” response.`,
+      confirmLabel: "Yes, remove",
+    });
+  }
+
   function signupLabel(email: string) {
     const key = email.trim().toLowerCase();
     return signupNamesByEmail[key] || email;
@@ -568,6 +636,7 @@ export function ShiftBoard({
       position_name: string;
       shift_type: ShiftType;
       required_roles: ShiftRequiredRole;
+      signup_mode: ShiftSignupMode;
       date: string;
       start_time: string;
       end_time: string;
@@ -591,11 +660,13 @@ export function ShiftBoard({
           position_name: positionName,
           shift_type: position.shift_type,
           required_roles: position.required_roles,
+          signup_mode: position.signup_mode,
           date: slot.date,
           start_time: slot.start_time,
           end_time: slot.end_time,
           location,
-          volunteers_needed: slot.volunteers_needed,
+          volunteers_needed:
+            position.signup_mode === "attendance" ? 0 : slot.volunteers_needed,
           notes: slot.notes.trim() || null,
         });
       }
@@ -783,11 +854,13 @@ export function ShiftBoard({
             position_name: editForm.position_name.trim(),
             shift_type: editForm.shift_type,
             required_roles: editForm.required_roles,
+            signup_mode: editForm.signup_mode,
             date: slot.date,
             start_time: slot.start_time,
             end_time: slot.end_time,
             location: (slot.location.trim() || editForm.location).trim(),
-            volunteers_needed: slot.volunteers_needed,
+            volunteers_needed:
+              editForm.signup_mode === "attendance" ? 0 : slot.volunteers_needed,
             notes: slot.notes.trim() || null,
           })),
         }),
@@ -818,12 +891,19 @@ export function ShiftBoard({
   function shiftSignupSummary(shift: Shift) {
     const signedUp = shift.signed_up_emails ?? [];
     const waitlist = shift.waitlist_emails ?? [];
-    const spotsLeft = Math.max(0, shift.volunteers_needed - signedUp.length);
+    const declined = shift.declined_emails ?? [];
+    const attendance = isAttendanceShift(shift);
+    const spotsLeft = attendance
+      ? Number.POSITIVE_INFINITY
+      : Math.max(0, shift.volunteers_needed - signedUp.length);
     return {
       signedUp,
       waitlist,
+      declined,
+      attendance,
       spotsLeft,
       pastDate: isAppointmentDatePast(shift.date),
+      blockedReason: shiftSignupBlockedReason(eligibilityProfile, shift.required_roles ?? "any"),
     };
   }
 
@@ -834,11 +914,88 @@ export function ShiftBoard({
     shift: Shift;
     className?: string;
   }) {
-    const { signedUp, waitlist, spotsLeft, pastDate } = shiftSignupSummary(shift);
+    const { signedUp, waitlist, declined, attendance, spotsLeft, pastDate, blockedReason } =
+      shiftSignupSummary(shift);
     const emailLower = userEmail.trim().toLowerCase();
     const isSignedUp = signedUp.some((email) => email.toLowerCase() === emailLower);
     const waitlistIndex = waitlist.findIndex((email) => email.toLowerCase() === emailLower);
     const isWaitlisted = waitlistIndex >= 0;
+    const isDeclined = declined.some((email) => email.toLowerCase() === emailLower);
+
+    if (pastDate) {
+      return (
+        <Button size="sm" className={className} disabled>
+          Past date
+        </Button>
+      );
+    }
+
+    if (blockedReason && !isSignedUp && !isWaitlisted && !isDeclined) {
+      return (
+        <div className={cn("space-y-1", className?.includes("flex-1") && "w-full")}>
+          <Button size="sm" className={className} disabled>
+            Role required
+          </Button>
+          <p className="max-w-[14rem] text-[11px] leading-snug text-muted-foreground">
+            {blockedReason}
+          </p>
+        </div>
+      );
+    }
+
+    if (attendance) {
+      if (isSignedUp) {
+        return (
+          <div className="flex flex-wrap gap-1">
+            <Button
+              variant="outline"
+              size="sm"
+              className={className}
+              onClick={() => claimShift(shift.id, "unclaim")}
+            >
+              Cancel RSVP
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => claimShift(shift.id, "decline")}
+            >
+              Can&apos;t make it
+            </Button>
+          </div>
+        );
+      }
+      if (isDeclined) {
+        return (
+          <div className="flex flex-wrap gap-1">
+            <Button size="sm" className={className} onClick={() => claimShift(shift.id, "claim")}>
+              I&apos;m attending
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => claimShift(shift.id, "leave_decline")}
+            >
+              Clear response
+            </Button>
+          </div>
+        );
+      }
+      return (
+        <div className="flex flex-wrap gap-1">
+          <Button size="sm" className={className} onClick={() => claimShift(shift.id, "claim")}>
+            I&apos;m attending
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => claimShift(shift.id, "decline")}
+          >
+            Can&apos;t make it
+          </Button>
+        </div>
+      );
+    }
 
     if (isSignedUp) {
       return (
@@ -849,13 +1006,6 @@ export function ShiftBoard({
           onClick={() => claimShift(shift.id, "unclaim")}
         >
           Unclaim
-        </Button>
-      );
-    }
-    if (pastDate) {
-      return (
-        <Button size="sm" className={className} disabled>
-          Past date
         </Button>
       );
     }
@@ -894,13 +1044,17 @@ export function ShiftBoard({
     if (!isAdmin) return null;
     const signedUp = shift.signed_up_emails ?? [];
     const waitlist = shift.waitlist_emails ?? [];
-    if (signedUp.length === 0 && waitlist.length === 0) return null;
+    const declined = shift.declined_emails ?? [];
+    const attendance = isAttendanceShift(shift);
+    if (signedUp.length === 0 && waitlist.length === 0 && declined.length === 0) return null;
 
     return (
       <div className="space-y-2">
         {signedUp.length > 0 ? (
           <div className="rounded-lg bg-muted/40 px-3 py-2">
-            <p className="text-xs font-medium text-muted-foreground">Signed up</p>
+            <p className="text-xs font-medium text-muted-foreground">
+              {attendance ? "Attending" : "Signed up"}
+            </p>
             <ul className="mt-1.5 space-y-1.5">
               {signedUp.map((email) => (
                 <li key={email} className="flex items-center justify-between gap-2 text-sm">
@@ -917,19 +1071,36 @@ export function ShiftBoard({
             </ul>
           </div>
         ) : null}
-        {waitlist.length > 0 ? (
-          <div className="rounded-lg border border-amber-200/80 bg-amber-50/80 px-3 py-2">
+        {!attendance && waitlist.length > 0 ? (
+          <div className="rounded-lg border border-amber-200 bg-amber-50/80 px-3 py-2">
             <p className="text-xs font-medium text-amber-900/80">Waitlist</p>
             <ul className="mt-1.5 space-y-1.5">
-              {waitlist.map((email, index) => (
+              {waitlist.map((email) => (
                 <li key={email} className="flex items-center justify-between gap-2 text-sm">
-                  <span className="min-w-0 truncate font-medium text-amber-950">
-                    #{index + 1} {signupLabel(email)}
-                  </span>
+                  <span className="min-w-0 truncate font-medium">{signupLabel(email)}</span>
                   <button
                     type="button"
                     className="shrink-0 text-xs text-destructive hover:underline"
                     onClick={() => requestRemoveWaitlist(shift.id, email)}
+                  >
+                    Remove
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+        {attendance && declined.length > 0 ? (
+          <div className="rounded-lg border border-border bg-muted/20 px-3 py-2">
+            <p className="text-xs font-medium text-muted-foreground">Can&apos;t make it</p>
+            <ul className="mt-1.5 space-y-1.5">
+              {declined.map((email) => (
+                <li key={email} className="flex items-center justify-between gap-2 text-sm">
+                  <span className="min-w-0 truncate font-medium">{signupLabel(email)}</span>
+                  <button
+                    type="button"
+                    className="shrink-0 text-xs text-destructive hover:underline"
+                    onClick={() => requestRemoveDecline(shift.id, email)}
                   >
                     Remove
                   </button>
@@ -944,6 +1115,11 @@ export function ShiftBoard({
 
   return (
     <div className="w-full space-y-6">
+      {formError && !createOpen && !editOpen && !deleteTarget ? (
+        <p className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+          {formError}
+        </p>
+      ) : null}
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <Select value={typeFilter} onValueChange={setTypeFilter}>
           <SelectTrigger className="h-9 w-full text-sm sm:w-[200px]">
@@ -1006,8 +1182,14 @@ export function ShiftBoard({
                         {event.positions.length} position
                         {event.positions.length === 1 ? "" : "s"} · {event.shifts.length}{" "}
                         shift
-                        {event.shifts.length === 1 ? "" : "s"} · {event.filled}/{event.needed}{" "}
-                        filled
+                        {event.shifts.length === 1 ? "" : "s"}
+                        {event.hasCoverage
+                          ? ` · ${event.coverageFilled}/${event.needed} coverage filled`
+                          : ""}
+                        {event.hasAttendance ? ` · ${event.attendanceFilled} attending` : ""}
+                        {!event.hasCoverage && !event.hasAttendance
+                          ? ` · ${event.filled} signed up`
+                          : ""}
                         {!isOpen ? " · tap to view shifts" : ""}
                       </p>
                     </div>
@@ -1075,14 +1257,16 @@ export function ShiftBoard({
 
                         <ul className="space-y-3">
                           {position.shifts.map((shift) => {
-                            const { signedUp, waitlist, spotsLeft } = shiftSignupSummary(shift);
+                            const { signedUp, waitlist, declined, attendance, spotsLeft } =
+                              shiftSignupSummary(shift);
+                            const openSpots = Number.isFinite(spotsLeft) ? spotsLeft : 0;
                             return (
                               <li
                                 key={shift.id}
                                 className={cn(
                                   "rounded-xl border border-border bg-background p-3 shadow-sm sm:p-4",
                                   "border-l-4 border-l-accent-foreground/30",
-                                  spotsLeft > 0 && "bg-primary/[0.03]"
+                                  (attendance || openSpots > 0) && "bg-primary/[0.03]"
                                 )}
                               >
                                 <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between md:gap-4">
@@ -1094,6 +1278,9 @@ export function ShiftBoard({
                                       <span className="tabular-nums text-muted-foreground">
                                         {formatTimeRange(shift.start_time, shift.end_time)}
                                       </span>
+                                      <span className="rounded-full border px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                                        {attendance ? "Attendance" : "Coverage"}
+                                      </span>
                                     </div>
                                     <p className="text-sm text-muted-foreground">
                                       {shift.location}
@@ -1101,6 +1288,11 @@ export function ShiftBoard({
                                     {typeFilter === "all" ? (
                                       <p className="text-xs text-muted-foreground">
                                         {shiftTypeLabel(shift.shift_type)}
+                                      </p>
+                                    ) : null}
+                                    {shift.required_roles && shift.required_roles !== "any" ? (
+                                      <p className="text-xs text-muted-foreground">
+                                        Requires {shiftRequiredRoleLabel(shift.required_roles)}
                                       </p>
                                     ) : null}
                                     {shift.notes ? (
@@ -1113,29 +1305,45 @@ export function ShiftBoard({
 
                                   <div className="flex flex-col gap-2 sm:flex-row sm:items-center md:flex-col md:items-stretch lg:flex-row lg:items-center">
                                     <div className="text-sm tabular-nums sm:min-w-[5.5rem] md:text-right">
-                                      <p>
-                                        <span className="font-semibold">
-                                          {signedUp.length}/{shift.volunteers_needed}
-                                        </span>
-                                        <span
-                                          className={cn(
-                                            spotsLeft > 0
-                                              ? "text-primary"
-                                              : "text-muted-foreground"
-                                          )}
-                                        >
-                                          {spotsLeft > 0
-                                            ? " open"
-                                            : signedUp.length > 0
-                                              ? " full"
-                                              : ""}
-                                        </span>
-                                      </p>
-                                      {waitlist.length > 0 ? (
-                                        <p className="text-xs text-amber-800/90">
-                                          {waitlist.length} waitlisted
-                                        </p>
-                                      ) : null}
+                                      {attendance ? (
+                                        <>
+                                          <p>
+                                            <span className="font-semibold">{signedUp.length}</span>
+                                            <span className="text-primary"> attending</span>
+                                          </p>
+                                          {declined.length > 0 ? (
+                                            <p className="text-xs text-muted-foreground">
+                                              {declined.length} can&apos;t make it
+                                            </p>
+                                          ) : null}
+                                        </>
+                                      ) : (
+                                        <>
+                                          <p>
+                                            <span className="font-semibold">
+                                              {signedUp.length}/{shift.volunteers_needed}
+                                            </span>
+                                            <span
+                                              className={cn(
+                                                openSpots > 0
+                                                  ? "text-primary"
+                                                  : "text-muted-foreground"
+                                              )}
+                                            >
+                                              {openSpots > 0
+                                                ? " open"
+                                                : signedUp.length > 0
+                                                  ? " full"
+                                                  : ""}
+                                            </span>
+                                          </p>
+                                          {waitlist.length > 0 ? (
+                                            <p className="text-xs text-amber-800/90">
+                                              {waitlist.length} waitlisted
+                                            </p>
+                                          ) : null}
+                                        </>
+                                      )}
                                     </div>
                                     <div className="flex items-center gap-1">
                                       {isAdmin && (
@@ -1279,21 +1487,51 @@ export function ShiftBoard({
                       </Select>
                     </div>
                     <div className="space-y-1">
-                      <Label>Required role</Label>
+                      <Label>Signup type</Label>
                       <Select
-                        value={position.required_roles}
+                        value={position.signup_mode}
                         onValueChange={(value) =>
-                          updatePosition(position.key, { required_roles: value as ShiftRequiredRole })
+                          updatePosition(position.key, {
+                            signup_mode: value as ShiftSignupMode,
+                          })
                         }
                       >
-                        <SelectTrigger><SelectValue placeholder="Select role" /></SelectTrigger>
+                        <SelectTrigger><SelectValue placeholder="Select signup type" /></SelectTrigger>
                         <SelectContent>
-                          {SHIFT_REQUIRED_ROLES.map((role) => (
-                            <SelectItem key={role.value} value={role.value}>{role.label}</SelectItem>
+                          {SHIFT_SIGNUP_MODES.map((mode) => (
+                            <SelectItem key={mode.value} value={mode.value}>
+                              {mode.label}
+                            </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
+                      <p className="text-xs text-muted-foreground">
+                        {
+                          SHIFT_SIGNUP_MODES.find((mode) => mode.value === position.signup_mode)
+                            ?.hint
+                        }
+                      </p>
                     </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <Label>Required role</Label>
+                    <Select
+                      value={position.required_roles}
+                      onValueChange={(value) =>
+                        updatePosition(position.key, { required_roles: value as ShiftRequiredRole })
+                      }
+                    >
+                      <SelectTrigger><SelectValue placeholder="Select role" /></SelectTrigger>
+                      <SelectContent>
+                        {SHIFT_REQUIRED_ROLES.map((role) => (
+                          <SelectItem key={role.value} value={role.value}>{role.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">
+                      Only volunteers with this interest (or TNVR team / admin) can sign up.
+                    </p>
                   </div>
 
                   <div className="space-y-3">
@@ -1341,21 +1579,30 @@ export function ShiftBoard({
                               }
                             />
                           </div>
-                          <div className="space-y-1">
-                            <Label>Volunteers needed</Label>
-                            <NumberInput
-                              integer
-                              min={1}
-                              emptyValue={1}
-                              value={slot.volunteers_needed}
-                              onValueChange={(value) => {
-                                if (typeof value !== "number") return;
-                                updateSlot(position.key, slot.key, {
-                                  volunteers_needed: value,
-                                });
-                              }}
-                            />
-                          </div>
+                          {position.signup_mode === "coverage" ? (
+                            <div className="space-y-1">
+                              <Label>Volunteers needed</Label>
+                              <NumberInput
+                                integer
+                                min={1}
+                                emptyValue={1}
+                                value={slot.volunteers_needed}
+                                onValueChange={(value) => {
+                                  if (typeof value !== "number") return;
+                                  updateSlot(position.key, slot.key, {
+                                    volunteers_needed: value,
+                                  });
+                                }}
+                              />
+                            </div>
+                          ) : (
+                            <div className="space-y-1">
+                              <Label>Attendance</Label>
+                              <p className="rounded-md border bg-background px-3 py-2 text-sm text-muted-foreground">
+                                Open RSVP — no spot limit
+                              </p>
+                            </div>
+                          )}
                         </div>
 
                         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -1482,21 +1729,39 @@ export function ShiftBoard({
                 </Select>
               </div>
               <div className="space-y-1">
-                <Label>Required Role</Label>
+                <Label>Signup type</Label>
                 <Select
-                  value={editForm.required_roles}
+                  value={editForm.signup_mode}
                   onValueChange={(value) =>
-                    setEditForm({ ...editForm, required_roles: value as ShiftRequiredRole })
+                    setEditForm({ ...editForm, signup_mode: value as ShiftSignupMode })
                   }
                 >
-                  <SelectTrigger><SelectValue placeholder="Select role" /></SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder="Select signup type" /></SelectTrigger>
                   <SelectContent>
-                    {SHIFT_REQUIRED_ROLES.map((role) => (
-                      <SelectItem key={role.value} value={role.value}>{role.label}</SelectItem>
+                    {SHIFT_SIGNUP_MODES.map((mode) => (
+                      <SelectItem key={mode.value} value={mode.value}>
+                        {mode.label}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
+            </div>
+            <div className="space-y-1">
+              <Label>Required Role</Label>
+              <Select
+                value={editForm.required_roles}
+                onValueChange={(value) =>
+                  setEditForm({ ...editForm, required_roles: value as ShiftRequiredRole })
+                }
+              >
+                <SelectTrigger><SelectValue placeholder="Select role" /></SelectTrigger>
+                <SelectContent>
+                  {SHIFT_REQUIRED_ROLES.map((role) => (
+                    <SelectItem key={role.value} value={role.value}>{role.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-1">
               <Label>Date</Label>
@@ -1532,19 +1797,26 @@ export function ShiftBoard({
                 setEditForm({ ...editForm, location: formatAddressPartsLine(parts) })
               }
             />
-            <div className="space-y-1">
-              <Label>Volunteers Needed</Label>
-              <NumberInput
-                integer
-                min={1}
-                emptyValue={1}
-                value={editForm.volunteers_needed}
-                onValueChange={(value) => {
-                  if (typeof value !== "number") return;
-                  setEditForm({ ...editForm, volunteers_needed: value });
-                }}
-              />
-            </div>
+            {editForm.signup_mode === "coverage" ? (
+              <div className="space-y-1">
+                <Label>Volunteers Needed</Label>
+                <NumberInput
+                  integer
+                  min={1}
+                  emptyValue={1}
+                  value={editForm.volunteers_needed}
+                  onValueChange={(value) => {
+                    if (typeof value !== "number") return;
+                    setEditForm({ ...editForm, volunteers_needed: value });
+                  }}
+                />
+              </div>
+            ) : (
+              <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
+                Attendance mode — open RSVP with no spot limit. People can mark attending or
+                can&apos;t make it.
+              </div>
+            )}
             <div className="space-y-1">
               <Label>Notes</Label>
               <Textarea
@@ -1603,19 +1875,28 @@ export function ShiftBoard({
                           }
                         />
                       </div>
-                      <div className="space-y-1">
-                        <Label>Volunteers needed</Label>
-                        <NumberInput
-                          integer
-                          min={1}
-                          emptyValue={1}
-                          value={slot.volunteers_needed}
-                          onValueChange={(value) => {
-                            if (typeof value !== "number") return;
-                            updateAdditionalSlot(slot.key, { volunteers_needed: value });
-                          }}
-                        />
-                      </div>
+                      {editForm.signup_mode === "coverage" ? (
+                        <div className="space-y-1">
+                          <Label>Volunteers needed</Label>
+                          <NumberInput
+                            integer
+                            min={1}
+                            emptyValue={1}
+                            value={slot.volunteers_needed}
+                            onValueChange={(value) => {
+                              if (typeof value !== "number") return;
+                              updateAdditionalSlot(slot.key, { volunteers_needed: value });
+                            }}
+                          />
+                        </div>
+                      ) : (
+                        <div className="space-y-1">
+                          <Label>Attendance</Label>
+                          <p className="rounded-md border bg-background px-3 py-2 text-sm text-muted-foreground">
+                            Open RSVP — no spot limit
+                          </p>
+                        </div>
+                      )}
                     </div>
                     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                       <div className="space-y-1">

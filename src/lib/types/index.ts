@@ -68,6 +68,9 @@ export type ShiftRequiredRole =
   | "intake_representative"
   | "event_volunteer";
 
+/** coverage = fill N spots (+ waitlist); attendance = open RSVP who is / isn’t coming. */
+export type ShiftSignupMode = "coverage" | "attendance";
+
 export type PublicBookingStatus =
   | "pending"
   | "confirmed"
@@ -450,6 +453,8 @@ export interface Shift {
   position_name: string | null;
   shift_type: ShiftType;
   required_roles: ShiftRequiredRole;
+  /** coverage = limited spots; attendance = open RSVP (no capacity). */
+  signup_mode: ShiftSignupMode;
   date: string;
   start_time: string;
   end_time: string;
@@ -457,8 +462,10 @@ export interface Shift {
   team_ids: string[];
   volunteers_needed: number;
   signed_up_emails: string[];
-  /** Join-order waitlist when the shift is full; first entry is promoted when a spot opens. */
+  /** Join-order waitlist when a coverage shift is full; first entry is promoted when a spot opens. */
   waitlist_emails: string[];
+  /** Attendance-mode RSVP no. Empty for coverage shifts. */
+  declined_emails: string[];
   notes: string | null;
   created_at: string;
   updated_at: string;

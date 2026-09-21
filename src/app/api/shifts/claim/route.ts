@@ -2,6 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireShiftAccess } from "@/lib/api/auth";
 import { isAppointmentDatePast } from "@/lib/appointments/slot-date";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
+import {
+  isAttendanceShift,
+  shiftSignupBlockedReason,
+  type ShiftEligibilityProfile,
+} from "@/lib/shifts/eligibility";
+import type { ShiftRequiredRole, UserRole, VolunteerRole } from "@/lib/types";
 
 type ClaimAction =
   | "claim"
@@ -9,7 +15,10 @@ type ClaimAction =
   | "remove"
   | "waitlist"
   | "leave_waitlist"
-  | "remove_waitlist";
+  | "remove_waitlist"
+  | "decline"
+  | "leave_decline"
+  | "remove_decline";
 
 function promoteFromWaitlist(
   signedUp: string[],
@@ -22,6 +31,14 @@ function promoteFromWaitlist(
       signedUp.push(next);
     }
   }
+}
+
+function removeEmail(list: string[], emailLower: string) {
+  return list.filter((entry) => entry.toLowerCase() !== emailLower);
+}
+
+function includesEmail(list: string[], emailLower: string) {
+  return list.some((entry) => entry.toLowerCase() === emailLower);
 }
 
 export async function POST(request: NextRequest) {
@@ -46,8 +63,27 @@ export async function POST(request: NextRequest) {
   const { data: shift } = await service.from("shifts").select("*").eq("id", shiftId).single();
   if (!shift) return NextResponse.json({ error: "Shift not found" }, { status: 404 });
 
+  const attendance = isAttendanceShift(shift);
+  const eligibilityProfile: ShiftEligibilityProfile = {
+    role: (profile?.role ?? null) as UserRole | null,
+    volunteer_roles: (profile?.volunteer_roles ?? []) as VolunteerRole[],
+    tnvr_certificate_uploaded: Boolean(profile?.tnvr_certificate_uploaded),
+  };
+
   let signedUp = [...(shift.signed_up_emails ?? [])];
   let waitlist = [...(shift.waitlist_emails ?? [])];
+  let declined = [...(shift.declined_emails ?? [])];
+
+  const selfActionsNeedingEligibility = new Set(["claim", "waitlist", "decline"]);
+  if (action && selfActionsNeedingEligibility.has(action)) {
+    const blocked = shiftSignupBlockedReason(
+      eligibilityProfile,
+      (shift.required_roles ?? "any") as ShiftRequiredRole
+    );
+    if (blocked) {
+      return NextResponse.json({ error: blocked }, { status: 403 });
+    }
+  }
 
   if (action === "claim") {
     if (isAppointmentDatePast(shift.date)) {
@@ -56,16 +92,19 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-    if (signedUp.length >= shift.volunteers_needed) {
+    if (!attendance && signedUp.length >= shift.volunteers_needed) {
       return NextResponse.json({ error: "Shift is full" }, { status: 400 });
     }
-    if (!signedUp.some((e) => e.toLowerCase() === emailLower)) {
+    if (!includesEmail(signedUp, emailLower)) {
       signedUp.push(email);
     }
-    waitlist = waitlist.filter((e) => e.toLowerCase() !== emailLower);
+    waitlist = removeEmail(waitlist, emailLower);
+    declined = removeEmail(declined, emailLower);
   } else if (action === "unclaim") {
-    signedUp = signedUp.filter((e) => e.toLowerCase() !== emailLower);
-    promoteFromWaitlist(signedUp, waitlist, shift.volunteers_needed);
+    signedUp = removeEmail(signedUp, emailLower);
+    if (!attendance) {
+      promoteFromWaitlist(signedUp, waitlist, shift.volunteers_needed);
+    }
   } else if (action === "remove") {
     if (!isAdmin) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -76,16 +115,24 @@ export async function POST(request: NextRequest) {
     if (!targetEmail) {
       return NextResponse.json({ error: "Missing email" }, { status: 400 });
     }
-    signedUp = signedUp.filter((e) => e.toLowerCase() !== targetEmail);
-    promoteFromWaitlist(signedUp, waitlist, shift.volunteers_needed);
+    signedUp = removeEmail(signedUp, targetEmail);
+    if (!attendance) {
+      promoteFromWaitlist(signedUp, waitlist, shift.volunteers_needed);
+    }
   } else if (action === "waitlist") {
+    if (attendance) {
+      return NextResponse.json(
+        { error: "Attendance shifts do not use a waitlist — mark attending instead." },
+        { status: 400 }
+      );
+    }
     if (isAppointmentDatePast(shift.date)) {
       return NextResponse.json(
         { error: "Cannot join the waitlist for a past date" },
         { status: 400 }
       );
     }
-    if (signedUp.some((e) => e.toLowerCase() === emailLower)) {
+    if (includesEmail(signedUp, emailLower)) {
       return NextResponse.json({ error: "Already signed up for this shift" }, { status: 400 });
     }
     if (signedUp.length < shift.volunteers_needed) {
@@ -94,11 +141,11 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-    if (!waitlist.some((e) => e.toLowerCase() === emailLower)) {
+    if (!includesEmail(waitlist, emailLower)) {
       waitlist.push(email);
     }
   } else if (action === "leave_waitlist") {
-    waitlist = waitlist.filter((e) => e.toLowerCase() !== emailLower);
+    waitlist = removeEmail(waitlist, emailLower);
   } else if (action === "remove_waitlist") {
     if (!isAdmin) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -109,7 +156,38 @@ export async function POST(request: NextRequest) {
     if (!targetEmail) {
       return NextResponse.json({ error: "Missing email" }, { status: 400 });
     }
-    waitlist = waitlist.filter((e) => e.toLowerCase() !== targetEmail);
+    waitlist = removeEmail(waitlist, targetEmail);
+  } else if (action === "decline") {
+    if (!attendance) {
+      return NextResponse.json(
+        { error: "Only attendance shifts support “can’t make it” responses." },
+        { status: 400 }
+      );
+    }
+    if (isAppointmentDatePast(shift.date)) {
+      return NextResponse.json(
+        { error: "Cannot update RSVP for a past date" },
+        { status: 400 }
+      );
+    }
+    signedUp = removeEmail(signedUp, emailLower);
+    waitlist = removeEmail(waitlist, emailLower);
+    if (!includesEmail(declined, emailLower)) {
+      declined.push(email);
+    }
+  } else if (action === "leave_decline") {
+    declined = removeEmail(declined, emailLower);
+  } else if (action === "remove_decline") {
+    if (!isAdmin) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    const targetEmail = String(body.email ?? "")
+      .trim()
+      .toLowerCase();
+    if (!targetEmail) {
+      return NextResponse.json({ error: "Missing email" }, { status: 400 });
+    }
+    declined = removeEmail(declined, targetEmail);
   } else {
     return NextResponse.json({ error: "Invalid action" }, { status: 400 });
   }
@@ -119,6 +197,7 @@ export async function POST(request: NextRequest) {
     .update({
       signed_up_emails: signedUp,
       waitlist_emails: waitlist,
+      declined_emails: declined,
     })
     .eq("id", shiftId);
 
@@ -128,5 +207,6 @@ export async function POST(request: NextRequest) {
     success: true,
     signed_up_emails: signedUp,
     waitlist_emails: waitlist,
+    declined_emails: declined,
   });
 }

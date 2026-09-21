@@ -16,6 +16,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Position name is required." }, { status: 400 });
   }
 
+  const signupMode = body.signup_mode === "attendance" ? "attendance" : "coverage";
+  const volunteersNeeded =
+    signupMode === "attendance"
+      ? 0
+      : Math.max(1, Number(body.volunteers_needed) || 1);
+
   const service = await createServiceClient();
   const { data, error } = await service
     .from("shifts")
@@ -24,11 +30,12 @@ export async function POST(request: NextRequest) {
       position_name: positionName,
       shift_type: body.shift_type,
       required_roles: body.required_roles ?? "any",
+      signup_mode: signupMode,
       date: body.date,
       start_time: body.start_time,
       end_time: body.end_time,
       location: body.location,
-      volunteers_needed: body.volunteers_needed ?? 1,
+      volunteers_needed: volunteersNeeded,
       notes: body.notes ?? null,
     })
     .eq("id", body.id)

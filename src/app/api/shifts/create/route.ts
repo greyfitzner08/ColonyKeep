@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireApiRole } from "@/lib/api/auth";
 import { createServiceClient } from "@/lib/supabase/server";
-import type { ShiftRequiredRole, ShiftType } from "@/lib/types";
+import type { ShiftRequiredRole, ShiftSignupMode, ShiftType } from "@/lib/types";
 
 interface ShiftCreateInput {
   event_name?: string;
   position_name?: string | null;
   shift_type?: ShiftType;
   required_roles?: ShiftRequiredRole;
+  signup_mode?: ShiftSignupMode;
   date?: string;
   start_time?: string;
   end_time?: string;
@@ -17,6 +18,10 @@ interface ShiftCreateInput {
   team_ids?: string[];
 }
 
+function normalizeSignupMode(value: unknown): ShiftSignupMode {
+  return value === "attendance" ? "attendance" : "coverage";
+}
+
 function normalizeShiftRow(entry: ShiftCreateInput, fallbackEventName?: string) {
   const eventName = String(entry.event_name ?? fallbackEventName ?? "").trim();
   const positionName = String(entry.position_name ?? "").trim();
@@ -24,6 +29,7 @@ function normalizeShiftRow(entry: ShiftCreateInput, fallbackEventName?: string) 
   const startTime = String(entry.start_time ?? "").trim();
   const endTime = String(entry.end_time ?? "").trim();
   const location = String(entry.location ?? "").trim();
+  const signupMode = normalizeSignupMode(entry.signup_mode);
 
   if (!eventName) return { error: "Event name is required." };
   if (!positionName) return { error: "Each shift needs a position name." };
@@ -31,20 +37,28 @@ function normalizeShiftRow(entry: ShiftCreateInput, fallbackEventName?: string) 
   if (!startTime || !endTime) return { error: "Each shift needs a start and end time." };
   if (!location) return { error: "Each shift needs a location." };
 
+  const volunteersNeeded =
+    signupMode === "attendance"
+      ? 0
+      : Math.max(1, Number(entry.volunteers_needed) || 1);
+
   return {
     row: {
       event_name: eventName,
       position_name: positionName,
       shift_type: entry.shift_type ?? "event",
       required_roles: entry.required_roles ?? "any",
+      signup_mode: signupMode,
       date,
       start_time: startTime,
       end_time: endTime,
       location,
-      volunteers_needed: Math.max(1, Number(entry.volunteers_needed) || 1),
+      volunteers_needed: volunteersNeeded,
       notes: entry.notes?.trim() ? entry.notes.trim() : null,
       team_ids: entry.team_ids ?? [],
       signed_up_emails: [] as string[],
+      waitlist_emails: [] as string[],
+      declined_emails: [] as string[],
     },
   };
 }
