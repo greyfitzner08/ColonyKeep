@@ -12,6 +12,16 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { EventPricingEditor } from "@/components/clinics/event-pricing-editor";
 import { ServiceCatalogEditor } from "@/components/clinics/service-catalog-editor";
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
@@ -36,7 +46,7 @@ import type {
   PublicClinicEvent,
   PublicBooking,
 } from "@/lib/types";
-import { Copy, Link2, Pencil, Plus, X } from "lucide-react";
+import { Copy, Link2, Pencil, Plus, Trash2, X } from "lucide-react";
 
 type ClinicOption = Pick<Clinic, "id" | "name" | "service_catalog" | "included_services" | "addon_services">;
 
@@ -129,9 +139,11 @@ export function ClinicEventsManager({ events, clinics, bookings }: ClinicEventsM
   const [editOpen, setEditOpen] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<string | null>(null);
   const [editingEvent, setEditingEvent] = useState<PublicClinicEvent | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<PublicClinicEvent | null>(null);
   const [form, setForm] = useState<EventForm>(emptyForm());
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [emailsCopied, setEmailsCopied] = useState(false);
   const [updatingBookingId, setUpdatingBookingId] = useState<string | null>(null);
@@ -247,6 +259,34 @@ export function ClinicEventsManager({ events, clinics, bookings }: ClinicEventsM
     setEditOpen(false);
     setEditingEvent(null);
     resetForm();
+    router.refresh();
+  }
+
+  async function confirmDeleteEvent() {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    setError(null);
+    const response = await fetch("/api/clinic-events/delete", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: deleteTarget.id }),
+    });
+    const result = await response.json().catch(() => null);
+    setDeleting(false);
+
+    if (!response.ok) {
+      setError(result?.error ?? "Unable to delete clinic event");
+      setDeleteTarget(null);
+      return;
+    }
+
+    if (selectedEvent === deleteTarget.id) setSelectedEvent(null);
+    if (editingEvent?.id === deleteTarget.id) {
+      setEditOpen(false);
+      setEditingEvent(null);
+      resetForm();
+    }
+    setDeleteTarget(null);
     router.refresh();
   }
 
@@ -501,6 +541,7 @@ export function ClinicEventsManager({ events, clinics, bookings }: ClinicEventsM
       <Button onClick={() => { resetForm(); setCreateOpen(true); }}>
         <Plus className="h-4 w-4 mr-2" />Create Event
       </Button>
+      {error && !selectedEvent && <p className="text-sm text-destructive">{error}</p>}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {events.map((event) => {
@@ -540,6 +581,18 @@ export function ClinicEventsManager({ events, clinics, bookings }: ClinicEventsM
                   <Button variant="outline" size="sm" onClick={() => openEdit(event)}>
                     <Pencil className="h-3.5 w-3.5 mr-1" />
                     Edit
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-destructive hover:text-destructive"
+                    onClick={() => {
+                      setError(null);
+                      setDeleteTarget(event);
+                    }}
+                  >
+                    <Trash2 className="h-3.5 w-3.5 mr-1" />
+                    Delete
                   </Button>
                   <Button variant="outline" size="sm" onClick={() => copyShareLink(event.id)}>
                     {copiedId === event.id ? "Copied!" : (<><Link2 className="h-3.5 w-3.5 mr-1" />Share link</>)}
@@ -617,6 +670,37 @@ export function ClinicEventsManager({ events, clinics, bookings }: ClinicEventsM
           </Button>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog
+        open={Boolean(deleteTarget)}
+        onOpenChange={(open) => {
+          if (!open && !deleting) setDeleteTarget(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete clinic event?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {deleteTarget
+                ? `This permanently deletes “${deleteTarget.title}” on ${formatDate(deleteTarget.date)} and all of its bookings. This cannot be undone.`
+                : "This permanently deletes the clinic event and all of its bookings."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={(event) => {
+                event.preventDefault();
+                void confirmDeleteEvent();
+              }}
+            >
+              {deleting ? "Deleting…" : "Delete event"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
