@@ -387,14 +387,32 @@ export function ColonyIntakeForm() {
   if (submitted) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-muted/30 p-4">
-        <Card className="max-w-md w-full text-center">
-          <CardContent className="pt-8 pb-6 space-y-3">
+        <Card className="max-w-lg w-full text-center">
+          <CardContent className="pt-8 pb-6 space-y-5">
             <CheckCircle className="mx-auto h-16 w-16 text-primary" />
-            <h2 className="text-xl font-semibold">Request Submitted</h2>
-            <p className="text-muted-foreground">
-              Your case number is <strong>{caseNumber}</strong>. Our team will review your report
-              and contact you soon.
-            </p>
+            <div className="space-y-1">
+              <h2 className="text-xl font-semibold sm:text-2xl">Request Submitted</h2>
+              <p className="text-muted-foreground">
+                Thank you. Our team will review your report and contact you soon.
+              </p>
+            </div>
+
+            <div className="rounded-lg border-2 border-primary/30 bg-primary/5 px-4 py-5 space-y-2">
+              <p className="text-xs font-semibold uppercase tracking-wide text-primary">
+                Your case number
+              </p>
+              <p className="text-3xl font-bold tracking-wide text-foreground sm:text-4xl break-all">
+                {caseNumber}
+              </p>
+            </div>
+
+            <div className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-left text-sm text-amber-950 space-y-2">
+              <p className="font-semibold">Please save this case number</p>
+              <p className="leading-relaxed">
+                Write it down or take a screenshot. Our team uses this case number to track your
+                colony report — you&apos;ll need it if you contact us about this request.
+              </p>
+            </div>
           </CardContent>
         </Card>
       </div>
