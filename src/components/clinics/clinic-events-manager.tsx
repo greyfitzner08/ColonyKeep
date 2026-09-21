@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -25,6 +25,10 @@ import {
 import { EventPricingEditor } from "@/components/clinics/event-pricing-editor";
 import { ServiceCatalogEditor } from "@/components/clinics/service-catalog-editor";
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
+import {
+  AddressAutocomplete,
+  formatAddressPartsLine,
+} from "@/components/forms/address-autocomplete";
 import { countOccupiedSpots } from "@/lib/clinic-events/availability";
 import { eventBookingStatusLabel } from "@/lib/clinic-events/visibility";
 import {
@@ -54,6 +58,28 @@ interface ClinicEventsManagerProps {
   events: PublicClinicEvent[];
   clinics: ClinicOption[];
   bookings: PublicBooking[];
+}
+
+interface NewClinicForm {
+  name: string;
+  address: string;
+  phone: string;
+}
+
+const emptyNewClinic = (): NewClinicForm => ({
+  name: "",
+  address: "",
+  phone: "",
+});
+
+function clinicOptionFromClinic(clinic: Clinic): ClinicOption {
+  return {
+    id: clinic.id,
+    name: clinic.name,
+    service_catalog: clinic.service_catalog,
+    included_services: clinic.included_services,
+    addon_services: clinic.addon_services,
+  };
 }
 
 interface EventForm {
@@ -135,27 +161,39 @@ function bookingSearchText(booking: PublicBooking) {
 
 export function ClinicEventsManager({ events, clinics, bookings }: ClinicEventsManagerProps) {
   const router = useRouter();
+  const [clinicOptions, setClinicOptions] = useState(clinics);
   const [createOpen, setCreateOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<string | null>(null);
   const [editingEvent, setEditingEvent] = useState<PublicClinicEvent | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<PublicClinicEvent | null>(null);
   const [form, setForm] = useState<EventForm>(emptyForm());
+  const [newClinicOpen, setNewClinicOpen] = useState(false);
+  const [newClinic, setNewClinic] = useState<NewClinicForm>(emptyNewClinic());
+  const [newClinicKey, setNewClinicKey] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [savingClinic, setSavingClinic] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [emailsCopied, setEmailsCopied] = useState(false);
   const [updatingBookingId, setUpdatingBookingId] = useState<string | null>(null);
 
-  function catalogForClinic(clinicId: string): ClinicServiceOption[] {
-    const clinic = clinics.find((c) => c.id === clinicId);
+  useEffect(() => {
+    setClinicOptions(clinics);
+  }, [clinics]);
+
+  function catalogForClinic(clinicId: string, list: ClinicOption[] = clinicOptions): ClinicServiceOption[] {
+    const clinic = list.find((c) => c.id === clinicId);
     if (!clinic) return defaultIncludedCatalog();
     return normalizeServiceCatalog(clinic.service_catalog, clinic.included_services, clinic.addon_services);
   }
 
   function resetForm() {
     setForm(emptyForm());
+    setNewClinicOpen(false);
+    setNewClinic(emptyNewClinic());
+    setNewClinicKey((key) => key + 1);
     setError(null);
   }
 
@@ -167,8 +205,63 @@ export function ClinicEventsManager({ events, clinics, bookings }: ClinicEventsM
     });
   }
 
+  async function createClinicInline() {
+    const name = newClinic.name.trim();
+    const address = newClinic.address.trim();
+    const phone = newClinic.phone.trim();
+    if (!name) {
+      setError("Enter a clinic name.");
+      return;
+    }
+    if (!address) {
+      setError("Enter a clinic address.");
+      return;
+    }
+
+    setError(null);
+    setSavingClinic(true);
+    const response = await fetch("/api/clinics/save", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name,
+        address,
+        phone,
+        operating_days: [],
+        slots_per_day: 10,
+        slots_by_day: {},
+        service_catalog: defaultIncludedCatalog(),
+        packages: [],
+        is_active: true,
+      }),
+    });
+    const result = await response.json().catch(() => null);
+    setSavingClinic(false);
+
+    if (!response.ok || !result?.clinic) {
+      setError(result?.error ?? "Unable to create clinic");
+      return;
+    }
+
+    const clinic = result.clinic as Clinic;
+    const option = clinicOptionFromClinic(clinic);
+    const nextOptions = [...clinicOptions.filter((row) => row.id !== option.id), option].sort((a, b) =>
+      a.name.localeCompare(b.name)
+    );
+    setClinicOptions(nextOptions);
+    setForm((current) => ({
+      ...current,
+      clinic_id: clinic.id,
+      service_catalog: catalogForClinic(clinic.id, nextOptions),
+      location: current.location.trim() || address,
+    }));
+    setNewClinicOpen(false);
+    setNewClinic(emptyNewClinic());
+    setNewClinicKey((key) => key + 1);
+  }
+
   async function createEvent() {
-    const clinic = clinics.find((c) => c.id === form.clinic_id);
+    const clinic = clinicOptions.find((c) => c.id === form.clinic_id);
     if (!clinic) {
       setError("Select a clinic before creating an event.");
       return;
@@ -222,13 +315,15 @@ export function ClinicEventsManager({ events, clinics, bookings }: ClinicEventsM
       is_active: event.is_active,
       notes: event.notes ?? "",
     });
+    setNewClinicOpen(false);
+    setNewClinic(emptyNewClinic());
     setError(null);
     setEditOpen(true);
   }
 
   async function updateEvent() {
     if (!editingEvent) return;
-    const clinic = clinics.find((c) => c.id === form.clinic_id);
+    const clinic = clinicOptions.find((c) => c.id === form.clinic_id);
     if (!clinic) {
       setError("Select a clinic.");
       return;
@@ -462,15 +557,85 @@ export function ClinicEventsManager({ events, clinics, bookings }: ClinicEventsM
   const formFields = (
     <div className="space-y-3">
       <div className="space-y-1">
-        <Label>Clinic</Label>
+        <div className="flex items-center justify-between gap-2">
+          <Label>Clinic</Label>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-7 px-2"
+            onClick={() => {
+              setError(null);
+              setNewClinicOpen((open) => !open);
+            }}
+          >
+            <Plus className="h-3.5 w-3.5 mr-1" />
+            {newClinicOpen ? "Cancel new clinic" : "New clinic"}
+          </Button>
+        </div>
         <Select value={form.clinic_id} onValueChange={handleClinicChange}>
           <SelectTrigger><SelectValue placeholder="Select clinic" /></SelectTrigger>
           <SelectContent>
-            {clinics.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+            {clinicOptions.map((c) => (
+              <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+            ))}
           </SelectContent>
         </Select>
-        <p className="text-xs text-muted-foreground">Selecting a clinic loads its service catalog — you can customize below.</p>
+        <p className="text-xs text-muted-foreground">
+          Selecting a clinic loads its service catalog — you can customize below.
+        </p>
       </div>
+
+      {newClinicOpen && (
+        <div className="space-y-3 rounded-lg border bg-muted/20 p-3">
+          <div>
+            <p className="text-sm font-medium">Add a new clinic</p>
+            <p className="text-xs text-muted-foreground">
+              Saves to Clinics and selects it for this event. You can add hours and packages later.
+            </p>
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="inline-clinic-name">Name</Label>
+            <Input
+              id="inline-clinic-name"
+              value={newClinic.name}
+              onChange={(e) => setNewClinic({ ...newClinic, name: e.target.value })}
+              placeholder="Clinic name"
+            />
+          </div>
+          <AddressAutocomplete
+            key={newClinicKey}
+            label="Address"
+            defaultValue={newClinic.address}
+            onAddressChange={(address) => setNewClinic((current) => ({ ...current, address }))}
+            onSelect={(parts) =>
+              setNewClinic((current) => ({
+                ...current,
+                address: formatAddressPartsLine(parts),
+              }))
+            }
+          />
+          <div className="space-y-1">
+            <Label htmlFor="inline-clinic-phone">Phone</Label>
+            <Input
+              id="inline-clinic-phone"
+              value={newClinic.phone}
+              onChange={(e) => setNewClinic({ ...newClinic, phone: e.target.value })}
+              placeholder="Optional"
+            />
+          </div>
+          <Button
+            type="button"
+            variant="secondary"
+            className="w-full"
+            disabled={savingClinic}
+            onClick={() => void createClinicInline()}
+          >
+            {savingClinic ? "Saving clinic…" : "Save clinic & use for event"}
+          </Button>
+        </div>
+      )}
+
       <div className="space-y-1"><Label>Title</Label><Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} /></div>
       <div className="space-y-1">
         <Label htmlFor="clinic-event-date">Date</Label>
@@ -655,7 +820,7 @@ export function ClinicEventsManager({ events, clinics, bookings }: ClinicEventsM
         <DialogContent className="max-h-[90vh] overflow-y-auto max-w-2xl">
           <DialogHeader><DialogTitle>Create Clinic Event</DialogTitle></DialogHeader>
           {formFields}
-          <Button onClick={createEvent} className="w-full" disabled={saving}>
+          <Button onClick={createEvent} className="w-full" disabled={saving || savingClinic}>
             {saving ? "Creating..." : "Create Event"}
           </Button>
         </DialogContent>
@@ -665,7 +830,7 @@ export function ClinicEventsManager({ events, clinics, bookings }: ClinicEventsM
         <DialogContent className="max-h-[90vh] overflow-y-auto max-w-2xl">
           <DialogHeader><DialogTitle>Edit Clinic Event</DialogTitle></DialogHeader>
           {formFields}
-          <Button onClick={updateEvent} className="w-full" disabled={saving}>
+          <Button onClick={updateEvent} className="w-full" disabled={saving || savingClinic}>
             {saving ? "Saving..." : "Save Changes"}
           </Button>
         </DialogContent>
