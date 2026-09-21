@@ -13,7 +13,6 @@ import { TrapQueueShell } from "@/components/trap-queue/trap-queue-shell";
 import { CaseQueueView } from "@/components/cases/case-queue-view";
 import { InquiryAdminMenu } from "@/components/cases/inquiry-admin-menu";
 import { ShareRequestFormLink } from "@/components/cases/share-request-form-link";
-import { PageHeader } from "@/components/layout/page-header";
 import { getServerAppUrl } from "@/lib/app-url";
 import type { HelpRequest } from "@/lib/types";
 
@@ -68,39 +67,43 @@ export default async function TrapQueuePage({ searchParams }: TrapQueuePageProps
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title={isHistoryScope ? "My work history" : "Trap Queue"}
-        description={
-          <>
-            <span className="text-muted-foreground">{viewDescription}</span>
-            <span className="mt-1 block text-sm text-muted-foreground">
-              {cases.length} cases in this view
-            </span>
-          </>
-        }
-        actions={
-          <>
-            {!isHistoryScope && <ShareRequestFormLink requestFormUrl={requestFormUrl} />}
-            {canImport && !isHistoryScope && (
-              <InquiryAdminMenu
-                submitterEmails={cases.map((helpRequest) => helpRequest.contact_email)}
-              />
-            )}
-          </>
-        }
-      />
+      <header className="space-y-2">
+        <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
+          {isHistoryScope ? "My work history" : "Trap Queue"}
+        </h1>
+        <p className="max-w-2xl text-muted-foreground leading-relaxed">{viewDescription}</p>
+        <p className="text-sm font-medium text-foreground/80">
+          {cases.length} {cases.length === 1 ? "case" : "cases"} in this view
+        </p>
+      </header>
 
-      <div className="rounded-lg border bg-muted/20 p-3 sm:p-4">
-        <Suspense fallback={<div className="h-9 w-full max-w-xs animate-pulse rounded-md bg-muted" />}>
-          <TrapQueueFilters
-            teams={teams ?? []}
-            myTeamId={profile?.team_id ?? null}
-            myTeamName={myTeam?.name ?? null}
-            isTrapRole={isTrapRole}
-            showWorkHistory
-          />
-        </Suspense>
-      </div>
+      <section
+        aria-label="Queue controls"
+        className="rounded-lg border bg-muted/20 p-4"
+      >
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between lg:gap-8">
+          <Suspense fallback={<div className="h-16 w-full max-w-xl animate-pulse rounded-md bg-muted" />}>
+            <TrapQueueFilters
+              teams={teams ?? []}
+              myTeamId={profile?.team_id ?? null}
+              myTeamName={myTeam?.name ?? null}
+              isTrapRole={isTrapRole}
+              showWorkHistory
+            />
+          </Suspense>
+
+          {!isHistoryScope ? (
+            <div className="flex flex-wrap items-center gap-2 border-t border-border/60 pt-3 lg:border-t-0 lg:pt-0 lg:justify-end">
+              <ShareRequestFormLink requestFormUrl={requestFormUrl} />
+              {canImport ? (
+                <InquiryAdminMenu
+                  submitterEmails={cases.map((helpRequest) => helpRequest.contact_email)}
+                />
+              ) : null}
+            </div>
+          ) : null}
+        </div>
+      </section>
 
       <Suspense fallback={<div className="h-40 animate-pulse rounded-lg bg-muted" />}>
         {isHistoryScope ? (

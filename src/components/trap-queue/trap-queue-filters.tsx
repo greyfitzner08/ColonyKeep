@@ -1,8 +1,8 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
+import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { FilterToolbar } from "@/components/layout/filter-toolbar";
 import { sortTrapTeams } from "@/lib/trap-teams/sort-teams";
 
 interface TrapQueueFiltersProps {
@@ -32,63 +32,73 @@ export function TrapQueueFilters({
   }
 
   return (
-    <FilterToolbar>
+    <div className="grid w-full gap-3 sm:grid-cols-2 sm:gap-4 lg:max-w-xl">
       {showWorkHistory && (
-        <Select
-          value={scope}
-          onValueChange={(value) =>
-            updateParams((params) => {
-              if (value === "history") {
-                params.set("scope", "history");
-                params.delete("view");
-              } else {
-                params.delete("scope");
-              }
-            })
-          }
-        >
-          <SelectTrigger className="h-9 w-full sm:w-[160px]">
-            <SelectValue placeholder="View" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="queue">Trap queue</SelectItem>
-            <SelectItem value="history">My work history</SelectItem>
-          </SelectContent>
-        </Select>
+        <div className="space-y-1.5">
+          <Label htmlFor="trap-queue-scope" className="text-xs font-medium text-muted-foreground">
+            Workspace
+          </Label>
+          <Select
+            value={scope}
+            onValueChange={(value) =>
+              updateParams((params) => {
+                if (value === "history") {
+                  params.set("scope", "history");
+                  params.delete("view");
+                } else {
+                  params.delete("scope");
+                }
+              })
+            }
+          >
+            <SelectTrigger id="trap-queue-scope" className="h-9 w-full">
+              <SelectValue placeholder="Workspace" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="queue">Trap queue</SelectItem>
+              <SelectItem value="history">My work history</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       )}
 
       {scope !== "history" && (
-        <Select
-          value={currentView}
-          onValueChange={(view) =>
-            updateParams((params) => {
-              if (view === "all") {
-                params.delete("view");
-              } else {
-                params.set("view", view);
-              }
-            })
-          }
-        >
-          <SelectTrigger className="h-9 w-full sm:w-[220px]">
-            <SelectValue placeholder="Select queue" />
-          </SelectTrigger>
-          <SelectContent>
-            {isTrapRole && (
-              <SelectItem value="mine">
-                {myTeamName ? `My Team (${myTeamName})` : "My Work"}
-              </SelectItem>
-            )}
-            <SelectItem value="unassigned">No team</SelectItem>
-            <SelectItem value="all">All Teams</SelectItem>
-            {sortTrapTeams(teams).map((team) => (
-              <SelectItem key={team.id} value={team.id}>
-                {team.id === myTeamId ? `${team.name} (my team)` : team.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <div className="space-y-1.5">
+          <Label htmlFor="trap-queue-team" className="text-xs font-medium text-muted-foreground">
+            Team queue
+          </Label>
+          <Select
+            value={currentView}
+            onValueChange={(view) =>
+              updateParams((params) => {
+                if (view === "all") {
+                  params.delete("view");
+                } else {
+                  params.set("view", view);
+                }
+              })
+            }
+          >
+            <SelectTrigger id="trap-queue-team" className="h-9 w-full">
+              <SelectValue placeholder="Select queue" />
+            </SelectTrigger>
+            <SelectContent>
+              {isTrapRole && (
+                <SelectItem value="mine">
+                  {myTeamName ? `My Team (${myTeamName})` : "My Work"}
+                </SelectItem>
+              )}
+              <SelectItem value="unassigned">No team</SelectItem>
+              <SelectItem value="all">All Teams</SelectItem>
+              {sortTrapTeams(teams).map((team) => (
+                <SelectItem key={team.id} value={team.id}>
+                  {team.id === myTeamId ? `${team.name} (my team)` : team.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       )}
-    </FilterToolbar>
+    </div>
   );
 }
