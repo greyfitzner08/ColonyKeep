@@ -11,6 +11,17 @@ interface TrapQueueQueryOptions {
   userEmail: string;
 }
 
+/** Default queue for TNVR team users: their team when assigned, else unassigned cases. */
+export function defaultTrapQueueView(options: {
+  role?: string | null;
+  teamId?: string | null;
+}): TrapQueueView {
+  if (options.role === "trap_team_lead") {
+    return options.teamId ? "mine" : "unassigned";
+  }
+  return "all";
+}
+
 export function buildTrapQueueQuery(
   supabase: SupabaseClient,
   { view, teamId, userEmail }: TrapQueueQueryOptions

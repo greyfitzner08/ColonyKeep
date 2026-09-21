@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { CaseViewMode } from "@/components/cases/case-queue-view";
 import type { IntakeSortKey } from "@/lib/cases/sort-intake-cases";
+import type { TrapQueueView } from "@/lib/cases/trap-queue-query";
 import { sortTrapTeams } from "@/lib/trap-teams/sort-teams";
 
 interface TrapQueueToolbarProps {
@@ -20,6 +21,7 @@ interface TrapQueueToolbarProps {
   layout: CaseViewMode;
   sort: IntakeSortKey;
   searchQuery: string;
+  defaultView?: TrapQueueView;
   onLayoutChange: (layout: CaseViewMode) => void;
   onSortChange: (sort: IntakeSortKey) => void;
   onSearchChange: (query: string) => void;
@@ -35,6 +37,7 @@ export function TrapQueueToolbar({
   layout,
   sort,
   searchQuery,
+  defaultView = "all",
   onLayoutChange,
   onSortChange,
   onSearchChange,
@@ -43,7 +46,7 @@ export function TrapQueueToolbar({
   const router = useRouter();
   const searchParams = useSearchParams();
   const scope = searchParams.get("scope") === "history" ? "history" : "queue";
-  const currentView = searchParams.get("view") ?? "all";
+  const currentView = searchParams.get("view") ?? defaultView;
 
   function updateParams(mutate: (params: URLSearchParams) => void) {
     const params = new URLSearchParams(searchParams.toString());
@@ -53,7 +56,7 @@ export function TrapQueueToolbar({
 
   const activeFilterCount =
     (showWorkHistory && scope !== "queue" ? 1 : 0) +
-    (scope !== "history" && currentView !== "all" ? 1 : 0);
+    (scope !== "history" && currentView !== defaultView ? 1 : 0);
 
   return (
     <PageControlBar
@@ -107,7 +110,7 @@ export function TrapQueueToolbar({
                 value={currentView}
                 onValueChange={(view) =>
                   updateParams((params) => {
-                    if (view === "all") {
+                    if (view === defaultView) {
                       params.delete("view");
                     } else {
                       params.set("view", view);

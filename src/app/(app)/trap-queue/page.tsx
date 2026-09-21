@@ -5,6 +5,7 @@ import { sortCasesMedicalFirst } from "@/lib/cases/sort-cases";
 import { fetchUserCaseWorkHistory } from "@/lib/cases/user-work-history";
 import {
   buildTrapQueueQuery,
+  defaultTrapQueueView,
   trapQueueViewLabel,
   type TrapQueueView,
 } from "@/lib/cases/trap-queue-query";
@@ -26,7 +27,10 @@ export default async function TrapQueuePage({ searchParams }: TrapQueuePageProps
   const isTrapRole = profile?.role === "admin" || profile?.role === "trap_team_lead";
 
   const isHistoryScope = params.scope === "history";
-  const defaultView: TrapQueueView = "all";
+  const defaultView = defaultTrapQueueView({
+    role: profile?.role,
+    teamId: profile?.team_id,
+  });
   const view = (params.view ?? defaultView) as TrapQueueView;
 
   const [{ data: teams }, { data: myTeam }] = await Promise.all([
@@ -99,6 +103,7 @@ export default async function TrapQueuePage({ searchParams }: TrapQueuePageProps
           myTeamName={myTeam?.name ?? null}
           isTrapRole={isTrapRole}
           showWorkHistory
+          defaultView={defaultView}
         />
       </Suspense>
     </div>

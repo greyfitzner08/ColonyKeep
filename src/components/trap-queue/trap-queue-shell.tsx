@@ -10,6 +10,7 @@ import { filterCasesBySearch } from "@/lib/cases/search-cases";
 import { sortIntakeCases, type IntakeSortKey } from "@/lib/cases/sort-intake-cases";
 import type { CaseViewMode } from "@/components/cases/case-queue-view";
 import type { HelpRequest } from "@/lib/types";
+import type { TrapQueueView } from "@/lib/cases/trap-queue-query";
 
 interface TrapQueueShellProps {
   cases: HelpRequest[];
@@ -21,6 +22,7 @@ interface TrapQueueShellProps {
   myTeamName?: string | null;
   isTrapRole: boolean;
   showWorkHistory?: boolean;
+  defaultView?: TrapQueueView;
   toolbarActions?: ReactNode;
 }
 
@@ -34,6 +36,7 @@ export function TrapQueueShell({
   myTeamName = null,
   isTrapRole,
   showWorkHistory = true,
+  defaultView = "all",
   toolbarActions,
 }: TrapQueueShellProps) {
   const router = useRouter();
@@ -72,6 +75,7 @@ export function TrapQueueShell({
         onLayoutChange={(nextLayout) => updateParam("layout", nextLayout === "cards" ? "" : nextLayout)}
         onSortChange={(nextSort) => updateParam("sort", nextSort === "date_desc" ? "" : nextSort)}
         onSearchChange={(query) => updateParam("q", query)}
+        defaultView={defaultView}
         actions={toolbarActions}
       />
 
