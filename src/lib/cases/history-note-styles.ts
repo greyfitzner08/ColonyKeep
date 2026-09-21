@@ -33,7 +33,6 @@ export function historyEntryClasses(entry: HistoryEntry): string {
 
   return cn(
     "rounded-md border px-3 py-2 text-sm leading-relaxed",
-    entry.highlighted && "ring-2 ring-amber-400/80 shadow-sm",
     entry.follow_up && !entry.follow_up_completed && "border-orange-400",
     color === "default" && "bg-card",
     color === "amber" && "border-amber-300 bg-amber-50 text-amber-950",
@@ -45,7 +44,6 @@ export function historyEntryClasses(entry: HistoryEntry): string {
 
 export function historyNotePreviewEntry(input: {
   text: string;
-  highlighted: boolean;
   follow_up: boolean;
   text_color: HistoryNoteColor;
 }): HistoryEntry {
@@ -55,7 +53,7 @@ export function historyNotePreviewEntry(input: {
     actor_email: null,
     actor_name: null,
     details: input.text || "Your note preview…",
-    highlighted: input.highlighted,
+    highlighted: false,
     follow_up: input.follow_up,
     text_color: input.text_color,
   };

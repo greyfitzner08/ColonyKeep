@@ -16,7 +16,7 @@ import {
 import { staffNotesFromHistory } from "@/lib/cases/history-log";
 import { cn, formatDateTime } from "@/lib/utils";
 import type { HistoryEntry, HistoryNoteColor } from "@/lib/types";
-import { Flag, Highlighter, Plus, CheckCircle2 } from "lucide-react";
+import { Flag, Plus, CheckCircle2 } from "lucide-react";
 
 interface CaseHistorySectionProps {
   entries: HistoryEntry[];
@@ -54,7 +54,6 @@ export function CaseHistorySection({
   const notesOnly = mode === "notes";
   const visibleEntries = notesOnly ? staffNotesFromHistory(entries) : entries;
   const [noteText, setNoteText] = useState("");
-  const [highlighted, setHighlighted] = useState(false);
   const [followUp, setFollowUp] = useState(false);
   const [textColor, setTextColor] = useState<HistoryNoteColor>("default");
 
@@ -64,7 +63,6 @@ export function CaseHistorySection({
 
   const previewEntry = historyNotePreviewEntry({
     text: noteText,
-    highlighted,
     follow_up: followUp,
     text_color: textColor,
   });
@@ -73,13 +71,12 @@ export function CaseHistorySection({
     if (!noteText.trim() || saving) return;
     const saved = await onAddNote({
       text: noteText.trim(),
-      highlighted,
+      highlighted: false,
       follow_up: followUp,
       text_color: textColor,
     });
     if (!saved) return;
     setNoteText("");
-    setHighlighted(false);
     setFollowUp(false);
     setTextColor("default");
   }
@@ -139,21 +136,6 @@ export function CaseHistorySection({
               size="sm"
               className={cn(
                 "h-8 px-2.5 text-xs",
-                highlighted && "border-amber-500 bg-amber-50 text-amber-950"
-              )}
-              aria-pressed={highlighted}
-              onClick={() => setHighlighted((value) => !value)}
-            >
-              <Highlighter className="h-3.5 w-3.5 mr-1.5" />
-              Highlight
-            </Button>
-
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className={cn(
-                "h-8 px-2.5 text-xs",
                 followUp && "border-orange-500 bg-orange-50 text-orange-950"
               )}
               aria-pressed={followUp}
@@ -179,11 +161,10 @@ export function CaseHistorySection({
 
           <div className="flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
             <span>Saved as {authorName} · {authorEmail}</span>
-            {(highlighted || followUp || textColor !== "default") && (
+            {(followUp || textColor !== "default") && (
               <span className="text-foreground/70">
                 ·
                 {textColor !== "default" && ` ${HISTORY_NOTE_COLORS.find((c) => c.value === textColor)?.label} text`}
-                {highlighted && " · highlighted"}
                 {followUp && " · follow-up"}
               </span>
             )}
@@ -239,11 +220,6 @@ export function CaseHistorySection({
                         Follow-up
                       </Badge>
                     )
-                  )}
-                  {entry.highlighted && (
-                    <Badge className="bg-amber-100 text-amber-900 hover:bg-amber-100 text-[10px] px-1.5 py-0">
-                      Highlighted
-                    </Badge>
                   )}
                   {canResolveFollowUp &&
                     entry.follow_up &&
