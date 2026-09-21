@@ -17,12 +17,15 @@ interface TrackedCatDetailsFieldsProps {
   idPrefix: string;
   value: TrackedCatDetails;
   onChange: (value: TrackedCatDetails) => void;
+  /** When true, gender must be male or female (no “unknown”). */
+  requireGender?: boolean;
 }
 
 export function TrackedCatDetailsFields({
   idPrefix,
   value,
   onChange,
+  requireGender = false,
 }: TrackedCatDetailsFieldsProps) {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -36,9 +39,11 @@ export function TrackedCatDetailsFields({
         />
       </div>
       <div className="space-y-2">
-        <Label className="text-sm font-medium">Gender (optional)</Label>
+        <Label className="text-sm font-medium">
+          Gender{requireGender ? "" : " (optional)"}
+        </Label>
         <Select
-          value={value.gender || "unset"}
+          value={value.gender || (requireGender ? undefined : "unset")}
           onValueChange={(nextGender) =>
             onChange({
               ...value,
@@ -53,7 +58,7 @@ export function TrackedCatDetailsFields({
             <SelectValue placeholder="Select gender" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="unset">Unknown / not set</SelectItem>
+            {!requireGender && <SelectItem value="unset">Unknown / not set</SelectItem>}
             <SelectItem value="male">Male</SelectItem>
             <SelectItem value="female">Female</SelectItem>
           </SelectContent>

@@ -56,6 +56,11 @@ export function AddTrackedCatDialog({
   }
 
   async function addCat() {
+    if (newCat.gender !== "male" && newCat.gender !== "female") {
+      setError("Select male or female before adding this cat.");
+      return;
+    }
+
     const fosterError = validateTrackedCatFosterForm(
       {
         wentToFoster,
@@ -129,6 +134,7 @@ export function AddTrackedCatDialog({
             idPrefix="add-cat"
             details={newCat}
             onDetailsChange={setNewCat}
+            requireGender
             fixedAtClinic={fixedAtClinic}
             onFixedAtClinicChange={(nextFixed) => {
               setFixedAtClinic(nextFixed);

@@ -20,6 +20,8 @@ interface TrackedCatIntakeSectionsProps {
   onFixedAtClinicChange?: (fixedAtClinic: boolean) => void;
   /** When false, fixed-at-clinic is shown as read-only "Yes" (clinic result / fix flows). */
   showFixedAtClinicToggle?: boolean;
+  /** When true, gender is required (Add cat). */
+  requireGender?: boolean;
   ageCategory: "" | "adult" | "kitten";
   onAgeCategoryChange: (ageCategory: "" | "adult" | "kitten") => void;
   foster: FosterFormFields;
@@ -33,6 +35,7 @@ export function TrackedCatIntakeSections({
   fixedAtClinic,
   onFixedAtClinicChange,
   showFixedAtClinicToggle = true,
+  requireGender = false,
   ageCategory,
   onAgeCategoryChange,
   foster,
@@ -40,7 +43,12 @@ export function TrackedCatIntakeSections({
 }: TrackedCatIntakeSectionsProps) {
   return (
     <div className="space-y-4">
-      <TrackedCatDetailsFields idPrefix={idPrefix} value={details} onChange={onDetailsChange} />
+      <TrackedCatDetailsFields
+        idPrefix={idPrefix}
+        value={details}
+        onChange={onDetailsChange}
+        requireGender={requireGender}
+      />
 
       <div className="space-y-2">
         <Label className="text-sm font-medium">Fixed at clinic?</Label>

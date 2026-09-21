@@ -46,7 +46,16 @@ export async function POST(request: NextRequest) {
       profile: profile!,
     });
     if (claimBlock) return claimBlock;
-    const gender = body?.gender?.trim() || null;
+
+    const rawGender = typeof body?.gender === "string" ? body.gender.trim().toLowerCase() : "";
+    if (rawGender !== "male" && rawGender !== "female") {
+      return NextResponse.json(
+        { error: "Gender is required — select male or female." },
+        { status: 400 }
+      );
+    }
+    const gender = rawGender;
+
     const { data: cat, error: insertError } = await service
       .from("cats")
       .insert({
