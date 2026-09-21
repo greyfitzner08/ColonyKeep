@@ -8,9 +8,7 @@ import {
   trapQueueViewLabel,
   type TrapQueueView,
 } from "@/lib/cases/trap-queue-query";
-import { TrapQueueFilters } from "@/components/trap-queue/trap-queue-filters";
 import { TrapQueueShell } from "@/components/trap-queue/trap-queue-shell";
-import { CaseQueueView } from "@/components/cases/case-queue-view";
 import { InquiryAdminMenu } from "@/components/cases/inquiry-admin-menu";
 import { ShareRequestFormLink } from "@/components/cases/share-request-form-link";
 import { getServerAppUrl } from "@/lib/app-url";
@@ -77,51 +75,30 @@ export default async function TrapQueuePage({ searchParams }: TrapQueuePageProps
         </p>
       </header>
 
-      <section
-        aria-label="Queue controls"
-        className="rounded-lg border bg-muted/20 p-4"
-      >
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between lg:gap-8">
-          <Suspense fallback={<div className="h-16 w-full max-w-xl animate-pulse rounded-md bg-muted" />}>
-            <TrapQueueFilters
-              teams={teams ?? []}
-              myTeamId={profile?.team_id ?? null}
-              myTeamName={myTeam?.name ?? null}
-              isTrapRole={isTrapRole}
-              showWorkHistory
-            />
-          </Suspense>
-
-          {!isHistoryScope ? (
-            <div className="flex flex-wrap items-center gap-2 border-t border-border/60 pt-3 lg:border-t-0 lg:pt-0 lg:justify-end">
-              <ShareRequestFormLink requestFormUrl={requestFormUrl} />
-              {canImport ? (
-                <InquiryAdminMenu
-                  submitterEmails={cases.map((helpRequest) => helpRequest.contact_email)}
-                />
-              ) : null}
-            </div>
-          ) : null}
-        </div>
-      </section>
-
       <Suspense fallback={<div className="h-40 animate-pulse rounded-lg bg-muted" />}>
-        {isHistoryScope ? (
-          <CaseQueueView
-            cases={cases}
-            canClaim={false}
-            userEmail={profile?.email ?? ""}
-            isAdmin={profile?.role === "admin"}
-            showControls
-          />
-        ) : (
-          <TrapQueueShell
-            cases={cases}
-            canClaim={isTrapRole}
-            userEmail={profile?.email ?? ""}
-            isAdmin={profile?.role === "admin"}
-          />
-        )}
+        <TrapQueueShell
+          cases={cases}
+          canClaim={!isHistoryScope && isTrapRole}
+          userEmail={profile?.email ?? ""}
+          isAdmin={profile?.role === "admin"}
+          teams={teams ?? []}
+          myTeamId={profile?.team_id ?? null}
+          myTeamName={myTeam?.name ?? null}
+          isTrapRole={isTrapRole}
+          showWorkHistory
+          toolbarActions={
+            !isHistoryScope ? (
+              <>
+                <ShareRequestFormLink requestFormUrl={requestFormUrl} />
+                {canImport ? (
+                  <InquiryAdminMenu
+                    submitterEmails={cases.map((helpRequest) => helpRequest.contact_email)}
+                  />
+                ) : null}
+              </>
+            ) : null
+          }
+        />
       </Suspense>
     </div>
   );

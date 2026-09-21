@@ -10,6 +10,7 @@ interface CaseQueueSearchProps {
   onChange: (value: string) => void;
   placeholder?: string;
   className?: string;
+  id?: string;
 }
 
 /** Search input that updates immediately while debouncing the parent filter. */
@@ -18,6 +19,7 @@ export function CaseQueueSearch({
   onChange,
   placeholder = "Search by case #, name, phone, email, address, or ZIP…",
   className,
+  id,
 }: CaseQueueSearchProps) {
   const [draft, setDraft] = useState(value);
   const onChangeRef = useRef(onChange);
@@ -39,6 +41,7 @@ export function CaseQueueSearch({
     <div className={cn("relative w-full max-w-md", className)}>
       <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
       <Input
+        id={id}
         type="search"
         value={draft}
         onChange={(e) => setDraft(e.target.value)}
