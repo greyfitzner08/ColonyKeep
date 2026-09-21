@@ -46,9 +46,7 @@ export function CaseQueueView({
       {showControls && (
         <PageControlBar
           aria-label="Case queue controls"
-          search={
-            <CaseQueueSearch value={search} onChange={setSearch} className="w-full max-w-none" />
-          }
+          search={<CaseQueueSearch value={search} onChange={setSearch} />}
           filters={
             <div className="min-w-0 sm:col-span-2 xl:min-w-[280px] xl:flex-1">
               <CaseQueueControls

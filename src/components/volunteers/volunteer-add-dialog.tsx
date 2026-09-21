@@ -225,7 +225,7 @@ export function VolunteerAddDialog({
           <Plus className="h-4 w-4" />
         </Button>
       ) : (
-        <Button type="button" variant="outline" size="sm" onClick={() => setOpen(true)}>
+        <Button type="button" size="sm" onClick={() => setOpen(true)}>
           <Plus className="h-4 w-4 mr-2" />
           Add volunteer
         </Button>

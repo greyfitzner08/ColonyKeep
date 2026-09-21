@@ -2018,6 +2018,13 @@ export function VolunteersManager({
             </Select>
           </>
         }
+        primaryActions={
+          <VolunteerAddDialog
+            roleDescriptions={roleCatalog}
+            triggerVariant="default"
+            onNeedsReview={(applicationId) => setPendingReviewId(applicationId)}
+          />
+        }
         actions={
           <>
             {currentUserId ? (
@@ -2038,30 +2045,25 @@ export function VolunteersManager({
                 Review duplicates
               </Button>
             ) : null}
-            <VolunteerAddDialog
-              roleDescriptions={roleCatalog}
-              triggerVariant="icon"
-              onNeedsReview={(applicationId) => setPendingReviewId(applicationId)}
-            />
-            <div className="flex items-center gap-1 w-fit rounded-lg border bg-background p-1">
+            <div className="flex h-9 items-center gap-0.5 rounded-md border bg-background p-0.5">
               <Button
                 type="button"
                 size="sm"
                 variant={viewMode === "cards" ? "secondary" : "ghost"}
-                className={cn("gap-2", viewMode === "cards" && "shadow-none")}
+                className={cn("h-8 gap-1.5 px-2.5", viewMode === "cards" && "shadow-none")}
                 onClick={() => setViewMode("cards")}
               >
-                <LayoutGrid className="h-4 w-4" />
+                <LayoutGrid className="h-3.5 w-3.5" />
                 Cards
               </Button>
               <Button
                 type="button"
                 size="sm"
                 variant={viewMode === "table" ? "secondary" : "ghost"}
-                className={cn("gap-2", viewMode === "table" && "shadow-none")}
+                className={cn("h-8 gap-1.5 px-2.5", viewMode === "table" && "shadow-none")}
                 onClick={() => setViewMode("table")}
               >
-                <Table2 className="h-4 w-4" />
+                <Table2 className="h-3.5 w-3.5" />
                 Table
               </Button>
             </div>

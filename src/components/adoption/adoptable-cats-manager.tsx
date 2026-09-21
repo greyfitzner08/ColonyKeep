@@ -309,19 +309,19 @@ export function AdoptableCatsManager({ cats: initial, locations }: AdoptableCats
             </Select>
           </div>
         }
+        primaryActions={
+          <Button type="button" size="sm" onClick={openNew}>
+            <Plus className="mr-1.5 h-4 w-4" />
+            Add cat
+          </Button>
+        }
         actions={
-          <>
-            <Button type="button" size="sm" variant="outline" asChild>
-              <Link href="/adoption/locations">
-                <MapPin className="mr-1.5 h-4 w-4" />
-                Locations
-              </Link>
-            </Button>
-            <Button type="button" size="sm" onClick={openNew}>
-              <Plus className="mr-1.5 h-4 w-4" />
-              Add cat
-            </Button>
-          </>
+          <Button type="button" size="sm" variant="outline" asChild>
+            <Link href="/adoption/locations">
+              <MapPin className="mr-1.5 h-4 w-4" />
+              Locations
+            </Link>
+          </Button>
         }
       />
 

@@ -74,6 +74,18 @@ export default async function TrapQueuePage({ searchParams }: TrapQueuePageProps
             {cases.length} {cases.length === 1 ? "case" : "cases"} in this view
           </p>
         }
+        actions={
+          !isHistoryScope ? (
+            <>
+              <ShareRequestFormLink requestFormUrl={requestFormUrl} />
+              {canImport ? (
+                <InquiryAdminMenu
+                  submitterEmails={cases.map((helpRequest) => helpRequest.contact_email)}
+                />
+              ) : null}
+            </>
+          ) : null
+        }
       />
 
       <Suspense fallback={<div className="h-40 animate-pulse rounded-lg bg-muted" />}>
@@ -87,18 +99,6 @@ export default async function TrapQueuePage({ searchParams }: TrapQueuePageProps
           myTeamName={myTeam?.name ?? null}
           isTrapRole={isTrapRole}
           showWorkHistory
-          toolbarActions={
-            !isHistoryScope ? (
-              <>
-                <ShareRequestFormLink requestFormUrl={requestFormUrl} />
-                {canImport ? (
-                  <InquiryAdminMenu
-                    submitterEmails={cases.map((helpRequest) => helpRequest.contact_email)}
-                  />
-                ) : null}
-              </>
-            ) : null
-          }
         />
       </Suspense>
     </div>

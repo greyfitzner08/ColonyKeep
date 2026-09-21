@@ -543,6 +543,12 @@ export function CommunityPartnersManager({ partners: initial }: CommunityPartner
             </SelectContent>
           </Select>
         }
+        primaryActions={
+          <Button size="sm" onClick={openNew}>
+            <Plus className="mr-2 h-4 w-4" />
+            Add partner
+          </Button>
+        }
         actions={
           <>
             <Button
@@ -567,10 +573,6 @@ export function CommunityPartnersManager({ partners: initial }: CommunityPartner
             <Button variant="outline" size="sm" onClick={() => exportPartnersCsv(filtered)}>
               <Download className="mr-2 h-4 w-4" />
               Export CSV
-            </Button>
-            <Button size="sm" onClick={openNew}>
-              <Plus className="mr-2 h-4 w-4" />
-              Add partner
             </Button>
           </>
         }

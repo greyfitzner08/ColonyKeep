@@ -38,7 +38,7 @@ export function CaseQueueSearch({
   }, [draft, value]);
 
   return (
-    <div className={cn("relative w-full max-w-md", className)}>
+    <div className={cn("relative w-full max-w-sm", className)}>
       <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
       <Input
         id={id}
@@ -46,7 +46,7 @@ export function CaseQueueSearch({
         value={draft}
         onChange={(e) => setDraft(e.target.value)}
         placeholder={placeholder}
-        className="pl-9"
+        className="h-9 pl-9"
         autoComplete="off"
         spellCheck={false}
       />

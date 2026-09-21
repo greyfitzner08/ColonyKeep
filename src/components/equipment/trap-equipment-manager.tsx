@@ -829,17 +829,17 @@ export function TrapEquipmentManager({
                 ) : null}
               </>
             }
+            primaryActions={
+              <Button size="sm" onClick={openNew}>
+                <Plus className="mr-1.5 h-4 w-4" />
+                Log equipment
+              </Button>
+            }
             actions={
-              <>
-                <Button size="sm" variant="outline" onClick={() => setScannerOpen(true)}>
-                  <QrCode className="mr-1.5 h-4 w-4" />
-                  Scan QR
-                </Button>
-                <Button size="sm" onClick={openNew}>
-                  <Plus className="mr-1.5 h-4 w-4" />
-                  Log equipment
-                </Button>
-              </>
+              <Button size="sm" variant="outline" onClick={() => setScannerOpen(true)}>
+                <QrCode className="mr-1.5 h-4 w-4" />
+                Scan QR
+              </Button>
             }
             meta={
               <>

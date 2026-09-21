@@ -64,7 +64,6 @@ export function TrapQueueToolbar({
           id="trap-queue-search"
           value={searchQuery}
           onChange={onSearchChange}
-          className="w-full max-w-none"
         />
       }
       actions={actions}
