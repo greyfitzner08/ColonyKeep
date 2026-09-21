@@ -45,6 +45,10 @@ interface AdminDuplicateAccountsDialogProps {
   onOpenChange: (open: boolean) => void;
   currentUserId: string;
   onError: (message: string | null) => void;
+  onDismissed?: (payload: {
+    profileIds: string[];
+    linkedApplicationIds?: string[];
+  }) => void;
 }
 
 function roleLabel(role: UserRole | null): string {
@@ -90,6 +94,7 @@ export function AdminDuplicateAccountsDialog({
   onOpenChange,
   currentUserId,
   onError,
+  onDismissed,
 }: AdminDuplicateAccountsDialogProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -187,12 +192,13 @@ export function AdminDuplicateAccountsDialog({
     setError(null);
     onError(null);
 
+    const profileIds = selectedGroup.profiles.map((profile) => profile.id);
     const response = await fetch("/api/admin/duplicates/dismiss", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         entityType: "profile",
-        ids: selectedGroup.profiles.map((profile) => profile.id),
+        ids: profileIds,
       }),
     });
     const result = await response.json().catch(() => null);
@@ -205,6 +211,12 @@ export function AdminDuplicateAccountsDialog({
       return;
     }
 
+    onDismissed?.({
+      profileIds,
+      linkedApplicationIds: Array.isArray(result?.linkedApplicationIds)
+        ? (result.linkedApplicationIds as string[])
+        : [],
+    });
     router.refresh();
     await loadDuplicates();
   }

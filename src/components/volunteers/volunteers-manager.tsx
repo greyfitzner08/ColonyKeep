@@ -234,11 +234,15 @@ export function VolunteersManager({
   );
 
   useEffect(() => {
-    setLocalDismissedApplicationKeys(dismissedApplicationPairKeys);
+    setLocalDismissedApplicationKeys((current) =>
+      Array.from(new Set([...current, ...dismissedApplicationPairKeys]))
+    );
   }, [dismissedApplicationPairKeys]);
 
   useEffect(() => {
-    setLocalDismissedProfileKeys(dismissedProfilePairKeys);
+    setLocalDismissedProfileKeys((current) =>
+      Array.from(new Set([...current, ...dismissedProfilePairKeys]))
+    );
   }, [dismissedProfilePairKeys]);
 
   const dismissedApplicationKeySet = useMemo(
@@ -2317,10 +2321,15 @@ export function VolunteersManager({
             roleCatalog={roleCatalog}
             currentUserId={currentUserId}
             onError={setActionError}
-            onDismissed={(applicationIds) => {
+            onDismissed={({ applicationIds, linkedProfileIds = [] }) => {
               setLocalDismissedApplicationKeys((current) =>
                 Array.from(new Set([...current, ...duplicatePairKeysForIds(applicationIds)]))
               );
+              if (linkedProfileIds.length >= 2) {
+                setLocalDismissedProfileKeys((current) =>
+                  Array.from(new Set([...current, ...duplicatePairKeysForIds(linkedProfileIds)]))
+                );
+              }
             }}
           />
           <AdminDuplicateAccountsDialog
@@ -2328,6 +2337,18 @@ export function VolunteersManager({
             onOpenChange={setAccountMergeOpen}
             currentUserId={currentUserId}
             onError={setActionError}
+            onDismissed={({ profileIds, linkedApplicationIds = [] }) => {
+              setLocalDismissedProfileKeys((current) =>
+                Array.from(new Set([...current, ...duplicatePairKeysForIds(profileIds)]))
+              );
+              if (linkedApplicationIds.length >= 2) {
+                setLocalDismissedApplicationKeys((current) =>
+                  Array.from(
+                    new Set([...current, ...duplicatePairKeysForIds(linkedApplicationIds)])
+                  )
+                );
+              }
+            }}
           />
         </>
       ) : null}

@@ -33,7 +33,10 @@ interface VolunteerDuplicatesDialogProps {
   currentUserId: string;
   onError: (message: string | null) => void;
   /** Called after a group is dismissed so the parent can drop it from local state. */
-  onDismissed?: (applicationIds: string[]) => void;
+  onDismissed?: (payload: {
+    applicationIds: string[];
+    linkedProfileIds?: string[];
+  }) => void;
 }
 
 type CompareRow = {
@@ -355,7 +358,12 @@ export function VolunteerDuplicatesDialog({
       return;
     }
 
-    onDismissed?.(applicationIds);
+    onDismissed?.({
+      applicationIds,
+      linkedProfileIds: Array.isArray(result?.linkedProfileIds)
+        ? (result.linkedProfileIds as string[])
+        : [],
+    });
     router.refresh();
   }
 
