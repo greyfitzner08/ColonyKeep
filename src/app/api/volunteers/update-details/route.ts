@@ -39,9 +39,7 @@ export async function POST(request: NextRequest) {
     const roles = rawRoles.filter(
       (entry): entry is string => typeof entry === "string" && entry.trim().length > 0
     );
-    if (roles.length > 0) {
-      updates.roles_requested = roles;
-    }
+    updates.roles_requested = roles;
   }
 
   if (Object.keys(updates).length === 2) {

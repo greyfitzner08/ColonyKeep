@@ -254,7 +254,7 @@ export function VolunteersManager({
   const [interestFilter, setInterestFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [approvalRoleEdits, setApprovalRoleEdits] = useState<Record<string, VolunteerRole[]>>({});
-  const [additionalRoleEdits, setAdditionalRoleEdits] = useState<Record<string, VolunteerRole[]>>({});
+  const [managedRoleEdits, setManagedRoleEdits] = useState<Record<string, VolunteerRole[]>>({});
   const [actionError, setActionError] = useState<string | null>(null);
   const [actingId, setActingId] = useState<string | null>(null);
   const [updatingField, setUpdatingField] = useState<string | null>(null);
@@ -356,13 +356,13 @@ export function VolunteersManager({
     });
   }
 
-  function additionalRolesForApp(appId: string): VolunteerRole[] {
-    return additionalRoleEdits[appId] ?? [];
+  function managedRolesForApp(appId: string, approvedRoles: VolunteerRole[]): VolunteerRole[] {
+    return managedRoleEdits[appId] ?? approvedRoles;
   }
 
-  function toggleAdditionalRole(appId: string, role: VolunteerRole) {
-    setAdditionalRoleEdits((current) => {
-      const base = current[appId] ?? [];
+  function toggleManagedRole(appId: string, role: VolunteerRole, approvedRoles: VolunteerRole[]) {
+    setManagedRoleEdits((current) => {
+      const base = current[appId] ?? approvedRoles;
       const next = base.includes(role)
         ? base.filter((entry) => entry !== role)
         : [...base, role];
@@ -531,7 +531,7 @@ export function VolunteersManager({
   function closeReviewDialog() {
     setReviewingApplicationId(null);
     setReviewTeamId("none");
-    setAdditionalRoleEdits({});
+    setManagedRoleEdits({});
     setContactEdits({});
     setApplicationPatches({});
     setRoleRequestPatches({});
@@ -898,45 +898,78 @@ export function VolunteersManager({
     setReviewingApplicationId(null);
   }
 
-  async function handleGrantAdditionalRoles(
+  async function handleSaveManagedRoles(
     app: VolunteerApplication,
     context: ApplicationReviewContext
   ) {
-    const rolesToGrant = additionalRolesForApp(app.id);
-    if (rolesToGrant.length === 0) {
-      showActionError("Select at least one new role to grant.");
+    const linkedProfile = context.linkedProfile;
+    if (!linkedProfile) {
+      showActionError("This volunteer does not have a login profile yet.");
       return;
     }
 
-    if (!additionalRolesReady(app, context, rolesToGrant)) {
+    const requestedRoles = managedRolesForApp(app.id, context.approvedRoles);
+    const currentRoles = context.approvedRoles;
+    const addedRoles = requestedRoles.filter((role) => !currentRoles.includes(role));
+    const removedRoles = currentRoles.filter((role) => !requestedRoles.includes(role));
+
+    if (addedRoles.length === 0 && removedRoles.length === 0) {
+      showActionError("No role changes to save.");
+      return;
+    }
+
+    const additionsReady =
+      addedRoles.length === 0 || additionalRolesReady(app, context, addedRoles);
+
+    // Removals are always allowed, even when training is still pending for other roles.
+    // If new roles are selected but not training-ready, save removals only and keep the
+    // incomplete additions selected for later.
+    const nextRoles = additionsReady
+      ? requestedRoles
+      : currentRoles.filter((role) => requestedRoles.includes(role));
+
+    if (!additionsReady && removedRoles.length === 0) {
       showActionError("Complete training requirements before granting new roles.");
       return;
     }
 
     clearActionError();
     setActingId(app.id);
-    const response = await fetch("/api/volunteers/grant-roles", {
+
+    const response = await fetch("/api/admin/profiles/update", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        applicationId: app.id,
-        volunteer_roles: rolesToGrant,
-        admin_notes: notesForApp(app) || null,
+        userId: linkedProfile.id,
+        volunteer_roles: nextRoles,
       }),
     });
     const result = await response.json().catch(() => null);
     setActingId(null);
+
     if (!response.ok) {
-      showActionError(getApiErrorMessage(result, "Unable to grant volunteer roles"));
+      showActionError(getApiErrorMessage(result, "Unable to update volunteer roles"));
       return;
     }
 
-    setAdditionalRoleEdits((current) => {
-      const next = { ...current };
-      delete next[app.id];
-      return next;
-    });
-    clearActionError();
+    if (additionsReady) {
+      setManagedRoleEdits((current) => {
+        const next = { ...current };
+        delete next[app.id];
+        return next;
+      });
+      clearActionError();
+    } else {
+      // Keep incomplete additions selected against the updated approved set.
+      setManagedRoleEdits((current) => ({
+        ...current,
+        [app.id]: [...nextRoles, ...addedRoles],
+      }));
+      showActionError(
+        "Removed role(s) saved. Complete training before the newly selected role(s) can be granted."
+      );
+    }
+
     router.refresh();
   }
 
@@ -1129,21 +1162,14 @@ export function VolunteersManager({
     const showApprovedVolunteerManagement =
       app.status === "approved" && Boolean(linkedProfile);
     const showApplicationRoleEditor = !showApprovedVolunteerManagement;
-    const additionalRoles = additionalRolesForApp(app.id);
-    const availableAdditionalRoles = filterSignupRoleDescriptions(
-      applicationRoleOptions,
-      app.birthday
-    ).filter(
-      (entry) =>
-        !approvedRoles.includes(entry.role_id) && !context.newRoles.includes(entry.role_id)
-    );
+    const managedRoles = managedRolesForApp(app.id, approvedRoles);
     const expansionRequirementFields = isRoleExpansion
       ? requirementFieldsForRoles(selectedApprovalRoles, roleCatalog)
       : relevantRequirementFields;
     const trainingManagementRoles = Array.from(
       new Set([
         ...selectedApprovalRoles,
-        ...additionalRoles,
+        ...managedRoles,
         ...approvedRoles,
       ])
     ) as VolunteerRole[];
@@ -1431,70 +1457,88 @@ export function VolunteersManager({
             <div className="space-y-1">
               <p className="text-sm font-medium">Volunteer interests</p>
               <p className="text-xs text-muted-foreground">
-                Grant additional roles after verifying training requirements below.
+                Uncheck a role to remove it anytime — including when training is still pending.
+                New roles still need training verified below before they can be granted.
               </p>
             </div>
 
-            {approvedRoles.length > 0 && (
-              <div className="flex flex-wrap gap-1">
-                {approvedRoles.map((role) => (
-                  <Badge key={role} variant="secondary">
-                    {roleLabel(role)}
-                  </Badge>
-                ))}
-              </div>
-            )}
+            {(() => {
+              const managedRoles = managedRolesForApp(app.id, approvedRoles);
+              const managedEntries = filterSignupRoleDescriptions(
+                applicationRoleOptions,
+                app.birthday
+              );
+              const addedRoles = managedRoles.filter((role) => !approvedRoles.includes(role));
+              const removedRoles = approvedRoles.filter((role) => !managedRoles.includes(role));
+              const rolesDirty = addedRoles.length > 0 || removedRoles.length > 0;
+              const additionsReady =
+                addedRoles.length === 0 ||
+                additionalRolesReady(app, context, addedRoles);
+              const canSaveRemovals = removedRoles.length > 0;
+              const canSaveAll = rolesDirty && (additionsReady || canSaveRemovals);
 
-            {availableAdditionalRoles.length > 0 ? (
-              <VolunteerRoleCheckboxList
-                entries={availableAdditionalRoles}
-                selectedRoles={additionalRoles}
-                onToggle={(roleId) => toggleAdditionalRole(app.id, roleId)}
-                idPrefix={`add-role-${app.id}`}
-                roleCatalog={roleCatalog}
-                renderMeta={(entry, selected) => {
-                  if (!selected) return null;
-                  const missing = missingAdminVerifiableRequirementsForRole(
-                    entry.role_id,
-                    requirementSource,
-                    roleCatalog
-                  );
-                  if (missing.length === 0) return null;
-                  return (
-                    <p className="text-xs text-amber-900">
-                      Needs: {missing.map(requirementLabel).join(", ")}
-                    </p>
-                  );
-                }}
-              />
-            ) : (
-              <p className="text-xs text-muted-foreground">
-                This volunteer already has every available role for their age group.
-              </p>
-            )}
+              return (
+                <>
+                  <VolunteerRoleCheckboxList
+                    entries={managedEntries}
+                    selectedRoles={managedRoles}
+                    onToggle={(roleId) => toggleManagedRole(app.id, roleId, approvedRoles)}
+                    idPrefix={`manage-role-${app.id}`}
+                    roleCatalog={roleCatalog}
+                    renderMeta={(entry, selected) => {
+                      if (!selected) {
+                        if (approvedRoles.includes(entry.role_id)) {
+                          return (
+                            <p className="text-xs text-muted-foreground">
+                              Will be removed when you save
+                            </p>
+                          );
+                        }
+                        return null;
+                      }
+                      if (approvedRoles.includes(entry.role_id)) return null;
+                      const missing = missingAdminVerifiableRequirementsForRole(
+                        entry.role_id,
+                        requirementSource,
+                        roleCatalog
+                      );
+                      if (missing.length === 0) {
+                        return <p className="text-xs text-emerald-800">Ready to grant</p>;
+                      }
+                      return (
+                        <p className="text-xs text-amber-900">
+                          Needs: {missing.map(requirementLabel).join(", ")}
+                        </p>
+                      );
+                    }}
+                  />
 
-            {additionalRoles.length > 0 && (
-              <div className="flex flex-wrap items-center gap-2 border-t pt-3">
-                <Button
-                  size="sm"
-                  disabled={
-                    actingId === app.id ||
-                    !additionalRolesReady(app, context, additionalRoles)
-                  }
-                  onClick={() => handleGrantAdditionalRoles(app, context)}
-                >
-                  <Check className="h-4 w-4 mr-1" />
-                  {actingId === app.id
-                    ? "Working..."
-                    : `Grant ${additionalRoles.length} role${additionalRoles.length === 1 ? "" : "s"}`}
-                </Button>
-                {!additionalRolesReady(app, context, additionalRoles) && (
-                  <p className="text-xs text-amber-800">
-                    Check off required training above before granting new roles.
-                  </p>
-                )}
-              </div>
-            )}
+                  {rolesDirty && (
+                    <div className="flex flex-wrap items-center gap-2 border-t pt-3">
+                      <Button
+                        size="sm"
+                        disabled={actingId === app.id || !canSaveAll}
+                        onClick={() => handleSaveManagedRoles(app, context)}
+                      >
+                        <Check className="h-4 w-4 mr-1" />
+                        {actingId === app.id
+                          ? "Working..."
+                          : additionsReady
+                            ? "Save role changes"
+                            : "Save role removals"}
+                      </Button>
+                      {!additionsReady && addedRoles.length > 0 && (
+                        <p className="text-xs text-amber-800">
+                          {canSaveRemovals
+                            ? "New roles still need training. Saving now will remove unchecked roles only."
+                            : "Check off required training above before granting new roles."}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </>
+              );
+            })()}
           </div>
         )}
 
@@ -1667,7 +1711,8 @@ export function VolunteersManager({
                 className={`text-sm ${
                   actionError.startsWith("Volunteer approved") ||
                   actionError.includes("Temporary password") ||
-                  actionError.includes("Password reset")
+                  actionError.includes("Password reset") ||
+                  actionError.startsWith("Removed role")
                     ? "text-orange-700"
                     : "text-destructive"
                 }`}
@@ -1929,7 +1974,8 @@ export function VolunteersManager({
           className={`rounded-md border px-4 py-3 text-sm ${
             actionError.startsWith("Volunteer approved") ||
             actionError.includes("Temporary password") ||
-            actionError.includes("Password reset")
+            actionError.includes("Password reset") ||
+            actionError.startsWith("Removed role")
               ? "border-orange-200 bg-orange-50 text-orange-900"
               : "border-destructive/30 bg-destructive/10 text-destructive"
           }`}
