@@ -18,6 +18,7 @@ import {
   Heart,
   Stethoscope,
   Handshake,
+  ChevronDown,
   Menu,
   X,
   BookOpen,
@@ -32,7 +33,7 @@ import { getProfilePermissions } from "@/lib/permissions";
 import { useTutorialNavigation } from "@/components/platform-tutorial/tutorial-navigation-context";
 import { Z_INDEX } from "@/lib/z-index";
 import type { Profile, RoleDescription } from "@/lib/types";
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { BrandMark } from "@/components/branding/brand-mark";
 import { LogoutButton } from "@/components/layout/logout-button";
@@ -42,6 +43,46 @@ import { useAdoptionApplicationsNavIndicator } from "@/components/layout/use-ado
 import { useTeamFeedNavIndicator } from "@/components/layout/use-team-feed-nav-indicator";
 import type { AdoptionApplicationsActivity } from "@/lib/adoption/activity";
 import type { TeamFeedActivity } from "@/lib/team-feed/activity";
+
+const NAV_COLLAPSED_STORAGE_PREFIX = "sidebar-nav-collapsed";
+
+function navCollapsedStorageKey(profileId: string | null | undefined) {
+  return profileId
+    ? `${NAV_COLLAPSED_STORAGE_PREFIX}-${profileId}`
+    : NAV_COLLAPSED_STORAGE_PREFIX;
+}
+
+function readCollapsedGroups(profileId: string | null | undefined): Record<string, true> {
+  if (typeof window === "undefined") return {};
+  try {
+    const raw = window.localStorage.getItem(navCollapsedStorageKey(profileId));
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return {};
+    const next: Record<string, true> = {};
+    for (const id of parsed) {
+      if (typeof id === "string" && id) next[id] = true;
+    }
+    return next;
+  } catch {
+    return {};
+  }
+}
+
+function writeCollapsedGroups(
+  profileId: string | null | undefined,
+  collapsed: Record<string, true>
+) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(
+      navCollapsedStorageKey(profileId),
+      JSON.stringify(Object.keys(collapsed))
+    );
+  } catch {
+    // Ignore quota / private-mode failures.
+  }
+}
 
 interface NavItem {
   href: string;
@@ -170,6 +211,7 @@ export function Sidebar({
 }: SidebarProps) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [collapsedGroups, setCollapsedGroups] = useState<Record<string, true>>({});
   const { highlightedNav, tourActive } = useTutorialNavigation();
   const showTeamFeedIndicator = useTeamFeedNavIndicator(teamFeedActivity, profile?.id);
   const showAdoptionApplicationsIndicator = useAdoptionApplicationsNavIndicator(
@@ -181,6 +223,20 @@ export function Sidebar({
   const allowedRoutes = permissions?.routes ?? [];
   const visibleGroups = visibleNavGroups(allowedRoutes);
   const visibleHrefs = visibleGroups.flatMap((group) => group.items.map((item) => item.href));
+
+  useEffect(() => {
+    setCollapsedGroups(readCollapsedGroups(profile?.id));
+  }, [profile?.id]);
+
+  function toggleGroupCollapsed(groupId: string) {
+    setCollapsedGroups((current) => {
+      const next = { ...current };
+      if (next[groupId]) delete next[groupId];
+      else next[groupId] = true;
+      writeCollapsedGroups(profile?.id, next);
+      return next;
+    });
+  }
 
   useEffect(() => {
     if (!tourActive || !highlightedNav || highlightedNav === "sidebar") return;
@@ -206,49 +262,90 @@ export function Sidebar({
         )}
       >
         <div className="flex flex-col gap-4">
-          {visibleGroups.map((group) => (
-            <div key={group.id} className="flex flex-col gap-1">
-              <p className="px-3 pb-0.5 text-[11px] font-semibold uppercase tracking-wide text-sidebar-foreground/45">
-                {group.label}
-              </p>
-              {group.items.map((item) => {
-                const Icon = item.icon;
-                const active = isNavItemActive(pathname, item.href, visibleHrefs);
-                const tourHighlight = tourActive && highlightedNav === item.href;
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    data-tutorial-nav={item.href}
-                    onClick={() => setMobileOpen(false)}
+          {visibleGroups.map((group) => {
+            const tourForceOpen =
+              tourActive &&
+              Boolean(
+                highlightedNav &&
+                  highlightedNav !== "sidebar" &&
+                  group.items.some((item) => item.href === highlightedNav)
+              );
+            const collapsed = Boolean(collapsedGroups[group.id]) && !tourForceOpen;
+            const hasActiveItem = group.items.some((item) =>
+              isNavItemActive(pathname, item.href, visibleHrefs)
+            );
+            const hasUnreadIndicator = group.items.some(
+              (item) =>
+                (item.href === "/team-feed" && showTeamFeedIndicator) ||
+                (item.href === "/adoption/applications" && showAdoptionApplicationsIndicator)
+            );
+
+            return (
+              <div key={group.id} className="flex flex-col gap-1">
+                <button
+                  type="button"
+                  onClick={() => toggleGroupCollapsed(group.id)}
+                  aria-expanded={!collapsed}
+                  className={cn(
+                    "flex w-full items-center gap-1 rounded-md px-3 py-1 text-left text-[11px] font-semibold uppercase tracking-wide text-sidebar-foreground/45 transition-colors hover:bg-sidebar-accent/60 hover:text-sidebar-foreground/70",
+                    collapsed && hasActiveItem && "text-sidebar-foreground/70"
+                  )}
+                >
+                  <span className="min-w-0 flex-1">{group.label}</span>
+                  {collapsed && (hasActiveItem || hasUnreadIndicator) && (
+                    <span
+                      className="h-1.5 w-1.5 shrink-0 rounded-full bg-primary"
+                      aria-hidden
+                    />
+                  )}
+                  <ChevronDown
                     className={cn(
-                      "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
-                      active
-                        ? "bg-primary text-primary-foreground"
-                        : "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground",
-                      tourHighlight &&
-                        "ring-2 ring-amber-400 ring-offset-2 ring-offset-sidebar shadow-md animate-pulse"
+                      "h-3.5 w-3.5 shrink-0 transition-transform",
+                      collapsed && "-rotate-90"
                     )}
-                  >
-                    <Icon className="h-4 w-4 shrink-0" />
-                    <span className="min-w-0 flex-1">{item.label}</span>
-                    {item.href === "/team-feed" && showTeamFeedIndicator && (
-                      <span
-                        className="h-1.5 w-1.5 shrink-0 rounded-full bg-pink-400/75"
-                        aria-label="New team feed activity"
-                      />
-                    )}
-                    {item.href === "/adoption/applications" && showAdoptionApplicationsIndicator && (
-                      <span
-                        className="h-1.5 w-1.5 shrink-0 rounded-full bg-pink-400/75"
-                        aria-label="New adoption application"
-                      />
-                    )}
-                  </Link>
-                );
-              })}
-            </div>
-          ))}
+                  />
+                </button>
+                {!collapsed &&
+                  group.items.map((item) => {
+                    const Icon = item.icon;
+                    const active = isNavItemActive(pathname, item.href, visibleHrefs);
+                    const tourHighlight = tourActive && highlightedNav === item.href;
+                    return (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        data-tutorial-nav={item.href}
+                        onClick={() => setMobileOpen(false)}
+                        className={cn(
+                          "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                          active
+                            ? "bg-primary text-primary-foreground"
+                            : "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground",
+                          tourHighlight &&
+                            "ring-2 ring-amber-400 ring-offset-2 ring-offset-sidebar shadow-md animate-pulse"
+                        )}
+                      >
+                        <Icon className="h-4 w-4 shrink-0" />
+                        <span className="min-w-0 flex-1">{item.label}</span>
+                        {item.href === "/team-feed" && showTeamFeedIndicator && (
+                          <span
+                            className="h-1.5 w-1.5 shrink-0 rounded-full bg-pink-400/75"
+                            aria-label="New team feed activity"
+                          />
+                        )}
+                        {item.href === "/adoption/applications" &&
+                          showAdoptionApplicationsIndicator && (
+                            <span
+                              className="h-1.5 w-1.5 shrink-0 rounded-full bg-pink-400/75"
+                              aria-label="New adoption application"
+                            />
+                          )}
+                      </Link>
+                    );
+                  })}
+              </div>
+            );
+          })}
         </div>
       </div>
 
