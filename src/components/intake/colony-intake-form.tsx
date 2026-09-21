@@ -409,8 +409,7 @@ export function ColonyIntakeForm() {
             <div className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-left text-sm text-amber-950 space-y-2">
               <p className="font-semibold">Please save this case number</p>
               <p className="leading-relaxed">
-                Write it down or take a screenshot. Our team uses this case number to track your
-                colony report — you&apos;ll need it if you contact us about this request.
+              Our volunteer team uses this case number to track your colony submission, so please reference it as volunteers work with you on this case.
               </p>
             </div>
           </CardContent>
@@ -428,7 +427,7 @@ export function ColonyIntakeForm() {
           </Link>
           <h1 className="text-xl font-bold sm:text-2xl">Report a Cat Colony in Mecklenburg County</h1>
           <p className="text-muted-foreground mt-1">
-            We currently serve colonies in Mecklenburg County, NC. Your report goes to our team.
+            We currently serve colonies in Mecklenburg County, NC. Your report goes to our team of volunteers.
           </p>
           <p className="mx-auto mt-3 max-w-xl text-sm leading-relaxed text-foreground/80">
             {INTAKE_COMMUNICATIONS_NOTICE}
@@ -814,7 +813,7 @@ export function ColonyIntakeForm() {
                 </div>
                 {showFeederPreview && feederPreview && (
                   <div className="rounded-md border bg-muted/30 p-3 text-sm space-y-1">
-                    <p className="font-medium">Colony feeder (for our map)</p>
+                    <p className="font-medium">Colony feeder</p>
                     <p className="text-muted-foreground">
                       We&apos;ll save this from your contact info — no need to enter it again.
                     </p>

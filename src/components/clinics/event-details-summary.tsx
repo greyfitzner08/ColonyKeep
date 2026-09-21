@@ -56,7 +56,7 @@ export function EventDetailsSummary({
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-300" />
           <p>
             <span className="font-semibold">Cats must already be in a trap. </span>
-            Only claim a spot once you for certain have them secured. No-shows lose future clinic
+            Only claim a spot once you for certain have a cat secured. No-shows lose future clinic
             privileges.
           </p>
         </div>

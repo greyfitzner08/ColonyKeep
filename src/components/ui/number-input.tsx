@@ -83,6 +83,14 @@ export const NumberInput = React.forwardRef<HTMLInputElement, NumberInputProps>(
           }
           const parsed = parseRaw(raw, integer);
           if (parsed == null) return;
+          // Integers can clamp while typing (avoids invalid 0 with min={1}).
+          // Decimals stay unclamped until blur so values like "0.5" can be entered.
+          if (integer) {
+            const next = clamp(parsed, min, max);
+            setDraft(String(next));
+            onValueChange(next);
+            return;
+          }
           onValueChange(parsed);
         }}
         onBlur={(event) => {
