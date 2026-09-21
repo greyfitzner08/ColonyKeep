@@ -72,18 +72,24 @@ export function AddressAutocomplete({
   const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const lastDefaultRef = useRef(defaultValue);
   const selectingRef = useRef(false);
-  /** After a suggestion is chosen, ignore autocomplete until the user types again. */
-  const suppressSuggestionsRef = useRef(false);
+  /** Skip autocomplete while the field already has a resolved address, until the user edits it. */
+  const suppressSuggestionsRef = useRef(Boolean(defaultValue.trim()));
   const inputRef = useRef<HTMLInputElement>(null);
   const rootRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (selectingRef.current || suppressSuggestionsRef.current) {
+    if (selectingRef.current) {
       lastDefaultRef.current = defaultValue;
       return;
     }
     if (defaultValue !== lastDefaultRef.current && defaultValue !== query) {
       setQuery(defaultValue);
+      if (defaultValue.trim()) {
+        suppressSuggestionsRef.current = true;
+        setPredictions([]);
+        setStatusError(null);
+        setOpen(false);
+      }
     }
     lastDefaultRef.current = defaultValue;
   }, [defaultValue, query]);
@@ -91,6 +97,9 @@ export function AddressAutocomplete({
   useEffect(() => {
     if (selectingRef.current || suppressSuggestionsRef.current) {
       clearTimeout(debounceRef.current);
+      setPredictions([]);
+      setStatusError(null);
+      setOpen(false);
       return;
     }
     if (query.length < 3) {
