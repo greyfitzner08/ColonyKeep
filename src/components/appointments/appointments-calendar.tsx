@@ -22,7 +22,6 @@ import { AppointmentDetailDialog } from "@/components/appointments/appointment-d
 import { APPOINTMENT_STATUS_COLORS } from "@/lib/constants";
 import {
   APPOINTMENT_WEEKDAY_LABELS,
-  appointmentDateKey,
   buildMonthGrid,
   groupAppointmentsByDate,
   monthLabel,
