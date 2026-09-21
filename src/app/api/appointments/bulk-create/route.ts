@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAppointmentManager } from "@/lib/api/auth";
+import { requireApiRole } from "@/lib/api/auth";
 import { createServiceClient } from "@/lib/supabase/server";
 
 function normalizeDateKey(value: unknown): string | null {
@@ -10,7 +10,7 @@ function normalizeDateKey(value: unknown): string | null {
 }
 
 export async function POST(request: NextRequest) {
-  const { response } = await requireAppointmentManager();
+  const { response } = await requireApiRole(["admin"]);
   if (response) return response;
 
   const body = await request.json();

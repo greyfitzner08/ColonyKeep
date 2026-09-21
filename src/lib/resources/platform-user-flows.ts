@@ -84,7 +84,7 @@ Dashboard shows team cases, personally claimed cases, shifts, pending clinic fol
 3. Advance workflow (routed → claimed → appointment needed/reserved → complete).
 4. **Hotspots** for route/colony planning.
 5. **Equipment** — check traps in/out (doesn’t auto-return when a case closes).
-6. **Appointments** — reserve slots, link cases/cats; log clinic results after.
+6. **Appointments** — reserve open slots for cases (admins add slots to the schedule); log clinic results after.
 7. **Shift Board** for event staffing; **Team Directory** for teammates.
 
 ### Caseload management

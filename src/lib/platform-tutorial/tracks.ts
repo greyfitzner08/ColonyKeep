@@ -260,10 +260,10 @@ const CLINIC_TRACK: AdvancedTutorialTrack = {
       id: "adv-clinic-appointments",
       title: "Manage the appointments calendar",
       description:
-        "Create or release slots and help teams reserve time for case cats. Holds and confirmations here are what transporters plan around.",
+        "As an admin, create clinic slots on the calendar and help teams reserve them for case cats. TNVR users can reserve existing slots but cannot add new ones.",
       icon: Calendar,
       navHref: "/appointments",
-      flowNote: "Clinics → slots → reserved appointments → case transport plans.",
+      flowNote: "Clinics → admin creates slots → teams reserve → case transport plans.",
     }),
     step({
       id: "adv-clinic-events",

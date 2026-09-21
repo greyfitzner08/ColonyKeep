@@ -71,6 +71,8 @@ interface AppointmentsCalendarProps {
   /** Pre-link claims to this case (e.g. from /appointments?caseId=…) */
   linkedHelpRequest?: HelpRequestOption | null;
   linkedCats?: Cat[];
+  /** Admins can add schedule slots; TNVR team can only reserve existing ones. */
+  canAddAppointments?: boolean;
 }
 
 export function AppointmentsCalendar({
@@ -79,6 +81,7 @@ export function AppointmentsCalendar({
   helpRequests,
   linkedHelpRequest = null,
   linkedCats = [],
+  canAddAppointments = false,
 }: AppointmentsCalendarProps) {
   const router = useRouter();
   const [view, setView] = useState<"month" | "list">("month");
@@ -191,6 +194,7 @@ export function AppointmentsCalendar({
   }
 
   function openAddDialog() {
+    if (!canAddAppointments) return;
     setAddError(null);
     setAddForm(EMPTY_ADD_FORM);
     setAddDialog(true);
@@ -207,6 +211,10 @@ export function AppointmentsCalendar({
   }
 
   async function createAppointments() {
+    if (!canAddAppointments) {
+      setAddError("Only administrators can add appointments to the schedule.");
+      return;
+    }
     const clinic = clinics.find((c) => c.id === addForm.clinic_id);
     if (!clinic) {
       setAddError("Select a clinic.");
@@ -311,10 +319,12 @@ export function AppointmentsCalendar({
           <Button variant={view === "list" ? "default" : "outline"} size="sm" onClick={() => setView("list")}>List</Button>
           <Button variant={view === "month" ? "default" : "outline"} size="sm" onClick={() => setView("month")}>Month</Button>
         </div>
-        <Button size="sm" onClick={openAddDialog}>
-          <Plus className="mr-1.5 h-4 w-4" />
-          Add appointments
-        </Button>
+        {canAddAppointments ? (
+          <Button size="sm" onClick={openAddDialog}>
+            <Plus className="mr-1.5 h-4 w-4" />
+            Add appointments
+          </Button>
+        ) : null}
       </div>
 
       <div className="flex flex-wrap gap-3">

@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { getAppProfile } from "@/lib/auth";
 import { AppointmentsCalendar } from "@/components/appointments/appointments-calendar";
 import { PageHeader } from "@/components/layout/page-header";
 import type { Appointment, Clinic, Cat } from "@/lib/types";
@@ -10,6 +11,8 @@ interface AppointmentsPageProps {
 export default async function AppointmentsPage({ searchParams }: AppointmentsPageProps) {
   const params = await searchParams;
   const supabase = await createClient();
+  const profile = await getAppProfile();
+  const canAddAppointments = profile?.role === "admin";
 
   const [
     { data: appointments },
@@ -48,6 +51,7 @@ export default async function AppointmentsPage({ searchParams }: AppointmentsPag
         helpRequests={helpRequests ?? []}
         linkedHelpRequest={linkedHelpRequest}
         linkedCats={(linkedCats ?? []) as Cat[]}
+        canAddAppointments={canAddAppointments}
       />
     </div>
   );
