@@ -176,10 +176,7 @@ export async function POST(request: NextRequest) {
       const { error: profileUpdateError } = await service
         .from("profiles")
         .update({
-          role:
-            platformRole && isKnownUserRole(platformRole)
-              ? platformRole
-              : existingProfile.role || "volunteer",
+          role: resolvedPlatformRole,
           full_name: application.full_name,
           birthday: application.birthday ?? null,
           phone: application.phone ?? null,

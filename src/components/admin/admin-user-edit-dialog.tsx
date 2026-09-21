@@ -70,7 +70,7 @@ export function AdminUserEditDialog({
     [roleCatalog]
   );
 
-  const [platformRole, setPlatformRole] = useState<UserRole | "none">("none");
+  const [platformRole, setPlatformRole] = useState<UserRole | "none">("volunteer");
   const [contact, setContact] = useState<VolunteerContactFormValues>(emptyVolunteerContactFormValues());
   const [teamId, setTeamId] = useState<string>("none");
   const [volunteerRoles, setVolunteerRoles] = useState<VolunteerRole[]>([]);
@@ -79,7 +79,7 @@ export function AdminUserEditDialog({
 
   useEffect(() => {
     if (!user) return;
-    setPlatformRole(isKnownUserRole(user.role) ? user.role : "none");
+    setPlatformRole(isKnownUserRole(user.role) ? user.role : "volunteer");
     setContact({
       full_name: user.full_name ?? "",
       email: user.email,

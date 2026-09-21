@@ -233,7 +233,7 @@ export function VolunteersManager({
   const [resettingPasswordId, setResettingPasswordId] = useState<string | null>(null);
   const [contactEdits, setContactEdits] = useState<Record<string, VolunteerContactFormValues>>({});
   const [pendingReviewId, setPendingReviewId] = useState<string | null>(null);
-  const [reviewPlatformRole, setReviewPlatformRole] = useState<UserRole | "none">("none");
+  const [reviewPlatformRole, setReviewPlatformRole] = useState<UserRole | "none">("volunteer");
   const [reviewTeamId, setReviewTeamId] = useState("none");
   const [duplicatesOpen, setDuplicatesOpen] = useState(false);
   const [accountMergeOpen, setAccountMergeOpen] = useState(false);
