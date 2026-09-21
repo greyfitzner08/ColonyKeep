@@ -133,7 +133,7 @@ export function ClinicsManager({ clinics: initial }: ClinicsManagerProps) {
           <div className="space-y-4">
             <div className="space-y-2"><Label>Name</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
             <AddressAutocomplete
-              label="Address"
+              label="Address (optional)"
               defaultValue={form.address}
               onAddressChange={(address) => setForm({ ...form, address })}
               onSelect={(parts) =>
@@ -143,7 +143,7 @@ export function ClinicsManager({ clinics: initial }: ClinicsManagerProps) {
                 })
               }
             />
-            <div className="space-y-2"><Label>Phone</Label><Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></div>
+            <div className="space-y-2"><Label>Phone (optional)</Label><Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></div>
             <div className="space-y-2">
               <Label>Operating Days</Label>
               <div className="flex flex-wrap gap-2">

@@ -15,8 +15,8 @@ export async function POST(request: NextRequest) {
   const service = await createServiceClient();
   const payload = {
     name: body.name,
-    address: body.address,
-    phone: body.phone,
+    address: typeof body.address === "string" ? body.address.trim() : "",
+    phone: typeof body.phone === "string" ? body.phone.trim() : "",
     operating_days: body.operating_days ?? [],
     slots_per_day: body.slots_per_day ?? 0,
     slots_by_day: body.slots_by_day ?? {},

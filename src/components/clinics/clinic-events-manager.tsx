@@ -213,10 +213,6 @@ export function ClinicEventsManager({ events, clinics, bookings }: ClinicEventsM
       setError("Enter a clinic name.");
       return;
     }
-    if (!address) {
-      setError("Enter a clinic address.");
-      return;
-    }
 
     setError(null);
     setSavingClinic(true);
@@ -605,7 +601,7 @@ export function ClinicEventsManager({ events, clinics, bookings }: ClinicEventsM
           </div>
           <AddressAutocomplete
             key={newClinicKey}
-            label="Address"
+            label="Address (optional)"
             defaultValue={newClinic.address}
             onAddressChange={(address) => setNewClinic((current) => ({ ...current, address }))}
             onSelect={(parts) =>
@@ -616,7 +612,7 @@ export function ClinicEventsManager({ events, clinics, bookings }: ClinicEventsM
             }
           />
           <div className="space-y-1">
-            <Label htmlFor="inline-clinic-phone">Phone</Label>
+            <Label htmlFor="inline-clinic-phone">Phone (optional)</Label>
             <Input
               id="inline-clinic-phone"
               value={newClinic.phone}
