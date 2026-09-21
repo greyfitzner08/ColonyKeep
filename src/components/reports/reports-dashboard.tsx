@@ -14,7 +14,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { NewsletterSignupPanel } from "@/components/reports/newsletter-signup-panel";
+import { PivotReportBuilder } from "@/components/reports/pivot-report-builder";
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import {
   DEFAULT_REPORT_FILTERS,
@@ -190,18 +192,38 @@ export function ReportsDashboard({
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Reports</h1>
-          <p className="text-muted-foreground">
-            Custom reports by ZIP, trap team, clinic, trapper, and date range.
-          </p>
-        </div>
-        <Button variant="outline" onClick={exportReport} disabled={result.rows.length === 0}>
-          <Download className="h-4 w-4 mr-2" />
-          Export CSV
-        </Button>
+      <div className="print:hidden">
+        <h1 className="text-3xl font-bold">Reports</h1>
+        <p className="text-muted-foreground">
+          Build pivot tables, run quick operational reports, and export or print results.
+        </p>
       </div>
+
+      <Tabs defaultValue="pivot" className="space-y-4 print:block">
+        <TabsList className="print:hidden grid h-auto w-full grid-cols-1 gap-1 sm:grid-cols-3">
+          <TabsTrigger value="pivot">Pivot builder</TabsTrigger>
+          <TabsTrigger value="quick">Quick reports</TabsTrigger>
+          <TabsTrigger value="newsletter">Newsletter signups</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="pivot" className="mt-0 space-y-4">
+          <PivotReportBuilder
+            helpRequests={helpRequests}
+            cats={cats}
+            clinicFixes={clinicFixes}
+            appointments={appointments}
+            teams={teams}
+            clinics={clinics}
+          />
+        </TabsContent>
+
+        <TabsContent value="quick" className="mt-0 space-y-4 print:hidden">
+          <div className="flex justify-end">
+            <Button variant="outline" onClick={exportReport} disabled={result.rows.length === 0}>
+              <Download className="h-4 w-4 mr-2" />
+              Export CSV
+            </Button>
+          </div>
 
       <Card>
         <CardHeader
@@ -421,8 +443,12 @@ export function ReportsDashboard({
           />
         </CardContent>
       </Card>
+        </TabsContent>
 
-      <NewsletterSignupPanel signups={newsletterSignups} />
+        <TabsContent value="newsletter" className="mt-0 print:hidden">
+          <NewsletterSignupPanel signups={newsletterSignups} />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

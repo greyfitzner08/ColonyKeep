@@ -159,7 +159,7 @@ export const PLATFORM_TUTORIAL_STEPS: PlatformTutorialStep[] = [
   {
     id: "reports",
     title: "Reports",
-    description: "Run operational reports on cases, teams, clinics, and volunteer activity.",
+    description: "Build pivot tables, save custom reports, and export or print operational data.",
     icon: BarChart3,
     navHref: "/reports",
     visible: (p) => p.canViewReports,

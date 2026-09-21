@@ -58,3 +58,30 @@
   word-break: break-word;
 }
 
+@media print {
+  body {
+    background: white !important;
+  }
+
+  .print\:hidden {
+    display: none !important;
+  }
+
+  aside,
+  header.fixed,
+  nav {
+    display: none !important;
+  }
+
+  main {
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  .container {
+    max-width: none !important;
+    padding: 0 !important;
+    overflow: visible !important;
+  }
+}
+
