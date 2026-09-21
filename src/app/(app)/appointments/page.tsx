@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getAppProfile } from "@/lib/auth";
 import { AppointmentsCalendar } from "@/components/appointments/appointments-calendar";
 import { PageHeader } from "@/components/layout/page-header";
+import { localDateKey } from "@/lib/appointments/slot-date";
 import type { Appointment, Clinic, Cat } from "@/lib/types";
 
 interface AppointmentsPageProps {
@@ -12,7 +13,15 @@ export default async function AppointmentsPage({ searchParams }: AppointmentsPag
   const params = await searchParams;
   const supabase = await createClient();
   const profile = await getAppProfile();
-  const canAddAppointments = profile?.role === "admin";
+  const isAdmin = profile?.role === "admin";
+  const canAddAppointments = isAdmin;
+  const todayKey = localDateKey();
+
+  let appointmentsQuery = supabase.from("appointments").select("*").order("date");
+  // TNVR team only sees today and future slots; admins keep full history.
+  if (!isAdmin) {
+    appointmentsQuery = appointmentsQuery.gte("date", todayKey);
+  }
 
   const [
     { data: appointments },
@@ -21,7 +30,7 @@ export default async function AppointmentsPage({ searchParams }: AppointmentsPag
     linkedCaseResult,
     catsResult,
   ] = await Promise.all([
-    supabase.from("appointments").select("*").order("date"),
+    appointmentsQuery,
     supabase.from("clinics").select("*").eq("is_active", true),
     supabase
       .from("help_requests")
