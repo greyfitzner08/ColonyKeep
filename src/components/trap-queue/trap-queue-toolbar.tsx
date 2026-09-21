@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { CaseQueueControls } from "@/components/cases/case-queue-controls";
 import { CaseQueueSearch } from "@/components/cases/case-queue-search";
+import { PageControlBar } from "@/components/layout/page-control-bar";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { CaseViewMode } from "@/components/cases/case-queue-view";
@@ -50,104 +51,103 @@ export function TrapQueueToolbar({
     router.push(`/trap-queue?${params.toString()}`);
   }
 
+  const activeFilterCount =
+    (showWorkHistory && scope !== "queue" ? 1 : 0) +
+    (scope !== "history" && currentView !== "all" ? 1 : 0);
+
   return (
-    <section aria-label="Queue controls" className="rounded-lg border bg-muted/20 p-4 space-y-4">
-      <div className="space-y-1.5">
-        <Label htmlFor="trap-queue-search" className="text-xs font-medium text-muted-foreground">
-          Search
-        </Label>
+    <PageControlBar
+      aria-label="Queue controls"
+      activeFilterCount={activeFilterCount}
+      search={
         <CaseQueueSearch
           id="trap-queue-search"
           value={searchQuery}
           onChange={onSearchChange}
           className="w-full max-w-none"
         />
-      </div>
+      }
+      actions={actions}
+      filters={
+        <>
+          {showWorkHistory ? (
+            <div className="space-y-1.5 min-w-0">
+              <Label htmlFor="trap-queue-scope" className="text-xs font-medium text-muted-foreground">
+                Workspace
+              </Label>
+              <Select
+                value={scope}
+                onValueChange={(value) =>
+                  updateParams((params) => {
+                    if (value === "history") {
+                      params.set("scope", "history");
+                      params.delete("view");
+                    } else {
+                      params.delete("scope");
+                    }
+                  })
+                }
+              >
+                <SelectTrigger id="trap-queue-scope" className="h-9 w-full">
+                  <SelectValue placeholder="Workspace" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="queue">Trap queue</SelectItem>
+                  <SelectItem value="history">My work history</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          ) : null}
 
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        {showWorkHistory && (
-          <div className="space-y-1.5">
-            <Label htmlFor="trap-queue-scope" className="text-xs font-medium text-muted-foreground">
-              Workspace
-            </Label>
-            <Select
-              value={scope}
-              onValueChange={(value) =>
-                updateParams((params) => {
-                  if (value === "history") {
-                    params.set("scope", "history");
-                    params.delete("view");
-                  } else {
-                    params.delete("scope");
-                  }
-                })
-              }
-            >
-              <SelectTrigger id="trap-queue-scope" className="h-9 w-full">
-                <SelectValue placeholder="Workspace" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="queue">Trap queue</SelectItem>
-                <SelectItem value="history">My work history</SelectItem>
-              </SelectContent>
-            </Select>
+          {scope !== "history" ? (
+            <div className="space-y-1.5 min-w-0">
+              <Label htmlFor="trap-queue-team" className="text-xs font-medium text-muted-foreground">
+                Team queue
+              </Label>
+              <Select
+                value={currentView}
+                onValueChange={(view) =>
+                  updateParams((params) => {
+                    if (view === "all") {
+                      params.delete("view");
+                    } else {
+                      params.set("view", view);
+                    }
+                  })
+                }
+              >
+                <SelectTrigger id="trap-queue-team" className="h-9 w-full">
+                  <SelectValue placeholder="Select queue" />
+                </SelectTrigger>
+                <SelectContent>
+                  {isTrapRole && (
+                    <SelectItem value="mine">
+                      {myTeamName ? `My Team (${myTeamName})` : "My Work"}
+                    </SelectItem>
+                  )}
+                  <SelectItem value="unassigned">No team</SelectItem>
+                  <SelectItem value="all">All Teams</SelectItem>
+                  {sortTrapTeams(teams).map((team) => (
+                    <SelectItem key={team.id} value={team.id}>
+                      {team.id === myTeamId ? `${team.name} (my team)` : team.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          ) : null}
+
+          <div className="space-y-1.5 min-w-0 sm:col-span-2 xl:min-w-[280px] xl:flex-1">
+            <p className="text-xs font-medium text-muted-foreground">Layout & sort</p>
+            <CaseQueueControls
+              view={layout}
+              sort={sort}
+              onViewChange={onLayoutChange}
+              onSortChange={onSortChange}
+            />
           </div>
-        )}
-
-        {scope !== "history" && (
-          <div className="space-y-1.5">
-            <Label htmlFor="trap-queue-team" className="text-xs font-medium text-muted-foreground">
-              Team queue
-            </Label>
-            <Select
-              value={currentView}
-              onValueChange={(view) =>
-                updateParams((params) => {
-                  if (view === "all") {
-                    params.delete("view");
-                  } else {
-                    params.set("view", view);
-                  }
-                })
-              }
-            >
-              <SelectTrigger id="trap-queue-team" className="h-9 w-full">
-                <SelectValue placeholder="Select queue" />
-              </SelectTrigger>
-              <SelectContent>
-                {isTrapRole && (
-                  <SelectItem value="mine">
-                    {myTeamName ? `My Team (${myTeamName})` : "My Work"}
-                  </SelectItem>
-                )}
-                <SelectItem value="unassigned">No team</SelectItem>
-                <SelectItem value="all">All Teams</SelectItem>
-                {sortTrapTeams(teams).map((team) => (
-                  <SelectItem key={team.id} value={team.id}>
-                    {team.id === myTeamId ? `${team.name} (my team)` : team.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        )}
-
-        <div className="space-y-1.5 sm:col-span-2 xl:col-span-2">
-          <p className="text-xs font-medium text-muted-foreground">Layout & sort</p>
-          <CaseQueueControls
-            view={layout}
-            sort={sort}
-            onViewChange={onLayoutChange}
-            onSortChange={onSortChange}
-          />
-        </div>
-      </div>
-
-      {actions ? (
-        <div className="flex flex-wrap items-center gap-2 border-t border-border/60 pt-3">
-          {actions}
-        </div>
-      ) : null}
-    </section>
+        </>
+      }
+    />
   );
 }

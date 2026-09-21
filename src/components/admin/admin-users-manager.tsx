@@ -4,7 +4,6 @@ import { useCallback, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -16,6 +15,7 @@ import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import { AdminUserEditDialog } from "@/components/admin/admin-user-edit-dialog";
 import { AdminUserRemoveDialog } from "@/components/admin/admin-user-remove-dialog";
 import { AdminDuplicateAccountsDialog } from "@/components/admin/admin-duplicate-accounts-dialog";
+import { ControlSearch, PageControlBar } from "@/components/layout/page-control-bar";
 import { getApiErrorMessage } from "@/lib/api/errors";
 import { ROLE_PERMISSIONS, isKnownUserRole } from "@/lib/constants";
 import {
@@ -30,7 +30,7 @@ import type {
   UserRole,
   VolunteerApplication,
 } from "@/lib/types";
-import { GitMerge, Pencil, Search, Trash2 } from "lucide-react";
+import { GitMerge, Pencil, Trash2 } from "lucide-react";
 
 interface AdminUsersManagerProps {
   users: Profile[];
@@ -274,45 +274,51 @@ export function AdminUsersManager({
     <div className="space-y-4">
       {userError && <p className="text-sm text-destructive">{userError}</p>}
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-        <div className="relative max-w-md flex-1">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
+      <PageControlBar
+        activeFilterCount={roleFilter !== "all" ? 1 : 0}
+        search={
+          <ControlSearch
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search name, email, team, or volunteer role…"
-            className="pl-9"
+            aria-label="Search users"
           />
-        </div>
-        <Select value={roleFilter} onValueChange={setRoleFilter}>
-          <SelectTrigger className="w-full sm:w-[200px]">
-            <SelectValue placeholder="Platform role" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All platform roles</SelectItem>
-            {Object.entries(ROLE_PERMISSIONS).map(([role, { label }]) => (
-              <SelectItem key={role} value={role}>
-                {label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Button
-          type="button"
-          variant="outline"
-          className="sm:ml-auto"
-          onClick={() => {
-            setUserError(null);
-            setDuplicatesOpen(true);
-          }}
-        >
-          <GitMerge className="mr-2 h-4 w-4" />
-          Find duplicates
-        </Button>
-        <p className="text-sm text-muted-foreground">
-          {filteredUsers.length} of {users.length} users
-        </p>
-      </div>
+        }
+        filters={
+          <Select value={roleFilter} onValueChange={setRoleFilter}>
+            <SelectTrigger className="h-9 w-full sm:w-[200px]">
+              <SelectValue placeholder="Platform role" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All platform roles</SelectItem>
+              {Object.entries(ROLE_PERMISSIONS).map(([role, { label }]) => (
+                <SelectItem key={role} value={role}>
+                  {label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        }
+        actions={
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              setUserError(null);
+              setDuplicatesOpen(true);
+            }}
+          >
+            <GitMerge className="mr-2 h-4 w-4" />
+            Find duplicates
+          </Button>
+        }
+        meta={
+          <>
+            {filteredUsers.length} of {users.length} users
+          </>
+        }
+      />
 
       <DataTable
         tableId="admin-users"

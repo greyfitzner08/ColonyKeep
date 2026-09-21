@@ -1,10 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Check, Copy, Search } from "lucide-react";
+import { Check, Copy } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -12,6 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { ControlSearch, PageControlBar } from "@/components/layout/page-control-bar";
 import { VOLUNTEER_ROLES } from "@/lib/constants";
 import { volunteerRoleLabel } from "@/lib/hotspots/volunteer-role-filter";
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
@@ -200,76 +200,85 @@ export function VolunteerDirectoryTable({
   }, [copiedEmail]);
 
   const filteredEmailCount = uniqueEmails(filtered).length;
+  const activeFilterCount =
+    (teamFilter !== "all" ? 1 : 0) + (roleFilter !== "all" ? 1 : 0);
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
-        <div className="relative min-w-0 flex-1 sm:max-w-sm">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
+      <PageControlBar
+        activeFilterCount={activeFilterCount}
+        search={
+          <ControlSearch
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             placeholder="Search name, email, phone, address…"
-            className="pl-9"
+            aria-label="Search team directory"
           />
-        </div>
+        }
+        filters={
+          <>
+            <Select value={teamFilter} onValueChange={setTeamFilter}>
+              <SelectTrigger className="h-9 w-full sm:w-[200px]">
+                <SelectValue placeholder="Trap team" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All teams</SelectItem>
+                <SelectItem value="unassigned">No trap team</SelectItem>
+                {teams.map((team) => (
+                  <SelectItem key={team.id} value={team.id}>
+                    {team.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
 
-        <Select value={teamFilter} onValueChange={setTeamFilter}>
-          <SelectTrigger className="w-full sm:w-[200px]">
-            <SelectValue placeholder="Trap team" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All teams</SelectItem>
-            <SelectItem value="unassigned">No trap team</SelectItem>
-            {teams.map((team) => (
-              <SelectItem key={team.id} value={team.id}>
-                {team.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        <Select value={roleFilter} onValueChange={(value) => setRoleFilter(value as VolunteerRole | "all")}>
-          <SelectTrigger className="w-full sm:w-[220px]">
-            <SelectValue placeholder="Volunteer role" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All volunteer roles</SelectItem>
-            {VOLUNTEER_ROLES.map((role) => (
-              <SelectItem key={role.value} value={role.value}>
-                {role.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-sm text-muted-foreground">
-          Showing {filtered.length} of {entries.length} team members
-        </p>
-        {isAdmin ? (
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            disabled={filteredEmailCount === 0}
-            onClick={copyAllEmails}
-          >
-            {allEmailsCopied ? (
-              <>
-                <Check className="mr-1 h-3.5 w-3.5" />
-                Copied!
-              </>
-            ) : (
-              <>
-                <Copy className="mr-1 h-3.5 w-3.5" />
-                Copy {filteredEmailCount} email{filteredEmailCount === 1 ? "" : "s"}
-              </>
-            )}
-          </Button>
-        ) : null}
-      </div>
+            <Select
+              value={roleFilter}
+              onValueChange={(value) => setRoleFilter(value as VolunteerRole | "all")}
+            >
+              <SelectTrigger className="h-9 w-full sm:w-[220px]">
+                <SelectValue placeholder="Volunteer role" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All volunteer roles</SelectItem>
+                {VOLUNTEER_ROLES.map((role) => (
+                  <SelectItem key={role.value} value={role.value}>
+                    {role.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </>
+        }
+        actions={
+          isAdmin ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={filteredEmailCount === 0}
+              onClick={copyAllEmails}
+            >
+              {allEmailsCopied ? (
+                <>
+                  <Check className="mr-1 h-3.5 w-3.5" />
+                  Copied!
+                </>
+              ) : (
+                <>
+                  <Copy className="mr-1 h-3.5 w-3.5" />
+                  Copy {filteredEmailCount} email{filteredEmailCount === 1 ? "" : "s"}
+                </>
+              )}
+            </Button>
+          ) : undefined
+        }
+        meta={
+          <>
+            Showing {filtered.length} of {entries.length} team members
+          </>
+        }
+      />
 
       <DataTable
         tableId="team-directory"

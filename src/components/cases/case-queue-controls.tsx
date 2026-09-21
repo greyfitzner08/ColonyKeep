@@ -21,7 +21,7 @@ export function CaseQueueControls({
   onSortChange,
 }: CaseQueueControlsProps) {
   return (
-    <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+    <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center">
       <div className="flex w-full items-center gap-1 rounded-lg border bg-background p-1 sm:w-fit">
         <Button
           type="button"
@@ -46,7 +46,7 @@ export function CaseQueueControls({
       </div>
 
       <Select value={sort} onValueChange={(value) => onSortChange(value as IntakeSortKey)}>
-        <SelectTrigger className="w-full sm:w-[220px]">
+        <SelectTrigger className="h-9 w-full sm:w-[220px]">
           <SelectValue placeholder="Sort by" />
         </SelectTrigger>
         <SelectContent>

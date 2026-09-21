@@ -23,6 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { ControlSearch, PageControlBar } from "@/components/layout/page-control-bar";
 import { parseEquipmentQrPayload } from "@/lib/equipment/qr-parse";
 import { sortTrapTeams } from "@/lib/trap-teams/sort-teams";
 import { volunteerDisplayName } from "@/lib/equipment/volunteers";
@@ -740,88 +741,113 @@ export function TrapEquipmentManager({
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-end gap-2">
-        <Button size="sm" variant="outline" onClick={() => setScannerOpen(true)}>
-          <QrCode className="mr-1.5 h-4 w-4" />
-          Scan QR
-        </Button>
-        <Button size="sm" onClick={openNew}>
-          <Plus className="mr-1.5 h-4 w-4" />
-          Log equipment
-        </Button>
-      </div>
-
       {rowError && <p className="text-sm text-destructive">{rowError}</p>}
 
       {rows.length === 0 ? (
-        <Card>
-          <CardContent className="py-10 text-center text-muted-foreground">
-            No equipment logged yet. Scan a trap QR code or add traps, scanners, and other field
-            gear for your team.
-          </CardContent>
-        </Card>
+        <>
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <Button size="sm" variant="outline" onClick={() => setScannerOpen(true)}>
+              <QrCode className="mr-1.5 h-4 w-4" />
+              Scan QR
+            </Button>
+            <Button size="sm" onClick={openNew}>
+              <Plus className="mr-1.5 h-4 w-4" />
+              Log equipment
+            </Button>
+          </div>
+          <Card>
+            <CardContent className="py-10 text-center text-muted-foreground">
+              No equipment logged yet. Scan a trap QR code or add traps, scanners, and other field
+              gear for your team.
+            </CardContent>
+          </Card>
+        </>
       ) : (
         <div className="space-y-3">
-          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
-            <Input
-              id="equipment-search"
-              className="h-9 w-full min-w-0 flex-1 sm:min-w-[200px] sm:max-w-xs"
-              placeholder="Search label, location, volunteer, borrower…"
-              value={searchQuery}
-              onChange={(event) => setSearchQuery(event.target.value)}
-            />
-            {isAdmin && teams.length > 0 && (
-              <Select value={filterTeamId} onValueChange={setFilterTeamId}>
-                <SelectTrigger className="h-9 w-full sm:w-[150px]">
-                  <SelectValue placeholder="All teams" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All teams</SelectItem>
-                  {sortTrapTeams(teams).map((team) => (
-                    <SelectItem key={team.id} value={team.id}>
-                      {team.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
-            <Select value={filterType} onValueChange={setFilterType}>
-              <SelectTrigger className="h-9 w-full sm:w-[150px]">
-                <SelectValue placeholder="All types" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All types</SelectItem>
-                {TRAP_EQUIPMENT_TYPES.map((entry) => (
-                  <SelectItem key={entry.value} value={entry.value}>
-                    {entry.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={filterStatus} onValueChange={setFilterStatus}>
-              <SelectTrigger className="h-9 w-full sm:w-[140px]">
-                <SelectValue placeholder="All statuses" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All statuses</SelectItem>
-                {TRAP_EQUIPMENT_STATUSES.map((entry) => (
-                  <SelectItem key={entry.value} value={entry.value}>
-                    {entry.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {filtersActive && (
-              <Button variant="ghost" size="sm" className="h-9" onClick={clearFilters}>
-                Clear
-              </Button>
-            )}
-          </div>
-
-          <p className="text-xs text-muted-foreground">
-            {displayRows.length} of {rows.length} items
-            {filtersActive ? " · filtered" : ""}
-          </p>
+          <PageControlBar
+            activeFilterCount={
+              (filterTeamId !== "all" ? 1 : 0) +
+              (filterType !== "all" ? 1 : 0) +
+              (filterStatus !== "all" ? 1 : 0)
+            }
+            search={
+              <ControlSearch
+                id="equipment-search"
+                placeholder="Search label, location, volunteer, borrower…"
+                value={searchQuery}
+                onChange={(event) => setSearchQuery(event.target.value)}
+                aria-label="Search equipment"
+              />
+            }
+            filters={
+              <>
+                {isAdmin && teams.length > 0 ? (
+                  <Select value={filterTeamId} onValueChange={setFilterTeamId}>
+                    <SelectTrigger className="h-9 w-full sm:w-[150px]">
+                      <SelectValue placeholder="All teams" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All teams</SelectItem>
+                      {sortTrapTeams(teams).map((team) => (
+                        <SelectItem key={team.id} value={team.id}>
+                          {team.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : null}
+                <Select value={filterType} onValueChange={setFilterType}>
+                  <SelectTrigger className="h-9 w-full sm:w-[150px]">
+                    <SelectValue placeholder="All types" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All types</SelectItem>
+                    {TRAP_EQUIPMENT_TYPES.map((entry) => (
+                      <SelectItem key={entry.value} value={entry.value}>
+                        {entry.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={filterStatus} onValueChange={setFilterStatus}>
+                  <SelectTrigger className="h-9 w-full sm:w-[140px]">
+                    <SelectValue placeholder="All statuses" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All statuses</SelectItem>
+                    {TRAP_EQUIPMENT_STATUSES.map((entry) => (
+                      <SelectItem key={entry.value} value={entry.value}>
+                        {entry.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {filtersActive ? (
+                  <Button variant="ghost" size="sm" className="h-9" onClick={clearFilters}>
+                    Clear
+                  </Button>
+                ) : null}
+              </>
+            }
+            actions={
+              <>
+                <Button size="sm" variant="outline" onClick={() => setScannerOpen(true)}>
+                  <QrCode className="mr-1.5 h-4 w-4" />
+                  Scan QR
+                </Button>
+                <Button size="sm" onClick={openNew}>
+                  <Plus className="mr-1.5 h-4 w-4" />
+                  Log equipment
+                </Button>
+              </>
+            }
+            meta={
+              <>
+                {displayRows.length} of {rows.length} items
+                {filtersActive ? " · filtered" : ""}
+              </>
+            }
+          />
 
           {displayRows.length === 0 ? (
             <Card>

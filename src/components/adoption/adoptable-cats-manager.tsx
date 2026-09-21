@@ -20,6 +20,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { PageControlBar } from "@/components/layout/page-control-bar";
 import {
   ADOPTABLE_CAT_SEXES,
   ADOPTABLE_CAT_STATUSES,
@@ -288,36 +289,41 @@ export function AdoptableCatsManager({ cats: initial, locations }: AdoptableCats
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <Label className="text-sm text-muted-foreground">Status</Label>
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All statuses</SelectItem>
-              {ADOPTABLE_CAT_STATUSES.map((entry) => (
-                <SelectItem key={entry.value} value={entry.value}>
-                  {entry.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="flex gap-2">
-          <Button type="button" size="sm" variant="outline" asChild>
-            <Link href="/adoption/locations">
-              <MapPin className="mr-1.5 h-4 w-4" />
-              Locations
-            </Link>
-          </Button>
-          <Button type="button" size="sm" onClick={openNew}>
-            <Plus className="mr-1.5 h-4 w-4" />
-            Add cat
-          </Button>
-        </div>
-      </div>
+      <PageControlBar
+        activeFilterCount={statusFilter !== "all" ? 1 : 0}
+        filters={
+          <div className="space-y-1.5 min-w-0">
+            <Label className="text-xs font-medium text-muted-foreground">Status</Label>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="h-9 w-full sm:w-[180px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All statuses</SelectItem>
+                {ADOPTABLE_CAT_STATUSES.map((entry) => (
+                  <SelectItem key={entry.value} value={entry.value}>
+                    {entry.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        }
+        actions={
+          <>
+            <Button type="button" size="sm" variant="outline" asChild>
+              <Link href="/adoption/locations">
+                <MapPin className="mr-1.5 h-4 w-4" />
+                Locations
+              </Link>
+            </Button>
+            <Button type="button" size="sm" onClick={openNew}>
+              <Plus className="mr-1.5 h-4 w-4" />
+              Add cat
+            </Button>
+          </>
+        }
+      />
 
       <DataTable
         tableId="adoptable-cats"

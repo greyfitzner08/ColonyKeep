@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import { PageControlBar } from "@/components/layout/page-control-bar";
 import {
   ADOPTION_APPLICATION_STATUSES,
   CAT_LIVING_PLANS,
@@ -638,50 +639,53 @@ export function AdoptionApplicationsManager({
         ))}
       </div>
 
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-lg">Filters</CardTitle>
-          <CardDescription>
-            Defaults to pending and in-review. Colors flag screening answers only — not a final
-            adoption decision.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="flex w-full flex-col gap-4 sm:flex-row sm:flex-wrap">
-          <div className="w-full space-y-2 sm:w-auto">
-            <Label className="text-sm text-muted-foreground">Workflow status</Label>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-full sm:w-[220px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="open">Pending / In review</SelectItem>
-                <SelectItem value="all">All statuses</SelectItem>
-                {ADOPTION_APPLICATION_STATUSES.map((entry) => (
-                  <SelectItem key={entry.value} value={entry.value}>
-                    {entry.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="w-full space-y-2 sm:w-auto">
-            <Label className="text-sm text-muted-foreground">Screening flags</Label>
-            <Select value={rankFilter} onValueChange={setRankFilter}>
-              <SelectTrigger className="w-full sm:w-[220px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All ranks</SelectItem>
-                {ADOPTION_APPLICATION_RANKS.map((entry) => (
-                  <SelectItem key={entry.value} value={entry.value}>
-                    {entry.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </CardContent>
-      </Card>
+      <PageControlBar
+        activeFilterCount={(statusFilter !== "open" ? 1 : 0) + (rankFilter !== "all" ? 1 : 0)}
+        filtersLabel="Filters"
+        filters={
+          <>
+            <div className="space-y-1.5 min-w-0">
+              <Label className="text-xs font-medium text-muted-foreground">Workflow status</Label>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="h-9 w-full sm:w-[220px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="open">Pending / In review</SelectItem>
+                  <SelectItem value="all">All statuses</SelectItem>
+                  {ADOPTION_APPLICATION_STATUSES.map((entry) => (
+                    <SelectItem key={entry.value} value={entry.value}>
+                      {entry.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5 min-w-0">
+              <Label className="text-xs font-medium text-muted-foreground">Screening flags</Label>
+              <Select value={rankFilter} onValueChange={setRankFilter}>
+                <SelectTrigger className="h-9 w-full sm:w-[220px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All ranks</SelectItem>
+                  {ADOPTION_APPLICATION_RANKS.map((entry) => (
+                    <SelectItem key={entry.value} value={entry.value}>
+                      {entry.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </>
+        }
+        meta={
+          <>
+            {rows.length} application{rows.length === 1 ? "" : "s"} · screening colors are flags, not
+            decisions
+          </>
+        }
+      />
 
       {rows.length === 0 ? (
         <Card>

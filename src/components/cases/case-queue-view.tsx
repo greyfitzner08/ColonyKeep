@@ -5,6 +5,7 @@ import { IntakeCaseGrid } from "@/components/cases/intake-case-grid";
 import { IntakeCaseTable } from "@/components/cases/intake-case-table";
 import { CaseQueueControls } from "@/components/cases/case-queue-controls";
 import { CaseQueueSearch } from "@/components/cases/case-queue-search";
+import { PageControlBar } from "@/components/layout/page-control-bar";
 import { sortIntakeCases, type IntakeSortKey } from "@/lib/cases/sort-intake-cases";
 import { filterCasesBySearch } from "@/lib/cases/search-cases";
 import type { HelpRequest } from "@/lib/types";
@@ -43,15 +44,28 @@ export function CaseQueueView({
   return (
     <div className="space-y-4">
       {showControls && (
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-          <CaseQueueSearch value={search} onChange={setSearch} className="w-full sm:max-w-sm" />
-          <CaseQueueControls
-            view={view}
-            sort={sort}
-            onViewChange={setView}
-            onSortChange={setSort}
-          />
-        </div>
+        <PageControlBar
+          aria-label="Case queue controls"
+          search={
+            <CaseQueueSearch value={search} onChange={setSearch} className="w-full max-w-none" />
+          }
+          filters={
+            <div className="min-w-0 sm:col-span-2 xl:min-w-[280px] xl:flex-1">
+              <CaseQueueControls
+                view={view}
+                sort={sort}
+                onViewChange={setView}
+                onSortChange={setSort}
+              />
+            </div>
+          }
+          filtersLabel="Layout & sort"
+          meta={
+            <>
+              {visibleCases.length} of {cases.length} cases
+            </>
+          }
+        />
       )}
 
       {visibleCases.length === 0 ? (

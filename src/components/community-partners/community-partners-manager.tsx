@@ -2,10 +2,11 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Check, Copy, Download, Eye, Pencil, Plus, Search, Trash2 } from "lucide-react";
+import { Check, Copy, Download, Eye, Pencil, Plus, Trash2 } from "lucide-react";
 import { CommunityPartnerImporter } from "@/components/community-partners/partner-importer";
 import { PartnerContactsEditor } from "@/components/community-partners/partner-contacts-editor";
 import { AddressAutocomplete } from "@/components/forms/address-autocomplete";
+import { ControlSearch, PageControlBar } from "@/components/layout/page-control-bar";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -517,19 +518,19 @@ export function CommunityPartnersManager({ partners: initial }: CommunityPartner
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex flex-1 flex-col gap-3 sm:flex-row sm:items-center">
-          <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search partners, contacts, notes…"
-              className="pl-9"
-            />
-          </div>
+      <PageControlBar
+        activeFilterCount={typeFilter !== "all" ? 1 : 0}
+        search={
+          <ControlSearch
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Search partners, contacts, notes…"
+            aria-label="Search community partners"
+          />
+        }
+        filters={
           <Select value={typeFilter} onValueChange={setTypeFilter}>
-            <SelectTrigger className="w-full sm:w-[220px]">
+            <SelectTrigger className="h-9 w-full sm:w-[220px]">
               <SelectValue placeholder="All types" />
             </SelectTrigger>
             <SelectContent>
@@ -541,41 +542,44 @@ export function CommunityPartnersManager({ partners: initial }: CommunityPartner
               ))}
             </SelectContent>
           </Select>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            disabled={filteredEmails.length === 0}
-            onClick={() => void copyAllEmails()}
-          >
-            {emailsCopied ? (
-              <>
-                <Check className="mr-2 h-4 w-4" />
-                Copied!
-              </>
-            ) : (
-              <>
-                <Copy className="mr-2 h-4 w-4" />
-                Copy {filteredEmails.length} email{filteredEmails.length === 1 ? "" : "s"}
-              </>
-            )}
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => exportPartnersCsv(filtered)}>
-            <Download className="mr-2 h-4 w-4" />
-            Export CSV
-          </Button>
-          <Button onClick={openNew}>
-            <Plus className="mr-2 h-4 w-4" />
-            Add partner
-          </Button>
-        </div>
-      </div>
-
-      <p className="text-sm text-muted-foreground">
-        Showing {filtered.length} of {initial.length} community partners
-      </p>
+        }
+        actions={
+          <>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={filteredEmails.length === 0}
+              onClick={() => void copyAllEmails()}
+            >
+              {emailsCopied ? (
+                <>
+                  <Check className="mr-2 h-4 w-4" />
+                  Copied!
+                </>
+              ) : (
+                <>
+                  <Copy className="mr-2 h-4 w-4" />
+                  Copy {filteredEmails.length} email{filteredEmails.length === 1 ? "" : "s"}
+                </>
+              )}
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => exportPartnersCsv(filtered)}>
+              <Download className="mr-2 h-4 w-4" />
+              Export CSV
+            </Button>
+            <Button size="sm" onClick={openNew}>
+              <Plus className="mr-2 h-4 w-4" />
+              Add partner
+            </Button>
+          </>
+        }
+        meta={
+          <>
+            Showing {filtered.length} of {initial.length} community partners
+          </>
+        }
+      />
 
       <DataTable
         tableId="community-partners"

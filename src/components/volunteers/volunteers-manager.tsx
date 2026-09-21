@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+import { ControlSearch, PageControlBar } from "@/components/layout/page-control-bar";
 import {
   Dialog,
   DialogContent,
@@ -90,7 +91,6 @@ import {
   KeyRound,
   LayoutGrid,
   Table2,
-  Search,
   UserMinus,
   Pencil,
   GitMerge,
@@ -1970,101 +1970,105 @@ export function VolunteersManager({
         </div>
       )}
 
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-        <div className="flex flex-wrap gap-3">
-          <div className="relative w-full sm:w-[260px]">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={searchQuery}
-              onChange={(event) => setSearchQuery(event.target.value)}
-              placeholder="Search applicants…"
-              className="pl-9"
-              aria-label="Search applicants"
-            />
-          </div>
-
-          <Select value={filter} onValueChange={(value) => setFilter(value as ApplicationStatusFilter)}>
-            <SelectTrigger className="w-full sm:w-[240px]"><SelectValue placeholder="Status" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="needs_attention">
-                Needs attention{attentionCount > 0 ? ` (${attentionCount})` : ""}
-              </SelectItem>
-              <SelectItem value="possible_duplicates">
-                Possible duplicates
-                {duplicateApplicationCount > 0 ? ` (${duplicateApplicationCount})` : ""}
-              </SelectItem>
-              <SelectItem value="all">All statuses</SelectItem>
-              <SelectItem value="pending">Pending</SelectItem>
-              <SelectItem value="needs_followup">Needs follow-up</SelectItem>
-              <SelectItem value="approved">Approved</SelectItem>
-              <SelectItem value="inactive">Inactive</SelectItem>
-              <SelectItem value="rejected">Rejected</SelectItem>
-            </SelectContent>
-          </Select>
-
-          <Select value={interestFilter} onValueChange={setInterestFilter}>
-            <SelectTrigger className="w-full sm:w-[240px]"><SelectValue placeholder="Volunteer interest" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All interests</SelectItem>
-              {applicationRoleOptions.map((entry) => (
-                <SelectItem key={entry.role_id} value={entry.role_id}>{entry.label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          <p className="text-sm text-muted-foreground self-center">
-            {filtered.length} shown
-          </p>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          {currentUserId && (
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              onClick={() => {
-                setActionError(null);
-                if (duplicateApplicationGroups.length > 0) {
-                  setDuplicatesOpen(true);
-                } else {
-                  setAccountMergeOpen(true);
-                }
-              }}
-            >
-              <GitMerge className="h-4 w-4 mr-1" />
-              Review duplicates
-            </Button>
-          )}
-          <VolunteerAddDialog
-            roleDescriptions={roleCatalog}
-            triggerVariant="icon"
-            onNeedsReview={(applicationId) => setPendingReviewId(applicationId)}
+      <PageControlBar
+        activeFilterCount={(filter !== "all" ? 1 : 0) + (interestFilter !== "all" ? 1 : 0)}
+        search={
+          <ControlSearch
+            value={searchQuery}
+            onChange={(event) => setSearchQuery(event.target.value)}
+            placeholder="Search applicants…"
+            aria-label="Search applicants"
           />
-          <div className="flex items-center gap-1 w-fit rounded-lg border bg-background p-1">
-          <Button
-            type="button"
-            size="sm"
-            variant={viewMode === "cards" ? "secondary" : "ghost"}
-            className={cn("gap-2", viewMode === "cards" && "shadow-none")}
-            onClick={() => setViewMode("cards")}
-          >
-            <LayoutGrid className="h-4 w-4" />
-            Cards
-          </Button>
-          <Button
-            type="button"
-            size="sm"
-            variant={viewMode === "table" ? "secondary" : "ghost"}
-            className={cn("gap-2", viewMode === "table" && "shadow-none")}
-            onClick={() => setViewMode("table")}
-          >
-            <Table2 className="h-4 w-4" />
-            Table
-          </Button>
-          </div>
-        </div>
-      </div>
+        }
+        filters={
+          <>
+            <Select value={filter} onValueChange={(value) => setFilter(value as ApplicationStatusFilter)}>
+              <SelectTrigger className="h-9 w-full sm:w-[240px]">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="needs_attention">
+                  Needs attention{attentionCount > 0 ? ` (${attentionCount})` : ""}
+                </SelectItem>
+                <SelectItem value="possible_duplicates">
+                  Possible duplicates
+                  {duplicateApplicationCount > 0 ? ` (${duplicateApplicationCount})` : ""}
+                </SelectItem>
+                <SelectItem value="all">All statuses</SelectItem>
+                <SelectItem value="pending">Pending</SelectItem>
+                <SelectItem value="needs_followup">Needs follow-up</SelectItem>
+                <SelectItem value="approved">Approved</SelectItem>
+                <SelectItem value="inactive">Inactive</SelectItem>
+                <SelectItem value="rejected">Rejected</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Select value={interestFilter} onValueChange={setInterestFilter}>
+              <SelectTrigger className="h-9 w-full sm:w-[240px]">
+                <SelectValue placeholder="Volunteer interest" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All interests</SelectItem>
+                {applicationRoleOptions.map((entry) => (
+                  <SelectItem key={entry.role_id} value={entry.role_id}>
+                    {entry.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </>
+        }
+        actions={
+          <>
+            {currentUserId ? (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  setActionError(null);
+                  if (duplicateApplicationGroups.length > 0) {
+                    setDuplicatesOpen(true);
+                  } else {
+                    setAccountMergeOpen(true);
+                  }
+                }}
+              >
+                <GitMerge className="h-4 w-4 mr-1" />
+                Review duplicates
+              </Button>
+            ) : null}
+            <VolunteerAddDialog
+              roleDescriptions={roleCatalog}
+              triggerVariant="icon"
+              onNeedsReview={(applicationId) => setPendingReviewId(applicationId)}
+            />
+            <div className="flex items-center gap-1 w-fit rounded-lg border bg-background p-1">
+              <Button
+                type="button"
+                size="sm"
+                variant={viewMode === "cards" ? "secondary" : "ghost"}
+                className={cn("gap-2", viewMode === "cards" && "shadow-none")}
+                onClick={() => setViewMode("cards")}
+              >
+                <LayoutGrid className="h-4 w-4" />
+                Cards
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant={viewMode === "table" ? "secondary" : "ghost"}
+                className={cn("gap-2", viewMode === "table" && "shadow-none")}
+                onClick={() => setViewMode("table")}
+              >
+                <Table2 className="h-4 w-4" />
+                Table
+              </Button>
+            </div>
+          </>
+        }
+        meta={<>{filtered.length} shown</>}
+      />
 
       {filtered.length === 0 && (
         <p className="text-sm text-muted-foreground">
