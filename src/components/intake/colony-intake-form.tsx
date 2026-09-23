@@ -412,6 +412,10 @@ export function ColonyIntakeForm() {
               Our volunteer team uses this case number to track your colony submission, so please reference it as volunteers work with you on this case.
               </p>
             </div>
+
+            <Button type="button" variant="outline" asChild className="w-full">
+              <Link href="/update-case">Update colony progress later</Link>
+            </Button>
           </CardContent>
         </Card>
       </div>
@@ -431,6 +435,12 @@ export function ColonyIntakeForm() {
           </p>
           <p className="mx-auto mt-3 max-w-xl text-sm leading-relaxed text-foreground/80">
             {INTAKE_COMMUNICATIONS_NOTICE}
+          </p>
+          <p className="mt-3 text-sm text-muted-foreground">
+            Already reported a colony?{" "}
+            <Link href="/update-case" className="text-primary underline-offset-2 hover:underline">
+              Update your case progress
+            </Link>
           </p>
         </div>
 

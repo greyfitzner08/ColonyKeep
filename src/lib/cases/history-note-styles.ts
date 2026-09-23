@@ -21,6 +21,7 @@ export function historyEntryLabel(entry: HistoryEntry): string {
   if (entry.action === "note") return "Note";
   if (entry.action === "status_change") return "Status change";
   if (entry.action === "follow_up_completed") return "Follow-up completed";
+  if (entry.action === "public_progress_update") return "Public colony update";
   return entry.action.replace(/_/g, " ");
 }
 

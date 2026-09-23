@@ -60,7 +60,7 @@ export async function updateHelpRequestCatCounts(
   const { data: helpRequest, error: fetchError } = await service
     .from("help_requests")
     .select(
-      "id, reported_cats_over_8_weeks, reported_kittens_under_8_weeks, cats_over_8_weeks, kittens_under_8_weeks"
+      "id, reported_cats_over_8_weeks, reported_kittens_under_8_weeks, cats_over_8_weeks, kittens_under_8_weeks, outcome_tnvr_count, outcome_acc_count, outcome_foster_count, outcome_other_count"
     )
     .eq("id", helpRequestId)
     .single();
@@ -95,15 +95,35 @@ export async function updateHelpRequestCatCounts(
     helpRequest.reported_kittens_under_8_weeks ??
     counts.unfixedKittens + counts.fixedKittens;
 
+  // Preserve public / manual outcomes that sit outside clinic_fixes rows.
+  const outcomeTnvr = Math.max(counts.fixedTotal, helpRequest.outcome_tnvr_count ?? 0);
+  const outcomeAcc = Math.max(0, helpRequest.outcome_acc_count ?? 0);
+  const outcomeFoster = Math.max(0, helpRequest.outcome_foster_count ?? 0);
+  const outcomeOther = Math.max(0, helpRequest.outcome_other_count ?? 0);
+  const reportedTotal = reportedAdultsValue + reportedKittensValue;
+  const remainingTotal = Math.max(
+    0,
+    reportedTotal - outcomeTnvr - outcomeAcc - outcomeFoster - outcomeOther
+  );
+
+  let adults = counts.unfixedAdults;
+  let kittens = counts.unfixedKittens;
+  const clinicUnfixed = adults + kittens;
+  let extraRemoved = Math.max(0, clinicUnfixed - remainingTotal);
+  const takeAdults = Math.min(adults, extraRemoved);
+  adults -= takeAdults;
+  extraRemoved -= takeAdults;
+  kittens = Math.max(0, kittens - extraRemoved);
+
   const { error: updateError } = await service
     .from("help_requests")
     .update({
       reported_cats_over_8_weeks: reportedAdultsValue,
       reported_kittens_under_8_weeks: reportedKittensValue,
-      cats_over_8_weeks: counts.unfixedAdults,
-      kittens_under_8_weeks: counts.unfixedKittens,
-      cats_remaining: counts.unfixedTotal,
-      outcome_tnvr_count: counts.fixedTotal,
+      cats_over_8_weeks: adults,
+      kittens_under_8_weeks: kittens,
+      cats_remaining: adults + kittens,
+      outcome_tnvr_count: outcomeTnvr,
     })
     .eq("id", helpRequestId);
 

@@ -14,6 +14,7 @@ import type { Profile } from "@/lib/types";
 
 const PUBLIC_ROUTES = [
   "/request",
+  "/update-case",
   "/volunteer-signup",
   "/clinic-booking",
   "/adopt",
