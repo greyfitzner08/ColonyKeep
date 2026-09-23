@@ -76,8 +76,8 @@ export function CaseColonyTab({
         <CatCountSummaryDisplay counts={counts} pregnantCount={hr.pregnant_count} />
         <p className="mt-3 text-sm text-muted-foreground">
           Counts track how many cats still need spay/neuter, not how many are physically at the
-          colony. Fixed cats are removed from the still-need-fixing total whether they return to the
-          colony or go to foster/facility.
+          colony. Fixed cats — including those reported on the public update form — are removed from
+          the still-need-fixing total whether they return to the colony or go to foster/facility.
         </p>
 
         {cats.length === 0 ? (

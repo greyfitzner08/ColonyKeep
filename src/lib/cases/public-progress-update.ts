@@ -218,6 +218,15 @@ export function applyPublicOutcomeDeltas(
     cats_remaining: adults + kittens,
   };
 
+  const lockReportedAdults =
+    row.reported_cats_over_8_weeks == null &&
+    (row.outcome_tnvr_count ?? 0) === 0 &&
+    (row.outcome_acc_count ?? 0) === 0 &&
+    (row.outcome_foster_count ?? 0) === 0 &&
+    (row.outcome_other_count ?? 0) === 0;
+  const lockReportedKittens =
+    row.reported_kittens_under_8_weeks == null && lockReportedAdults;
+
   const parts: string[] = [];
   if (deltas.tnvrAdults) parts.push(`${deltas.tnvrAdults} adult TNR’d`);
   if (deltas.tnvrKittens) parts.push(`${deltas.tnvrKittens} kitten TNR’d`);
@@ -234,6 +243,12 @@ export function applyPublicOutcomeDeltas(
       cats_over_8_weeks: next.cats_over_8_weeks,
       kittens_under_8_weeks: next.kittens_under_8_weeks,
       cats_remaining: next.cats_remaining,
+      ...(lockReportedAdults
+        ? { reported_cats_over_8_weeks: remainingAdults }
+        : {}),
+      ...(lockReportedKittens
+        ? { reported_kittens_under_8_weeks: remainingKittens }
+        : {}),
     },
     summary: toPublicProgressSummary(next),
     historyDetails: `Public colony update: ${parts.join(", ")}. Remaining now ${next.cats_remaining}.`,

@@ -16,9 +16,11 @@ function CountCell({ value, className }: { value: number; className?: string }) 
 
 export function CatCountSummaryDisplay({ counts, pregnantCount }: CatCountSummaryDisplayProps) {
   const reportedTotal = counts.reportedAdults + counts.reportedKittens;
+  const resolvedTotal = counts.fixedTotal + counts.outcomeAcc + counts.outcomeOther;
   const fixedPercent = reportedTotal > 0 ? Math.round((counts.fixedTotal / reportedTotal) * 100) : 0;
   const unfixedPercent =
     reportedTotal > 0 ? Math.round((counts.unfixedTotal / reportedTotal) * 100) : 0;
+  const publicTnvrExtra = Math.max(0, counts.fixedTotal - counts.clinicFixedTotal);
 
   return (
     <div className="overflow-hidden rounded-lg border">
@@ -38,6 +40,18 @@ export function CatCountSummaryDisplay({ counts, pregnantCount }: CatCountSummar
               {counts.fosterTotal} sent to foster/facility
             </>
           )}
+          {counts.outcomeAcc > 0 && (
+            <>
+              {" · "}
+              {counts.outcomeAcc} to ACC
+            </>
+          )}
+          {counts.outcomeOther > 0 && (
+            <>
+              {" · "}
+              {counts.outcomeOther} other outcome
+            </>
+          )}
         </p>
         {reportedTotal > 0 && (
           <div
@@ -49,8 +63,10 @@ export function CatCountSummaryDisplay({ counts, pregnantCount }: CatCountSummar
             aria-label={`${counts.fixedTotal} of ${reportedTotal} cats fixed`}
           >
             <div
-              className="h-full rounded-full bg-primary transition-all"
-              style={{ width: `${fixedPercent}%` }}
+              className="h-full rounded-full bg-primary transition-[width]"
+              style={{
+                width: `${Math.min(100, Math.round((resolvedTotal / reportedTotal) * 100) || fixedPercent)}%`,
+              }}
             />
           </div>
         )}
@@ -83,15 +99,30 @@ export function CatCountSummaryDisplay({ counts, pregnantCount }: CatCountSummar
             </tr>
             <tr className="border-b bg-primary/5">
               <th className="px-4 py-2.5 text-left font-medium text-primary" scope="row">
-                Fixed at clinic
+                Fixed
+                {publicTnvrExtra > 0 ? (
+                  <span className="mt-0.5 block text-xs font-normal text-primary/80">
+                    Includes {publicTnvrExtra} from public colony updates
+                    {counts.clinicFixedTotal > 0
+                      ? ` · ${counts.clinicFixedTotal} clinic-logged`
+                      : ""}
+                  </span>
+                ) : (
+                  <span className="mt-0.5 block text-xs font-normal text-primary/80">
+                    Clinic-logged and public reports
+                  </span>
+                )}
               </th>
               <CountCell value={counts.fixedAdults} className="text-primary" />
               <CountCell value={counts.fixedKittens} className="text-primary" />
               <CountCell value={counts.fixedTotal} className="font-medium text-primary" />
             </tr>
             {counts.fosterTotal > 0 && (
-              <tr className="bg-amber-50 dark:bg-amber-950/20">
-                <th className="px-4 py-2.5 text-left font-medium text-amber-800 dark:text-amber-200" scope="row">
+              <tr className="border-b bg-amber-50 dark:bg-amber-950/20">
+                <th
+                  className="px-4 py-2.5 text-left font-medium text-amber-800 dark:text-amber-200"
+                  scope="row"
+                >
                   Sent to foster/facility
                 </th>
                 <CountCell
@@ -108,14 +139,42 @@ export function CatCountSummaryDisplay({ counts, pregnantCount }: CatCountSummar
                 />
               </tr>
             )}
+            {counts.outcomeAcc > 0 && (
+              <tr className="border-b">
+                <th className="px-4 py-2.5 text-left font-medium" scope="row">
+                  Taken to ACC
+                </th>
+                <CountCell value={counts.outcomeAcc} />
+                <CountCell value={0} />
+                <CountCell value={counts.outcomeAcc} className="font-medium" />
+              </tr>
+            )}
+            {counts.outcomeOther > 0 && (
+              <tr className="border-b">
+                <th className="px-4 py-2.5 text-left font-medium" scope="row">
+                  Other outcomes
+                </th>
+                <CountCell value={counts.outcomeOther} />
+                <CountCell value={0} />
+                <CountCell value={counts.outcomeOther} className="font-medium" />
+              </tr>
+            )}
+            <tr>
+              <th className="px-4 py-2.5 text-left font-medium" scope="row">
+                Still need fixing
+              </th>
+              <CountCell value={counts.unfixedAdults} />
+              <CountCell value={counts.unfixedKittens} />
+              <CountCell value={counts.unfixedTotal} className="font-medium" />
+            </tr>
           </tbody>
         </table>
       </div>
 
       <p className="border-t px-4 py-2 text-xs text-muted-foreground">
         Originally reported and suspected pregnant counts are set at intake and stay fixed. Fixed
-        cats — whether returned to the colony or sent to foster/facility — no longer count toward
-        still need fixing.
+        cats — whether logged at clinic or reported on the public update form — no longer count
+        toward still need fixing.
       </p>
 
       {pregnantCount !== undefined && pregnantCount > 0 && (
