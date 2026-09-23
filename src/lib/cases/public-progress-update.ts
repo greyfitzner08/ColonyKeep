@@ -177,38 +177,52 @@ export function applyPublicOutcomeDeltas(
 
   const tnvr = deltas.tnvrAdults + deltas.tnvrKittens;
   const totalRemoval = tnvr + deltas.acc + deltas.foster + deltas.other;
+  if (totalRemoval <= 0) {
+    return {
+      error: "Enter at least one cat that was TNR’d, taken to ACC, fostered, or otherwise removed.",
+    };
+  }
+
   const remainingAdults = Math.max(0, row.cats_over_8_weeks ?? 0);
   const remainingKittens = Math.max(0, row.kittens_under_8_weeks ?? 0);
-  const remainingTotal = remainingAdults + remainingKittens;
 
-  if (totalRemoval > remainingTotal) {
-    return {
-      error: `That update removes ${totalRemoval} cat${totalRemoval === 1 ? "" : "s"}, but this case only shows ${remainingTotal} remaining.`,
-    };
+  let reportedAdults = Math.max(0, row.reported_cats_over_8_weeks ?? remainingAdults);
+  let reportedKittens = Math.max(0, row.reported_kittens_under_8_weeks ?? remainingKittens);
+
+  let adults = remainingAdults;
+  let kittens = remainingKittens;
+
+  // Allow reporting newly found cats: anything beyond current remaining
+  // increases the originally-reported baseline so colony counts stay consistent.
+  if (deltas.tnvrAdults > adults) {
+    reportedAdults += deltas.tnvrAdults - adults;
+    adults = 0;
+  } else {
+    adults -= deltas.tnvrAdults;
   }
 
-  if (deltas.tnvrAdults > remainingAdults) {
-    return {
-      error: `Only ${remainingAdults} cat${remainingAdults === 1 ? "" : "s"} over 8 weeks remain on this case.`,
-    };
+  if (deltas.tnvrKittens > kittens) {
+    reportedKittens += deltas.tnvrKittens - kittens;
+    kittens = 0;
+  } else {
+    kittens -= deltas.tnvrKittens;
   }
-  if (deltas.tnvrKittens > remainingKittens) {
-    return {
-      error: `Only ${remainingKittens} kitten${remainingKittens === 1 ? "" : "s"} under 8 weeks remain on this case.`,
-    };
-  }
-
-  let adults = remainingAdults - deltas.tnvrAdults;
-  let kittens = remainingKittens - deltas.tnvrKittens;
 
   let leftover = deltas.acc + deltas.foster + deltas.other;
   const fromAdults = Math.min(adults, leftover);
   adults -= fromAdults;
   leftover -= fromAdults;
-  kittens = Math.max(0, kittens - leftover);
+  const fromKittens = Math.min(kittens, leftover);
+  kittens -= fromKittens;
+  leftover -= fromKittens;
+  if (leftover > 0) {
+    reportedAdults += leftover;
+  }
 
   const next: PublicProgressCaseRow = {
     ...row,
+    reported_cats_over_8_weeks: reportedAdults,
+    reported_kittens_under_8_weeks: reportedKittens,
     outcome_tnvr_count: Math.max(0, row.outcome_tnvr_count ?? 0) + tnvr,
     outcome_acc_count: Math.max(0, row.outcome_acc_count ?? 0) + deltas.acc,
     outcome_foster_count: Math.max(0, row.outcome_foster_count ?? 0) + deltas.foster,
@@ -218,15 +232,6 @@ export function applyPublicOutcomeDeltas(
     cats_remaining: adults + kittens,
   };
 
-  const lockReportedAdults =
-    row.reported_cats_over_8_weeks == null &&
-    (row.outcome_tnvr_count ?? 0) === 0 &&
-    (row.outcome_acc_count ?? 0) === 0 &&
-    (row.outcome_foster_count ?? 0) === 0 &&
-    (row.outcome_other_count ?? 0) === 0;
-  const lockReportedKittens =
-    row.reported_kittens_under_8_weeks == null && lockReportedAdults;
-
   const parts: string[] = [];
   if (deltas.tnvrAdults) parts.push(`${deltas.tnvrAdults} adult TNR’d`);
   if (deltas.tnvrKittens) parts.push(`${deltas.tnvrKittens} kitten TNR’d`);
@@ -234,8 +239,22 @@ export function applyPublicOutcomeDeltas(
   if (deltas.foster) parts.push(`${deltas.foster} to foster`);
   if (deltas.other) parts.push(`${deltas.other} other outcome`);
 
+  const addedAdults = Math.max(0, reportedAdults - Math.max(0, row.reported_cats_over_8_weeks ?? remainingAdults));
+  const addedKittens = Math.max(
+    0,
+    reportedKittens - Math.max(0, row.reported_kittens_under_8_weeks ?? remainingKittens)
+  );
+  if (addedAdults || addedKittens) {
+    const addedParts: string[] = [];
+    if (addedAdults) addedParts.push(`${addedAdults} adult${addedAdults === 1 ? "" : "s"}`);
+    if (addedKittens) addedParts.push(`${addedKittens} kitten${addedKittens === 1 ? "" : "s"}`);
+    parts.push(`added ${addedParts.join(" and ")} to originally reported`);
+  }
+
   return {
     update: {
+      reported_cats_over_8_weeks: next.reported_cats_over_8_weeks,
+      reported_kittens_under_8_weeks: next.reported_kittens_under_8_weeks,
       outcome_tnvr_count: next.outcome_tnvr_count,
       outcome_acc_count: next.outcome_acc_count,
       outcome_foster_count: next.outcome_foster_count,
@@ -243,12 +262,6 @@ export function applyPublicOutcomeDeltas(
       cats_over_8_weeks: next.cats_over_8_weeks,
       kittens_under_8_weeks: next.kittens_under_8_weeks,
       cats_remaining: next.cats_remaining,
-      ...(lockReportedAdults
-        ? { reported_cats_over_8_weeks: remainingAdults }
-        : {}),
-      ...(lockReportedKittens
-        ? { reported_kittens_under_8_weeks: remainingKittens }
-        : {}),
     },
     summary: toPublicProgressSummary(next),
     historyDetails: `Public colony update: ${parts.join(", ")}. Remaining now ${next.cats_remaining}.`,

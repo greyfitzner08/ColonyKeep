@@ -14,6 +14,11 @@ import { getApiErrorMessage } from "@/lib/api/errors";
 import type { PublicProgressSummary } from "@/lib/cases/public-progress-update";
 
 type Step = "verify" | "update" | "done";
+type CountValue = number | "";
+
+function countOrZero(value: CountValue): number {
+  return typeof value === "number" ? value : 0;
+}
 
 export function PublicCaseProgressForm() {
   const [step, setStep] = useState<Step>("verify");
@@ -21,11 +26,11 @@ export function PublicCaseProgressForm() {
   const [colonyZip, setColonyZip] = useState("");
   const [colonyStreet, setColonyStreet] = useState("");
   const [summary, setSummary] = useState<PublicProgressSummary | null>(null);
-  const [tnvrAdults, setTnvrAdults] = useState(0);
-  const [tnvrKittens, setTnvrKittens] = useState(0);
-  const [acc, setAcc] = useState(0);
-  const [foster, setFoster] = useState(0);
-  const [other, setOther] = useState(0);
+  const [tnvrAdults, setTnvrAdults] = useState<CountValue>("");
+  const [tnvrKittens, setTnvrKittens] = useState<CountValue>("");
+  const [acc, setAcc] = useState<CountValue>("");
+  const [foster, setFoster] = useState<CountValue>("");
+  const [other, setOther] = useState<CountValue>("");
   const [yourName, setYourName] = useState("");
   const [notes, setNotes] = useState("");
   const [busy, setBusy] = useState(false);
@@ -73,11 +78,11 @@ export function PublicCaseProgressForm() {
           case_number: caseNumber,
           colony_zip: colonyZip,
           colony_street: colonyStreet,
-          tnvr_adults: tnvrAdults,
-          tnvr_kittens: tnvrKittens,
-          acc,
-          foster,
-          other,
+          tnvr_adults: countOrZero(tnvrAdults),
+          tnvr_kittens: countOrZero(tnvrKittens),
+          acc: countOrZero(acc),
+          foster: countOrZero(foster),
+          other: countOrZero(other),
           your_name: yourName,
           notes,
         }),
@@ -99,11 +104,11 @@ export function PublicCaseProgressForm() {
   function startOver() {
     setStep("verify");
     setSummary(null);
-    setTnvrAdults(0);
-    setTnvrKittens(0);
-    setAcc(0);
-    setFoster(0);
-    setOther(0);
+    setTnvrAdults("");
+    setTnvrKittens("");
+    setAcc("");
+    setFoster("");
+    setOther("");
     setNotes("");
     setError(null);
   }
@@ -243,8 +248,10 @@ export function PublicCaseProgressForm() {
 
               <form onSubmit={(event) => void submitUpdate(event)} className="space-y-4">
                 <p className="text-sm text-muted-foreground">
-                  Enter how many cats were handled <span className="font-medium">since your last update</span>
-                  . These amounts are subtracted from the remaining count.
+                  Enter how many cats were handled{" "}
+                  <span className="font-medium">since your last update</span>. You can include cats
+                  that weren’t on the original report (for example a kitten found later). Extra cats
+                  are added to the case totals and counted as handled.
                 </p>
 
                 <div className="grid gap-4 sm:grid-cols-2">
@@ -253,12 +260,12 @@ export function PublicCaseProgressForm() {
                     <NumberInput
                       id="tnvr-adults"
                       integer
-                      value={tnvrAdults}
                       min={0}
-                      max={summary.remainingAdults}
-                      onValueChange={(value) => {
-                        if (typeof value === "number") setTnvrAdults(value);
-                      }}
+                      value={tnvrAdults}
+                      placeholder="0"
+                      allowEmpty
+                      clearZeroOnFocus
+                      onValueChange={setTnvrAdults}
                     />
                   </div>
                   <div className="space-y-2">
@@ -266,12 +273,12 @@ export function PublicCaseProgressForm() {
                     <NumberInput
                       id="tnvr-kittens"
                       integer
-                      value={tnvrKittens}
                       min={0}
-                      max={summary.remainingKittens}
-                      onValueChange={(value) => {
-                        if (typeof value === "number") setTnvrKittens(value);
-                      }}
+                      value={tnvrKittens}
+                      placeholder="0"
+                      allowEmpty
+                      clearZeroOnFocus
+                      onValueChange={setTnvrKittens}
                     />
                   </div>
                   <div className="space-y-2">
@@ -279,11 +286,12 @@ export function PublicCaseProgressForm() {
                     <NumberInput
                       id="acc"
                       integer
-                      value={acc}
                       min={0}
-                      onValueChange={(value) => {
-                        if (typeof value === "number") setAcc(value);
-                      }}
+                      value={acc}
+                      placeholder="0"
+                      allowEmpty
+                      clearZeroOnFocus
+                      onValueChange={setAcc}
                     />
                   </div>
                   <div className="space-y-2">
@@ -291,11 +299,12 @@ export function PublicCaseProgressForm() {
                     <NumberInput
                       id="foster"
                       integer
-                      value={foster}
                       min={0}
-                      onValueChange={(value) => {
-                        if (typeof value === "number") setFoster(value);
-                      }}
+                      value={foster}
+                      placeholder="0"
+                      allowEmpty
+                      clearZeroOnFocus
+                      onValueChange={setFoster}
                     />
                   </div>
                   <div className="space-y-2 sm:col-span-2">
@@ -303,11 +312,12 @@ export function PublicCaseProgressForm() {
                     <NumberInput
                       id="other"
                       integer
-                      value={other}
                       min={0}
-                      onValueChange={(value) => {
-                        if (typeof value === "number") setOther(value);
-                      }}
+                      value={other}
+                      placeholder="0"
+                      allowEmpty
+                      clearZeroOnFocus
+                      onValueChange={setOther}
                     />
                   </div>
                 </div>

@@ -15,6 +15,10 @@ type NumberInputProps = Omit<
   max?: number;
   /** Applied on blur when the field is empty. Defaults to `min` if set, otherwise 0. */
   emptyValue?: number;
+  /** When true, an empty field stays empty on blur instead of filling emptyValue/0. */
+  allowEmpty?: boolean;
+  /** When true, focusing a field whose value is 0 clears it so the user can type freely. */
+  clearZeroOnFocus?: boolean;
 };
 
 function parseRaw(raw: string, integer: boolean): number | null {
@@ -38,7 +42,10 @@ export const NumberInput = React.forwardRef<HTMLInputElement, NumberInputProps>(
       min,
       max,
       emptyValue,
+      allowEmpty = false,
+      clearZeroOnFocus = false,
       onBlur,
+      onFocus,
       className,
       ...props
     },
@@ -93,8 +100,21 @@ export const NumberInput = React.forwardRef<HTMLInputElement, NumberInputProps>(
           }
           onValueChange(parsed);
         }}
+        onFocus={(event) => {
+          if (clearZeroOnFocus && value === 0) {
+            setDraft("");
+            onValueChange("");
+          }
+          onFocus?.(event);
+        }}
         onBlur={(event) => {
           const raw = draft ?? event.target.value;
+          if (raw === "" && allowEmpty) {
+            onValueChange("");
+            setDraft(null);
+            onBlur?.(event);
+            return;
+          }
           const parsed = raw === "" ? null : parseRaw(raw, integer);
           onValueChange(clamp(parsed ?? fallback, min, max));
           setDraft(null);
