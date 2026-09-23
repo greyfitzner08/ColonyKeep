@@ -436,12 +436,12 @@ export function ColonyIntakeForm() {
           <p className="mx-auto mt-3 max-w-xl text-sm leading-relaxed text-foreground/80">
             {INTAKE_COMMUNICATIONS_NOTICE}
           </p>
-          <p className="mt-3 text-sm text-muted-foreground">
-            Already reported a colony?{" "}
-            <Link href="/update-case" className="text-primary underline-offset-2 hover:underline">
-              Update your case progress
-            </Link>
-          </p>
+          <div className="mx-auto mt-5 max-w-md rounded-lg border border-primary/25 bg-primary/5 px-4 py-3.5 text-center">
+            <p className="text-sm font-medium text-foreground">Already reported a colony?</p>
+            <Button type="button" asChild className="mt-2.5 w-full sm:w-auto">
+              <Link href="/update-case">Update your case progress</Link>
+            </Button>
+          </div>
         </div>
 
         <div className="flex flex-wrap justify-center gap-2 mb-6">
