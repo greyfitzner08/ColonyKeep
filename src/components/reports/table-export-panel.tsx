@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Download, Loader2 } from "lucide-react";
+import { ChevronRight, Download, Loader2, Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -17,13 +17,16 @@ import { getApiErrorMessage } from "@/lib/api/errors";
 import {
   EXPORTABLE_TABLES,
   getExportableTable,
+  type ExportableColumn,
   type ExportableTableId,
 } from "@/lib/admin/table-export-catalog";
 import { downloadCsv } from "@/lib/reports/export-csv";
+import { cn } from "@/lib/utils";
 
 export function TableExportPanel() {
   const [tableId, setTableId] = useState<ExportableTableId>(EXPORTABLE_TABLES[0]!.id);
   const [selectedColumns, setSelectedColumns] = useState<string[]>([]);
+  const [columnQuery, setColumnQuery] = useState("");
   const [exporting, setExporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
@@ -33,17 +36,53 @@ export function TableExportPanel() {
   useEffect(() => {
     if (!table) return;
     setSelectedColumns(table.columns.map((column) => column.id));
+    setColumnQuery("");
     setError(null);
     setStatus(null);
   }, [table]);
 
-  function toggleColumn(columnId: string, checked: boolean) {
+  const selectedSet = useMemo(() => new Set(selectedColumns), [selectedColumns]);
+
+  const filteredColumns = useMemo(() => {
+    if (!table) return [];
+    const query = columnQuery.trim().toLowerCase();
+    if (!query) return table.columns;
+    return table.columns.filter(
+      (column) =>
+        column.label.toLowerCase().includes(query) || column.id.toLowerCase().includes(query)
+    );
+  }, [table, columnQuery]);
+
+  const availableColumns = useMemo(
+    () => filteredColumns.filter((column) => !selectedSet.has(column.id)),
+    [filteredColumns, selectedSet]
+  );
+
+  const selectedColumnDetails = useMemo(() => {
+    if (!table) return [] as ExportableColumn[];
+    const byId = new Map(table.columns.map((column) => [column.id, column]));
+    return selectedColumns
+      .map((id) => byId.get(id))
+      .filter((column): column is ExportableColumn => Boolean(column));
+  }, [table, selectedColumns]);
+
+  function addColumn(columnId: string) {
+    setSelectedColumns((current) =>
+      current.includes(columnId) ? current : [...current, columnId]
+    );
+  }
+
+  function removeColumn(columnId: string) {
+    setSelectedColumns((current) => current.filter((id) => id !== columnId));
+  }
+
+  function addVisible() {
     setSelectedColumns((current) => {
-      if (checked) {
-        if (current.includes(columnId)) return current;
-        return [...current, columnId];
+      const next = [...current];
+      for (const column of availableColumns) {
+        if (!next.includes(column.id)) next.push(column.id);
       }
-      return current.filter((id) => id !== columnId);
+      return next;
     });
   }
 
@@ -106,8 +145,8 @@ export function TableExportPanel() {
       <CardHeader>
         <CardTitle>Table export</CardTitle>
         <CardDescription>
-          Download a CSV of any platform table. Choose which columns to include — useful for
-          backups, audits, and offline analysis.
+          Download a CSV of any platform table. Search and move columns into the export list —
+          useful for backups, audits, and offline analysis.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-5">
@@ -133,44 +172,123 @@ export function TableExportPanel() {
           </p>
         </div>
 
-        <div className="space-y-3">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <Label>
-              Columns ({selectedColumns.length}/{table.columns.length})
-            </Label>
-            <div className="flex gap-2">
-              <Button type="button" variant="outline" size="sm" onClick={selectAll}>
-                Select all
+        <div className="space-y-2 max-w-md">
+          <Label htmlFor="export-column-search">Find columns</Label>
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              id="export-column-search"
+              value={columnQuery}
+              onChange={(event) => setColumnQuery(event.target.value)}
+              placeholder="Search by name or field…"
+              className="pl-8"
+            />
+          </div>
+        </div>
+
+        <div className="grid gap-4 lg:grid-cols-2">
+          <div className="space-y-2">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <Label>Available ({availableColumns.length})</Label>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={addVisible}
+                disabled={availableColumns.length === 0}
+              >
+                Add shown
               </Button>
-              <Button type="button" variant="outline" size="sm" onClick={clearAll}>
-                Clear
-              </Button>
+            </div>
+            <div className="h-72 overflow-y-auto rounded-md border">
+              {availableColumns.length === 0 ? (
+                <p className="px-3 py-6 text-sm text-muted-foreground">
+                  {columnQuery.trim()
+                    ? "No matching columns left to add."
+                    : "All columns are already selected."}
+                </p>
+              ) : (
+                <ul className="divide-y">
+                  {availableColumns.map((column) => (
+                    <li key={column.id}>
+                      <button
+                        type="button"
+                        onClick={() => addColumn(column.id)}
+                        className={cn(
+                          "flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm",
+                          "hover:bg-muted/50 focus-visible:bg-muted/50 focus-visible:outline-none"
+                        )}
+                      >
+                        <span className="min-w-0 flex-1">
+                          <span className="block font-medium leading-snug">{column.label}</span>
+                          <span className="block truncate text-xs text-muted-foreground">
+                            {column.id}
+                          </span>
+                        </span>
+                        <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
           </div>
 
-          <div className="max-h-72 overflow-y-auto rounded-md border p-3">
-            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-              {table.columns.map((column) => {
-                const checked = selectedColumns.includes(column.id);
-                return (
-                  <label
-                    key={column.id}
-                    className="flex items-start gap-2 rounded-md px-1 py-1 text-sm hover:bg-muted/40"
-                  >
-                    <Checkbox
-                      checked={checked}
-                      onCheckedChange={(value) => toggleColumn(column.id, value === true)}
-                      className="mt-0.5"
-                    />
-                    <span className="min-w-0">
-                      <span className="font-medium leading-snug">{column.label}</span>
-                      <span className="block truncate text-xs text-muted-foreground">
-                        {column.id}
+          <div className="space-y-2">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <Label>
+                Selected for export ({selectedColumns.length}/{table.columns.length})
+              </Label>
+              <div className="flex gap-2">
+                <Button type="button" variant="outline" size="sm" onClick={selectAll}>
+                  Select all
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={clearAll}
+                  disabled={selectedColumns.length === 0}
+                >
+                  Clear
+                </Button>
+              </div>
+            </div>
+            <div className="h-72 overflow-y-auto rounded-md border bg-muted/20">
+              {selectedColumnDetails.length === 0 ? (
+                <p className="px-3 py-6 text-sm text-muted-foreground">
+                  Add columns from the left to include them in the CSV.
+                </p>
+              ) : (
+                <ul className="divide-y">
+                  {selectedColumnDetails.map((column, index) => (
+                    <li
+                      key={column.id}
+                      className="flex items-center gap-2 px-3 py-2.5 text-sm"
+                    >
+                      <span className="w-6 shrink-0 text-xs tabular-nums text-muted-foreground">
+                        {index + 1}
                       </span>
-                    </span>
-                  </label>
-                );
-              })}
+                      <span className="min-w-0 flex-1">
+                        <span className="block font-medium leading-snug">{column.label}</span>
+                        <span className="block truncate text-xs text-muted-foreground">
+                          {column.id}
+                        </span>
+                      </span>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 shrink-0"
+                        onClick={() => removeColumn(column.id)}
+                        aria-label={`Remove ${column.label}`}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
           </div>
         </div>
