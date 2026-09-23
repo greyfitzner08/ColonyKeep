@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { ChevronRight, Download, Loader2, Search, X } from "lucide-react";
+import { Check, Download, Loader2, Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -35,7 +35,8 @@ export function TableExportPanel() {
 
   useEffect(() => {
     if (!table) return;
-    setSelectedColumns(table.columns.map((column) => column.id));
+    // Start empty so every column stays visible in the options list.
+    setSelectedColumns([]);
     setColumnQuery("");
     setError(null);
     setStatus(null);
@@ -53,11 +54,6 @@ export function TableExportPanel() {
     );
   }, [table, columnQuery]);
 
-  const availableColumns = useMemo(
-    () => filteredColumns.filter((column) => !selectedSet.has(column.id)),
-    [filteredColumns, selectedSet]
-  );
-
   const selectedColumnDetails = useMemo(() => {
     if (!table) return [] as ExportableColumn[];
     const byId = new Map(table.columns.map((column) => [column.id, column]));
@@ -66,9 +62,11 @@ export function TableExportPanel() {
       .filter((column): column is ExportableColumn => Boolean(column));
   }, [table, selectedColumns]);
 
-  function addColumn(columnId: string) {
+  function toggleColumn(columnId: string) {
     setSelectedColumns((current) =>
-      current.includes(columnId) ? current : [...current, columnId]
+      current.includes(columnId)
+        ? current.filter((id) => id !== columnId)
+        : [...current, columnId]
     );
   }
 
@@ -76,10 +74,10 @@ export function TableExportPanel() {
     setSelectedColumns((current) => current.filter((id) => id !== columnId));
   }
 
-  function addVisible() {
+  function addShown() {
     setSelectedColumns((current) => {
       const next = [...current];
-      for (const column of availableColumns) {
+      for (const column of filteredColumns) {
         if (!next.includes(column.id)) next.push(column.id);
       }
       return next;
@@ -140,13 +138,17 @@ export function TableExportPanel() {
 
   if (!table) return null;
 
+  const shownSelectedCount = filteredColumns.filter((column) =>
+    selectedSet.has(column.id)
+  ).length;
+
   return (
     <Card>
       <CardHeader>
         <CardTitle>Table export</CardTitle>
         <CardDescription>
-          Download a CSV of any platform table. Search and move columns into the export list —
-          useful for backups, audits, and offline analysis.
+          Download a CSV of any platform table. Search columns, click to include them, then
+          download — useful for backups, audits, and offline analysis.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-5">
@@ -189,46 +191,66 @@ export function TableExportPanel() {
         <div className="grid gap-4 lg:grid-cols-2">
           <div className="space-y-2">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <Label>Available ({availableColumns.length})</Label>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={addVisible}
-                disabled={availableColumns.length === 0}
-              >
-                Add shown
-              </Button>
+              <Label>
+                Columns ({shownSelectedCount}/{filteredColumns.length} shown selected)
+              </Label>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={addShown}
+                  disabled={filteredColumns.length === 0}
+                >
+                  Add shown
+                </Button>
+                <Button type="button" variant="outline" size="sm" onClick={selectAll}>
+                  Select all
+                </Button>
+              </div>
             </div>
             <div className="h-72 overflow-y-auto rounded-md border">
-              {availableColumns.length === 0 ? (
+              {filteredColumns.length === 0 ? (
                 <p className="px-3 py-6 text-sm text-muted-foreground">
-                  {columnQuery.trim()
-                    ? "No matching columns left to add."
-                    : "All columns are already selected."}
+                  No columns match that search.
                 </p>
               ) : (
                 <ul className="divide-y">
-                  {availableColumns.map((column) => (
-                    <li key={column.id}>
-                      <button
-                        type="button"
-                        onClick={() => addColumn(column.id)}
-                        className={cn(
-                          "flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm",
-                          "hover:bg-muted/50 focus-visible:bg-muted/50 focus-visible:outline-none"
-                        )}
-                      >
-                        <span className="min-w-0 flex-1">
-                          <span className="block font-medium leading-snug">{column.label}</span>
-                          <span className="block truncate text-xs text-muted-foreground">
-                            {column.id}
+                  {filteredColumns.map((column) => {
+                    const selected = selectedSet.has(column.id);
+                    return (
+                      <li key={column.id}>
+                        <button
+                          type="button"
+                          onClick={() => toggleColumn(column.id)}
+                          aria-pressed={selected}
+                          className={cn(
+                            "flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm",
+                            "hover:bg-muted/50 focus-visible:bg-muted/50 focus-visible:outline-none",
+                            selected && "bg-muted/40"
+                          )}
+                        >
+                          <span
+                            className={cn(
+                              "flex h-5 w-5 shrink-0 items-center justify-center rounded border",
+                              selected
+                                ? "border-primary bg-primary text-primary-foreground"
+                                : "border-muted-foreground/40"
+                            )}
+                            aria-hidden
+                          >
+                            {selected ? <Check className="h-3.5 w-3.5" /> : null}
                           </span>
-                        </span>
-                        <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
-                      </button>
-                    </li>
-                  ))}
+                          <span className="min-w-0 flex-1">
+                            <span className="block font-medium leading-snug">{column.label}</span>
+                            <span className="block truncate text-xs text-muted-foreground">
+                              {column.id}
+                            </span>
+                          </span>
+                        </button>
+                      </li>
+                    );
+                  })}
                 </ul>
               )}
             </div>
@@ -239,25 +261,20 @@ export function TableExportPanel() {
               <Label>
                 Selected for export ({selectedColumns.length}/{table.columns.length})
               </Label>
-              <div className="flex gap-2">
-                <Button type="button" variant="outline" size="sm" onClick={selectAll}>
-                  Select all
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={clearAll}
-                  disabled={selectedColumns.length === 0}
-                >
-                  Clear
-                </Button>
-              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={clearAll}
+                disabled={selectedColumns.length === 0}
+              >
+                Clear
+              </Button>
             </div>
             <div className="h-72 overflow-y-auto rounded-md border bg-muted/20">
               {selectedColumnDetails.length === 0 ? (
                 <p className="px-3 py-6 text-sm text-muted-foreground">
-                  Add columns from the left to include them in the CSV.
+                  Click columns on the left to include them in the CSV.
                 </p>
               ) : (
                 <ul className="divide-y">
