@@ -18,6 +18,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PageHeader } from "@/components/layout/page-header";
 import { NewsletterSignupPanel } from "@/components/reports/newsletter-signup-panel";
 import { PivotReportBuilder } from "@/components/reports/pivot-report-builder";
+import { TableExportPanel } from "@/components/reports/table-export-panel";
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import {
   DEFAULT_REPORT_FILTERS,
@@ -196,14 +197,15 @@ export function ReportsDashboard({
       <div className="print:hidden">
         <PageHeader
           title="Reports"
-          description="Build pivot tables, run quick operational reports, and export or print results."
+          description="Build pivot tables, run quick operational reports, export any table, and manage newsletter signups."
         />
       </div>
 
       <Tabs defaultValue="pivot" className="space-y-4 print:block">
-        <TabsList className="print:hidden grid h-auto w-full grid-cols-1 gap-1 sm:grid-cols-3">
+        <TabsList className="print:hidden grid h-auto w-full grid-cols-1 gap-1 sm:grid-cols-2 lg:grid-cols-4">
           <TabsTrigger value="pivot">Pivot builder</TabsTrigger>
           <TabsTrigger value="quick">Quick reports</TabsTrigger>
+          <TabsTrigger value="table-export">Table export</TabsTrigger>
           <TabsTrigger value="newsletter">Newsletter signups</TabsTrigger>
         </TabsList>
 
@@ -216,6 +218,10 @@ export function ReportsDashboard({
             teams={teams}
             clinics={clinics}
           />
+        </TabsContent>
+
+        <TabsContent value="table-export" className="mt-0 space-y-4 print:hidden">
+          <TableExportPanel />
         </TabsContent>
 
         <TabsContent value="quick" className="mt-0 space-y-4 print:hidden">
