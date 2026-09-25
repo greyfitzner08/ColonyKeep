@@ -595,16 +595,21 @@ export function TrapEquipmentManager({
             Boolean(description) &&
             !(item.equipment_type === "other" && description === title);
           return (
-            <div className="min-w-0 space-y-0.5">
-              <div className="flex items-baseline gap-1.5">
-                <span className="font-medium leading-snug">{title}</span>
-              </div>
-              <p className="truncate text-xs text-muted-foreground">
+            <button
+              type="button"
+              className="min-w-0 space-y-0.5 text-left"
+              onClick={() => openEdit(item)}
+              aria-label={`Edit ${title}`}
+            >
+              <span className="block font-medium leading-snug text-primary underline-offset-2 hover:underline">
+                {title}
+              </span>
+              <span className="block truncate text-xs text-muted-foreground">
                 {[showType ? typeLabel : null, showDescription ? description : null]
                   .filter(Boolean)
                   .join(" · ") || "—"}
-              </p>
-            </div>
+              </span>
+            </button>
           );
         },
       },
@@ -733,6 +738,7 @@ export function TrapEquipmentManager({
   }, [
     custodianLabel,
     deletingId,
+    openEdit,
     renderSortHeader,
     savingRowId,
     teamLabel,
