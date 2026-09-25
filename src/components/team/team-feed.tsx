@@ -28,7 +28,7 @@ import { BirthdayCalendarDialog } from "@/components/team/birthday-calendar-dial
 import type { TeamAnnouncement, Profile, UserRole } from "@/lib/types";
 import type { FeedAudience } from "@/lib/team-feed/visibility";
 import { sortTrapTeams } from "@/lib/trap-teams/sort-teams";
-import { Pin, Cake, MessageCircle, Pencil, X, Check, Users, Globe, Send, CalendarDays } from "lucide-react";
+import { Pin, Cake, MessageCircle, Pencil, Trash2, X, Check, Users, Globe, Send, CalendarDays, Loader2 } from "lucide-react";
 
 const PLATFORM_ROLES: { value: UserRole; label: string }[] = [
   { value: "admin", label: "Administrators" },
@@ -86,6 +86,7 @@ export function TeamFeed({
   const [commentTexts, setCommentTexts] = useState<Record<string, string>>({});
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editText, setEditText] = useState("");
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const birthdaysSoon = useMemo(() => birthdaysWithinDays(birthdayPeople, 7), [birthdayPeople]);
   const sortedTrapTeams = useMemo(() => sortTrapTeams(trapTeams), [trapTeams]);
@@ -139,6 +140,27 @@ export function TeamFeed({
       .eq("author_email", profile.email);
     setEditingId(null);
     setEditText("");
+    router.refresh();
+  }
+
+  async function deletePost(postId: string) {
+    if (!profile || deletingId) return;
+    if (!confirm("Delete this post? This cannot be undone.")) return;
+
+    setDeletingId(postId);
+    const supabase = createClient();
+    const { error } = await supabase.from("team_announcements").delete().eq("id", postId);
+    setDeletingId(null);
+
+    if (error) {
+      alert(error.message || "Unable to delete this post.");
+      return;
+    }
+
+    if (editingId === postId) {
+      setEditingId(null);
+      setEditText("");
+    }
     router.refresh();
   }
 
@@ -335,7 +357,11 @@ export function TeamFeed({
         )}
 
         {initial.map((post) => {
-          const isAuthor = profile?.email === post.author_email;
+          const isAuthor =
+            Boolean(profile?.email) &&
+            profile!.email.toLowerCase() === post.author_email?.toLowerCase();
+          const isAdmin = profile?.role === "admin";
+          const canDelete = isAdmin || isAuthor;
           const isEditing = editingId === post.id;
           const postAudience = (post.audience ?? "all") as FeedAudience;
 
@@ -373,18 +399,38 @@ export function TeamFeed({
                         ))}
                     </div>
                   </div>
-                  {isAuthor && !post.is_birthday && !isEditing && (
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className="shrink-0"
-                      onClick={() => {
-                        setEditingId(post.id);
-                        setEditText(post.message);
-                      }}
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </Button>
+                  {(isAuthor || canDelete) && !isEditing && (
+                    <div className="flex shrink-0 items-center">
+                      {isAuthor && !post.is_birthday && (
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => {
+                            setEditingId(post.id);
+                            setEditText(post.message);
+                          }}
+                          aria-label="Edit post"
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                      )}
+                      {canDelete && (
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="text-destructive"
+                          disabled={deletingId === post.id}
+                          onClick={() => void deletePost(post.id)}
+                          aria-label="Delete post"
+                        >
+                          {deletingId === post.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Trash2 className="h-4 w-4" />
+                          )}
+                        </Button>
+                      )}
+                    </div>
                   )}
                 </div>
               </CardHeader>
