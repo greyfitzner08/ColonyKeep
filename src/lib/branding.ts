@@ -15,7 +15,23 @@ export interface PlatformBranding {
   sidebar_color: string;
   /** Public Google Calendar iframe embed URL shown on Shift Board. */
   google_calendar_embed_url: string | null;
+  /** Intro shown before the public colony request form. */
+  intake_about_message: string;
+  /** Optional donate button on the colony request intro. */
+  intake_donate_url: string | null;
+  intake_donate_text: string;
 }
+
+export const DEFAULT_INTAKE_DONATE_URL = "https://givebutter.com/mobile-tnvr-clinic-atzvj9";
+export const DEFAULT_INTAKE_DONATE_TEXT = "Donate to our mobile clinics";
+
+export const DEFAULT_INTAKE_ABOUT_MESSAGE = `Friends of Feral Felines is a 100% volunteer-run nonprofit serving Mecklenburg County. We do not have paid employees.
+
+If you are reporting 5 or fewer cats, we will reach out with Trap School dates. You are welcome to come learn how to TNVR (trap, spay-neuter, vaccinate, and return) community cats yourself. We offer training, can help with financial assistance, and lend humane traps and other equipment.
+
+We are here to help. Our volunteers cannot do this work alone, and we need neighbors to take part. Start today: log your case, and talk with neighbors, coworkers, family, and friends about helping with the TNVR work or with a donation.
+
+By submitting a request for help, you agree to receive occasional communications from Friends of Feral Felines via email.`;
 
 export function defaultPlatformBranding(): PlatformBranding {
   return {
@@ -25,6 +41,9 @@ export function defaultPlatformBranding(): PlatformBranding {
     primary_color: DEFAULT_PRIMARY_COLOR,
     sidebar_color: DEFAULT_SIDEBAR_COLOR,
     google_calendar_embed_url: null,
+    intake_about_message: DEFAULT_INTAKE_ABOUT_MESSAGE,
+    intake_donate_url: DEFAULT_INTAKE_DONATE_URL,
+    intake_donate_text: DEFAULT_INTAKE_DONATE_TEXT,
   };
 }
 
@@ -70,6 +89,23 @@ export function normalizeGoogleCalendarEmbedUrl(
   }
 }
 
+/** Accept an https URL, or null when empty. Undefined means the value is invalid. */
+export function normalizePublicHttpsUrl(
+  value: string | null | undefined
+): string | null | undefined {
+  if (value === null || value === undefined) return null;
+  if (typeof value !== "string") return undefined;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  try {
+    const url = new URL(trimmed);
+    if (url.protocol !== "https:" && url.protocol !== "http:") return undefined;
+    return url.toString();
+  } catch {
+    return undefined;
+  }
+}
+
 export function normalizePlatformBranding(
   row:
     | {
@@ -79,6 +115,9 @@ export function normalizePlatformBranding(
         primary_color?: string | null;
         sidebar_color?: string | null;
         google_calendar_embed_url?: string | null;
+        intake_about_message?: string | null;
+        intake_donate_url?: string | null;
+        intake_donate_text?: string | null;
       }
     | null
     | undefined
@@ -87,6 +126,9 @@ export function normalizePlatformBranding(
   const logo = row?.logo_url?.trim();
   const logoLight = row?.logo_light_url?.trim();
   const calendarEmbed = normalizeGoogleCalendarEmbedUrl(row?.google_calendar_embed_url);
+  const donateUrl = normalizePublicHttpsUrl(row?.intake_donate_url);
+  const about = row?.intake_about_message?.trim();
+  const donateText = row?.intake_donate_text?.trim();
   return {
     app_name: name || DEFAULT_APP_NAME,
     logo_url: logo || null,
@@ -94,6 +136,10 @@ export function normalizePlatformBranding(
     primary_color: normalizeHexColor(row?.primary_color, DEFAULT_PRIMARY_COLOR),
     sidebar_color: normalizeHexColor(row?.sidebar_color, DEFAULT_SIDEBAR_COLOR),
     google_calendar_embed_url: calendarEmbed === undefined ? null : calendarEmbed,
+    intake_about_message: about || DEFAULT_INTAKE_ABOUT_MESSAGE,
+    intake_donate_url:
+      donateUrl === undefined ? DEFAULT_INTAKE_DONATE_URL : donateUrl,
+    intake_donate_text: donateText || DEFAULT_INTAKE_DONATE_TEXT,
   };
 }
 

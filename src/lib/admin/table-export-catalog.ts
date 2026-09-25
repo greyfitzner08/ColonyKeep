@@ -400,6 +400,9 @@ export const EXPORTABLE_TABLES: ExportableTable[] = [
       { id: "sidebar_color", label: "sidebar color" },
       { id: "logo_light_url", label: "logo light url" },
       { id: "google_calendar_embed_url", label: "google calendar embed url" },
+      { id: "intake_about_message", label: "colony request intro" },
+      { id: "intake_donate_url", label: "colony donate url" },
+      { id: "intake_donate_text", label: "colony donate button" },
     ],
   },
   {

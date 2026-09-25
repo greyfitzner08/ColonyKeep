@@ -4,15 +4,20 @@ import {
   DEFAULT_PRIMARY_COLOR,
   DEFAULT_SIDEBAR_COLOR,
   isValidHexColor,
+  DEFAULT_INTAKE_ABOUT_MESSAGE,
+  DEFAULT_INTAKE_DONATE_TEXT,
   normalizeGoogleCalendarEmbedUrl,
   normalizeHexColor,
   normalizePlatformBranding,
+  normalizePublicHttpsUrl,
   type PlatformBranding,
 } from "@/lib/branding";
 import { createServiceClient } from "@/lib/supabase/server";
 
 const MAX_NAME_LENGTH = 80;
 const MAX_CALENDAR_EMBED_LENGTH = 2000;
+const MAX_INTAKE_ABOUT_LENGTH = 4000;
+const MAX_DONATE_TEXT_LENGTH = 80;
 
 function validateName(name: unknown): string | null {
   if (typeof name !== "string") return null;
@@ -46,7 +51,7 @@ function validateThemeColor(value: unknown, fallback: string): string | null {
 }
 
 const BRANDING_SELECT =
-  "app_name, logo_url, logo_light_url, primary_color, sidebar_color, google_calendar_embed_url" as const;
+  "app_name, logo_url, logo_light_url, primary_color, sidebar_color, google_calendar_embed_url, intake_about_message, intake_donate_url, intake_donate_text" as const;
 
 export async function GET() {
   try {
@@ -148,6 +153,44 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  const aboutRaw = (body as { intake_about_message?: unknown }).intake_about_message;
+  const aboutMessage =
+    typeof aboutRaw === "string" && aboutRaw.trim()
+      ? aboutRaw.trim()
+      : DEFAULT_INTAKE_ABOUT_MESSAGE;
+  if (aboutMessage.length > MAX_INTAKE_ABOUT_LENGTH) {
+    return NextResponse.json(
+      { error: "The colony request intro is too long." },
+      { status: 400 }
+    );
+  }
+
+  const donateTextRaw = (body as { intake_donate_text?: unknown }).intake_donate_text;
+  const donateText =
+    typeof donateTextRaw === "string" && donateTextRaw.trim()
+      ? donateTextRaw.trim()
+      : DEFAULT_INTAKE_DONATE_TEXT;
+  if (donateText.length > MAX_DONATE_TEXT_LENGTH) {
+    return NextResponse.json(
+      { error: `Donate button text must be ${MAX_DONATE_TEXT_LENGTH} characters or fewer.` },
+      { status: 400 }
+    );
+  }
+
+  const donateRaw = (body as { intake_donate_url?: unknown }).intake_donate_url;
+  const donateUrl =
+    donateRaw === undefined
+      ? null
+      : normalizePublicHttpsUrl(
+          typeof donateRaw === "string" || donateRaw === null ? donateRaw : undefined
+        );
+  if (donateUrl === undefined) {
+    return NextResponse.json(
+      { error: "Donate link must be a valid http(s) URL." },
+      { status: 400 }
+    );
+  }
+
   const service = await createServiceClient();
   const payload = {
     id: 1,
@@ -157,6 +200,9 @@ export async function POST(request: NextRequest) {
     primary_color: primaryColor,
     sidebar_color: sidebarColor,
     google_calendar_embed_url: calendarEmbed,
+    intake_about_message: aboutMessage,
+    intake_donate_url: donateUrl,
+    intake_donate_text: donateText,
     updated_by: profile!.id,
   };
 

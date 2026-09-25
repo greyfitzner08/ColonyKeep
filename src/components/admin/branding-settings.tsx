@@ -9,7 +9,11 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
+  DEFAULT_INTAKE_ABOUT_MESSAGE,
+  DEFAULT_INTAKE_DONATE_TEXT,
+  DEFAULT_INTAKE_DONATE_URL,
   DEFAULT_PRIMARY_COLOR,
   DEFAULT_SIDEBAR_COLOR,
   isValidHexColor,
@@ -29,6 +33,9 @@ type BrandingPayload = {
   primary_color: string;
   sidebar_color: string;
   google_calendar_embed_url: string | null;
+  intake_about_message: string;
+  intake_donate_url: string | null;
+  intake_donate_text: string;
 };
 
 type LogoSlot = "dark" | "light";
@@ -86,6 +93,15 @@ export function BrandingSettings({ branding }: BrandingSettingsProps) {
   const [calendarEmbedUrl, setCalendarEmbedUrl] = useState(
     branding.google_calendar_embed_url ?? ""
   );
+  const [intakeAboutMessage, setIntakeAboutMessage] = useState(
+    branding.intake_about_message || DEFAULT_INTAKE_ABOUT_MESSAGE
+  );
+  const [intakeDonateUrl, setIntakeDonateUrl] = useState(
+    branding.intake_donate_url ?? DEFAULT_INTAKE_DONATE_URL
+  );
+  const [intakeDonateText, setIntakeDonateText] = useState(
+    branding.intake_donate_text || DEFAULT_INTAKE_DONATE_TEXT
+  );
   const [saving, setSaving] = useState(false);
   const [uploadingSlot, setUploadingSlot] = useState<LogoSlot | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -127,6 +143,9 @@ export function BrandingSettings({ branding }: BrandingSettingsProps) {
       setPrimaryColor(saved.primary_color);
       setSidebarColor(saved.sidebar_color);
       setCalendarEmbedUrl(saved.google_calendar_embed_url ?? "");
+      setIntakeAboutMessage(saved.intake_about_message || DEFAULT_INTAKE_ABOUT_MESSAGE);
+      setIntakeDonateUrl(saved.intake_donate_url ?? "");
+      setIntakeDonateText(saved.intake_donate_text || DEFAULT_INTAKE_DONATE_TEXT);
     }
     setSavedMessage("Branding saved. Theme colors apply across the app after refresh.");
     router.refresh();
@@ -143,6 +162,9 @@ export function BrandingSettings({ branding }: BrandingSettingsProps) {
       primary_color: normalizeHexColor(primaryColor, DEFAULT_PRIMARY_COLOR),
       sidebar_color: normalizeHexColor(sidebarColor, DEFAULT_SIDEBAR_COLOR),
       google_calendar_embed_url: calendarEmbedUrl.trim() || null,
+      intake_about_message: intakeAboutMessage.trim() || DEFAULT_INTAKE_ABOUT_MESSAGE,
+      intake_donate_url: intakeDonateUrl.trim() || null,
+      intake_donate_text: intakeDonateText.trim() || DEFAULT_INTAKE_DONATE_TEXT,
       ...overrides,
     };
   }
@@ -411,6 +433,55 @@ export function BrandingSettings({ branding }: BrandingSettingsProps) {
                 Clear calendar
               </Button>
             )}
+          </div>
+
+          <div className="space-y-3 rounded-lg border p-4">
+            <div>
+              <p className="text-sm font-medium">Colony request intro</p>
+              <p className="text-xs text-muted-foreground">
+                Shown as the first step of the public report-a-colony form. Blank lines start a new
+                paragraph. The donate button uses the link and label below.
+              </p>
+            </div>
+            <Label htmlFor="branding-intake-about">About us</Label>
+            <Textarea
+              id="branding-intake-about"
+              value={intakeAboutMessage}
+              onChange={(event) => setIntakeAboutMessage(event.target.value)}
+              rows={10}
+              className="text-sm"
+            />
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              disabled={busy}
+              onClick={() => setIntakeAboutMessage(DEFAULT_INTAKE_ABOUT_MESSAGE)}
+            >
+              <RotateCcw className="h-3.5 w-3.5" />
+              Reset intro text
+            </Button>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="branding-donate-url">Donate link</Label>
+                <Input
+                  id="branding-donate-url"
+                  value={intakeDonateUrl}
+                  onChange={(event) => setIntakeDonateUrl(event.target.value)}
+                  placeholder="https://givebutter.com/…"
+                  className="font-mono text-sm"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="branding-donate-text">Donate button</Label>
+                <Input
+                  id="branding-donate-text"
+                  value={intakeDonateText}
+                  onChange={(event) => setIntakeDonateText(event.target.value)}
+                  maxLength={80}
+                />
+              </div>
+            </div>
           </div>
 
           {error && <p className="text-sm text-destructive">{error}</p>}

@@ -35,6 +35,11 @@ import {
 
 const STEPS = [
   {
+    label: "About Us",
+    category: "intro" as const,
+    description: "Who we are and how community help works",
+  },
+  {
     label: "About You",
     category: "reporter" as const,
     description: "Who is reporting this colony and how we can reach you",
@@ -60,6 +65,47 @@ const STEPS = [
     description: "Confirm your report before submitting",
   },
 ];
+
+function AboutUsStep({
+  message,
+  donateUrl,
+  donateText,
+}: {
+  message: string;
+  donateUrl: string | null;
+  donateText: string;
+}) {
+  const paragraphs = message
+    .trim()
+    .split(/\n\s*\n/)
+    .map((paragraph) => paragraph.trim())
+    .filter(Boolean);
+  const includesConsent = /occasional communications/i.test(message);
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <h2 className="text-lg font-semibold">About us</h2>
+        <p className="text-sm text-muted-foreground">
+          A few things to know before you tell us about the colony.
+        </p>
+      </div>
+      <div className="space-y-3 text-sm leading-relaxed text-foreground">
+        {paragraphs.map((paragraph, index) => (
+          <p key={index}>{paragraph}</p>
+        ))}
+        {!includesConsent && <p>{INTAKE_COMMUNICATIONS_NOTICE}</p>}
+      </div>
+      {donateUrl && (
+        <Button type="button" asChild>
+          <a href={donateUrl} target="_blank" rel="noopener noreferrer">
+            {donateText}
+          </a>
+        </Button>
+      )}
+    </div>
+  );
+}
 
 function FormSectionBanner({
   variant,
@@ -219,7 +265,15 @@ function YesNoSelect({
   );
 }
 
-export function ColonyIntakeForm() {
+export function ColonyIntakeForm({
+  aboutMessage,
+  donateUrl,
+  donateText,
+}: {
+  aboutMessage: string;
+  donateUrl: string | null;
+  donateText: string;
+}) {
   const [step, setStep] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
@@ -314,8 +368,9 @@ export function ColonyIntakeForm() {
   const remainderLocked = Boolean(serviceCounty.trim()) && !inServiceCounty;
 
   function canAdvanceFromStep(currentStep: number) {
+    if (currentStep === 0) return true;
     if (!formUnlocked) return false;
-    if (currentStep === 0) {
+    if (currentStep === 1) {
       return Boolean(
         form.contact_first_name &&
           form.contact_last_name &&
@@ -324,7 +379,7 @@ export function ColonyIntakeForm() {
           serviceCounty
       );
     }
-    if (currentStep === 1) {
+    if (currentStep === 2) {
       if (colonySameAsHome) {
         return homeAddressComplete(form);
       }
@@ -335,7 +390,7 @@ export function ColonyIntakeForm() {
 
   function goToNextStep() {
     if (!canAdvanceFromStep(step)) return;
-    if (step === 1 && colonySameAsHome) {
+    if (step === 2 && colonySameAsHome) {
       setForm((prev) => copyHomeAddressToColony(prev));
     }
     setStep((current) => current + 1);
@@ -433,9 +488,6 @@ export function ColonyIntakeForm() {
           <p className="text-muted-foreground mt-1">
             We currently serve colonies in Mecklenburg County, NC. Your report goes to our team of volunteers.
           </p>
-          <p className="mx-auto mt-3 max-w-xl text-sm leading-relaxed text-foreground/80">
-            {INTAKE_COMMUNICATIONS_NOTICE}
-          </p>
           <div className="mx-auto mt-5 max-w-md rounded-lg border border-primary/25 bg-primary/5 px-4 py-3.5 text-center">
             <p className="text-sm font-medium text-foreground">Already reported a colony?</p>
             <Button type="button" asChild className="mt-2.5 w-full sm:w-auto">
@@ -473,19 +525,22 @@ export function ColonyIntakeForm() {
           <CardContent className="pt-6 space-y-4">
             {serviceAreaBlock && <OutOfServiceAreaNotice reason={serviceAreaBlock} />}
 
-            {STEPS[step].category !== "review" && (
-              <FormSectionBanner
-                variant={STEPS[step].category}
-                title={
-                  STEPS[step].category === "reporter"
-                    ? "Questions about you"
-                    : "Questions about the colony"
-                }
-                description={STEPS[step].description}
-              />
-            )}
+            {STEPS[step].category !== "review" &&
+              STEPS[step].category !== "intro" && (
+                <FormSectionBanner
+                  variant={STEPS[step].category}
+                  title={
+                    STEPS[step].category === "reporter"
+                      ? "Questions about you"
+                      : "Questions about the colony"
+                  }
+                  description={STEPS[step].description}
+                />
+              )}
 
-            {step === 0 && (
+            {step === 0 && <AboutUsStep message={aboutMessage} donateUrl={donateUrl} donateText={donateText} />}
+
+            {step === 1 && (
               <>
                 <CountySelect
                   label="County where the colony is located"
@@ -614,7 +669,7 @@ export function ColonyIntakeForm() {
               </>
             )}
 
-            {step === 1 && (
+            {step === 2 && (
               <fieldset disabled={remainderLocked} className="space-y-4 disabled:opacity-60">
                 <div className="flex items-start gap-2 rounded-lg border p-3">
                   <Checkbox
@@ -776,7 +831,7 @@ export function ColonyIntakeForm() {
               </fieldset>
             )}
 
-            {step === 2 && (
+            {step === 3 && (
               <>
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
@@ -867,7 +922,7 @@ export function ColonyIntakeForm() {
               </>
             )}
 
-            {step === 3 && (
+            {step === 4 && (
               <>
                 <div className="space-y-2">
                   <Label>Do you have trapping experience?</Label>
@@ -919,7 +974,7 @@ export function ColonyIntakeForm() {
               </>
             )}
 
-            {step === 4 && (
+            {step === 5 && (
               <div className="space-y-4 text-sm">
                 <div className="rounded-lg border border-blue-200 bg-blue-50/50 p-4 space-y-2">
                   <p className="font-semibold text-blue-950 flex items-center gap-2">
