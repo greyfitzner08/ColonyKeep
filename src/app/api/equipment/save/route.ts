@@ -65,6 +65,41 @@ export async function POST(request: NextRequest) {
   }
 
   const service = await createServiceClient();
+
+  let lockedIdentity: {
+    equipment_type: TrapEquipmentType;
+    description: string | null;
+    is_labeled: boolean;
+    equipment_label: string | null;
+    qr_code_data: string | null;
+  } | null = null;
+
+  if (typeof body.id === "string" && body.id) {
+    const { data: existing, error: existingError } = await service
+      .from("trap_equipment_items")
+      .select("id, team_id, equipment_type, description, is_labeled, equipment_label, qr_code_data")
+      .eq("id", body.id)
+      .maybeSingle();
+
+    if (existingError) {
+      return NextResponse.json({ error: existingError.message }, { status: 400 });
+    }
+    if (!existing) {
+      return NextResponse.json({ error: "Equipment not found" }, { status: 404 });
+    }
+    if (!isAdmin && existing.team_id !== profile!.team_id) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    lockedIdentity = {
+      equipment_type: existing.equipment_type as TrapEquipmentType,
+      description: existing.description,
+      is_labeled: Boolean(existing.is_labeled),
+      equipment_label: existing.equipment_label,
+      qr_code_data: existing.qr_code_data,
+    };
+  }
+
   if (teamId && !teamName) {
     const { data: team } = await service
       .from("trap_teams")
@@ -113,21 +148,25 @@ export async function POST(request: NextRequest) {
   }
 
   const payload = {
-    equipment_type: equipmentType,
-    description,
+    equipment_type: lockedIdentity?.equipment_type ?? equipmentType,
+    description: lockedIdentity ? lockedIdentity.description : description,
     quantity: 1,
     status,
     team_id: teamId,
     team_name: teamName,
     location: body.location ?? null,
     notes: body.notes ?? null,
-    is_labeled: Boolean(body.is_labeled),
-    equipment_label:
-      body.is_labeled && typeof body.equipment_label === "string"
+    is_labeled: lockedIdentity ? lockedIdentity.is_labeled : Boolean(body.is_labeled),
+    equipment_label: lockedIdentity
+      ? lockedIdentity.equipment_label
+      : body.is_labeled && typeof body.equipment_label === "string"
         ? body.equipment_label.trim() || null
         : null,
-    qr_code_data:
-      typeof body.qr_code_data === "string" ? body.qr_code_data.trim() || null : null,
+    qr_code_data: lockedIdentity
+      ? lockedIdentity.qr_code_data
+      : typeof body.qr_code_data === "string"
+        ? body.qr_code_data.trim() || null
+        : null,
     assigned_to_profile_id: assignedToProfileId,
     borrower_name: borrowerName,
     borrower_email: borrowerEmail,

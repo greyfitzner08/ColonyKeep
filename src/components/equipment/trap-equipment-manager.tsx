@@ -58,6 +58,8 @@ interface TrapEquipmentManagerProps {
   teams: TrapTeam[];
   volunteers: EquipmentVolunteerOption[];
   defaultTeamId: string | null;
+  currentProfileId: string;
+  currentUserName: string;
   isAdmin: boolean;
 }
 
@@ -162,12 +164,15 @@ export function TrapEquipmentManager({
   teams,
   volunteers,
   defaultTeamId,
+  currentProfileId,
+  currentUserName,
   isAdmin,
 }: TrapEquipmentManagerProps) {
   const router = useRouter();
   const [rows, setRows] = useState(initialItems);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [scannerOpen, setScannerOpen] = useState(false);
+  const [scannerPurpose, setScannerPurpose] = useState<"claim" | "identify">("claim");
   const [editing, setEditing] = useState<TrapEquipmentItem | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -341,30 +346,50 @@ export function TrapEquipmentManager({
     setScanNotice("QR code scanned — review the fields below and save.");
   }, []);
 
-  const handleQrScan = useCallback(
-    (payload: string) => {
-      setScannerOpen(false);
-      if (!dialogOpen) {
-        setEditing(null);
-        setForm({
-          ...emptyForm,
-          team_id: defaultTeamId ?? "",
-        });
-        setSaveError(null);
-        setDialogOpen(true);
-      }
+  async function claimScannedEquipment(payload: string) {
+    const scanned = payload.trim();
+    const match = rows.find((item) => item.qr_code_data?.trim() === scanned);
+    if (!match) {
+      setScanNotice("No logged equipment matches that QR code.");
+      return;
+    }
+
+    const title = itemTitle(match);
+    if (match.assigned_to_profile_id === currentProfileId) {
+      setScanNotice(`You're already the volunteer using ${title}.`);
+      return;
+    }
+
+    const next = { ...match, assigned_to_profile_id: currentProfileId };
+    setRowError(null);
+    setScanNotice(null);
+    setSavingRowId(match.id);
+    setRows((prev) => prev.map((row) => (row.id === match.id ? next : row)));
+    const ok = await persistItem(next);
+    setSavingRowId(null);
+    if (!ok) {
+      setRows(initialItems);
+      return;
+    }
+    setScanNotice(`${title} is now checked out to you.`);
+  }
+
+  function handleQrScan(payload: string) {
+    setScannerOpen(false);
+    if (scannerPurpose === "identify") {
       applyQrScan(payload);
-    },
-    [applyQrScan, defaultTeamId, dialogOpen]
-  );
+      return;
+    }
+    void claimScannedEquipment(payload);
+  }
 
   async function saveDialog() {
-    if (form.is_labeled && !form.equipment_label.trim()) {
+    if (!editing && form.is_labeled && !form.equipment_label.trim()) {
       setSaveError("Enter the label text (e.g. Trap #3)");
       return;
     }
 
-    if (form.equipment_type === "other" && !form.description.trim()) {
+    if (!editing && form.equipment_type === "other" && !form.description.trim()) {
       setSectionOpen("trap", true);
       setSaveError("Enter what this other equipment item is.");
       return;
@@ -457,10 +482,13 @@ export function TrapEquipmentManager({
   const custodianLabel = useCallback(
     (item: TrapEquipmentItem) => {
       if (!item.assigned_to_profile_id) return "Unassigned";
+      if (item.assigned_to_profile_id === currentProfileId) {
+        return currentUserName || "You";
+      }
       const volunteer = volunteerById.get(item.assigned_to_profile_id);
       return volunteer ? volunteerDisplayName(volunteer) : "Unassigned";
     },
-    [volunteerById]
+    [currentProfileId, currentUserName, volunteerById]
   );
 
   function handleSort(key: EquipmentSortKey) {
@@ -756,13 +784,23 @@ export function TrapEquipmentManager({
   return (
     <div className="space-y-4">
       {rowError && <p className="text-sm text-destructive">{rowError}</p>}
+      {scanNotice && !dialogOpen ? (
+        <p className="rounded-md bg-primary/10 px-3 py-2 text-sm text-primary">{scanNotice}</p>
+      ) : null}
 
       {rows.length === 0 ? (
         <>
           <div className="flex flex-wrap items-center justify-end gap-2">
-            <Button size="sm" variant="outline" onClick={() => setScannerOpen(true)}>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                setScannerPurpose("claim");
+                setScannerOpen(true);
+              }}
+            >
               <QrCode className="mr-1.5 h-4 w-4" />
-              Scan QR
+              Scan to claim
             </Button>
             <Button size="sm" onClick={openNew}>
               <Plus className="mr-1.5 h-4 w-4" />
@@ -850,9 +888,16 @@ export function TrapEquipmentManager({
               </Button>
             }
             actions={
-              <Button size="sm" variant="outline" onClick={() => setScannerOpen(true)}>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  setScannerPurpose("claim");
+                  setScannerOpen(true);
+                }}
+              >
                 <QrCode className="mr-1.5 h-4 w-4" />
-                Scan QR
+                Scan to claim
               </Button>
             }
             meta={
@@ -1052,16 +1097,48 @@ export function TrapEquipmentManager({
 
             <EquipmentDialogSection
               title="Trap information"
-              description="Identify the equipment and optional QR or physical label."
+              description={
+                editing
+                  ? "Type, label, and QR code stay with this trap. Delete the item if they were logged wrong."
+                  : "Identify the equipment and optional QR or physical label. These stay fixed after you save."
+              }
               open={openSections.trap}
               onOpenChange={(open) => setSectionOpen("trap", open)}
             >
+              {editing ? (
+                <dl className="space-y-2 text-sm">
+                  <div>
+                    <dt className="text-muted-foreground">Type</dt>
+                    <dd className="font-medium">{equipmentTypeLabel(form.equipment_type)}</dd>
+                  </div>
+                  {form.is_labeled && form.equipment_label.trim() ? (
+                    <div>
+                      <dt className="text-muted-foreground">Label</dt>
+                      <dd className="font-medium">{form.equipment_label}</dd>
+                    </div>
+                  ) : null}
+                  {form.description.trim() ? (
+                    <div>
+                      <dt className="text-muted-foreground">Description</dt>
+                      <dd className="font-medium">{form.description}</dd>
+                    </div>
+                  ) : null}
+                  <div>
+                    <dt className="text-muted-foreground">QR code</dt>
+                    <dd className="font-medium">{form.qr_code_data ? "On file" : "None"}</dd>
+                  </div>
+                </dl>
+              ) : (
+              <>
               <div className="flex gap-2">
                 <Button
                   type="button"
                   variant="outline"
                   className="flex-1"
-                  onClick={() => setScannerOpen(true)}
+                  onClick={() => {
+                    setScannerPurpose("identify");
+                    setScannerOpen(true);
+                  }}
                 >
                   <QrCode className="mr-2 h-4 w-4" />
                   Scan QR Code
@@ -1147,6 +1224,8 @@ export function TrapEquipmentManager({
                     onChange={(e) => setForm({ ...form, description: e.target.value })}
                   />
                 </div>
+              )}
+              </>
               )}
             </EquipmentDialogSection>
 

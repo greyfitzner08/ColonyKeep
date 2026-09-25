@@ -66,8 +66,8 @@ export default async function EquipmentPage() {
         title="Trap Equipment"
         description={
           userTeam
-            ? `Track traps, scanners, and field gear for ${userTeam.name}. Assign a TNVR volunteer who keeps each item, and record borrower contact when gear is loaned out.`
-            : "Track traps, scanners, and field gear. Assign a TNVR volunteer who keeps each item, and record borrower contact when gear is loaned out."
+            ? `Track traps, scanners, and field gear for ${userTeam.name}. Scan a trap QR code to claim it, or record borrower contact when gear is loaned out.`
+            : "Track traps, scanners, and field gear. Scan a trap QR code to claim it, or record borrower contact when gear is loaned out."
         }
       />
       <TrapEquipmentManager
@@ -75,6 +75,8 @@ export default async function EquipmentPage() {
         teams={(teams ?? []) as TrapTeam[]}
         volunteers={volunteers}
         defaultTeamId={profile?.team_id ?? null}
+        currentProfileId={profile?.id ?? ""}
+        currentUserName={profile?.full_name?.trim() || profile?.email || "You"}
         isAdmin={isAdmin}
       />
     </div>
