@@ -119,7 +119,10 @@ export async function POST(request: NextRequest) {
       .maybeSingle();
 
     if (!assignee || !isTnvrVolunteerProfile(assignee)) {
-      return NextResponse.json({ error: "Select a valid TNVR volunteer" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Only a TNVR Team volunteer can keep this equipment." },
+        { status: 400 }
+      );
     }
 
     if (!isAdmin && teamId && assignee.team_id !== teamId) {

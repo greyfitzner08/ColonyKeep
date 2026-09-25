@@ -1,14 +1,11 @@
-import { TNVR_ROLES } from "@/lib/constants";
 import type { EquipmentVolunteerOption, VolunteerRole } from "@/lib/types";
 
+/** Platform role labeled "TNVR Team" — the only people who keep trap equipment. */
 export function isTnvrVolunteerProfile(profile: {
   role?: string | null;
   volunteer_roles?: VolunteerRole[] | null;
 }): boolean {
-  if (profile.role === "admin" || profile.role === "trap_team_lead") return true;
-  if (profile.role !== "volunteer") return false;
-  const roles = profile.volunteer_roles ?? [];
-  return TNVR_ROLES.some((role) => roles.includes(role));
+  return profile.role === "trap_team_lead";
 }
 
 export function buildVolunteerOptions(
