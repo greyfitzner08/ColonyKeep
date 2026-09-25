@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { Plus, Pencil, Trash2, QrCode, Loader2, ArrowDown, ArrowUp, ArrowUpDown, ChevronDown } from "lucide-react";
@@ -184,6 +184,14 @@ export function TrapEquipmentManager({
   const [searchQuery, setSearchQuery] = useState("");
   const [openSections, setOpenSections] =
     useState<Record<EquipmentDialogSectionId, boolean>>(DEFAULT_OPEN_SECTIONS);
+  const loanSectionRef = useRef<HTMLDivElement>(null);
+  const pendingLoanScroll = useRef(false);
+
+  useEffect(() => {
+    if (!pendingLoanScroll.current || form.status !== "loaned" || !dialogOpen) return;
+    pendingLoanScroll.current = false;
+    loanSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }, [form.status, dialogOpen, openSections.loan]);
 
   function setSectionOpen(id: EquipmentDialogSectionId, open: boolean) {
     setOpenSections((current) => ({ ...current, [id]: open }));
@@ -309,9 +317,9 @@ export function TrapEquipmentManager({
     });
     setOpenSections({
       ...DEFAULT_OPEN_SECTIONS,
+      custody: true,
       loan: item.status === "loaned",
-      // When not loaned, open trap info so the form isn't all collapsed.
-      trap: item.status !== "loaned",
+      trap: false,
     });
     setSaveError(null);
     setScanNotice(null);
@@ -894,51 +902,152 @@ export function TrapEquipmentManager({
             <DialogTitle>{editing ? "Edit Equipment" : "Log Equipment"}</DialogTitle>
           </DialogHeader>
           <div className="space-y-5">
-            {form.status === "loaned" && (
-              <EquipmentDialogSection
-                title="Loan details"
-                description="Who currently has this trap. A borrower name is required."
-                open={openSections.loan}
-                onOpenChange={(open) => setSectionOpen("loan", open)}
-                accent
-                className="border-primary/40 bg-primary/5 shadow-sm shadow-primary/5"
-                headerClassName="hover:bg-primary/10"
-              >
+            <EquipmentDialogSection
+              title="Status & custody"
+              description="Where the trap sits in inventory and who is responsible for it."
+              open={openSections.custody}
+              onOpenChange={(open) => setSectionOpen("custody", open)}
+            >
+              <div className="space-y-2">
+                <Label>Status</Label>
+                <Select
+                  value={form.status}
+                  onValueChange={(value) => {
+                    const status = value as TrapEquipmentStatus;
+                    setForm({
+                      ...form,
+                      status,
+                      borrower_name: status === "loaned" ? form.borrower_name : "",
+                      borrower_email: status === "loaned" ? form.borrower_email : "",
+                      borrower_phone: status === "loaned" ? form.borrower_phone : "",
+                    });
+                    if (status === "loaned") {
+                      setSectionOpen("loan", true);
+                      setSaveError(null);
+                      pendingLoanScroll.current = true;
+                    }
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {TRAP_EQUIPMENT_STATUSES.map((entry) => (
+                      <SelectItem key={entry.value} value={entry.value}>
+                        {entry.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>TNVR volunteer who keeps this</Label>
+                <Select
+                  value={form.assigned_to_profile_id || UNASSIGNED}
+                  onValueChange={(value) =>
+                    setForm({
+                      ...form,
+                      assigned_to_profile_id: value === UNASSIGNED ? "" : value,
+                    })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Who stores / maintains this gear?" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={UNASSIGNED}>Unassigned</SelectItem>
+                    {volunteers.map((volunteer) => (
+                      <SelectItem key={volunteer.id} value={volunteer.id}>
+                        {volunteerDisplayName(volunteer)}
+                        {volunteer.phone ? ` · ${volunteer.phone}` : ""}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-sm text-muted-foreground">
+                  The team volunteer responsible for this equipment in inventory.
+                </p>
+              </div>
+
+              {isAdmin && teams.length > 0 && (
                 <div className="space-y-2">
-                  <Label htmlFor="borrower-name">
-                    Borrower name <span className="text-destructive">*</span>
-                  </Label>
-                  <Input
-                    id="borrower-name"
-                    placeholder="Borrower full name"
-                    value={form.borrower_name}
-                    required
-                    onChange={(e) => setForm({ ...form, borrower_name: e.target.value })}
-                  />
+                  <Label>Trap team</Label>
+                  <Select
+                    value={form.team_id ?? ""}
+                    onValueChange={(value) => setForm({ ...form, team_id: value || null })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select team" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {sortTrapTeams(teams).map((team) => (
+                        <SelectItem key={team.id} value={team.id}>
+                          {team.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              )}
+
+              <div className="space-y-2">
+                <Label>Storage location (optional)</Label>
+                <Input
+                  placeholder="e.g. Team lead garage, shed #2"
+                  value={form.location}
+                  onChange={(e) => setForm({ ...form, location: e.target.value })}
+                />
+              </div>
+            </EquipmentDialogSection>
+
+            {form.status === "loaned" && (
+              <div ref={loanSectionRef}>
+                <EquipmentDialogSection
+                  title="Loan details"
+                  description="Who currently has this trap. A borrower name is required."
+                  open={openSections.loan}
+                  onOpenChange={(open) => setSectionOpen("loan", open)}
+                  accent
+                  className="border-primary/40 bg-primary/5 shadow-sm shadow-primary/5"
+                  headerClassName="hover:bg-primary/10"
+                >
                   <div className="space-y-2">
-                    <Label htmlFor="borrower-phone">Phone (optional)</Label>
+                    <Label htmlFor="borrower-name">
+                      Borrower name <span className="text-destructive">*</span>
+                    </Label>
                     <Input
-                      id="borrower-phone"
-                      type="tel"
-                      placeholder="(555) 555-5555"
-                      value={form.borrower_phone}
-                      onChange={(e) => setForm({ ...form, borrower_phone: e.target.value })}
+                      id="borrower-name"
+                      placeholder="Borrower full name"
+                      value={form.borrower_name}
+                      required
+                      onChange={(e) => setForm({ ...form, borrower_name: e.target.value })}
                     />
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="borrower-email">Email (optional)</Label>
-                    <Input
-                      id="borrower-email"
-                      type="email"
-                      placeholder="name@example.com"
-                      value={form.borrower_email}
-                      onChange={(e) => setForm({ ...form, borrower_email: e.target.value })}
-                    />
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="borrower-phone">Phone (optional)</Label>
+                      <Input
+                        id="borrower-phone"
+                        type="tel"
+                        placeholder="(555) 555-5555"
+                        value={form.borrower_phone}
+                        onChange={(e) => setForm({ ...form, borrower_phone: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="borrower-email">Email (optional)</Label>
+                      <Input
+                        id="borrower-email"
+                        type="email"
+                        placeholder="name@example.com"
+                        value={form.borrower_email}
+                        onChange={(e) => setForm({ ...form, borrower_email: e.target.value })}
+                      />
+                    </div>
                   </div>
-                </div>
-              </EquipmentDialogSection>
+                </EquipmentDialogSection>
+              </div>
             )}
 
             <EquipmentDialogSection
@@ -1039,104 +1148,6 @@ export function TrapEquipmentManager({
                   />
                 </div>
               )}
-            </EquipmentDialogSection>
-
-            <EquipmentDialogSection
-              title="Status & custody"
-              description="Where the trap sits in inventory and who is responsible for it."
-              open={openSections.custody}
-              onOpenChange={(open) => setSectionOpen("custody", open)}
-            >
-              <div className="space-y-2">
-                <Label>Status</Label>
-                <Select
-                  value={form.status}
-                  onValueChange={(value) => {
-                    const status = value as TrapEquipmentStatus;
-                    setForm({
-                      ...form,
-                      status,
-                      borrower_name: status === "loaned" ? form.borrower_name : "",
-                      borrower_email: status === "loaned" ? form.borrower_email : "",
-                      borrower_phone: status === "loaned" ? form.borrower_phone : "",
-                    });
-                    if (status === "loaned") {
-                      setSectionOpen("loan", true);
-                      setSaveError(null);
-                    }
-                  }}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {TRAP_EQUIPMENT_STATUSES.map((entry) => (
-                      <SelectItem key={entry.value} value={entry.value}>
-                        {entry.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label>TNVR volunteer who keeps this</Label>
-                <Select
-                  value={form.assigned_to_profile_id || UNASSIGNED}
-                  onValueChange={(value) =>
-                    setForm({
-                      ...form,
-                      assigned_to_profile_id: value === UNASSIGNED ? "" : value,
-                    })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Who stores / maintains this gear?" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={UNASSIGNED}>Unassigned</SelectItem>
-                    {volunteers.map((volunteer) => (
-                      <SelectItem key={volunteer.id} value={volunteer.id}>
-                        {volunteerDisplayName(volunteer)}
-                        {volunteer.phone ? ` · ${volunteer.phone}` : ""}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <p className="text-sm text-muted-foreground">
-                  The team volunteer responsible for this equipment in inventory.
-                </p>
-              </div>
-
-              {isAdmin && teams.length > 0 && (
-                <div className="space-y-2">
-                  <Label>Trap team</Label>
-                  <Select
-                    value={form.team_id ?? ""}
-                    onValueChange={(value) => setForm({ ...form, team_id: value || null })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select team" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {sortTrapTeams(teams).map((team) => (
-                        <SelectItem key={team.id} value={team.id}>
-                          {team.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
-
-              <div className="space-y-2">
-                <Label>Storage location (optional)</Label>
-                <Input
-                  placeholder="e.g. Team lead garage, shed #2"
-                  value={form.location}
-                  onChange={(e) => setForm({ ...form, location: e.target.value })}
-                />
-              </div>
             </EquipmentDialogSection>
 
             <EquipmentDialogSection
