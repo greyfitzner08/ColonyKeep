@@ -21,6 +21,7 @@ import {
 import { AddressAutocomplete } from "@/components/forms/address-autocomplete";
 import { CountySelect } from "@/components/forms/county-select";
 import { INTAKE_COMMUNICATIONS_NOTICE } from "@/lib/constants";
+import { intakeAboutPlainText, sanitizeIntakeAboutHtml } from "@/lib/intake-about-html";
 import { resolveCountyFromAutocomplete } from "@/lib/counties";
 import {
   MECKLENBURG_RESOURCES_URL,
@@ -75,12 +76,8 @@ function AboutUsStep({
   donateUrl: string | null;
   donateText: string;
 }) {
-  const paragraphs = message
-    .trim()
-    .split(/\n\s*\n/)
-    .map((paragraph) => paragraph.trim())
-    .filter(Boolean);
-  const includesConsent = /occasional communications/i.test(message);
+  const html = sanitizeIntakeAboutHtml(message);
+  const includesConsent = /occasional communications/i.test(intakeAboutPlainText(message));
 
   return (
     <div className="space-y-4">
@@ -90,12 +87,13 @@ function AboutUsStep({
           A few things to know before you tell us about the colony.
         </p>
       </div>
-      <div className="space-y-3 text-sm leading-relaxed text-foreground">
-        {paragraphs.map((paragraph, index) => (
-          <p key={index}>{paragraph}</p>
-        ))}
-        {!includesConsent && <p>{INTAKE_COMMUNICATIONS_NOTICE}</p>}
-      </div>
+      <div
+        className="space-y-3 text-sm leading-relaxed text-foreground [&_p+p]:mt-3"
+        dangerouslySetInnerHTML={{ __html: html }}
+      />
+      {!includesConsent && (
+        <p className="text-sm leading-relaxed text-foreground">{INTAKE_COMMUNICATIONS_NOTICE}</p>
+      )}
       {donateUrl && (
         <Button type="button" asChild>
           <a href={donateUrl} target="_blank" rel="noopener noreferrer">

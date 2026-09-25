@@ -13,10 +13,11 @@ import {
   type PlatformBranding,
 } from "@/lib/branding";
 import { createServiceClient } from "@/lib/supabase/server";
+import { intakeAboutPlainText, sanitizeIntakeAboutHtml } from "@/lib/intake-about-html";
 
 const MAX_NAME_LENGTH = 80;
 const MAX_CALENDAR_EMBED_LENGTH = 2000;
-const MAX_INTAKE_ABOUT_LENGTH = 4000;
+const MAX_INTAKE_ABOUT_LENGTH = 12000;
 const MAX_DONATE_TEXT_LENGTH = 80;
 
 function validateName(name: unknown): string | null {
@@ -155,8 +156,8 @@ export async function POST(request: NextRequest) {
 
   const aboutRaw = (body as { intake_about_message?: unknown }).intake_about_message;
   const aboutMessage =
-    typeof aboutRaw === "string" && aboutRaw.trim()
-      ? aboutRaw.trim()
+    typeof aboutRaw === "string" && intakeAboutPlainText(aboutRaw).trim()
+      ? sanitizeIntakeAboutHtml(aboutRaw)
       : DEFAULT_INTAKE_ABOUT_MESSAGE;
   if (aboutMessage.length > MAX_INTAKE_ABOUT_LENGTH) {
     return NextResponse.json(

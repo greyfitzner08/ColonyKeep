@@ -8,8 +8,8 @@ import { brandingStyleProps } from "@/components/branding/branding-provider";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { IntakeAboutEditor } from "@/components/admin/intake-about-editor";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import {
   DEFAULT_INTAKE_ABOUT_MESSAGE,
   DEFAULT_INTAKE_DONATE_TEXT,
@@ -439,17 +439,17 @@ export function BrandingSettings({ branding }: BrandingSettingsProps) {
             <div>
               <p className="text-sm font-medium">Colony request intro</p>
               <p className="text-xs text-muted-foreground">
-                Shown as the first step of the public report-a-colony form. Blank lines start a new
-                paragraph. The donate button uses the link and label below.
+                Shown as the first step of the public report-a-colony form. Select text to make it
+                bold, italic, underlined, or a different color. The donate button uses the link and
+                label below.
               </p>
             </div>
             <Label htmlFor="branding-intake-about">About us</Label>
-            <Textarea
+            <IntakeAboutEditor
               id="branding-intake-about"
               value={intakeAboutMessage}
-              onChange={(event) => setIntakeAboutMessage(event.target.value)}
-              rows={10}
-              className="text-sm"
+              disabled={busy}
+              onChange={setIntakeAboutMessage}
             />
             <Button
               type="button"
