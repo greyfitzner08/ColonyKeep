@@ -4,7 +4,7 @@ import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
-import { MapPin, Pencil, Plus, Trash2, Upload } from "lucide-react";
+import { Loader2, MapPin, Pencil, Plus, Trash2, Upload } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -21,9 +21,11 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { PageControlBar } from "@/components/layout/page-control-bar";
+import { AddressAutocomplete } from "@/components/forms/address-autocomplete";
 import {
   ADOPTABLE_CAT_SEXES,
   ADOPTABLE_CAT_STATUSES,
+  ADOPTION_LOCATION_TYPES,
   DISEASE_TEST_STATUSES,
   FIP_STATUSES,
   adoptableCatStatusLabel,
@@ -33,6 +35,7 @@ import {
   type AdoptableCatSex,
   type AdoptableCatStatus,
   type AdoptionLocation,
+  type AdoptionLocationType,
   type DiseaseTestStatus,
   type FipStatus,
 } from "@/lib/adoption/constants";
@@ -61,6 +64,30 @@ type CatForm = {
 };
 
 const NONE = "__none__";
+
+type NewLocationForm = {
+  name: string;
+  location_type: AdoptionLocationType;
+  contact_name: string;
+  contact_phone: string;
+  contact_email: string;
+  address: string;
+  city: string;
+  state: string;
+  zip: string;
+};
+
+const emptyLocationForm = (): NewLocationForm => ({
+  name: "",
+  location_type: "petstore",
+  contact_name: "",
+  contact_phone: "",
+  contact_email: "",
+  address: "",
+  city: "",
+  state: "",
+  zip: "",
+});
 
 const emptyForm = (): CatForm => ({
   name: "",
@@ -97,10 +124,55 @@ export function AdoptableCatsManager({ cats: initial, locations }: AdoptableCats
   const [saveError, setSaveError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [addedLocations, setAddedLocations] = useState<AdoptionLocation[]>([]);
+  const [creatingLocation, setCreatingLocation] = useState(false);
+  const [locationForm, setLocationForm] = useState<NewLocationForm>(emptyLocationForm());
+  const [savingLocation, setSavingLocation] = useState(false);
+  const [locationError, setLocationError] = useState<string | null>(null);
 
-  const activeLocations = locations.filter(
+  const locationOptions = useMemo(() => {
+    const byId = new Map(locations.map((location) => [location.id, location]));
+    for (const location of addedLocations) {
+      if (!byId.has(location.id)) byId.set(location.id, location);
+    }
+    return [...byId.values()].sort((a, b) => a.name.localeCompare(b.name));
+  }, [locations, addedLocations]);
+
+  const activeLocations = locationOptions.filter(
     (location) => location.is_active || location.id === form.location_id
   );
+
+  function resetLocationDraft() {
+    setCreatingLocation(false);
+    setLocationForm(emptyLocationForm());
+    setLocationError(null);
+    setSavingLocation(false);
+  }
+
+  async function saveNewLocation() {
+    if (!locationForm.name.trim()) {
+      setLocationError("Location name is required.");
+      return;
+    }
+    setSavingLocation(true);
+    setLocationError(null);
+    const response = await fetch("/api/adoption/locations/save", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(locationForm),
+    });
+    const result = await response.json().catch(() => null);
+    setSavingLocation(false);
+    if (!response.ok || !result?.location?.id) {
+      setLocationError(result?.error ?? "Unable to save location");
+      return;
+    }
+    const created = result.location as AdoptionLocation;
+    setAddedLocations((current) => [...current, created]);
+    setForm((current) => ({ ...current, location_id: created.id }));
+    resetLocationDraft();
+    router.refresh();
+  }
 
   const rows = useMemo(() => {
     if (statusFilter === "all") return initial;
@@ -201,6 +273,7 @@ export function AdoptableCatsManager({ cats: initial, locations }: AdoptableCats
     setEditing(null);
     setForm(emptyForm());
     setSaveError(null);
+    resetLocationDraft();
     setDialogOpen(true);
   }
 
@@ -224,6 +297,7 @@ export function AdoptableCatsManager({ cats: initial, locations }: AdoptableCats
       notes: cat.notes ?? "",
     });
     setSaveError(null);
+    resetLocationDraft();
     setDialogOpen(true);
   }
 
@@ -476,13 +550,160 @@ export function AdoptableCatsManager({ cats: initial, locations }: AdoptableCats
                       ))}
                     </SelectContent>
                   </Select>
-                  {locations.length === 0 && (
-                    <p className="text-xs text-muted-foreground">
-                      <Link href="/adoption/locations" className="text-primary underline">
-                        Add a location
-                      </Link>{" "}
-                      first to place this cat.
-                    </p>
+                  {creatingLocation ? (
+                    <div className="space-y-3 rounded-md border bg-muted/30 p-3">
+                      <p className="text-sm font-medium">New location</p>
+                      <div className="space-y-2">
+                        <Label>Name</Label>
+                        <Input
+                          value={locationForm.name}
+                          placeholder="Pet store or foster name"
+                          onChange={(e) =>
+                            setLocationForm({ ...locationForm, name: e.target.value })
+                          }
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Type</Label>
+                        <Select
+                          value={locationForm.location_type}
+                          onValueChange={(value) =>
+                            setLocationForm({
+                              ...locationForm,
+                              location_type: value as AdoptionLocationType,
+                            })
+                          }
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {ADOPTION_LOCATION_TYPES.map((entry) => (
+                              <SelectItem key={entry.value} value={entry.value}>
+                                {entry.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <AddressAutocomplete
+                        label="Street address"
+                        defaultValue={locationForm.address}
+                        onAddressChange={(address) =>
+                          setLocationForm((current) => ({ ...current, address }))
+                        }
+                        onSelect={(parts) =>
+                          setLocationForm((current) => ({
+                            ...current,
+                            address: parts.address,
+                            city: parts.city || current.city,
+                            state: parts.state || current.state,
+                            zip: parts.zip || current.zip,
+                          }))
+                        }
+                      />
+                      <div className="grid gap-3 sm:grid-cols-3">
+                        <div className="space-y-2">
+                          <Label>City</Label>
+                          <Input
+                            value={locationForm.city}
+                            onChange={(e) =>
+                              setLocationForm({ ...locationForm, city: e.target.value })
+                            }
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>State</Label>
+                          <Input
+                            value={locationForm.state}
+                            onChange={(e) =>
+                              setLocationForm({ ...locationForm, state: e.target.value })
+                            }
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>ZIP</Label>
+                          <Input
+                            value={locationForm.zip}
+                            onChange={(e) =>
+                              setLocationForm({ ...locationForm, zip: e.target.value })
+                            }
+                          />
+                        </div>
+                      </div>
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <div className="space-y-2">
+                          <Label>Contact name</Label>
+                          <Input
+                            value={locationForm.contact_name}
+                            onChange={(e) =>
+                              setLocationForm({ ...locationForm, contact_name: e.target.value })
+                            }
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Contact phone</Label>
+                          <Input
+                            value={locationForm.contact_phone}
+                            onChange={(e) =>
+                              setLocationForm({ ...locationForm, contact_phone: e.target.value })
+                            }
+                          />
+                        </div>
+                        <div className="space-y-2 sm:col-span-2">
+                          <Label>Contact email</Label>
+                          <Input
+                            type="email"
+                            value={locationForm.contact_email}
+                            onChange={(e) =>
+                              setLocationForm({ ...locationForm, contact_email: e.target.value })
+                            }
+                          />
+                        </div>
+                      </div>
+                      {locationError ? (
+                        <p className="text-sm text-destructive">{locationError}</p>
+                      ) : null}
+                      <div className="flex gap-2">
+                        <Button
+                          type="button"
+                          size="sm"
+                          disabled={savingLocation}
+                          onClick={() => void saveNewLocation()}
+                        >
+                          {savingLocation ? (
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              Saving…
+                            </>
+                          ) : (
+                            "Save location"
+                          )}
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          disabled={savingLocation}
+                          onClick={resetLocationDraft}
+                        >
+                          Cancel
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setLocationError(null);
+                        setCreatingLocation(true);
+                      }}
+                    >
+                      <Plus className="mr-1.5 h-4 w-4" />
+                      Add location
+                    </Button>
                   )}
                 </div>
               </div>
