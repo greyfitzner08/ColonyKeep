@@ -18,6 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { QueueSnapshot } from "@/components/intake/queue-snapshot";
 import { AddressAutocomplete } from "@/components/forms/address-autocomplete";
 import { CountySelect } from "@/components/forms/county-select";
 import { INTAKE_COMMUNICATIONS_NOTICE } from "@/lib/constants";
@@ -465,6 +466,8 @@ export function ColonyIntakeForm({
               Our volunteer team uses this case number to track your colony submission, so please reference it as volunteers work with you on this case.
               </p>
             </div>
+
+            <QueueSnapshot />
 
             <Button type="button" variant="outline" asChild className="w-full">
               <Link href="/update-case">Update colony progress later</Link>
