@@ -199,6 +199,7 @@ export function EntranceApplicationForm({
                 links={links}
                 allowLinks
                 matchEditorSpacing
+                buttonFirst
                 description="A few things to know before you submit a cat."
               />
               <div className="flex justify-end">

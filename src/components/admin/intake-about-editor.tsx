@@ -1,7 +1,7 @@
 "use client";
 
 import { Component, forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
-import type { MutableRefObject, RefObject } from "react";
+import type { MutableRefObject, ReactNode, RefObject } from "react";
 import { Bold, Eraser, Italic, Link2, List, Underline } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -185,6 +185,7 @@ export const IntakeAboutEditor = forwardRef<
     allowLinks?: boolean;
     allowLists?: boolean;
     variant?: "plain" | "document";
+    preview?: ReactNode;
   }
 >(function IntakeAboutEditor({
   id,
@@ -194,6 +195,7 @@ export const IntakeAboutEditor = forwardRef<
   allowLinks = false,
   allowLists = false,
   variant = "plain",
+  preview,
 }, ref) {
   const editorRef = useRef<HTMLDivElement>(null);
   const savedRange = useRef<Range | null>(null);
@@ -829,6 +831,7 @@ export const IntakeAboutEditor = forwardRef<
           </Button>
         </form>
       )}
+      {preview}
       <FrozenEditor
         id={id}
         editorRef={editorRef}

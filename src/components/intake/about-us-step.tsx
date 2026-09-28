@@ -11,6 +11,7 @@ export function AboutUsStep({
   links = [],
   allowLinks = false,
   matchEditorSpacing = false,
+  buttonFirst = false,
 }: {
   message: string;
   donateUrl: string | null;
@@ -20,6 +21,8 @@ export function AboutUsStep({
   allowLinks?: boolean;
   /** Use the line height saved in the text, without extra space between paragraphs. */
   matchEditorSpacing?: boolean;
+  /** Place the button and links above the long text so they stay in view. */
+  buttonFirst?: boolean;
 }) {
   const html = sanitizeIntakeAboutHtml(message, { allowLinks });
   const includesConsent = /occasional communications/i.test(intakeAboutPlainText(message));
@@ -30,6 +33,7 @@ export function AboutUsStep({
         <h2 className="text-lg font-semibold">About us</h2>
         <p className="text-sm text-muted-foreground">{description}</p>
       </div>
+      {buttonFirst && <AboutExtras donateUrl={donateUrl} donateText={donateText} links={links} />}
       <div
         className={
           matchEditorSpacing
@@ -38,6 +42,33 @@ export function AboutUsStep({
         }
         dangerouslySetInnerHTML={{ __html: html }}
       />
+      {!includesConsent && (
+        <p className="text-sm leading-relaxed text-foreground">{INTAKE_COMMUNICATIONS_NOTICE}</p>
+      )}
+      {!buttonFirst && <AboutExtras donateUrl={donateUrl} donateText={donateText} links={links} />}
+    </div>
+  );
+}
+
+function AboutExtras({
+  donateUrl,
+  donateText,
+  links,
+}: {
+  donateUrl: string | null;
+  donateText: string;
+  links: RescueAboutLink[];
+}) {
+  if (!donateUrl && links.length === 0) return null;
+  return (
+    <>
+      {donateUrl && (
+        <Button type="button" asChild>
+          <a href={donateUrl} target="_blank" rel="noopener noreferrer">
+            {donateText || "Continue"}
+          </a>
+        </Button>
+      )}
       {links.length > 0 && (
         <ul className="space-y-1.5 text-sm">
           {links.map((link) => (
@@ -54,16 +85,6 @@ export function AboutUsStep({
           ))}
         </ul>
       )}
-      {!includesConsent && (
-        <p className="text-sm leading-relaxed text-foreground">{INTAKE_COMMUNICATIONS_NOTICE}</p>
-      )}
-      {donateUrl && (
-        <Button type="button" asChild>
-          <a href={donateUrl} target="_blank" rel="noopener noreferrer">
-            {donateText || "Continue"}
-          </a>
-        </Button>
-      )}
-    </div>
+    </>
   );
 }

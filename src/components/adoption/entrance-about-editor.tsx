@@ -87,6 +87,18 @@ export function RescueAboutEditor({
           setMessage(value);
           setSaved(false);
         }}
+        preview={
+          buttonText.trim() || buttonUrl.trim() ? (
+            <div className="flex flex-wrap items-center gap-3 border-b bg-muted/20 px-6 py-4">
+              <span className="inline-flex h-10 items-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground">
+                {buttonText.trim() || "Continue"}
+              </span>
+              <p className="text-xs text-muted-foreground">
+                This button appears at the top of About us on the rescue form.
+              </p>
+            </div>
+          ) : null
+        }
       />
 
       <div className="grid gap-4 lg:grid-cols-2">
@@ -94,7 +106,7 @@ export function RescueAboutEditor({
           <div>
             <h2 className="text-sm font-medium">Add a button</h2>
             <p className="text-xs text-muted-foreground">
-              Shown under the text on the rescue form. Leave both fields blank to show no button.
+              Appears at the top of About us on the rescue form. Leave both fields blank to hide it.
             </p>
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
