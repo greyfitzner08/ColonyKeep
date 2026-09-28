@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import { ExternalLink, Pencil, Trash2, Upload } from "lucide-react";
+import { AdoptableCatImporter } from "@/components/adoption/adoptable-cat-importer";
 import { FieldControl } from "@/components/adoption/entrance-application-form";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -389,7 +390,7 @@ export function AdoptableCatsManager({
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
+      <div className="flex flex-wrap items-start justify-between gap-2">
         <Select value={statusFilter} onValueChange={setStatusFilter}>
           <SelectTrigger className="h-8 w-[9.5rem]" aria-label="Status">
             <SelectValue />
@@ -403,7 +404,7 @@ export function AdoptableCatsManager({
             ))}
           </SelectContent>
         </Select>
-        <div className="flex flex-wrap items-center gap-1.5">
+        <AdoptableCatImporter>
           <Button type="button" size="sm" variant="ghost" className="h-8 px-2.5" asChild>
             <Link href="/adopt" target="_blank" title="Public form for a person who wants to adopt">
               <ExternalLink className="mr-1 h-3.5 w-3.5" />
@@ -420,7 +421,7 @@ export function AdoptableCatsManager({
               Rescue application
             </Link>
           </Button>
-        </div>
+        </AdoptableCatImporter>
       </div>
 
       <DataTable
@@ -428,7 +429,7 @@ export function AdoptableCatsManager({
         columns={columns}
         rows={rows}
         getRowKey={(row) => row.id}
-        emptyMessage="No cats yet. Cats appear here after a rescue application is approved."
+        emptyMessage="No cats yet. Approve a rescue application or import a CSV."
       />
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
