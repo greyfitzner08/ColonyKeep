@@ -27,6 +27,7 @@ import {
 import {
   ENTRANCE_SECTIONS,
   emptyEntranceAnswers,
+  entranceFieldLabel,
   type AdoptionEntranceApplication,
   type EntranceAnswers,
 } from "@/lib/adoption/entrance";
@@ -433,7 +434,7 @@ export function AdoptableCatsManager({ cats: initial, applications }: AdoptableC
                     className={field.kind === "textarea" || field.kind === "vaccinations" ? "space-y-2 sm:col-span-2" : "space-y-2"}
                   >
                     <Label htmlFor={`entrance-${editingRecord.id}-${field.key}`}>
-                      {field.label}
+                      {entranceFieldLabel(field, answers)}
                       {field.staff && !field.submittedStamp ? (
                         <span className="ml-2 text-xs font-normal text-muted-foreground">Portal only</span>
                       ) : null}

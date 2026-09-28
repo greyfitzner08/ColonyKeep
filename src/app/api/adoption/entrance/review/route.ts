@@ -80,7 +80,8 @@ export async function POST(request: NextRequest) {
       .filter(Boolean)
       .join("\n");
     const notes = [
-      text(answers.description_breed),
+      text(answers.breed),
+      text(answers.colors) ? `Colors: ${answers.colors}` : null,
       text(answers.notes),
       text(answers.where_found) ? `Found: ${answers.where_found}` : null,
       text(answers.bonded_with) ? `Bonded with: ${answers.bonded_with}` : null,

@@ -42,6 +42,13 @@ const ADOPTER_APPLICATION_STATUSES: EntranceFieldOption[] = [
   { value: "declined", label: "Declined" },
 ];
 
+const HEAR_ABOUT: EntranceFieldOption[] = [
+  { value: "family", label: "Family" },
+  { value: "friend", label: "Friend" },
+  { value: "pet_store", label: "PetStore" },
+  { value: "other", label: "Other" },
+];
+
 const FEE_RECEIVED_BY: EntranceFieldOption[] = [
   { value: "pet_store", label: "Pet Store" },
   { value: "fff", label: "FFF" },
@@ -65,7 +72,10 @@ const ENTRANCE_SECTION_SOURCE: EntranceSection[] = [
       { key: "petfinder_only", label: "Petfinder Only?", kind: "yesno", staff: true },
       { key: "order_to_place", label: "Order to Place / Points", kind: "text", staff: true },
       { key: "gender", label: "Gender", kind: "select", options: GENDERS },
-      { key: "description_breed", label: "Description / Breed", kind: "textarea" },
+      { key: "breed", label: "Breed", kind: "text" },
+      { key: "colors", label: "Color(s)", kind: "text" },
+      { key: "date_of_birth", label: "Date of Birth (Estimated or Actual)", kind: "date" },
+      { key: "food_preferences", label: "Food Preferences", kind: "text" },
       { key: "personality", label: "Personality", kind: "textarea" },
       { key: "bonded_with", label: "Bonded With", kind: "text" },
       { key: "new_name", label: "New Name", kind: "text" },
@@ -83,13 +93,11 @@ const ENTRANCE_SECTION_SOURCE: EntranceSection[] = [
         staff: true,
         submittedStamp: true,
       },
-      { key: "how_referred", label: "How Referred", kind: "text" },
-      { key: "trapper_provider", label: "Trapper / Provider", kind: "text" },
+      { key: "how_referred", label: "How did you hear about us", kind: "select", options: HEAR_ABOUT },
+      { key: "trapper_provider", label: "Who told you?", kind: "text" },
       { key: "location_before_entry", label: "Location Before Entry", kind: "text" },
       { key: "where_found", label: "Where Found / Situation", kind: "textarea" },
       { key: "estimated_age", label: "Estimated Age at Referral", kind: "text" },
-      { key: "date_of_birth", label: "Date of Birth (Estimated or Actual)", kind: "date" },
-      { key: "food_preferences", label: "Food Preferences", kind: "text" },
     ],
   },
   {
@@ -112,11 +120,11 @@ const ENTRANCE_SECTION_SOURCE: EntranceSection[] = [
     id: "foster",
     title: "Foster Information",
     fields: [
-      { key: "foster_name", label: "Foster Name", kind: "text" },
-      { key: "foster_agreement_signed", label: "Foster Agreement Signed?", kind: "yesno" },
-      { key: "foster_phone", label: "Foster Phone", kind: "text" },
-      { key: "foster_email", label: "Foster Email", kind: "text" },
-      { key: "foster_address", label: "Foster Address", kind: "textarea" },
+      { key: "foster_name", label: "Name", kind: "text" },
+      { key: "foster_agreement_signed", label: "Agreement Signed?", kind: "yesno" },
+      { key: "foster_phone", label: "Phone", kind: "text" },
+      { key: "foster_email", label: "Email", kind: "text" },
+      { key: "foster_address", label: "Address", kind: "textarea" },
       { key: "approved_pet_store", label: "Approved for Pet Store Placement?", kind: "yesno", staff: true },
       { key: "date_placed_pet_store", label: "Date Placed at Pet Store", kind: "date", staff: true },
       { key: "date_left_pet_store", label: "Date Left Pet Store", kind: "date", staff: true },
@@ -261,6 +269,16 @@ export interface VaccinationEntry {
   type: VaccinationType | "";
   other: string;
   date: string;
+}
+
+export function entranceFieldLabel(field: EntranceField, answers?: EntranceAnswers): string {
+  if (field.key !== "trapper_provider") return field.label;
+  const how = answers?.how_referred;
+  if (how === "family") return "Which family member?";
+  if (how === "friend") return "Which friend?";
+  if (how === "pet_store") return "Which PetStore?";
+  if (how === "other") return "Please explain";
+  return "Who told you?";
 }
 
 export function entranceFieldSpansRow(kind: EntranceFieldKind): boolean {

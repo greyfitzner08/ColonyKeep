@@ -20,6 +20,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { VaccinationList } from "@/components/adoption/vaccination-list";
 import {
   emptyEntranceAnswers,
+  entranceFieldLabel,
   entranceFieldSpansRow,
   entranceOptionLabel,
   parseVaccinationList,
@@ -267,7 +268,7 @@ export function EntranceApplicationForm({
                     className={entranceFieldSpansRow(field.kind) ? "space-y-2 sm:col-span-2" : "space-y-2"}
                   >
                     <Label htmlFor={`entrance-${field.key}`}>
-                      {field.label}
+                      {entranceFieldLabel(field, answers)}
                       {field.required ? " *" : ""}
                     </Label>
                     <FieldControl
@@ -298,7 +299,7 @@ export function EntranceApplicationForm({
                   <dl className="grid gap-2 sm:grid-cols-2">
                     {section.fields.map((field) => (
                       <div key={field.key} className={entranceFieldSpansRow(field.kind) ? "sm:col-span-2" : undefined}>
-                        <dt className="text-xs text-muted-foreground">{field.label}</dt>
+                        <dt className="text-xs text-muted-foreground">{entranceFieldLabel(field, answers)}</dt>
                         <dd className="text-sm whitespace-pre-wrap">
                           {entranceOptionLabel(field.key, answers[field.key] ?? "")}
                         </dd>
