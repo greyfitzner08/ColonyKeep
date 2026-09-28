@@ -89,55 +89,67 @@ export function RescueAboutEditor({
         }}
       />
 
-      <div className="grid gap-8 sm:grid-cols-2">
-        <div className="space-y-3">
+      <div className="grid gap-4 lg:grid-cols-2">
+        <section className="space-y-3 rounded-xl border p-4">
           <div>
-            <h2 className="text-sm font-medium">Button</h2>
-            <p className="text-xs text-muted-foreground">Optional action under the text.</p>
+            <h2 className="text-sm font-medium">Add a button</h2>
+            <p className="text-xs text-muted-foreground">
+              Shown under the text on the rescue form. Leave both fields blank to show no button.
+            </p>
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="rescue-about-button-text" className="sr-only">
-              Button label
-            </Label>
-            <Input
-              id="rescue-about-button-text"
-              value={buttonText}
-              maxLength={80}
-              disabled={saving}
-              placeholder="Button label"
-              onChange={(event) => {
-                setButtonText(event.target.value);
-                setSaved(false);
-              }}
-            />
-            <Label htmlFor="rescue-about-button-url" className="sr-only">
-              Button link
-            </Label>
-            <Input
-              id="rescue-about-button-url"
-              value={buttonUrl}
-              disabled={saving}
-              placeholder="https://"
-              className="font-mono text-sm"
-              onChange={(event) => {
-                setButtonUrl(event.target.value);
-                setSaved(false);
-              }}
-            />
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="rescue-about-button-text">Button label</Label>
+              <Input
+                id="rescue-about-button-text"
+                value={buttonText}
+                maxLength={80}
+                disabled={saving}
+                placeholder="Learn more"
+                onChange={(event) => {
+                  setButtonText(event.target.value);
+                  setSaved(false);
+                }}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="rescue-about-button-url">Web address</Label>
+              <Input
+                id="rescue-about-button-url"
+                value={buttonUrl}
+                disabled={saving}
+                placeholder="example.com"
+                onChange={(event) => {
+                  setButtonUrl(event.target.value);
+                  setSaved(false);
+                }}
+              />
+            </div>
           </div>
-        </div>
+          {buttonText.trim() && (
+            <div className="flex items-center gap-3">
+              <span className="inline-flex h-9 items-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground">
+                {buttonText.trim()}
+              </span>
+              {!buttonUrl.trim() && (
+                <p className="text-xs text-muted-foreground">Add a web address so this button goes somewhere.</p>
+              )}
+            </div>
+          )}
+        </section>
 
-        <div className="space-y-3">
+        <section className="space-y-3 rounded-xl border p-4">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <h2 className="text-sm font-medium">Links</h2>
-              <p className="text-xs text-muted-foreground">Shown as a short list under the text.</p>
+              <h2 className="text-sm font-medium">Link list</h2>
+              <p className="text-xs text-muted-foreground">
+                Extra links under the text. For a word inside the paragraph, use Link in the toolbar.
+              </p>
             </div>
             <Button
               type="button"
               size="sm"
-              variant="ghost"
-              className="h-8 px-2"
+              variant="outline"
               disabled={saving || links.length >= 8}
               onClick={() => {
                 setLinks((current) => [...current, { label: "", url: "" }]);
@@ -145,37 +157,42 @@ export function RescueAboutEditor({
               }}
             >
               <Plus className="h-3.5 w-3.5" />
-              Add
+              Add a link
             </Button>
           </div>
           {links.length === 0 && (
-            <p className="text-sm text-muted-foreground">No links yet.</p>
+            <p className="text-sm text-muted-foreground">No extra links yet.</p>
           )}
-          <div className="space-y-2">
+          <div className="space-y-3">
             {links.map((link, index) => (
-              <div key={index} className="flex items-start gap-2">
-                <div className="grid flex-1 gap-2">
-                  <Input
-                    aria-label={`Link ${index + 1} label`}
-                    value={link.label}
-                    disabled={saving}
-                    placeholder="Label"
-                    onChange={(event) => updateLink(index, { label: event.target.value })}
-                  />
-                  <Input
-                    aria-label={`Link ${index + 1} address`}
-                    value={link.url}
-                    disabled={saving}
-                    placeholder="https://"
-                    className="font-mono text-sm"
-                    onChange={(event) => updateLink(index, { url: event.target.value })}
-                  />
+              <div key={index} className="flex items-end gap-2">
+                <div className="grid flex-1 gap-2 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <Label htmlFor={`rescue-link-label-${index}`}>Label</Label>
+                    <Input
+                      id={`rescue-link-label-${index}`}
+                      value={link.label}
+                      disabled={saving}
+                      placeholder="Foster program"
+                      onChange={(event) => updateLink(index, { label: event.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor={`rescue-link-url-${index}`}>Web address</Label>
+                    <Input
+                      id={`rescue-link-url-${index}`}
+                      value={link.url}
+                      disabled={saving}
+                      placeholder="example.com"
+                      onChange={(event) => updateLink(index, { url: event.target.value })}
+                    />
+                  </div>
                 </div>
                 <Button
                   type="button"
                   size="sm"
                   variant="ghost"
-                  className="h-8 w-8 px-0"
+                  className="h-9 w-9 px-0"
                   disabled={saving}
                   aria-label={`Remove link ${index + 1}`}
                   onClick={() => {
@@ -188,7 +205,7 @@ export function RescueAboutEditor({
               </div>
             ))}
           </div>
-        </div>
+        </section>
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-3 border-t pt-4">

@@ -33,6 +33,7 @@ type EditorHandlers = {
   onFocus: () => void;
   onMouseUp: () => void;
   onKeyUp: () => void;
+  onKeyDown: (event: KeyboardEvent) => void;
 };
 
 /** Stays mounted so React re-renders do not wipe what the user typed. */
@@ -61,11 +62,112 @@ class FrozenEditor extends Component<{
         onFocus={() => handlersRef.current.onFocus()}
         onMouseUp={() => handlersRef.current.onMouseUp()}
         onKeyUp={() => handlersRef.current.onKeyUp()}
+        onKeyDown={(event) => handlersRef.current.onKeyDown(event.nativeEvent)}
         onInput={() => handlersRef.current.onInput()}
         onBlur={() => handlersRef.current.onBlur()}
       />
     );
   }
+}
+
+function closestTag(node: Node | null, tag: string, root: HTMLElement): HTMLElement | null {
+  let current: Node | null = node;
+  while (current && current !== root) {
+    if (current instanceof HTMLElement && current.tagName === tag) return current;
+    current = current.parentNode;
+  }
+  return null;
+}
+
+function rangeHits(range: Range, node: Node): boolean {
+  try {
+    return range.intersectsNode(node);
+  } catch {
+    return false;
+  }
+}
+
+function caretAtStart(element: HTMLElement, range: Range): boolean {
+  if (!element.contains(range.startContainer)) return false;
+  const probe = range.cloneRange();
+  probe.selectNodeContents(element);
+  probe.setEnd(range.startContainer, range.startOffset);
+  return probe.toString().replace(/\u00a0/g, " ").trim().length === 0;
+}
+
+function placeCaret(node: Node, atEnd = false) {
+  const selection = window.getSelection();
+  const range = document.createRange();
+  range.selectNodeContents(node);
+  range.collapse(!atEnd);
+  selection?.removeAllRanges();
+  selection?.addRange(range);
+}
+
+function itemText(element: HTMLElement): string {
+  return (element.textContent ?? "").replace(/\u00a0/g, " ").trim();
+}
+
+/** Pull selected bullets out of the list and leave them as normal paragraphs. */
+function unlistItems(items: HTMLLIElement[]): HTMLElement | null {
+  let first: HTMLElement | null = null;
+  for (const item of items) {
+    const list = item.parentElement;
+    const parent = list?.parentElement;
+    if (!list || !parent || item.parentElement !== list) continue;
+    const paragraph = document.createElement("p");
+    paragraph.innerHTML = item.innerHTML || "<br>";
+    const following = [...list.children].filter(
+      (child): child is HTMLLIElement =>
+        child instanceof HTMLLIElement &&
+        child !== item &&
+        (item.compareDocumentPosition(child) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0
+    );
+    item.remove();
+    if (following.length > 0 && list.querySelector("li")) {
+      const rest = document.createElement("ul");
+      for (const next of following) rest.appendChild(next);
+      list.after(paragraph, rest);
+    } else {
+      list.after(paragraph);
+    }
+    if (!list.querySelector("li")) list.remove();
+    if (!first) first = paragraph;
+  }
+  return first;
+}
+
+function selectedListItems(editor: HTMLElement, range: Range): HTMLLIElement[] {
+  const items = [...editor.querySelectorAll("li")].filter(
+    (item): item is HTMLLIElement => item instanceof HTMLLIElement && rangeHits(range, item)
+  );
+  if (items.length > 0) return items;
+  const item = closestTag(range.startContainer, "LI", editor);
+  return item instanceof HTMLLIElement ? [item] : [];
+}
+
+function selectedParagraphs(editor: HTMLElement, range: Range): HTMLElement[] {
+  const blocks = [...editor.children].filter(
+    (node): node is HTMLElement =>
+      node instanceof HTMLElement && (node.tagName === "P" || node.tagName === "DIV")
+  );
+  const hit = blocks.filter((block) => rangeHits(range, block));
+  if (hit.length > 0) return hit;
+  const current = closestTag(range.startContainer, "P", editor) ?? closestTag(range.startContainer, "DIV", editor);
+  return current && editor.contains(current) ? [current] : [];
+}
+
+function listify(blocks: HTMLElement[]): HTMLElement | null {
+  if (blocks.length === 0) return null;
+  const list = document.createElement("ul");
+  blocks[0].before(list);
+  for (const block of blocks) {
+    const item = document.createElement("li");
+    item.innerHTML = block.innerHTML || "<br>";
+    list.appendChild(item);
+    block.remove();
+  }
+  return list;
 }
 
 export type IntakeAboutEditorHandle = {
@@ -102,6 +204,7 @@ export const IntakeAboutEditor = forwardRef<
     onFocus: () => undefined,
     onMouseUp: () => undefined,
     onKeyUp: () => undefined,
+    onKeyDown: () => undefined,
   });
   const [linkUrl, setLinkUrl] = useState("");
   const [linkOpen, setLinkOpen] = useState(false);
@@ -168,11 +271,18 @@ export const IntakeAboutEditor = forwardRef<
       if (!editor || !editor.contains(document.activeElement) && document.activeElement !== editor) {
         return;
       }
+      const selection = window.getSelection();
+      const inList = Boolean(
+        editor &&
+          selection &&
+          selection.rangeCount > 0 &&
+          closestTag(selection.anchorNode, "LI", editor)
+      );
       setActive({
         bold: document.queryCommandState("bold"),
         italic: document.queryCommandState("italic"),
         underline: document.queryCommandState("underline"),
-        list: document.queryCommandState("insertUnorderedList"),
+        list: inList,
       });
     }
     document.addEventListener("selectionchange", syncActive);
@@ -239,6 +349,7 @@ export const IntakeAboutEditor = forwardRef<
     },
     onMouseUp: rememberSelection,
     onKeyUp: rememberSelection,
+    onKeyDown: handleEditorKeyDown,
   };
 
   function captureLiveSelection() {
@@ -249,22 +360,142 @@ export const IntakeAboutEditor = forwardRef<
     rememberSelection();
   }
 
+  function activeRange(): Range | null {
+    const editor = editorRef.current;
+    const selection = window.getSelection();
+    if (
+      editor &&
+      selection &&
+      selection.rangeCount > 0 &&
+      editor.contains(selection.getRangeAt(0).commonAncestorContainer)
+    ) {
+      return selection.getRangeAt(0);
+    }
+    return savedRange.current;
+  }
+
+  function selectionLink(): HTMLAnchorElement | null {
+    const editor = editorRef.current;
+    const range = activeRange();
+    if (!editor || !range) return null;
+    const anchor = closestTag(range.startContainer, "A", editor);
+    return anchor instanceof HTMLAnchorElement ? anchor : null;
+  }
+
   function insertLink() {
     const href = linkUrl.trim();
     const editor = editorRef.current;
     if (!editor || disabled || !href) return;
-    captureLiveSelection();
     editor.focus();
     restoreSelection();
-    const selection = window.getSelection();
-    const collapsed = !selection || selection.rangeCount === 0 || selection.isCollapsed;
-    const safeHref = href.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
-    if (collapsed) {
-      document.execCommand("insertHTML", false, `<a href="${safeHref}">${safeHref}</a>`);
+    const existing = selectionLink();
+    if (existing) {
+      existing.setAttribute("href", href);
+      placeCaret(existing, true);
     } else {
-      document.execCommand("createLink", false, href);
+      const selection = window.getSelection();
+      const collapsed = !selection || selection.rangeCount === 0 || selection.isCollapsed;
+      const safeHref = href.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
+      if (collapsed) {
+        document.execCommand("insertHTML", false, `<a href="${safeHref}">${safeHref}</a>`);
+      } else {
+        document.execCommand("createLink", false, href);
+      }
     }
     setLinkUrl("");
+    setLinkOpen(false);
+    publish();
+  }
+
+  function removeLink() {
+    const editor = editorRef.current;
+    if (!editor || disabled) return;
+    editor.focus();
+    restoreSelection();
+    const range = activeRange();
+    if (!range) return;
+    const anchors = [...editor.querySelectorAll("a")].filter(
+      (anchor): anchor is HTMLAnchorElement => anchor instanceof HTMLAnchorElement && rangeHits(range, anchor)
+    );
+    const target = anchors[0] ?? selectionLink();
+    if (!target) return;
+    const parent = target.parentNode;
+    while (target.firstChild) parent?.insertBefore(target.firstChild, target);
+    target.remove();
+    setLinkOpen(false);
+    publish();
+  }
+
+  function toggleList() {
+    const editor = editorRef.current;
+    if (!editor || disabled) return;
+    editor.focus();
+    restoreSelection();
+    const range = activeRange();
+    if (!range) return;
+    const items = selectedListItems(editor, range);
+    let caretNode: Node | null = null;
+    if (items.length > 0) {
+      caretNode = unlistItems(items);
+      if (caretNode) placeCaret(caretNode);
+    } else {
+      const list = listify(selectedParagraphs(editor, range));
+      caretNode = list?.querySelector("li") ?? null;
+      if (caretNode) placeCaret(caretNode);
+    }
+    setActive((current) => ({
+      ...current,
+      list: Boolean(caretNode && closestTag(caretNode, "LI", editor)),
+    }));
+    publish();
+  }
+
+  function clearFormatting() {
+    const editor = editorRef.current;
+    if (!editor || disabled) return;
+    editor.focus();
+    restoreSelection();
+    document.execCommand("styleWithCSS", false, "false");
+    document.execCommand("removeFormat");
+    const range = activeRange();
+    if (range) {
+      const items = selectedListItems(editor, range);
+      if (items.length > 0) {
+        const paragraph = unlistItems(items);
+        if (paragraph) placeCaret(paragraph);
+        setActive((current) => ({ ...current, list: false }));
+      }
+      const anchors = [...editor.querySelectorAll("a")].filter(
+        (anchor) => rangeHits(range, anchor)
+      );
+      for (const anchor of anchors) {
+        const parent = anchor.parentNode;
+        while (anchor.firstChild) parent?.insertBefore(anchor.firstChild, anchor);
+        anchor.remove();
+      }
+    }
+    publish();
+  }
+
+  function handleEditorKeyDown(event: KeyboardEvent) {
+    if (event.key !== "Backspace" || event.metaKey || event.ctrlKey || event.altKey) return;
+    const editor = editorRef.current;
+    const selection = window.getSelection();
+    if (!editor || !selection || !selection.isCollapsed || selection.rangeCount === 0) return;
+    const range = selection.getRangeAt(0);
+    const item = closestTag(range.startContainer, "LI", editor);
+    if (!(item instanceof HTMLLIElement) || !caretAtStart(item, range)) return;
+    event.preventDefault();
+    const list = item.parentElement;
+    const previous = item.previousElementSibling ?? list?.previousElementSibling ?? null;
+    if (!itemText(item)) {
+      item.remove();
+      if (list && !list.querySelector("li")) list.remove();
+      if (previous) placeCaret(previous, true);
+    } else {
+      const paragraph = unlistItems([item]);
+      if (paragraph) placeCaret(paragraph);
+    }
     publish();
   }
 
@@ -351,18 +582,19 @@ export const IntakeAboutEditor = forwardRef<
             type="button"
             variant={active.list ? "secondary" : documentMode ? "ghost" : "outline"}
             size="sm"
-            className={formatButtonClass}
+            className={documentMode ? "h-8 px-2" : undefined}
             aria-pressed={active.list}
-            aria-label="Bulleted list"
-            title="Bulleted list"
+            aria-label={active.list ? "Remove bullets" : "Bullets"}
+            title={active.list ? "Remove bullets from this line" : "Turn the selected lines into bullets"}
             disabled={disabled}
             onMouseDown={(event) => {
               event.preventDefault();
-              applyCommand("insertUnorderedList");
+              rememberSelection();
+              toggleList();
             }}
           >
             <List />
-            {documentMode ? null : "Bullets"}
+            {documentMode ? (active.list ? "Remove bullets" : "Bullets") : "Bullets"}
           </Button>
         )}
         {documentMode && (
@@ -446,20 +678,23 @@ export const IntakeAboutEditor = forwardRef<
             type="button"
             variant={linkOpen ? "secondary" : "ghost"}
             size="sm"
-            className={formatButtonClass}
+            className="h-8 px-2"
             aria-label="Link"
             aria-expanded={linkOpen}
-            title="Link"
+            title="Link the selected words"
             disabled={disabled}
             onMouseDown={(event) => {
               event.preventDefault();
               rememberSelection();
+              const existing = selectionLink();
+              if (existing) setLinkUrl(existing.getAttribute("href") ?? "");
               setColorsOpen(false);
               setSpacingOpen(false);
               setLinkOpen((open) => !open);
             }}
           >
             <Link2 />
+            Link
           </Button>
         ) : null}
         {allowLinks && !documentMode && (
@@ -500,11 +735,12 @@ export const IntakeAboutEditor = forwardRef<
           size="sm"
           className={formatButtonClass}
           aria-label="Clear formatting"
-          title="Clear formatting"
+          title="Clear bold, color, links, and bullets"
           disabled={disabled}
           onMouseDown={(event) => {
             event.preventDefault();
-            applyCommand("removeFormat");
+            rememberSelection();
+            clearFormatting();
           }}
         >
           <Eraser />
@@ -567,24 +803,29 @@ export const IntakeAboutEditor = forwardRef<
       )}
       {documentMode && linkOpen && (
         <form
-          className="flex items-center gap-2 border-b px-3 py-2"
+          className="flex flex-wrap items-center gap-2 border-b px-3 py-2"
           onSubmit={(event) => {
             event.preventDefault();
             insertLink();
-            setLinkOpen(false);
           }}
         >
+          <p className="w-full text-xs text-muted-foreground">
+            Highlight the words you want to link, paste the address, then insert it.
+          </p>
           <Input
             value={linkUrl}
             disabled={disabled}
-            placeholder="Paste a link"
+            placeholder="example.com/page"
             aria-label="Link address"
             autoFocus
-            className="h-8 font-mono text-xs"
+            className="h-8 min-w-48 flex-1 font-mono text-xs"
             onChange={(event) => setLinkUrl(event.target.value)}
           />
           <Button type="submit" size="sm" disabled={disabled || !linkUrl.trim()}>
-            Apply
+            Insert link
+          </Button>
+          <Button type="button" size="sm" variant="ghost" disabled={disabled} onClick={removeLink}>
+            Remove link
           </Button>
         </form>
       )}
