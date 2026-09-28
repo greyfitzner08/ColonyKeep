@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { FieldControl } from "@/components/adoption/entrance-application-form";
 import { Badge } from "@/components/ui/badge";
@@ -13,8 +13,9 @@ import {
   emptyEntranceAnswers,
   applyEntranceAddress,
   applyEntranceAnswer,
+  entranceFieldGroupClass,
+  entranceFieldGroups,
   entranceFieldLabel,
-  entranceFieldRows,
   entranceFieldSpansRow,
   entranceReviewStatusLabel,
   type AdoptionEntranceApplication,
@@ -183,20 +184,22 @@ export function EntranceReviewManager({
                   const answers = answersFor(application);
                   return (
                     <section key={section.id} className="space-y-4">
-                      <div className="grid gap-4 sm:grid-cols-2">
-                        {entranceFieldRows(section.fields, answers).map(({ field, heading }) => (
-                          <Fragment key={field.key}>
-                            {heading ? (
-                              <h3 className="border-b pb-1 text-sm font-semibold tracking-tight sm:col-span-2">
-                                {heading}
-                              </h3>
-                            ) : null}
+                      <div className="space-y-4">
+                        {entranceFieldGroups(section.fields, answers).map((group) => (
                           <div
+                            key={group.heading || group.fields[0]?.key}
+                            className={entranceFieldGroupClass(group.heading)}
+                          >
+                            {group.heading ? <h3 className="text-base font-semibold">{group.heading}</h3> : null}
+                            <div className="grid gap-4 sm:grid-cols-2">
+                        {group.fields.map((field) => (
+                          <div
+                            key={field.key}
                             className={entranceFieldSpansRow(field) ? "space-y-2 sm:col-span-2" : "space-y-2"}
                           >
                             <Label htmlFor={`entrance-${application.id}-${field.key}`}>
                               {entranceFieldLabel(field, answers)}
-                              {field.key === "pet_store_name" ? " *" : ""}
+                              {field.key === "pet_store_name" || field.key === "fff_volunteer_name" ? " *" : ""}
                               {field.staff && !field.submittedStamp ? (
                                 <span className="ml-2 text-xs font-normal text-muted-foreground">Portal only</span>
                               ) : null}
@@ -222,7 +225,9 @@ export function EntranceReviewManager({
                               />
                             )}
                           </div>
-                          </Fragment>
+                        ))}
+                            </div>
+                          </div>
                         ))}
                       </div>
                     </section>

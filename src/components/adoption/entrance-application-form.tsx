@@ -29,6 +29,7 @@ import {
   applyEntranceAddress,
   applyEntranceAnswer,
   missingChangedName,
+  missingVolunteerName,
   showEntranceField,
   parseVaccinationList,
   publicEntranceSections,
@@ -154,7 +155,15 @@ export function EntranceApplicationForm({
 
   function update(key: string, value: string) {
     setAnswers((current) => applyEntranceAnswer(current, key, value));
-    if (key === "cat_name" || key === "gender" || key === "date_of_birth" || key === "name_changed" || key === "new_name") {
+    if (
+      key === "cat_name" ||
+      key === "gender" ||
+      key === "date_of_birth" ||
+      key === "name_changed" ||
+      key === "new_name" ||
+      key === "how_referred" ||
+      key === "fff_volunteer_name"
+    ) {
       setError(null);
     }
   }
@@ -174,6 +183,10 @@ export function EntranceApplicationForm({
     }
     if (steps[step]?.id === "profile" && missingChangedName(answers)) {
       setError("Enter the new name.");
+      return;
+    }
+    if (steps[step]?.id === "intake" && missingVolunteerName(answers)) {
+      setError("Enter the FFF volunteer’s name.");
       return;
     }
     if (steps[step]?.id === "veterinary") {
@@ -211,6 +224,12 @@ export function EntranceApplicationForm({
       setError("Enter the new name.");
       const profileStep = steps.findIndex((entry) => entry.id === "profile");
       if (profileStep >= 0) setStep(profileStep);
+      return;
+    }
+    if (missingVolunteerName(answers)) {
+      setError("Enter the FFF volunteer’s name.");
+      const intakeStep = steps.findIndex((entry) => entry.id === "intake");
+      if (intakeStep >= 0) setStep(intakeStep);
       return;
     }
     const vaccinationError = vaccinationListError(parseVaccinationList(answers.vaccinations ?? ""));
@@ -261,6 +280,7 @@ export function EntranceApplicationForm({
   const genderMissing = error === "Choose the cat’s gender.";
   const ageMissing = error === "Enter the cat’s date of birth.";
   const changedNameMissing = error === "Enter the new name.";
+  const volunteerNameMissing = error === "Enter the FFF volunteer’s name.";
 
   return (
     <div className="min-h-screen bg-muted/30 px-4 py-8">
@@ -334,7 +354,7 @@ export function EntranceApplicationForm({
                   >
                     <Label htmlFor={`entrance-${field.key}`}>
                       {entranceFieldLabel(field, answers)}
-                      {field.required || field.key === "new_name" ? " *" : ""}
+                      {field.required || field.key === "new_name" || field.key === "fff_volunteer_name" ? " *" : ""}
                     </Label>
                     {field.key === "name_changed" ? (
                       <p className="text-sm text-muted-foreground">
@@ -348,7 +368,8 @@ export function EntranceApplicationForm({
                         (field.key === "cat_name" && nameMissing) ||
                         (field.key === "gender" && genderMissing) ||
                         (field.key === "date_of_birth" && ageMissing) ||
-                        (field.key === "new_name" && changedNameMissing)
+                        (field.key === "new_name" && changedNameMissing) ||
+                        (field.key === "fff_volunteer_name" && volunteerNameMissing)
                       }
                       onChange={(value) => update(field.key, value)}
                       onAddressSelect={(parts) => applyAddress(field.key, parts)}
@@ -363,6 +384,9 @@ export function EntranceApplicationForm({
                       <p className="text-sm text-destructive">{error}</p>
                     )}
                     {field.key === "new_name" && changedNameMissing && (
+                      <p className="text-sm text-destructive">{error}</p>
+                    )}
+                    {field.key === "fff_volunteer_name" && volunteerNameMissing && (
                       <p className="text-sm text-destructive">{error}</p>
                     )}
                   </div>
@@ -403,7 +427,7 @@ export function EntranceApplicationForm({
 
         {steps[step]?.id !== "about" && (
           <>
-            {error && !nameMissing && !genderMissing && !ageMissing && !changedNameMissing && (
+            {error && !nameMissing && !genderMissing && !ageMissing && !changedNameMissing && !volunteerNameMissing && (
               <p className="text-sm text-destructive">{error}</p>
             )}
             <div className="flex justify-between gap-2">

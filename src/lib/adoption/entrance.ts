@@ -55,6 +55,7 @@ const HEAR_ABOUT: EntranceFieldOption[] = [
   { value: "family", label: "Family" },
   { value: "friend", label: "Friend" },
   { value: "pet_store", label: "PetStore" },
+  { value: "fff_volunteer", label: "FFF Volunteer" },
   { value: "other", label: "Other" },
 ];
 
@@ -100,20 +101,14 @@ const ENTRANCE_SECTION_SOURCE: EntranceSection[] = [
     id: "location",
     title: "Location",
     fields: [
-      { key: "location_name", label: "Home", kind: "text", staff: true, group: "Foster" },
-      { key: "location_contact_name", label: "Contact name", kind: "text", staff: true, group: "Foster" },
-      { key: "location_phone", label: "Phone", kind: "text", staff: true, group: "Foster" },
-      { key: "location_email", label: "Email", kind: "text", staff: true, group: "Foster" },
-      { key: "location_address", label: "Address", kind: "text", staff: true, group: "Foster" },
-      { key: "location_city", label: "City", kind: "text", staff: true, group: "Foster" },
-      { key: "location_state", label: "State", kind: "text", staff: true, group: "Foster" },
-      { key: "location_zip", label: "ZIP", kind: "text", staff: true, group: "Foster" },
-      { key: "location_notes", label: "Notes", kind: "textarea", staff: true, group: "Foster" },
       { key: "foster_name", label: "Name", kind: "text", group: "Foster" },
       { key: "foster_agreement_signed", label: "Agreement signed?", kind: "yesno", group: "Foster" },
       { key: "foster_phone", label: "Phone", kind: "text", group: "Foster" },
       { key: "foster_email", label: "Email", kind: "text", group: "Foster" },
-      { key: "foster_address", label: "Address", kind: "textarea", group: "Foster" },
+      { key: "location_address", label: "Address", kind: "text", group: "Foster" },
+      { key: "location_city", label: "City", kind: "text", group: "Foster" },
+      { key: "location_state", label: "State", kind: "text", group: "Foster" },
+      { key: "location_zip", label: "ZIP", kind: "text", group: "Foster" },
       {
         key: "approved_pet_store",
         label: "Approved for placement?",
@@ -139,6 +134,7 @@ const ENTRANCE_SECTION_SOURCE: EntranceSection[] = [
         staff: true,
         group: "Pet store",
       },
+      { key: "location_notes", label: "Notes", kind: "textarea", staff: true },
     ],
   },
   {
@@ -153,6 +149,7 @@ const ENTRANCE_SECTION_SOURCE: EntranceSection[] = [
         submittedStamp: true,
       },
       { key: "how_referred", label: "How did you hear about us", kind: "select", options: HEAR_ABOUT },
+      { key: "fff_volunteer_name", label: "FFF Volunteer Name", kind: "text" },
       { key: "trapper_provider", label: "Who told you?", kind: "text" },
       { key: "location_before_entry", label: "Location Before Entry", kind: "text" },
       { key: "where_found", label: "Where Found / Situation", kind: "textarea" },
@@ -271,21 +268,6 @@ export function publicEntranceSections(): EntranceSection[] {
   })).filter((section) => section.fields.length > 0);
 }
 
-export function entranceFieldRows(
-  fields: EntranceField[],
-  answers: EntranceAnswers
-): { field: EntranceField; heading: string }[] {
-  const visible = fields.filter((field) => showEntranceField(field, answers));
-  const groups = new Set(visible.map((field) => field.group).filter(Boolean));
-  const showHeadings = groups.size > 1;
-  let previous = "";
-  return visible.map((field) => {
-    const heading = showHeadings && field.group && field.group !== previous ? field.group : "";
-    if (field.group) previous = field.group;
-    return { field, heading };
-  });
-}
-
 const FIELD_BY_KEY = new Map(ENTRANCE_FIELDS.map((field) => [field.key, field]));
 
 export const ENTRANCE_REVIEW_STATUSES: { value: EntranceReviewStatus; label: string }[] = [
@@ -328,6 +310,7 @@ export interface VaccinationEntry {
 }
 
 export function entranceFieldLabel(field: EntranceField, answers?: EntranceAnswers): string {
+  if (field.key === "fff_volunteer_name") return "FFF Volunteer Name";
   if (field.key !== "trapper_provider") return field.label;
   const how = answers?.how_referred;
   if (how === "family") return "Which family member?";
@@ -368,7 +351,6 @@ function clearPetStoreQuestions(answers: EntranceAnswers) {
 
 const PLACE_ADDRESS_FIELDS: Record<string, { city: string; state: string; zip: string }> = {
   location_address: { city: "location_city", state: "location_state", zip: "location_zip" },
-  foster_address: { city: "location_city", state: "location_state", zip: "location_zip" },
   pet_store_address: { city: "pet_store_city", state: "pet_store_state", zip: "pet_store_zip" },
 };
 
@@ -403,12 +385,15 @@ export function applyEntranceAnswer(
 ): EntranceAnswers {
   const next = { ...answers, [key]: value };
   if (key === "name_changed" && value !== "yes") next.new_name = "";
+  if (key === "how_referred" && value !== "fff_volunteer") next.fff_volunteer_name = "";
   if (key === "approved_pet_store" && value !== "yes") clearPetStoreQuestions(next);
   return next;
 }
 
 export function showEntranceField(field: Pick<EntranceField, "key">, answers: EntranceAnswers): boolean {
   if (field.key === "linked_adoption_application_id") return false;
+  if (field.key === "fff_volunteer_name") return answers.how_referred === "fff_volunteer";
+  if (field.key === "trapper_provider") return answers.how_referred !== "fff_volunteer";
   if (field.key === "new_name") return answers.name_changed === "yes";
   if ((PET_STORE_QUESTION_KEYS as readonly string[]).includes(field.key)) {
     return answers.approved_pet_store === "yes";
@@ -418,6 +403,33 @@ export function showEntranceField(field: Pick<EntranceField, "key">, answers: En
 
 export function missingChangedName(answers: EntranceAnswers): boolean {
   return answers.name_changed === "yes" && !answers.new_name.trim();
+}
+
+export function missingVolunteerName(answers: EntranceAnswers): boolean {
+  return answers.how_referred === "fff_volunteer" && !(answers.fff_volunteer_name ?? "").trim();
+}
+
+export function entranceFieldGroups(
+  fields: EntranceField[],
+  answers: EntranceAnswers
+): { heading: string; fields: EntranceField[] }[] {
+  const groups: { heading: string; fields: EntranceField[] }[] = [];
+  for (const field of fields) {
+    if (!showEntranceField(field, answers)) continue;
+    const heading = field.group ?? "";
+    const last = groups[groups.length - 1];
+    if (!last || last.heading !== heading) groups.push({ heading, fields: [field] });
+    else last.fields.push(field);
+  }
+  return groups;
+}
+
+export function entranceFieldGroupClass(heading: string): string {
+  if (!heading) return "space-y-3";
+  if (heading === "Pet store") {
+    return "space-y-3 rounded-lg border-2 border-primary/40 bg-background p-4";
+  }
+  return "space-y-3 rounded-lg border border-l-4 border-l-primary bg-muted/50 p-4";
 }
 
 function formatIsoDate(value: string): string {
@@ -685,6 +697,9 @@ export function sanitizeEntranceAnswers(
   if (answers.name_changed !== "yes") answers.new_name = "";
   if (answers.name_changed === "yes" && !answers.new_name.trim()) {
     return { answers, error: "Enter the new name." };
+  }
+  if (answers.how_referred === "fff_volunteer" && !(answers.fff_volunteer_name ?? "").trim()) {
+    return { answers, error: "Enter the FFF volunteer’s name." };
   }
   if (!options.includeStaff && !answers.gender) {
     return { answers, error: "Choose the cat’s gender." };
