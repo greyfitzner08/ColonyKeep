@@ -13,6 +13,10 @@ export interface EntranceField {
   kind: EntranceFieldKind;
   required?: boolean;
   options?: EntranceFieldOption[];
+  /** Hidden on the public form. Adoption staff fill these in after submission. */
+  staff?: boolean;
+  /** Filled from the submission time. One stamp, not a second date field. */
+  submittedStamp?: boolean;
 }
 
 export interface EntranceSection {
@@ -43,29 +47,42 @@ const FEE_RECEIVED_BY: EntranceFieldOption[] = [
   { value: "fff", label: "FFF" },
 ];
 
-export const ENTRANCE_SECTIONS: EntranceSection[] = [
+const STAFF_ONLY_SECTIONS = new Set([
+  "adoption_review",
+  "adoption_completion",
+  "follow_up",
+  "reconciliation",
+]);
+
+const ENTRANCE_SECTION_SOURCE: EntranceSection[] = [
   {
     id: "profile",
     title: "Cat Profile",
     fields: [
       { key: "cat_name", label: "Cat’s Name", kind: "text", required: true },
-      { key: "current_status", label: "Current Status", kind: "text" },
-      { key: "adopted", label: "Adopted?", kind: "yesno" },
-      { key: "petfinder_only", label: "Petfinder Only?", kind: "yesno" },
-      { key: "order_to_place", label: "Order to Place / Points", kind: "text" },
+      { key: "current_status", label: "Current Status", kind: "text", staff: true },
+      { key: "adopted", label: "Adopted?", kind: "yesno", staff: true },
+      { key: "petfinder_only", label: "Petfinder Only?", kind: "yesno", staff: true },
+      { key: "order_to_place", label: "Order to Place / Points", kind: "text", staff: true },
       { key: "gender", label: "Gender", kind: "select", options: GENDERS },
       { key: "description_breed", label: "Description / Breed", kind: "textarea" },
       { key: "personality", label: "Personality", kind: "textarea" },
       { key: "bonded_with", label: "Bonded With", kind: "text" },
       { key: "new_name", label: "New Name", kind: "text" },
-      { key: "notes", label: "Notes", kind: "textarea" },
+      { key: "notes", label: "Notes", kind: "textarea", staff: true },
     ],
   },
   {
     id: "intake",
     title: "Intake & Background",
     fields: [
-      { key: "date_referred", label: "Date Referred to FFF", kind: "date" },
+      {
+        key: "date_referred",
+        label: "Date Referred to FFF",
+        kind: "date",
+        staff: true,
+        submittedStamp: true,
+      },
       { key: "how_referred", label: "How Referred", kind: "text" },
       { key: "trapper_provider", label: "Trapper / Provider", kind: "text" },
       { key: "location_before_entry", label: "Location Before Entry", kind: "text" },
@@ -85,7 +102,7 @@ export const ENTRANCE_SECTIONS: EntranceSection[] = [
       { key: "vaccinations", label: "Vaccinations / Dates", kind: "textarea" },
       { key: "prior_vet_record", label: "Prior Veterinary Record / Clinic Name", kind: "text" },
       { key: "tests_treatments", label: "Tests / Treatments", kind: "textarea" },
-      { key: "next_vet_care_due", label: "Next Veterinary Care Due", kind: "text" },
+      { key: "next_vet_care_due", label: "Next Veterinary Care Due", kind: "text", staff: true },
       { key: "microchipped", label: "Microchipped?", kind: "yesno" },
       { key: "microchip_brand", label: "Microchip Brand", kind: "text" },
       { key: "microchip_number", label: "Microchip Number", kind: "text" },
@@ -97,17 +114,17 @@ export const ENTRANCE_SECTIONS: EntranceSection[] = [
     fields: [
       { key: "foster_name", label: "Foster Name", kind: "text" },
       { key: "foster_agreement_signed", label: "Foster Agreement Signed?", kind: "yesno" },
-      { key: "foster_agreement_date", label: "Foster Agreement Date", kind: "date" },
       { key: "foster_phone", label: "Foster Phone", kind: "text" },
       { key: "foster_email", label: "Foster Email", kind: "text" },
       { key: "foster_address", label: "Foster Address", kind: "textarea" },
-      { key: "approved_pet_store", label: "Approved for Pet Store Placement?", kind: "yesno" },
-      { key: "date_placed_pet_store", label: "Date Placed at Pet Store", kind: "date" },
-      { key: "date_left_pet_store", label: "Date Left Pet Store", kind: "date" },
+      { key: "approved_pet_store", label: "Approved for Pet Store Placement?", kind: "yesno", staff: true },
+      { key: "date_placed_pet_store", label: "Date Placed at Pet Store", kind: "date", staff: true },
+      { key: "date_left_pet_store", label: "Date Left Pet Store", kind: "date", staff: true },
       {
         key: "reason_left_pet_store",
         label: "Reason Left Pet Store, if Not Adopted",
         kind: "textarea",
+        staff: true,
       },
     ],
   },
@@ -115,7 +132,7 @@ export const ENTRANCE_SECTIONS: EntranceSection[] = [
     id: "adoption_review",
     title: "Adoption Review",
     fields: [
-      { key: "adopter_name", label: "Adopter Name", kind: "text" },
+      { key: "adopter_name", label: "Adopter Name", kind: "text", staff: true },
       { key: "adoption_application_date", label: "Adoption Application Date", kind: "date" },
       { key: "check_dna_list", label: "Check DNA List?", kind: "yesno" },
       { key: "fff_receipt_acknowledged", label: "FFF Receipt Acknowledged?", kind: "yesno" },
@@ -190,7 +207,20 @@ export const ENTRANCE_SECTIONS: EntranceSection[] = [
   },
 ];
 
+export const ENTRANCE_SECTIONS: EntranceSection[] = ENTRANCE_SECTION_SOURCE.map((section) =>
+  STAFF_ONLY_SECTIONS.has(section.id)
+    ? { ...section, fields: section.fields.map((field) => ({ ...field, staff: true })) }
+    : section
+);
+
 export const ENTRANCE_FIELDS = ENTRANCE_SECTIONS.flatMap((section) => section.fields);
+
+export function publicEntranceSections(): EntranceSection[] {
+  return ENTRANCE_SECTIONS.map((section) => ({
+    ...section,
+    fields: section.fields.filter((field) => !field.staff),
+  })).filter((section) => section.fields.length > 0);
+}
 
 const FIELD_BY_KEY = new Map(ENTRANCE_FIELDS.map((field) => [field.key, field]));
 
@@ -232,12 +262,21 @@ function allowedValue(field: EntranceField, value: string): string | null {
   return trimmed;
 }
 
+export function submissionDateStamp(value: string | Date = new Date()): string {
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return new Date().toISOString().slice(0, 10);
+  return date.toISOString().slice(0, 10);
+}
+
 export function sanitizeEntranceAnswers(
-  input: unknown
+  input: unknown,
+  options: { includeStaff?: boolean } = {}
 ): { answers: EntranceAnswers; error?: string } {
   const source = input && typeof input === "object" ? (input as Record<string, unknown>) : {};
   const answers = emptyEntranceAnswers();
   for (const field of ENTRANCE_FIELDS) {
+    if (field.staff && !options.includeStaff) continue;
+    if (field.submittedStamp) continue;
     const raw = source[field.key];
     if (raw == null || raw === "") continue;
     if (typeof raw !== "string") {

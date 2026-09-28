@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { CheckCircle, ChevronLeft, ChevronRight } from "lucide-react";
 import { BrandMark } from "@/components/branding/brand-mark";
@@ -18,8 +18,9 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  ENTRANCE_SECTIONS,
   emptyEntranceAnswers,
+  entranceOptionLabel,
+  publicEntranceSections,
   type EntranceAnswers,
   type EntranceField,
 } from "@/lib/adoption/entrance";
@@ -27,7 +28,7 @@ import type { RescueAboutLink } from "@/lib/branding";
 
 const invalidClass = "border-destructive focus-visible:ring-destructive";
 
-function FieldControl({
+export function FieldControl({
   field,
   value,
   invalid,
@@ -95,25 +96,50 @@ export function EntranceApplicationForm({
   buttonText: string;
   links: RescueAboutLink[];
 }) {
+  const sections = publicEntranceSections();
+  const steps = [
+    { id: "about", title: "About us" },
+    ...sections.map((section) => ({ id: section.id, title: section.title })),
+    { id: "review", title: "Review" },
+  ];
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState<EntranceAnswers>(emptyEntranceAnswers);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const topRef = useRef<HTMLDivElement>(null);
+  const firstStep = useRef(true);
+
+  useEffect(() => {
+    if (firstStep.current) {
+      firstStep.current = false;
+      return;
+    }
+    const active = document.activeElement;
+    if (active instanceof HTMLElement) active.blur();
+    topRef.current?.scrollIntoView({ behavior: "auto", block: "start" });
+  }, [step]);
 
   function update(key: string, value: string) {
     setAnswers((current) => ({ ...current, [key]: value }));
     if (key === "cat_name") setError(null);
   }
 
+  function goNext() {
+    if (steps[step]?.id === "profile" && !answers.cat_name.trim()) {
+      setError("Enter the cat’s name.");
+      return;
+    }
+    setError(null);
+    setStep((current) => Math.min(current + 1, steps.length - 1));
+  }
+
   async function handleSubmit() {
     setError(null);
     if (!answers.cat_name.trim()) {
       setError("Enter the cat’s name.");
-      document.getElementById("entrance-cat_name")?.scrollIntoView({
-        behavior: "smooth",
-        block: "center",
-      });
+      const profileStep = steps.findIndex((entry) => entry.id === "profile");
+      if (profileStep >= 0) setStep(profileStep);
       return;
     }
     setSubmitting(true);
@@ -157,7 +183,7 @@ export function EntranceApplicationForm({
 
   return (
     <div className="min-h-screen bg-muted/30 px-4 py-8">
-      <div className="mx-auto max-w-3xl space-y-6">
+      <div ref={topRef} className="mx-auto max-w-3xl scroll-mt-4 space-y-6">
         <div className="text-center">
           <Link href="/login" className="mb-4 inline-flex justify-center text-primary">
             <BrandMark nameClassName="text-xl text-primary" />
@@ -172,11 +198,11 @@ export function EntranceApplicationForm({
           </p>
         </div>
 
-        <div className="flex justify-center gap-2">
-          {["About us", "Cat application"].map((label, index) => (
-            <span
-              key={label}
-              className={`rounded-full border px-3 py-1 text-xs ${
+        <div className="mb-6 flex flex-wrap justify-center gap-2">
+          {steps.map((entry, index) => (
+            <div
+              key={entry.id}
+              className={`rounded-full border px-2 py-1 text-xs ${
                 index === step
                   ? "border-primary bg-primary text-primary-foreground"
                   : index < step
@@ -184,12 +210,12 @@ export function EntranceApplicationForm({
                     : "border-transparent bg-muted text-muted-foreground"
               }`}
             >
-              {label}
-            </span>
+              {entry.title}
+            </div>
           ))}
         </div>
 
-        {step === 0 && (
+        {steps[step]?.id === "about" && (
           <Card>
             <CardContent className="space-y-4 pt-6">
               <AboutUsStep
@@ -203,7 +229,7 @@ export function EntranceApplicationForm({
                 description="A few things to know before you submit a cat."
               />
               <div className="flex justify-end">
-                <Button type="button" onClick={() => setStep(1)}>
+                <Button type="button" onClick={goNext}>
                   Next
                   <ChevronRight className="ml-1 h-4 w-4" />
                 </Button>
@@ -212,47 +238,86 @@ export function EntranceApplicationForm({
           </Card>
         )}
 
-        {step === 1 && ENTRANCE_SECTIONS.map((section) => (
-          <Card key={section.id}>
+        {sections.map((section) =>
+          steps[step]?.id === section.id ? (
+            <Card key={section.id}>
+              <CardHeader>
+                <CardTitle className="text-lg">{section.title}</CardTitle>
+              </CardHeader>
+              <CardContent className="grid gap-4 sm:grid-cols-2">
+                {section.fields.map((field) => (
+                  <div
+                    key={field.key}
+                    className={field.kind === "textarea" ? "space-y-2 sm:col-span-2" : "space-y-2"}
+                  >
+                    <Label htmlFor={`entrance-${field.key}`}>
+                      {field.label}
+                      {field.required ? " *" : ""}
+                    </Label>
+                    <FieldControl
+                      field={field}
+                      value={answers[field.key] ?? ""}
+                      invalid={field.key === "cat_name" && nameMissing}
+                      onChange={(value) => update(field.key, value)}
+                    />
+                    {field.key === "cat_name" && nameMissing && (
+                      <p className="text-sm text-destructive">{error}</p>
+                    )}
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          ) : null
+        )}
+
+        {steps[step]?.id === "review" && (
+          <Card>
             <CardHeader>
-              <CardTitle className="text-lg">{section.title}</CardTitle>
+              <CardTitle className="text-lg">Review</CardTitle>
             </CardHeader>
-            <CardContent className="grid gap-4 sm:grid-cols-2">
-              {section.fields.map((field) => (
-                <div
-                  key={field.key}
-                  className={field.kind === "textarea" ? "space-y-2 sm:col-span-2" : "space-y-2"}
-                >
-                  <Label htmlFor={`entrance-${field.key}`}>
-                    {field.label}
-                    {field.required ? " *" : ""}
-                  </Label>
-                  <FieldControl
-                    field={field}
-                    value={answers[field.key] ?? ""}
-                    invalid={field.key === "cat_name" && nameMissing}
-                    onChange={(value) => update(field.key, value)}
-                  />
-                  {field.key === "cat_name" && nameMissing && (
-                    <p className="text-sm text-destructive">{error}</p>
-                  )}
-                </div>
+            <CardContent className="space-y-6">
+              {sections.map((section) => (
+                <section key={section.id} className="space-y-2">
+                  <h3 className="text-sm font-semibold">{section.title}</h3>
+                  <dl className="grid gap-2 sm:grid-cols-2">
+                    {section.fields.map((field) => (
+                      <div key={field.key} className={field.kind === "textarea" ? "sm:col-span-2" : undefined}>
+                        <dt className="text-xs text-muted-foreground">{field.label}</dt>
+                        <dd className="text-sm whitespace-pre-wrap">
+                          {entranceOptionLabel(field.key, answers[field.key] ?? "")}
+                        </dd>
+                      </div>
+                    ))}
+                  </dl>
+                </section>
               ))}
             </CardContent>
           </Card>
-        ))}
+        )}
 
-        {step === 1 && (
+        {steps[step]?.id !== "about" && (
           <>
             {error && !nameMissing && <p className="text-sm text-destructive">{error}</p>}
             <div className="flex justify-between gap-2">
-              <Button type="button" variant="outline" onClick={() => setStep(0)} disabled={submitting}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setStep((current) => Math.max(current - 1, 0))}
+                disabled={submitting}
+              >
                 <ChevronLeft className="mr-1 h-4 w-4" />
                 Back
               </Button>
-              <Button type="button" onClick={() => void handleSubmit()} disabled={submitting}>
-                {submitting ? "Submitting..." : "Submit cat"}
-              </Button>
+              {steps[step]?.id === "review" ? (
+                <Button type="button" onClick={() => void handleSubmit()} disabled={submitting}>
+                  {submitting ? "Submitting..." : "Submit cat"}
+                </Button>
+              ) : (
+                <Button type="button" onClick={goNext}>
+                  Next
+                  <ChevronRight className="ml-1 h-4 w-4" />
+                </Button>
+              )}
             </div>
           </>
         )}

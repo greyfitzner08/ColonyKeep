@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { FieldControl } from "@/components/adoption/entrance-application-form";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,9 +10,10 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
   ENTRANCE_SECTIONS,
-  entranceOptionLabel,
+  emptyEntranceAnswers,
   entranceReviewStatusLabel,
   type AdoptionEntranceApplication,
+  type EntranceAnswers,
   type EntranceReviewStatus,
 } from "@/lib/adoption/entrance";
 
@@ -28,9 +30,51 @@ export function EntranceReviewManager({
 }) {
   const router = useRouter();
   const [openId, setOpenId] = useState<string | null>(applications[0]?.id ?? null);
+  const [sectionId, setSectionId] = useState(ENTRANCE_SECTIONS[0]?.id ?? "profile");
+  const [drafts, setDrafts] = useState<Record<string, EntranceAnswers>>({});
   const [reasons, setReasons] = useState<Record<string, string>>({});
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [savedId, setSavedId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  function answersFor(application: AdoptionEntranceApplication): EntranceAnswers {
+    return drafts[application.id] ?? { ...emptyEntranceAnswers(), ...application.answers };
+  }
+
+  function updateAnswer(applicationId: string, base: EntranceAnswers, key: string, value: string) {
+    setSavedId(null);
+    setDrafts((current) => ({
+      ...current,
+      [applicationId]: { ...(current[applicationId] ?? base), [key]: value },
+    }));
+  }
+
+  async function saveAnswers(application: AdoptionEntranceApplication) {
+    setError(null);
+    setSavedId(null);
+    setBusyId(application.id);
+    try {
+      const response = await fetch("/api/adoption/entrance/update", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: application.id, answers: answersFor(application) }),
+      });
+      const result = await response.json().catch(() => null);
+      if (!response.ok) {
+        setError(result?.error ?? "Unable to save these answers.");
+        return;
+      }
+      if (result?.answers) {
+        setDrafts((current) => ({ ...current, [application.id]: result.answers }));
+      }
+      setSavedId(application.id);
+      router.refresh();
+    } catch {
+      setError("Network error — check your connection and try again.");
+    } finally {
+      setBusyId(null);
+    }
+  }
 
   async function decide(application: AdoptionEntranceApplication, decision: "approved" | "denied") {
     setError(null);
@@ -98,21 +142,74 @@ export function EntranceReviewManager({
             </CardHeader>
             {open && (
               <CardContent className="space-y-6">
-                {ENTRANCE_SECTIONS.map((section) => (
-                  <section key={section.id} className="space-y-2">
-                    <h3 className="text-sm font-semibold">{section.title}</h3>
-                    <dl className="grid gap-2 sm:grid-cols-2">
-                      {section.fields.map((field) => (
-                        <div key={field.key} className={field.kind === "textarea" ? "sm:col-span-2" : undefined}>
-                          <dt className="text-xs text-muted-foreground">{field.label}</dt>
-                          <dd className="text-sm whitespace-pre-wrap">
-                            {entranceOptionLabel(field.key, application.answers?.[field.key] ?? "")}
-                          </dd>
-                        </div>
-                      ))}
-                    </dl>
-                  </section>
-                ))}
+                <div className="flex flex-wrap gap-2">
+                  {ENTRANCE_SECTIONS.map((section) => (
+                    <button
+                      key={section.id}
+                      type="button"
+                      className={`rounded-full border px-2 py-1 text-xs ${
+                        sectionId === section.id
+                          ? "border-primary bg-primary text-primary-foreground"
+                          : "border-transparent bg-muted text-muted-foreground"
+                      }`}
+                      onClick={() => setSectionId(section.id)}
+                    >
+                      {section.title}
+                    </button>
+                  ))}
+                </div>
+                {ENTRANCE_SECTIONS.filter((section) => section.id === sectionId).map((section) => {
+                  const answers = answersFor(application);
+                  return (
+                    <section key={section.id} className="space-y-4">
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        {section.fields.map((field) => (
+                          <div
+                            key={field.key}
+                            className={field.kind === "textarea" ? "space-y-2 sm:col-span-2" : "space-y-2"}
+                          >
+                            <Label htmlFor={`entrance-${application.id}-${field.key}`}>
+                              {field.label}
+                              {field.staff && !field.submittedStamp ? (
+                                <span className="ml-2 text-xs font-normal text-muted-foreground">Portal only</span>
+                              ) : null}
+                            </Label>
+                            {field.submittedStamp ? (
+                              <p className="text-sm">
+                                {new Date(application.created_at).toLocaleString(undefined, {
+                                  dateStyle: "medium",
+                                  timeStyle: "short",
+                                })}
+                              </p>
+                            ) : (
+                              <FieldControl
+                                field={{ ...field, key: `${application.id}-${field.key}` }}
+                                value={answers[field.key] ?? ""}
+                                invalid={false}
+                                onChange={(value) =>
+                                  updateAnswer(application.id, answers, field.key, value)
+                                }
+                              />
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </section>
+                  );
+                })}
+                <div className="flex flex-wrap items-center gap-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={busyId === application.id}
+                    onClick={() => void saveAnswers(application)}
+                  >
+                    {busyId === application.id ? "Saving..." : "Save changes"}
+                  </Button>
+                  {savedId === application.id && (
+                    <p className="text-sm text-muted-foreground">Saved</p>
+                  )}
+                </div>
                 {application.denial_reason && (
                   <p className="text-sm">
                     <span className="font-medium">Why declined: </span>
