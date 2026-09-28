@@ -3,6 +3,7 @@
 export type ExportableTableId =
   | "adoptable_cats"
   | "adoption_applications"
+  | "adoption_entrance_applications"
   | "adoption_locations"
   | "appointments"
   | "cats"
@@ -64,6 +65,22 @@ export const EXPORTABLE_TABLES: ExportableTable[] = [
       { id: "created_at", label: "created at" },
       { id: "updated_at", label: "updated at" },
       { id: "profile_photo_url", label: "profile photo url" },
+    ],
+  },
+  {
+    id: "adoption_entrance_applications",
+    label: "Adoption entrance applications",
+    columns: [
+      { id: "id", label: "id" },
+      { id: "status", label: "status" },
+      { id: "cat_name", label: "cat name" },
+      { id: "answers", label: "answers" },
+      { id: "denial_reason", label: "denial reason" },
+      { id: "reviewed_by", label: "reviewed by" },
+      { id: "reviewed_at", label: "reviewed at" },
+      { id: "adoptable_cat_id", label: "adoptable cat id" },
+      { id: "created_at", label: "created at" },
+      { id: "updated_at", label: "updated at" },
     ],
   },
   {

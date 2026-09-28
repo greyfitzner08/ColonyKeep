@@ -36,6 +36,9 @@ export default async function AdoptionPage() {
         actions={
           <>
             <Button type="button" size="sm" variant="outline" asChild>
+              <Link href="/adoption/entrance">Entrance applications</Link>
+            </Button>
+            <Button type="button" size="sm" variant="outline" asChild>
               <Link href="/adoption/applications">Applications</Link>
             </Button>
             <Button type="button" size="sm" variant="outline" asChild>

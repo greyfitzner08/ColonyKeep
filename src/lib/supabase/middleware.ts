@@ -18,6 +18,7 @@ const PUBLIC_ROUTES = [
   "/volunteer-signup",
   "/clinic-booking",
   "/adopt",
+  "/adoption-entrance",
   "/login",
   "/forgot-password",
   "/auth",
