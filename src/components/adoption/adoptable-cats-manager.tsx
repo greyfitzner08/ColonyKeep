@@ -390,7 +390,7 @@ export function AdoptableCatsManager({ cats: initial, locations }: AdoptableCats
               title="Public form for a cat joining the program"
             >
               <ExternalLink className="mr-1 h-3.5 w-3.5" />
-              Entrance application
+              Rescue application
             </Link>
           </Button>
           <Button type="button" size="sm" variant="outline" className="h-8 px-2.5" asChild>

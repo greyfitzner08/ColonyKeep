@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/button";
+import type { RescueAboutLink } from "@/lib/branding";
 import { INTAKE_COMMUNICATIONS_NOTICE } from "@/lib/constants";
 import { intakeAboutPlainText, sanitizeIntakeAboutHtml } from "@/lib/intake-about-html";
 
@@ -7,13 +8,17 @@ export function AboutUsStep({
   donateUrl,
   donateText,
   description = "A few things to know before you tell us about the colony.",
+  links = [],
+  allowLinks = false,
 }: {
   message: string;
   donateUrl: string | null;
   donateText: string;
   description?: string;
+  links?: RescueAboutLink[];
+  allowLinks?: boolean;
 }) {
-  const html = sanitizeIntakeAboutHtml(message);
+  const html = sanitizeIntakeAboutHtml(message, { allowLinks });
   const includesConsent = /occasional communications/i.test(intakeAboutPlainText(message));
 
   return (
@@ -23,16 +28,32 @@ export function AboutUsStep({
         <p className="text-sm text-muted-foreground">{description}</p>
       </div>
       <div
-        className="space-y-3 text-sm leading-relaxed text-foreground [&_p+p]:mt-3"
+        className="space-y-3 text-sm leading-relaxed text-foreground [&_a]:font-medium [&_a]:text-primary [&_a]:underline [&_a]:underline-offset-2 [&_p+p]:mt-3"
         dangerouslySetInnerHTML={{ __html: html }}
       />
+      {links.length > 0 && (
+        <ul className="space-y-1.5 text-sm">
+          {links.map((link) => (
+            <li key={`${link.label}-${link.url}`}>
+              <a
+                href={link.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-medium text-primary underline underline-offset-2"
+              >
+                {link.label}
+              </a>
+            </li>
+          ))}
+        </ul>
+      )}
       {!includesConsent && (
         <p className="text-sm leading-relaxed text-foreground">{INTAKE_COMMUNICATIONS_NOTICE}</p>
       )}
       {donateUrl && (
         <Button type="button" asChild>
           <a href={donateUrl} target="_blank" rel="noopener noreferrer">
-            {donateText}
+            {donateText || "Continue"}
           </a>
         </Button>
       )}

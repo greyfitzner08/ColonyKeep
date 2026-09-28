@@ -67,7 +67,7 @@ export function EntranceReviewManager({
   if (applications.length === 0) {
     return (
       <p className="text-sm text-muted-foreground">
-        No entrance applications yet. Share the public form to start receiving cats.
+        No rescue applications yet. Share the public form to start receiving cats.
       </p>
     );
   }

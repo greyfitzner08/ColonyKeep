@@ -20,11 +20,19 @@ export interface PlatformBranding {
   /** Optional donate button on the colony request intro. */
   intake_donate_url: string | null;
   intake_donate_text: string;
-  /** Intro shown before the public adoption-program entrance form. */
+  /** Intro shown before the public rescue application. */
   adoption_entrance_about_message: string;
+  adoption_entrance_button_text: string;
+  adoption_entrance_button_url: string | null;
+  adoption_entrance_links: RescueAboutLink[];
 }
 
-export const DEFAULT_ENTRANCE_ABOUT_MESSAGE = `<p>Friends of Feral Felines is a 100% volunteer-run nonprofit serving Mecklenburg County. We do not have paid employees.</p><p>This form is for a cat entering the adoption program. An adoption specialist reviews the information and approves or declines entry. It is separate from the adoption application, which is for a person who wants to adopt a cat.</p><p>By submitting this entrance application, you agree to receive occasional communications from Friends of Feral Felines via email.</p>`;
+export interface RescueAboutLink {
+  label: string;
+  url: string;
+}
+
+export const DEFAULT_ENTRANCE_ABOUT_MESSAGE = `<p>Friends of Feral Felines is a 100% volunteer-run nonprofit serving Mecklenburg County. We do not have paid employees.</p><p>This rescue application is for a cat joining the adoption program. An adoption specialist reviews the information and approves or declines entry. Approved cats are added to Adoptable Cats. It is separate from the adoption application, which is for a person who wants to adopt a cat.</p><p>By submitting this rescue application, you agree to receive occasional communications from Friends of Feral Felines via email.</p>`;
 
 export const DEFAULT_INTAKE_DONATE_URL = "https://givebutter.com/mobile-tnvr-clinic-atzvj9";
 export const DEFAULT_INTAKE_DONATE_TEXT = "Donate to our mobile clinics";
@@ -49,7 +57,29 @@ export function defaultPlatformBranding(): PlatformBranding {
     intake_donate_url: DEFAULT_INTAKE_DONATE_URL,
     intake_donate_text: DEFAULT_INTAKE_DONATE_TEXT,
     adoption_entrance_about_message: DEFAULT_ENTRANCE_ABOUT_MESSAGE,
+    adoption_entrance_button_text: "",
+    adoption_entrance_button_url: null,
+    adoption_entrance_links: [],
   };
+}
+
+const MAX_RESCUE_LINKS = 8;
+const MAX_RESCUE_LINK_LABEL = 80;
+
+export function normalizeRescueAboutLinks(value: unknown): RescueAboutLink[] {
+  if (!Array.isArray(value)) return [];
+  const links: RescueAboutLink[] = [];
+  for (const entry of value) {
+    if (!entry || typeof entry !== "object") continue;
+    const label =
+      "label" in entry && typeof entry.label === "string" ? entry.label.trim() : "";
+    const rawUrl = "url" in entry && typeof entry.url === "string" ? entry.url : "";
+    const url = normalizePublicHttpsUrl(rawUrl);
+    if (!label || !url) continue;
+    links.push({ label: label.slice(0, MAX_RESCUE_LINK_LABEL), url });
+    if (links.length >= MAX_RESCUE_LINKS) break;
+  }
+  return links;
 }
 
 const HEX_COLOR_RE = /^#([0-9A-Fa-f]{6})$/;
@@ -124,6 +154,9 @@ export function normalizePlatformBranding(
         intake_donate_url?: string | null;
         intake_donate_text?: string | null;
         adoption_entrance_about_message?: string | null;
+        adoption_entrance_button_text?: string | null;
+        adoption_entrance_button_url?: string | null;
+        adoption_entrance_links?: unknown;
       }
     | null
     | undefined
@@ -136,6 +169,8 @@ export function normalizePlatformBranding(
   const about = row?.intake_about_message?.trim();
   const entranceAbout = row?.adoption_entrance_about_message?.trim();
   const donateText = row?.intake_donate_text?.trim();
+  const entranceButtonUrl = normalizePublicHttpsUrl(row?.adoption_entrance_button_url);
+  const entranceButtonText = row?.adoption_entrance_button_text?.trim() ?? "";
   return {
     app_name: name || DEFAULT_APP_NAME,
     logo_url: logo || null,
@@ -148,6 +183,9 @@ export function normalizePlatformBranding(
       donateUrl === undefined ? DEFAULT_INTAKE_DONATE_URL : donateUrl,
     intake_donate_text: donateText || DEFAULT_INTAKE_DONATE_TEXT,
     adoption_entrance_about_message: entranceAbout || DEFAULT_ENTRANCE_ABOUT_MESSAGE,
+    adoption_entrance_button_text: entranceButtonText.slice(0, 80),
+    adoption_entrance_button_url: entranceButtonUrl === undefined ? null : entranceButtonUrl,
+    adoption_entrance_links: normalizeRescueAboutLinks(row?.adoption_entrance_links),
   };
 }
 

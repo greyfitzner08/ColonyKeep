@@ -3,7 +3,7 @@ import { EntranceApplicationForm } from "@/components/adoption/entrance-applicat
 import { getPlatformBranding } from "@/lib/branding-server";
 
 export const metadata: Metadata = {
-  title: "Adoption Program Entrance",
+  title: "Rescue Application",
 };
 
 export default async function AdoptionEntrancePage() {
@@ -11,8 +11,9 @@ export default async function AdoptionEntrancePage() {
   return (
     <EntranceApplicationForm
       aboutMessage={branding.adoption_entrance_about_message}
-      donateUrl={branding.intake_donate_url}
-      donateText={branding.intake_donate_text}
+      buttonUrl={branding.adoption_entrance_button_url}
+      buttonText={branding.adoption_entrance_button_text}
+      links={branding.adoption_entrance_links}
     />
   );
 }

@@ -69,7 +69,7 @@ export const EXPORTABLE_TABLES: ExportableTable[] = [
   },
   {
     id: "adoption_entrance_applications",
-    label: "Adoption entrance applications",
+    label: "Rescue applications",
     columns: [
       { id: "id", label: "id" },
       { id: "status", label: "status" },
@@ -420,7 +420,10 @@ export const EXPORTABLE_TABLES: ExportableTable[] = [
       { id: "intake_about_message", label: "colony request intro" },
       { id: "intake_donate_url", label: "colony donate url" },
       { id: "intake_donate_text", label: "colony donate button" },
-      { id: "adoption_entrance_about_message", label: "entrance about us" },
+      { id: "adoption_entrance_about_message", label: "rescue about us" },
+      { id: "adoption_entrance_button_text", label: "rescue about button" },
+      { id: "adoption_entrance_button_url", label: "rescue about button link" },
+      { id: "adoption_entrance_links", label: "rescue about links" },
     ],
   },
   {

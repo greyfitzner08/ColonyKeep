@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Bold, Eraser, Italic, Underline } from "lucide-react";
+import { Bold, Eraser, Italic, Link2, Underline } from "lucide-react";
+import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { sanitizeIntakeAboutHtml } from "@/lib/intake-about-html";
 import { cn } from "@/lib/utils";
@@ -21,22 +22,25 @@ export function IntakeAboutEditor({
   value,
   disabled,
   onChange,
+  allowLinks = false,
 }: {
   id: string;
   value: string;
   disabled?: boolean;
   onChange: (value: string) => void;
+  allowLinks?: boolean;
 }) {
   const editorRef = useRef<HTMLDivElement>(null);
   const savedOffsets = useRef<{ start: number; end: number } | null>(null);
+  const [linkUrl, setLinkUrl] = useState("");
   const [active, setActive] = useState({ bold: false, italic: false, underline: false });
 
   useEffect(() => {
     const editor = editorRef.current;
     if (!editor || document.activeElement === editor) return;
-    const html = sanitizeIntakeAboutHtml(value);
+    const html = sanitizeIntakeAboutHtml(value, { allowLinks });
     if (editor.innerHTML !== html) editor.innerHTML = html;
-  }, [value]);
+  }, [allowLinks, value]);
 
   useEffect(() => {
     function syncActive() {
@@ -113,6 +117,24 @@ export function IntakeAboutEditor({
     if (!editor || !selection || selection.rangeCount === 0 || selection.isCollapsed) return;
     if (!editor.contains(selection.getRangeAt(0).commonAncestorContainer)) return;
     rememberSelection();
+  }
+
+  function insertLink() {
+    const href = linkUrl.trim();
+    const editor = editorRef.current;
+    if (!editor || disabled || !href) return;
+    captureLiveSelection();
+    editor.focus();
+    restoreSelection();
+    const selection = window.getSelection();
+    const collapsed = !selection || selection.rangeCount === 0 || selection.isCollapsed;
+    if (collapsed) {
+      document.execCommand("insertHTML", false, `<a href="${href}">${href}</a>`);
+    } else {
+      document.execCommand("createLink", false, href);
+    }
+    setLinkUrl("");
+    publish();
   }
 
   function applyCommand(command: string, commandValue?: string) {
@@ -207,6 +229,38 @@ export function IntakeAboutEditor({
             onChange={(event) => applyCommand("foreColor", event.target.value)}
           />
         </label>
+        {allowLinks && (
+          <>
+            <span className="mx-1 hidden h-6 w-px bg-border sm:inline-block" aria-hidden />
+            <Input
+              value={linkUrl}
+              disabled={disabled}
+              placeholder="https://…"
+              aria-label="Link address"
+              className="h-8 w-44 font-mono text-xs"
+              onChange={(event) => setLinkUrl(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                  insertLink();
+                }
+              }}
+            />
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={disabled || !linkUrl.trim()}
+              onMouseDown={(event) => {
+                event.preventDefault();
+                insertLink();
+              }}
+            >
+              <Link2 />
+              Link
+            </Button>
+          </>
+        )}
         <Button
           type="button"
           variant="ghost"
@@ -239,7 +293,7 @@ export function IntakeAboutEditor({
         onBlur={() => {
           const editor = editorRef.current;
           if (!editor) return;
-          const clean = sanitizeIntakeAboutHtml(editor.innerHTML);
+          const clean = sanitizeIntakeAboutHtml(editor.innerHTML, { allowLinks });
           editor.innerHTML = clean;
           onChange(clean);
         }}

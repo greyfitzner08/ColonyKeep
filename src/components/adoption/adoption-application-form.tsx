@@ -548,7 +548,7 @@ export function AdoptionApplicationForm({
         <h1 className="text-2xl font-semibold">Adoption application</h1>
         <p className="text-sm text-muted-foreground">
           Use this form if you want to adopt a cat or kitten. Submitting a cat into the program
-          uses the entrance application instead.
+          uses the rescue application instead.
         </p>
       </div>
 

@@ -97,13 +97,38 @@ function looksLikeHtml(value: string): boolean {
   return /<\/?[a-z][^>]*>/i.test(value);
 }
 
-type OpenTag = { tag: string; emitted: "span" | string };
+type OpenTag = { tag: string; emitted: string };
+
+export interface IntakeAboutSanitizeOptions {
+  /** Keep https and mailto links. Colony intro text leaves this off. */
+  allowLinks?: boolean;
+}
+
+function escapeAttribute(value: string): string {
+  return value.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
+}
+
+function sanitizeLinkHref(raw: string): string | null {
+  const value = raw.trim();
+  if (!value || /javascript:|data:/i.test(value)) return null;
+  try {
+    const url = new URL(value);
+    if (url.protocol === "http:" || url.protocol === "https:") return url.toString();
+    if (url.protocol === "mailto:" && url.pathname.includes("@")) return url.toString();
+  } catch {
+    return null;
+  }
+  return null;
+}
 
 /**
  * Keep bold, italic, underline, text color, and paragraphs.
- * Everything else is dropped so the public form cannot render scripts or links.
+ * Scripts are dropped. Links stay only when allowLinks is set, and only for http(s) or mailto.
  */
-export function sanitizeIntakeAboutHtml(input: string): string {
+export function sanitizeIntakeAboutHtml(
+  input: string,
+  options: IntakeAboutSanitizeOptions = {}
+): string {
   const source = input.replace(/\u0000/g, "");
   if (!source.trim()) return "";
   if (!looksLikeHtml(source)) return plainTextToHtml(source);
@@ -160,6 +185,19 @@ export function sanitizeIntakeAboutHtml(input: string): string {
         continue;
       }
 
+      if (tag === "a" && options.allowLinks) {
+        const href = sanitizeLinkHref(readAttribute(attrs, "href") ?? "");
+        if (!href) continue;
+        if (stack.some((open) => open.tag === "p") === false && stack.length === 0) {
+          html += "<p>";
+          stack.push({ tag: "p", emitted: "p" });
+        }
+        html += `<a href="${escapeAttribute(href)}" target="_blank" rel="noopener noreferrer">`;
+        if (!selfClosing) stack.push({ tag: "a", emitted: "a" });
+        else html += "</a>";
+        continue;
+      }
+
       if (tag === "font") {
         const color = normalizeColor(readAttribute(attrs, "color") ?? "");
         if (!color) continue;
@@ -210,7 +248,7 @@ export function sanitizeIntakeAboutHtml(input: string): string {
     if (open) html += `</${open.emitted}>`;
   }
 
-  return html.replace(/<(p|span|strong|b|em|i|u)>\s*<\/\1>/gi, "").trim();
+  return html.replace(/<(p|span|strong|b|em|i|u|a)>\s*<\/\1>/gi, "").trim();
 }
 
 export function intakeAboutPlainText(value: string): string {

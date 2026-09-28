@@ -23,6 +23,7 @@ import {
   type EntranceAnswers,
   type EntranceField,
 } from "@/lib/adoption/entrance";
+import type { RescueAboutLink } from "@/lib/branding";
 
 const invalidClass = "border-destructive focus-visible:ring-destructive";
 
@@ -85,12 +86,14 @@ function FieldControl({
 
 export function EntranceApplicationForm({
   aboutMessage,
-  donateUrl,
-  donateText,
+  buttonUrl,
+  buttonText,
+  links,
 }: {
   aboutMessage: string;
-  donateUrl: string | null;
-  donateText: string;
+  buttonUrl: string | null;
+  buttonText: string;
+  links: RescueAboutLink[];
 }) {
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState<EntranceAnswers>(emptyEntranceAnswers);
@@ -141,8 +144,8 @@ export function EntranceApplicationForm({
             <CheckCircle className="mx-auto h-16 w-16 text-primary" />
             <h1 className="text-2xl font-semibold">Application submitted</h1>
             <p className="text-muted-foreground">
-              Thank you. An adoption specialist will review {answers.cat_name.trim()} and approve
-              or decline entry into the adoption program.
+              Thank you. An adoption specialist will review {answers.cat_name.trim()}. Approving
+              this cat adds them to Adoptable Cats.
             </p>
           </CardContent>
         </Card>
@@ -160,12 +163,12 @@ export function EntranceApplicationForm({
             <BrandMark nameClassName="text-xl text-primary" />
           </Link>
           <p className="text-xs font-medium uppercase tracking-wide text-amber-800">
-            Cat entering the program
+            Cat joining the program
           </p>
-          <h1 className="text-xl font-bold sm:text-2xl">Adoption program entrance</h1>
+          <h1 className="text-xl font-bold sm:text-2xl">Rescue application</h1>
           <p className="mx-auto mt-2 max-w-2xl text-muted-foreground">
-            Submit a cat to join the adoption program. This is not the form for a person who wants
-            to adopt a cat.
+            Submit a cat to join the adoption program. Approved cats are added to Adoptable Cats.
+            This is not the form for a person who wants to adopt a cat.
           </p>
         </div>
 
@@ -191,8 +194,10 @@ export function EntranceApplicationForm({
             <CardContent className="space-y-4 pt-6">
               <AboutUsStep
                 message={aboutMessage}
-                donateUrl={donateUrl}
-                donateText={donateText}
+                donateUrl={buttonUrl}
+                donateText={buttonText}
+                links={links}
+                allowLinks
                 description="A few things to know before you submit a cat."
               />
               <div className="flex justify-end">
