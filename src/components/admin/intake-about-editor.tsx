@@ -388,21 +388,36 @@ export const IntakeAboutEditor = forwardRef<
     const href = linkUrl.trim();
     const editor = editorRef.current;
     if (!editor || disabled || !href) return;
+    const range = savedRange.current?.cloneRange() ?? null;
+    const rangeInEditor = Boolean(
+      range && !range.collapsed && editor.contains(range.commonAncestorContainer)
+    );
     editor.focus();
-    restoreSelection();
+    if (rangeInEditor && range) {
+      const selection = window.getSelection();
+      selection?.removeAllRanges();
+      selection?.addRange(range);
+    } else {
+      restoreSelection();
+    }
     const existing = selectionLink();
     if (existing) {
       existing.setAttribute("href", href);
       placeCaret(existing, true);
-    } else {
-      const selection = window.getSelection();
-      const collapsed = !selection || selection.rangeCount === 0 || selection.isCollapsed;
-      const safeHref = href.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
-      if (collapsed) {
-        document.execCommand("insertHTML", false, `<a href="${safeHref}">${safeHref}</a>`);
-      } else {
-        document.execCommand("createLink", false, href);
+    } else if (rangeInEditor && range) {
+      const anchor = document.createElement("a");
+      anchor.setAttribute("href", href);
+      try {
+        range.surroundContents(anchor);
+      } catch {
+        const contents = range.extractContents();
+        anchor.appendChild(contents);
+        range.insertNode(anchor);
       }
+      placeCaret(anchor, true);
+    } else {
+      const safeHref = href.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
+      document.execCommand("insertHTML", false, `<a href="${safeHref}">${safeHref}</a>`);
     }
     setLinkUrl("");
     setLinkOpen(false);
@@ -832,6 +847,7 @@ export const IntakeAboutEditor = forwardRef<
         </form>
       )}
       <FrozenEditor
+        key="about-document"
         id={id}
         editorRef={editorRef}
         handlersRef={handlersRef}

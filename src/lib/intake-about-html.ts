@@ -128,6 +128,9 @@ function escapeAttribute(value: string): string {
 function sanitizeLinkHref(raw: string): string | null {
   let value = raw.trim();
   if (!value || /javascript:|data:/i.test(value)) return null;
+  if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+    value = `mailto:${value}`;
+  }
   if (!/^[a-z][a-z0-9+.-]*:/i.test(value)) {
     value = `https://${value.replace(/^\/+/, "")}`;
   }
