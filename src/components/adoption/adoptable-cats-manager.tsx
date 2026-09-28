@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
@@ -34,8 +34,9 @@ import {
   emptyEntranceAnswers,
   applyEntranceAddress,
   applyEntranceAnswer,
+  entranceFieldGroupClass,
+  entranceFieldGroups,
   entranceFieldLabel,
-  entranceFieldRows,
   entranceFieldSpansRow,
   type AdoptionEntranceApplication,
   type EntranceAnswers,
@@ -83,7 +84,7 @@ function catAgeLabel(answers: EntranceAnswers | undefined, row: AdoptableCat): s
 }
 
 function locationSummary(answers: EntranceAnswers | undefined): { foster: string; store: string } {
-  const foster = answers?.location_name?.trim() || "";
+  const foster = answers?.foster_name?.trim() || answers?.location_contact_name?.trim() || answers?.location_name?.trim() || "";
   const store = answers?.approved_pet_store === "yes" ? answers.pet_store_name?.trim() || "" : "";
   return { foster, store };
 }
@@ -419,13 +420,23 @@ export function AdoptableCatsManager({
           </SelectContent>
         </Select>
         <AdoptableCatImporter>
-          <Button type="button" size="sm" variant="ghost" className="h-8 px-2.5" asChild>
+          <Button
+            type="button"
+            size="sm"
+            className="h-8 bg-primary text-primary-foreground hover:bg-primary/90"
+            asChild
+          >
             <Link href="/adopt" target="_blank" title="Public form for a person who wants to adopt">
               <ExternalLink className="mr-1 h-3.5 w-3.5" />
               Adoption application
             </Link>
           </Button>
-          <Button type="button" size="sm" variant="ghost" className="h-8 px-2.5" asChild>
+          <Button
+            type="button"
+            size="sm"
+            className="h-8 bg-sidebar text-sidebar-foreground hover:bg-sidebar/80"
+            asChild
+          >
             <Link
               href="/adoption-entrance"
               target="_blank"
@@ -567,18 +578,19 @@ export function AdoptableCatsManager({
                 </div>
               ) : null}
 
-              <div className="grid gap-4 sm:grid-cols-2">
-                {entranceFieldRows(section.fields, answers).map(({ field, heading }) => (
-                  <Fragment key={field.key}>
-                    {heading ? (
-                      <h3 className="border-b pb-1 text-sm font-semibold tracking-tight sm:col-span-2">{heading}</h3>
-                    ) : null}
+              <div className="space-y-4">
+                {entranceFieldGroups(section.fields, answers).map((group) => (
+                  <div key={group.heading || group.fields[0]?.key} className={entranceFieldGroupClass(group.heading)}>
+                    {group.heading ? <h3 className="text-base font-semibold">{group.heading}</h3> : null}
+                    <div className="grid gap-4 sm:grid-cols-2">
+                {group.fields.map((field) => (
                   <div
+                    key={field.key}
                     className={entranceFieldSpansRow(field) ? "space-y-2 sm:col-span-2" : "space-y-2"}
                   >
                     <Label htmlFor={`entrance-${editingRecord.id}-${field.key}`}>
                       {entranceFieldLabel(field, answers)}
-                      {field.key === "pet_store_name" ? " *" : ""}
+                      {field.key === "pet_store_name" || field.key === "fff_volunteer_name" ? " *" : ""}
                       {field.staff && !field.submittedStamp ? (
                         <span className="ml-2 text-xs font-normal text-muted-foreground">Portal only</span>
                       ) : null}
@@ -600,7 +612,9 @@ export function AdoptableCatsManager({
                       />
                     )}
                   </div>
-                  </Fragment>
+                ))}
+                    </div>
+                  </div>
                 ))}
               </div>
 

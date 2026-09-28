@@ -1,20 +1,32 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Upload } from "lucide-react";
+import { Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { buildCatImportTemplateCsv } from "@/lib/adoption/import-cats";
 
 export function AdoptableCatImporter({ children }: { children?: React.ReactNode }) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
   const [importing, setImporting] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [warning, setWarning] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (!menuOpen) return;
+    function closeOnOutsideClick(event: MouseEvent) {
+      if (!menuRef.current?.contains(event.target as Node)) setMenuOpen(false);
+    }
+    document.addEventListener("mousedown", closeOnOutsideClick);
+    return () => document.removeEventListener("mousedown", closeOnOutsideClick);
+  }, [menuOpen]);
+
   function downloadTemplate() {
+    setMenuOpen(false);
     const blob = new Blob([buildCatImportTemplateCsv()], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
@@ -85,34 +97,51 @@ export function AdoptableCatImporter({ children }: { children?: React.ReactNode 
 
   return (
     <div className="flex flex-col items-end gap-2">
-      <div className="flex flex-wrap items-center gap-1.5">
-        <input
-          ref={inputRef}
-          type="file"
-          accept=".csv,text/csv"
-          className="hidden"
-          onChange={(event) => void handleFileChange(event)}
-        />
-        <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          className="h-8"
-          disabled={importing}
-          onClick={() => inputRef.current?.click()}
-        >
-          <Upload className="mr-1.5 h-3.5 w-3.5" />
-          {importing ? "Importing…" : "Import CSV"}
-        </Button>
-        <Button type="button" size="sm" variant="ghost" className="h-8 px-2.5" onClick={downloadTemplate}>
-          Template
-        </Button>
+      <div className="flex flex-wrap items-center justify-end gap-1.5">
         {children}
+        <div className="relative" ref={menuRef}>
+          <input
+            ref={inputRef}
+            type="file"
+            accept=".csv,text/csv"
+            className="hidden"
+            onChange={(event) => void handleFileChange(event)}
+          />
+          <Button
+            type="button"
+            size="icon"
+            variant="outline"
+            className="h-8 w-8"
+            aria-label="Import options"
+            aria-expanded={menuOpen}
+            disabled={importing}
+            onClick={() => setMenuOpen((open) => !open)}
+          >
+            <Settings className="h-4 w-4" />
+          </Button>
+          {menuOpen ? (
+            <div className="absolute right-0 z-20 mt-1 w-44 rounded-md border bg-popover p-1 text-popover-foreground shadow-md">
+              <button
+                type="button"
+                className="w-full rounded-sm px-2 py-1.5 text-left text-sm hover:bg-accent"
+                onClick={() => {
+                  setMenuOpen(false);
+                  inputRef.current?.click();
+                }}
+              >
+                {importing ? "Importing…" : "Import CSV"}
+              </button>
+              <button
+                type="button"
+                className="w-full rounded-sm px-2 py-1.5 text-left text-sm hover:bg-accent"
+                onClick={downloadTemplate}
+              >
+                Download template
+              </button>
+            </div>
+          ) : null}
+        </div>
       </div>
-      <p className="max-w-xl text-right text-xs text-muted-foreground">
-        One row per cat. Cat name is required. Gender can be Female, Male, F, or M. Dates can be 2024-01-15 or
-        1/15/2024. An age such as 2 years is saved as the estimated age. A cat already on the list is skipped.
-      </p>
       {message ? <p className="max-w-md text-right text-sm text-muted-foreground">{message}</p> : null}
       {warning ? <p className="max-w-md text-right text-sm text-muted-foreground">{warning}</p> : null}
       {error ? <p className="max-w-md text-right text-sm text-destructive">{error}</p> : null}
