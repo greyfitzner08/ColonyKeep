@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo } from "react";
-import Link from "next/link";
 import { Stethoscope } from "lucide-react";
 import {
   upcomingVetCareAlerts,
@@ -25,9 +24,6 @@ export function VetCareDueBanner({ alerts }: { alerts: VetCareDueAlert[] }) {
             </li>
           ))}
         </ul>
-        <Link href="/adoption" className="inline-block font-medium underline underline-offset-2">
-          Open adoptable cats
-        </Link>
       </div>
     </div>
   );

@@ -11,28 +11,17 @@ import { fetchUserCaseWorkHistory } from "@/lib/cases/user-work-history";
 import { INTAKE_QUEUE_STATUSES } from "@/lib/cases/statuses";
 import { sortTrapTeams } from "@/lib/trap-teams/sort-teams";
 import {
-  canAccessAdoptions,
   canClaimShifts,
   canManageAppointments,
   canViewTrapTeamSection,
   isCaseWorker,
 } from "@/lib/permissions";
-import { collectVetCareDueAlerts, type VetCareDueAlert } from "@/lib/adoption/entrance";
 import type { HelpRequest, Shift } from "@/lib/types";
 
 const CLOSED_STATUSES = '("completed","closed")';
 
 function todayIsoDate() {
   return new Date().toISOString().split("T")[0];
-}
-
-function stringAnswers(value: unknown): Record<string, string> {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
-  const answers: Record<string, string> = {};
-  for (const [key, entry] of Object.entries(value)) {
-    if (typeof entry === "string") answers[key] = entry;
-  }
-  return answers;
 }
 
 export default async function DashboardPage() {
@@ -166,22 +155,6 @@ export default async function DashboardPage() {
     }
   }
 
-  let vetCareDue: VetCareDueAlert[] = [];
-  if (canAccessAdoptions(profile)) {
-    const { data: rescueRecords } = await supabase
-      .from("adoption_entrance_applications")
-      .select("id, cat_name, status, answers")
-      .neq("status", "denied");
-    vetCareDue = collectVetCareDueAlerts(
-      (rescueRecords ?? []).map((record) => ({
-        id: record.id,
-        cat_name: record.cat_name,
-        status: record.status,
-        answers: stringAnswers(record.answers),
-      }))
-    );
-  }
-
   let communityStats = null;
   if (!caseWorker && hasSupabaseAdminConfig()) {
     try {
@@ -232,7 +205,6 @@ export default async function DashboardPage() {
       pendingAppointments={pendingAppointments}
       appointmentsScope={showProgramAppointments ? "program" : "mine"}
       pendingClinicResults={pendingClinicResults}
-      vetCareDue={vetCareDue}
       communityStats={communityStats}
     />
   );

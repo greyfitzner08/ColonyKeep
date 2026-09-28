@@ -1,13 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { ExternalLink } from "lucide-react";
 import { AdoptableCatsManager } from "@/components/adoption/adoptable-cats-manager";
+import { VetCareDueBanner } from "@/components/adoption/vet-care-due-banner";
 import { RescueAboutEditor } from "@/components/adoption/entrance-about-editor";
 import { EntranceReviewManager } from "@/components/adoption/entrance-review-manager";
 import { Button } from "@/components/ui/button";
-import type { AdoptionEntranceApplication } from "@/lib/adoption/entrance";
+import { collectVetCareDueAlerts, type AdoptionEntranceApplication } from "@/lib/adoption/entrance";
 import type { AdoptableCat } from "@/lib/adoption/constants";
 
 type Section = "cats" | "rescue" | "about";
@@ -29,6 +30,7 @@ export function AdoptableCatsWorkspace({
 }) {
   const [section, setSection] = useState<Section>(initialSection);
   const pending = applications.filter((application) => application.status === "pending").length;
+  const vetCareDue = useMemo(() => collectVetCareDueAlerts(applications), [applications]);
 
   const tabs: { id: Section; label: string }[] = [
     { id: "cats", label: "Cats" },
@@ -38,6 +40,7 @@ export function AdoptableCatsWorkspace({
 
   return (
     <div className="space-y-6">
+      <VetCareDueBanner alerts={vetCareDue} />
       <div className="flex flex-wrap gap-2" role="tablist" aria-label="Adoptable cats">
         {tabs.map((tab) => (
           <Button
