@@ -21,11 +21,14 @@ import {
   HOME_ACTIVITY_OPTIONS,
   HOW_HEARD_SOURCES,
   PET_CURRENT_STATUSES,
+  PET_TYPES,
   REHOME_CIRCUMSTANCES,
   RESIDENCE_TYPES,
   APPLICANT_AGE_RANGES,
   emptyAdoptionAnswers,
   emptyAdoptionPet,
+  validateAdoptionReferences,
+  validateListedPets,
   type AdoptionApplicationAnswers,
   type AdoptionApplicationPet,
   type CatLivingPlan,
@@ -105,13 +108,17 @@ function MultiChoiceGroup<T extends string>({
   );
 }
 
+const invalidClass = "border-destructive focus-visible:ring-destructive";
+
 function Field({
   label,
   hint,
+  error,
   children,
 }: {
   label: string;
   hint?: string;
+  error?: string;
   children: React.ReactNode;
 }) {
   return (
@@ -119,6 +126,7 @@ function Field({
       <Label>{label}</Label>
       {hint ? <p className="text-xs text-muted-foreground">{hint}</p> : null}
       {children}
+      {error ? <p className="text-sm text-destructive">{error}</p> : null}
     </div>
   );
 }
@@ -126,14 +134,23 @@ function Field({
 function PetFields({
   index,
   pet,
+  errors,
   onChange,
+  clearError,
 }: {
   index: number;
   pet: AdoptionApplicationPet;
+  errors: Record<string, string>;
   onChange: (pet: AdoptionApplicationPet) => void;
+  clearError: (field: string) => void;
 }) {
+  const typeError = errors[`pet-${index}-type`];
+  const typeOtherError = errors[`pet-${index}-type-other`];
+  const statusError = errors[`pet-${index}-status`];
+  const fixedError = errors[`pet-${index}-fixed`];
+
   return (
-    <div className="space-y-3 rounded-lg border p-4">
+    <div className="space-y-3 rounded-lg border p-4" id={`pet-${index}`}>
       <p className="text-sm font-semibold">Pet #{index + 1}</p>
       <div className="grid gap-3 sm:grid-cols-2">
         <Field label="Name">
@@ -148,29 +165,73 @@ function PetFields({
             onChange={(e) => onChange({ ...pet, year_acquired: e.target.value })}
           />
         </Field>
-        <Field label="Type of animal">
-          <Input
-            value={pet.animal_type}
-            onChange={(e) => onChange({ ...pet, animal_type: e.target.value })}
-          />
+        <Field label="Pet type *" error={typeError}>
+          <Select
+            value={pet.animal_type || "__none__"}
+            onValueChange={(value) => {
+              clearError(`pet-${index}-type`);
+              onChange({
+                ...pet,
+                animal_type: value === "__none__" ? "" : value,
+                animal_type_other: value === "other" ? pet.animal_type_other : "",
+              });
+            }}
+          >
+            <SelectTrigger
+              id={`pet-${index}-type`}
+              aria-invalid={Boolean(typeError)}
+              className={typeError ? invalidClass : undefined}
+            >
+              <SelectValue placeholder="Select pet type" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__none__">Select pet type</SelectItem>
+              {PET_TYPES.map((entry) => (
+                <SelectItem key={entry.value} value={entry.value}>
+                  {entry.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </Field>
+        {pet.animal_type === "other" && (
+          <Field label="Describe pet type *" error={typeOtherError}>
+            <Input
+              id={`pet-${index}-type-other`}
+              value={pet.animal_type_other}
+              aria-invalid={Boolean(typeOtherError)}
+              className={typeOtherError ? invalidClass : undefined}
+              onChange={(e) => {
+                clearError(`pet-${index}-type-other`);
+                onChange({ ...pet, animal_type_other: e.target.value });
+              }}
+            />
+          </Field>
+        )}
         <Field label="Gender">
           <Input
             value={pet.gender}
             onChange={(e) => onChange({ ...pet, gender: e.target.value })}
           />
         </Field>
-        <Field label="Current status">
+        <Field label="Current status *" error={statusError}>
           <Select
             value={pet.current_status || "__none__"}
-            onValueChange={(value) =>
+            onValueChange={(value) => {
+              clearError(`pet-${index}-status`);
+              if (value !== "in_home") clearError(`pet-${index}-fixed`);
               onChange({
                 ...pet,
                 current_status: value === "__none__" ? "" : (value as PetCurrentStatus),
-              })
-            }
+                spayed_neutered: value === "in_home" ? pet.spayed_neutered : "",
+              });
+            }}
           >
-            <SelectTrigger>
+            <SelectTrigger
+              id={`pet-${index}-status`}
+              aria-invalid={Boolean(statusError)}
+              className={statusError ? invalidClass : undefined}
+            >
               <SelectValue placeholder="Select" />
             </SelectTrigger>
             <SelectContent>
@@ -191,6 +252,30 @@ function PetFields({
             />
           </Field>
         )}
+        {pet.current_status === "in_home" && (
+          <Field
+            label="Is this pet currently in your home spayed or neutered? *"
+            error={fixedError}
+          >
+            <div
+              id={`pet-${index}-fixed`}
+              className={fixedError ? "rounded-md border border-destructive p-2" : undefined}
+            >
+              <ChoiceGroup
+                name={`pet-${index}-fixed`}
+                value={pet.spayed_neutered}
+                options={[
+                  { value: "yes", label: "Yes, spayed or neutered" },
+                  { value: "no", label: "No" },
+                ]}
+                onChange={(value: YesNo) => {
+                  clearError(`pet-${index}-fixed`);
+                  onChange({ ...pet, spayed_neutered: value });
+                }}
+              />
+            </div>
+          </Field>
+        )}
       </div>
     </div>
   );
@@ -207,6 +292,7 @@ export function AdoptionApplicationForm({
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [catInterestName, setCatInterestName] = useState(initialCatInterestName);
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -273,25 +359,51 @@ export function AdoptionApplicationForm({
     }
     if (step === 4) {
       if (!answers.had_pets_last_five_years) return "Please answer whether you have had pets.";
+      const petErrors = validateListedPets(answers);
+      if (petErrors.length > 0) {
+        setFieldErrors(Object.fromEntries(petErrors.map((entry) => [entry.field, entry.message])));
+        document.getElementById(petErrors[0].field)?.scrollIntoView({
+          behavior: "smooth",
+          block: "center",
+        });
+        return petErrors[0].message;
+      }
     }
     if (step === 5) {
-      if (!answers.reference_1_name.trim() || !answers.reference_1_phone.trim()) {
-        return "Please provide your first personal reference.";
-      }
-      if (!answers.reference_2_name.trim() || !answers.reference_2_phone.trim()) {
-        return "Please provide your second personal reference.";
+      const referenceErrors = validateAdoptionReferences(answers);
+      if (referenceErrors.length > 0) {
+        setFieldErrors(
+          Object.fromEntries(referenceErrors.map((entry) => [entry.field, entry.message]))
+        );
+        document.getElementById(referenceErrors[0].field)?.scrollIntoView({
+          behavior: "smooth",
+          block: "center",
+        });
+        return referenceErrors[0].message;
       }
     }
     return null;
   }
 
+  function clearFieldError(field: string) {
+    setFieldErrors((current) => {
+      if (!current[field]) return current;
+      const nextErrors = { ...current };
+      delete nextErrors[field];
+      return nextErrors;
+    });
+  }
+
   function next() {
     const message = validateStep();
     if (message) {
-      setError(message);
+      const fieldLevel =
+        step === 5 || (step === 4 && answers.had_pets_last_five_years === "yes");
+      setError(fieldLevel ? null : message);
       return;
     }
     setError(null);
+    setFieldErrors({});
     setStep((prev) => Math.min(prev + 1, STEPS.length - 1));
   }
 
@@ -788,6 +900,8 @@ export function AdoptionApplicationForm({
                 <PetFields
                   index={0}
                   pet={answers.pets[0] ?? emptyAdoptionPet()}
+                  errors={fieldErrors}
+                  clearError={clearFieldError}
                   onChange={(pet) => setPet(0, pet)}
                 />
                 <Field label="Do you have a second current or previous pet to list?">
@@ -810,6 +924,8 @@ export function AdoptionApplicationForm({
                     <PetFields
                       index={1}
                       pet={answers.pets[1] ?? emptyAdoptionPet()}
+                      errors={fieldErrors}
+                      clearError={clearFieldError}
                       onChange={(pet) => setPet(1, pet)}
                     />
                     <Field label="Do you have a third current or previous pet to list?">
@@ -832,6 +948,8 @@ export function AdoptionApplicationForm({
                   <PetFields
                     index={2}
                     pet={answers.pets[2] ?? emptyAdoptionPet()}
+                    errors={fieldErrors}
+                    clearError={clearFieldError}
                     onChange={(pet) => setPet(2, pet)}
                   />
                 )}
@@ -845,10 +963,16 @@ export function AdoptionApplicationForm({
             <h2 className="text-lg font-semibold">References</h2>
             <p className="text-sm font-medium">Personal reference #1</p>
             <div className="grid gap-3 sm:grid-cols-2">
-              <Field label="Full name">
+              <Field label="Full name" error={fieldErrors["reference-1-name"]}>
                 <Input
+                  id="reference-1-name"
                   value={answers.reference_1_name}
-                  onChange={(e) => updateAnswers({ reference_1_name: e.target.value })}
+                  aria-invalid={Boolean(fieldErrors["reference-1-name"])}
+                  className={fieldErrors["reference-1-name"] ? invalidClass : undefined}
+                  onChange={(e) => {
+                    updateAnswers({ reference_1_name: e.target.value });
+                    clearFieldError("reference-1-name");
+                  }}
                 />
               </Field>
               <Field label="Relationship to you">
@@ -864,19 +988,31 @@ export function AdoptionApplicationForm({
                   onChange={(e) => updateAnswers({ reference_1_email: e.target.value })}
                 />
               </Field>
-              <Field label="Phone number">
+              <Field label="Phone number" error={fieldErrors["reference-1-phone"]}>
                 <Input
+                  id="reference-1-phone"
                   value={answers.reference_1_phone}
-                  onChange={(e) => updateAnswers({ reference_1_phone: e.target.value })}
+                  aria-invalid={Boolean(fieldErrors["reference-1-phone"])}
+                  className={fieldErrors["reference-1-phone"] ? invalidClass : undefined}
+                  onChange={(e) => {
+                    updateAnswers({ reference_1_phone: e.target.value });
+                    clearFieldError("reference-1-phone");
+                  }}
                 />
               </Field>
             </div>
             <p className="text-sm font-medium">Personal reference #2</p>
             <div className="grid gap-3 sm:grid-cols-2">
-              <Field label="Full name">
+              <Field label="Full name" error={fieldErrors["reference-2-name"]}>
                 <Input
+                  id="reference-2-name"
                   value={answers.reference_2_name}
-                  onChange={(e) => updateAnswers({ reference_2_name: e.target.value })}
+                  aria-invalid={Boolean(fieldErrors["reference-2-name"])}
+                  className={fieldErrors["reference-2-name"] ? invalidClass : undefined}
+                  onChange={(e) => {
+                    updateAnswers({ reference_2_name: e.target.value });
+                    clearFieldError("reference-2-name");
+                  }}
                 />
               </Field>
               <Field label="Relationship to you">
@@ -892,10 +1028,16 @@ export function AdoptionApplicationForm({
                   onChange={(e) => updateAnswers({ reference_2_email: e.target.value })}
                 />
               </Field>
-              <Field label="Phone number">
+              <Field label="Phone number" error={fieldErrors["reference-2-phone"]}>
                 <Input
+                  id="reference-2-phone"
                   value={answers.reference_2_phone}
-                  onChange={(e) => updateAnswers({ reference_2_phone: e.target.value })}
+                  aria-invalid={Boolean(fieldErrors["reference-2-phone"])}
+                  className={fieldErrors["reference-2-phone"] ? invalidClass : undefined}
+                  onChange={(e) => {
+                    updateAnswers({ reference_2_phone: e.target.value });
+                    clearFieldError("reference-2-phone");
+                  }}
                 />
               </Field>
             </div>

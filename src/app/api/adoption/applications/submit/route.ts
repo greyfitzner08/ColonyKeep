@@ -3,6 +3,8 @@ import { createServiceClient } from "@/lib/supabase/server";
 import {
   emptyAdoptionAnswers,
   emptyAdoptionPet,
+  validateAdoptionReferences,
+  validateListedPets,
   type AdoptionApplicationAnswers,
   type AdoptionApplicationPet,
   type CatLivingPlan,
@@ -48,9 +50,11 @@ function parsePet(value: unknown): AdoptionApplicationPet {
     age: asString(pet.age),
     year_acquired: asString(pet.year_acquired),
     animal_type: asString(pet.animal_type),
+    animal_type_other: asString(pet.animal_type_other),
     gender: asString(pet.gender),
     current_status: allowed.has(status) ? status : "",
     current_status_other: asString(pet.current_status_other),
+    spayed_neutered: asYesNo(pet.spayed_neutered),
   };
 }
 
@@ -223,8 +227,13 @@ export async function POST(request: NextRequest) {
   if (!answers.living_plan || !answers.plan_to_declaw || !answers.can_pay_vet_costs) {
     return NextResponse.json({ error: "Cat care questions are required" }, { status: 400 });
   }
-  if (!answers.reference_1_name || !answers.reference_1_phone) {
-    return NextResponse.json({ error: "At least one personal reference is required" }, { status: 400 });
+  const petError = validateListedPets(answers)[0];
+  if (petError) {
+    return NextResponse.json({ error: petError.message }, { status: 400 });
+  }
+  const referenceError = validateAdoptionReferences(answers)[0];
+  if (referenceError) {
+    return NextResponse.json({ error: referenceError.message }, { status: 400 });
   }
 
   const service = await createServiceClient();

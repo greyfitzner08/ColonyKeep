@@ -75,9 +75,11 @@ export interface AdoptionApplicationPet {
   age: string;
   year_acquired: string;
   animal_type: string;
+  animal_type_other: string;
   gender: string;
   current_status: PetCurrentStatus | "";
   current_status_other: string;
+  spayed_neutered: YesNo | "";
 }
 
 export interface AdoptionApplicationAnswers {
@@ -240,6 +242,12 @@ export const REHOME_CIRCUMSTANCES: { value: RehomeCircumstance; label: string }[
   { value: "other", label: "Other" },
 ];
 
+export const PET_TYPES: { value: string; label: string }[] = [
+  { value: "cat", label: "Cat" },
+  { value: "dog", label: "Dog" },
+  { value: "other", label: "Other" },
+];
+
 export const PET_CURRENT_STATUSES: { value: PetCurrentStatus; label: string }[] = [
   { value: "in_home", label: "Currently living in the home" },
   { value: "deceased", label: "Deceased" },
@@ -254,10 +262,79 @@ export function emptyAdoptionPet(): AdoptionApplicationPet {
     age: "",
     year_acquired: "",
     animal_type: "",
+    animal_type_other: "",
     gender: "",
     current_status: "",
     current_status_other: "",
+    spayed_neutered: "",
   };
+}
+
+export function isDogPetType(animalType: string | null | undefined): boolean {
+  const value = animalType?.trim().toLowerCase() ?? "";
+  return value === "dog" || value === "dogs";
+}
+
+export function petTypeLabel(pet: Pick<AdoptionApplicationPet, "animal_type" | "animal_type_other">): string {
+  if (pet.animal_type === "other") return pet.animal_type_other?.trim() || "Other";
+  return PET_TYPES.find((entry) => entry.value === pet.animal_type)?.label ?? pet.animal_type;
+}
+
+/** Pets the applicant chose to list (pet 1, plus 2 and 3 when those answers are yes). */
+export function listedAdoptionPets(
+  answers: Pick<AdoptionApplicationAnswers, "had_pets_last_five_years" | "has_pet_2" | "has_pet_3" | "pets">
+): { index: number; pet: AdoptionApplicationPet }[] {
+  if (answers.had_pets_last_five_years !== "yes") return [];
+  let count = 1;
+  if (answers.has_pet_2 === "yes") count = 2;
+  if (answers.has_pet_2 === "yes" && answers.has_pet_3 === "yes") count = 3;
+  return Array.from({ length: count }, (_, index) => ({
+    index,
+    pet: answers.pets[index] ?? emptyAdoptionPet(),
+  }));
+}
+
+export interface AdoptionFieldError {
+  field: string;
+  message: string;
+}
+
+export function validateListedPets(answers: AdoptionApplicationAnswers): AdoptionFieldError[] {
+  const errors: AdoptionFieldError[] = [];
+  for (const { index, pet } of listedAdoptionPets(answers)) {
+    if (!pet.animal_type.trim()) {
+      errors.push({ field: `pet-${index}-type`, message: "Pet type is required." });
+    } else if (pet.animal_type === "other" && !pet.animal_type_other.trim()) {
+      errors.push({ field: `pet-${index}-type-other`, message: "Describe the pet type." });
+    }
+    if (!pet.current_status) {
+      errors.push({ field: `pet-${index}-status`, message: "Current status is required." });
+    }
+    if (pet.current_status === "in_home" && !pet.spayed_neutered) {
+      errors.push({
+        field: `pet-${index}-fixed`,
+        message: "Say whether this pet currently in your home is spayed or neutered.",
+      });
+    }
+  }
+  return errors;
+}
+
+export function validateAdoptionReferences(answers: AdoptionApplicationAnswers): AdoptionFieldError[] {
+  const errors: AdoptionFieldError[] = [];
+  if (!answers.reference_1_name.trim()) {
+    errors.push({ field: "reference-1-name", message: "Full name is required." });
+  }
+  if (!answers.reference_1_phone.trim()) {
+    errors.push({ field: "reference-1-phone", message: "Phone number is required." });
+  }
+  if (!answers.reference_2_name.trim()) {
+    errors.push({ field: "reference-2-name", message: "Full name is required." });
+  }
+  if (!answers.reference_2_phone.trim()) {
+    errors.push({ field: "reference-2-phone", message: "Phone number is required." });
+  }
+  return errors;
 }
 
 export function emptyAdoptionAnswers(): AdoptionApplicationAnswers {

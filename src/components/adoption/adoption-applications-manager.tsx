@@ -28,6 +28,8 @@ import {
   REHOME_CIRCUMSTANCES,
   RESIDENCE_TYPES,
   adoptionApplicationStatusLabel,
+  isDogPetType,
+  petTypeLabel,
   type AdoptionApplication,
   type AdoptionApplicationAnswers,
   type AdoptionApplicationStatus,
@@ -159,7 +161,16 @@ function ScreeningTab({
         {ranking.flags.length > 0 ? (
           <ul className="list-disc space-y-1 pl-5 text-sm">
             {ranking.flags.map((flag) => (
-              <li key={flag.id}>{flag.label}</li>
+              <li
+                key={flag.id}
+                className={
+                  flag.tone === "yellow"
+                    ? "rounded-md bg-amber-100 px-2 py-1 text-amber-950"
+                    : undefined
+                }
+              >
+                {flag.label}
+              </li>
             ))}
           </ul>
         ) : (
@@ -307,13 +318,19 @@ function DetailsTab({ answers }: { answers: AdoptionApplicationAnswers }) {
           <div className="space-y-3 pt-2">
             {(answers.pets ?? []).map((pet, index) =>
               pet.name || pet.animal_type ? (
-                <div key={index} className="rounded-lg border bg-muted/20 p-3">
+                <div
+                  key={index}
+                  className={cn(
+                    "rounded-lg border bg-muted/20 p-3",
+                    isDogPetType(pet.animal_type) && "border-amber-300 bg-amber-50"
+                  )}
+                >
                   <p className="mb-3 text-sm font-semibold">Pet #{index + 1}</p>
                   <div className="grid gap-3 sm:grid-cols-2">
                     <Answer label="Name" value={pet.name} />
                     <Answer label="Age" value={pet.age} />
                     <Answer label="Year acquired" value={pet.year_acquired} />
-                    <Answer label="Type" value={pet.animal_type} />
+                    <Answer label="Pet type" value={petTypeLabel(pet)} />
                     <Answer label="Gender" value={pet.gender} />
                     <Answer
                       label="Status"
@@ -323,6 +340,12 @@ function DetailsTab({ answers }: { answers: AdoptionApplicationAnswers }) {
                           : labelFor(PET_CURRENT_STATUSES, pet.current_status)
                       }
                     />
+                    {pet.current_status === "in_home" && (
+                      <Answer
+                        label="Spayed / neutered"
+                        value={yesLabel(pet.spayed_neutered)}
+                      />
+                    )}
                   </div>
                 </div>
               ) : null

@@ -1,10 +1,12 @@
-import type { AdoptionApplicationAnswers } from "@/lib/adoption/application";
+import { isDogPetType, type AdoptionApplicationAnswers } from "@/lib/adoption/application";
 
 export type AdoptionApplicationRank = "good" | "caution" | "poor";
 
 export interface AdoptionApplicationBadFlag {
   id: string;
   label: string;
+  /** Shown in yellow. Does not count toward the red “many flags” total. */
+  tone?: "yellow";
 }
 
 export interface AdoptionApplicationRankResult {
@@ -103,6 +105,23 @@ export function collectAdoptionApplicationBadFlags(
     });
   }
 
+  const pets = answers.pets ?? [];
+  if (pets.some((pet) => isDogPetType(pet.animal_type))) {
+    flags.push({
+      id: "pet_dog",
+      label: "Pet type is a dog",
+      tone: "yellow",
+    });
+  }
+
+  if (pets.some((pet) => pet.current_status === "in_home" && pet.spayed_neutered === "no")) {
+    flags.push({
+      id: "pet_unfixed",
+      label: "A pet currently in the home is not spayed or neutered",
+      tone: "yellow",
+    });
+  }
+
   return flags;
 }
 
@@ -111,16 +130,19 @@ export function collectAdoptionApplicationBadFlags(
  * - 0–1 flags → no flags
  * - 2–3 flags → some flags
  * - 4+ flags → many flags
+ * Yellow flags (a dog, or a current pet that is not spayed or neutered) show as follow-up
+ * and do not add to the red total.
  */
 export function rankAdoptionApplication(
   answers: AdoptionApplicationAnswers | null | undefined
 ): AdoptionApplicationRankResult {
   const flags = collectAdoptionApplicationBadFlags(answers);
-  const badCount = flags.length;
+  const badCount = flags.filter((flag) => flag.tone !== "yellow").length;
 
   let rank: AdoptionApplicationRank = "good";
   if (badCount > 3) rank = "poor";
   else if (badCount > 1) rank = "caution";
+  else if (flags.some((flag) => flag.tone === "yellow")) rank = "caution";
 
   return { rank, badCount, flags };
 }
