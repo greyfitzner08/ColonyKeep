@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireApiRole } from "@/lib/api/auth";
 import { ADOPTABLE_CAT_STATUSES, type AdoptableCatSex, type AdoptableCatStatus } from "@/lib/adoption/constants";
-import { sanitizeEntranceAnswers, submissionDateStamp, type EntranceAnswers } from "@/lib/adoption/entrance";
+import { formatVaccinationList, sanitizeEntranceAnswers, submissionDateStamp, type EntranceAnswers } from "@/lib/adoption/entrance";
 import { canAccessAdoptions } from "@/lib/permissions";
 import { createServiceClient } from "@/lib/supabase/server";
 
@@ -92,7 +92,7 @@ export async function POST(request: NextRequest) {
         sex,
         personality_notes: parsed.answers.personality || null,
         notes: parsed.answers.notes || null,
-        vaccination_notes: parsed.answers.vaccinations || null,
+        vaccination_notes: formatVaccinationList(parsed.answers.vaccinations) || null,
         medical_notes: parsed.answers.tests_treatments || null,
         status: rosterStatus(parsed.answers, cat.status as AdoptableCatStatus),
       };

@@ -3,7 +3,7 @@ import { requireApiRole } from "@/lib/api/auth";
 import { canAccessAdoptions } from "@/lib/permissions";
 import { createServiceClient } from "@/lib/supabase/server";
 import type { AdoptableCatSex, AdoptableCatStatus } from "@/lib/adoption/constants";
-import type { EntranceAnswers, EntranceReviewStatus } from "@/lib/adoption/entrance";
+import { formatVaccinationList, type EntranceAnswers, type EntranceReviewStatus } from "@/lib/adoption/entrance";
 
 function text(value: string | undefined): string | null {
   const trimmed = value?.trim() ?? "";
@@ -70,8 +70,9 @@ export async function POST(request: NextRequest) {
   let createdCatId: string | null = null;
 
   if (decision === "approved" && !adoptableCatId) {
+    const vaccinationLines = formatVaccinationList(answers.vaccinations);
     const medicalNotes = [
-      text(answers.vaccinations) ? `Vaccinations: ${answers.vaccinations}` : null,
+      text(vaccinationLines) ? `Vaccinations: ${vaccinationLines}` : null,
       text(answers.tests_treatments) ? `Tests / treatments: ${answers.tests_treatments}` : null,
       text(answers.next_vet_care_due) ? `Next care due: ${answers.next_vet_care_due}` : null,
       text(answers.prior_vet_record) ? `Prior record: ${answers.prior_vet_record}` : null,
@@ -98,8 +99,8 @@ export async function POST(request: NextRequest) {
         notes: notes || null,
         medical_notes: medicalNotes || null,
         spayed_neutered: text(answers.date_spayed_neutered) ? true : null,
-        vaccinated: text(answers.vaccinations) ? true : null,
-        vaccination_notes: text(answers.vaccinations),
+        vaccinated: text(vaccinationLines) ? true : null,
+        vaccination_notes: text(vaccinationLines),
         created_by_email: profile?.email ?? null,
       })
       .select("id")

@@ -17,10 +17,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { VaccinationList } from "@/components/adoption/vaccination-list";
 import {
   emptyEntranceAnswers,
+  entranceFieldSpansRow,
   entranceOptionLabel,
+  parseVaccinationList,
   publicEntranceSections,
+  vaccinationListError,
   type EntranceAnswers,
   type EntranceField,
 } from "@/lib/adoption/entrance";
@@ -38,6 +42,9 @@ export function FieldControl({
   onChange: (value: string) => void;
 }) {
   const id = `entrance-${field.key}`;
+  if (field.kind === "vaccinations") {
+    return <VaccinationList id={id} value={value} invalid={invalid} onChange={onChange} />;
+  }
   if (field.kind === "textarea") {
     return (
       <Textarea
@@ -126,6 +133,13 @@ export function EntranceApplicationForm({
       setError("Enter the cat’s name.");
       return;
     }
+    if (steps[step]?.id === "veterinary") {
+      const vaccinationError = vaccinationListError(parseVaccinationList(answers.vaccinations ?? ""));
+      if (vaccinationError) {
+        setError(vaccinationError);
+        return;
+      }
+    }
     setError(null);
     setStep((current) => Math.min(current + 1, steps.length - 1));
   }
@@ -136,6 +150,13 @@ export function EntranceApplicationForm({
       setError("Enter the cat’s name.");
       const profileStep = steps.findIndex((entry) => entry.id === "profile");
       if (profileStep >= 0) setStep(profileStep);
+      return;
+    }
+    const vaccinationError = vaccinationListError(parseVaccinationList(answers.vaccinations ?? ""));
+    if (vaccinationError) {
+      setError(vaccinationError);
+      const veterinaryStep = steps.findIndex((entry) => entry.id === "veterinary");
+      if (veterinaryStep >= 0) setStep(veterinaryStep);
       return;
     }
     setSubmitting(true);
@@ -243,7 +264,7 @@ export function EntranceApplicationForm({
                 {section.fields.map((field) => (
                   <div
                     key={field.key}
-                    className={field.kind === "textarea" ? "space-y-2 sm:col-span-2" : "space-y-2"}
+                    className={entranceFieldSpansRow(field.kind) ? "space-y-2 sm:col-span-2" : "space-y-2"}
                   >
                     <Label htmlFor={`entrance-${field.key}`}>
                       {field.label}
@@ -276,7 +297,7 @@ export function EntranceApplicationForm({
                   <h3 className="text-sm font-semibold">{section.title}</h3>
                   <dl className="grid gap-2 sm:grid-cols-2">
                     {section.fields.map((field) => (
-                      <div key={field.key} className={field.kind === "textarea" ? "sm:col-span-2" : undefined}>
+                      <div key={field.key} className={entranceFieldSpansRow(field.kind) ? "sm:col-span-2" : undefined}>
                         <dt className="text-xs text-muted-foreground">{field.label}</dt>
                         <dd className="text-sm whitespace-pre-wrap">
                           {entranceOptionLabel(field.key, answers[field.key] ?? "")}

@@ -1,6 +1,6 @@
 export type EntranceReviewStatus = "pending" | "approved" | "denied";
 
-export type EntranceFieldKind = "text" | "textarea" | "date" | "yesno" | "select";
+export type EntranceFieldKind = "text" | "textarea" | "date" | "yesno" | "select" | "vaccinations";
 
 export interface EntranceFieldOption {
   value: string;
@@ -99,7 +99,7 @@ const ENTRANCE_SECTION_SOURCE: EntranceSection[] = [
       { key: "date_spayed_neutered", label: "Date Spayed / Neutered", kind: "date" },
       { key: "location_spayed_neutered", label: "Location Spayed / Neutered", kind: "text" },
       { key: "ear_tip", label: "Ear Tip?", kind: "yesno" },
-      { key: "vaccinations", label: "Vaccinations / Dates", kind: "textarea" },
+      { key: "vaccinations", label: "Vaccinations", kind: "vaccinations" },
       { key: "prior_vet_record", label: "Prior Veterinary Record / Clinic Name", kind: "text" },
       { key: "tests_treatments", label: "Tests / Treatments", kind: "textarea" },
       { key: "next_vet_care_due", label: "Next Veterinary Care Due", kind: "text", staff: true },
@@ -249,6 +249,94 @@ export function emptyEntranceAnswers(): EntranceAnswers {
   return Object.fromEntries(ENTRANCE_FIELDS.map((field) => [field.key, ""]));
 }
 
+export const VACCINATION_TYPES = [
+  { value: "rabies", label: "Rabies" },
+  { value: "fvrcp", label: "FVRCP" },
+  { value: "other", label: "Other" },
+] as const;
+
+export type VaccinationType = (typeof VACCINATION_TYPES)[number]["value"];
+
+export interface VaccinationEntry {
+  type: VaccinationType | "";
+  other: string;
+  date: string;
+}
+
+export function entranceFieldSpansRow(kind: EntranceFieldKind): boolean {
+  return kind === "textarea" || kind === "vaccinations";
+}
+
+function formatIsoDate(value: string): string {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return "";
+  const [year, month, day] = value.split("-").map(Number);
+  return new Date(year, month - 1, day).toLocaleDateString(undefined, { dateStyle: "medium" });
+}
+
+export function parseVaccinationList(value: string): VaccinationEntry[] {
+  const trimmed = value.trim();
+  if (!trimmed) return [];
+  if (trimmed.startsWith("[")) {
+    try {
+      const parsed = JSON.parse(trimmed) as unknown;
+      if (Array.isArray(parsed)) {
+        return parsed.flatMap((item) => {
+          if (!item || typeof item !== "object") return [];
+          const row = item as Record<string, unknown>;
+          const type =
+            row.type === "rabies" || row.type === "fvrcp" || row.type === "other" ? row.type : "";
+          const other = typeof row.other === "string" ? row.other : "";
+          const date = typeof row.date === "string" ? row.date : "";
+          return [{ type, other, date }];
+        });
+      }
+    } catch {
+      // Older records stored a sentence instead of a list.
+    }
+  }
+  return [{ type: "other", other: trimmed.slice(0, 200), date: "" }];
+}
+
+export function vaccinationListError(rows: VaccinationEntry[]): string | null {
+  const filled = rows.filter((row) => row.type || row.date || row.other.trim());
+  if (filled.length > 12) return "List up to 12 vaccinations.";
+  for (const row of filled) {
+    if (!row.type) return "Choose a vaccination type.";
+    if (row.type === "other" && !row.other.trim()) return "Describe the other vaccination.";
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(row.date)) return "Enter the date each vaccination was received.";
+  }
+  return null;
+}
+
+function cleanVaccinations(raw: string): { value: string; error?: string } {
+  const rows = parseVaccinationList(raw).filter((row) => row.type || row.date || row.other.trim());
+  const error = vaccinationListError(rows);
+  if (error) return { value: "", error };
+  if (rows.length === 0) return { value: "" };
+  return {
+    value: JSON.stringify(
+      rows.map((row) => ({
+        type: row.type,
+        other: row.type === "other" ? row.other.trim().slice(0, 200) : "",
+        date: row.date,
+      }))
+    ),
+  };
+}
+
+/** Readable lines for review screens and the cat roster. */
+export function formatVaccinationList(value: string): string {
+  return parseVaccinationList(value)
+    .filter((row) => row.type)
+    .map((row) => {
+      const name =
+        row.type === "rabies" ? "Rabies" : row.type === "fvrcp" ? "FVRCP" : row.other.trim() || "Other";
+      const date = formatIsoDate(row.date);
+      return date ? `${name} — ${date}` : name;
+    })
+    .join("\n");
+}
+
 function allowedValue(field: EntranceField, value: string): string | null {
   const trimmed = value.trim();
   if (!trimmed) return "";
@@ -282,6 +370,12 @@ export function sanitizeEntranceAnswers(
     if (typeof raw !== "string") {
       return { answers, error: `${field.label} must be text.` };
     }
+    if (field.kind === "vaccinations") {
+      const cleaned = cleanVaccinations(raw);
+      if (cleaned.error) return { answers, error: cleaned.error };
+      answers[field.key] = cleaned.value;
+      continue;
+    }
     const next = allowedValue(field, raw);
     if (next == null) {
       return { answers, error: `Choose a valid answer for ${field.label}` };
@@ -298,6 +392,7 @@ export function entranceOptionLabel(fieldKey: string, value: string): string {
   if (!value) return "—";
   const field = FIELD_BY_KEY.get(fieldKey);
   if (!field) return value;
+  if (field.kind === "vaccinations") return formatVaccinationList(value) || "—";
   if (field.kind === "yesno") return value === "yes" ? "Yes" : value === "no" ? "No" : value;
   const match = field.options?.find((option) => option.value === value);
   return match?.label ?? value;

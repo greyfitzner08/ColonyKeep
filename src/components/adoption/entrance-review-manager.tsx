@@ -166,7 +166,7 @@ export function EntranceReviewManager({
                         {section.fields.map((field) => (
                           <div
                             key={field.key}
-                            className={field.kind === "textarea" ? "space-y-2 sm:col-span-2" : "space-y-2"}
+                            className={field.kind === "textarea" || field.kind === "vaccinations" ? "space-y-2 sm:col-span-2" : "space-y-2"}
                           >
                             <Label htmlFor={`entrance-${application.id}-${field.key}`}>
                               {field.label}

@@ -430,7 +430,7 @@ export function AdoptableCatsManager({ cats: initial, applications }: AdoptableC
                 {section.fields.map((field) => (
                   <div
                     key={field.key}
-                    className={field.kind === "textarea" ? "space-y-2 sm:col-span-2" : "space-y-2"}
+                    className={field.kind === "textarea" || field.kind === "vaccinations" ? "space-y-2 sm:col-span-2" : "space-y-2"}
                   >
                     <Label htmlFor={`entrance-${editingRecord.id}-${field.key}`}>
                       {field.label}
