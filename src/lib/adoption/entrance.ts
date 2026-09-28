@@ -61,7 +61,13 @@ const FEE_RECEIVED_BY: EntranceFieldOption[] = [
   { value: "fff", label: "FFF" },
 ];
 
+const LOCATION_TYPES: EntranceFieldOption[] = [
+  { value: "foster", label: "Foster home" },
+  { value: "petstore", label: "Pet store" },
+];
+
 const STAFF_ONLY_SECTIONS = new Set([
+  "location",
   "adoption_review",
   "adoption_completion",
   "follow_up",
@@ -92,6 +98,23 @@ const ENTRANCE_SECTION_SOURCE: EntranceSection[] = [
       },
       { key: "new_name", label: "New name", kind: "text" },
       { key: "notes", label: "Notes", kind: "textarea", staff: true },
+    ],
+  },
+  {
+    id: "location",
+    title: "Location",
+    fields: [
+      { key: "location_name", label: "Name", kind: "text" },
+      { key: "location_type", label: "Type", kind: "select", options: LOCATION_TYPES },
+      { key: "location_contact_name", label: "Contact name", kind: "text" },
+      { key: "location_phone", label: "Phone", kind: "text" },
+      { key: "location_email", label: "Email", kind: "text" },
+      { key: "location_address", label: "Address", kind: "text" },
+      { key: "location_city", label: "City", kind: "text" },
+      { key: "location_state", label: "State", kind: "text" },
+      { key: "location_zip", label: "ZIP", kind: "text" },
+      { key: "location_notes", label: "Notes", kind: "textarea" },
+      { key: "location_active", label: "Active?", kind: "yesno" },
     ],
   },
   {

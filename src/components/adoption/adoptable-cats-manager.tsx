@@ -52,6 +52,33 @@ function genderLabel(value: string | null | undefined): string {
   return "";
 }
 
+function catAgeLabel(answers: EntranceAnswers | undefined, row: AdoptableCat): string {
+  const dob = answers?.date_of_birth?.trim() ?? "";
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dob)) {
+    const born = new Date(`${dob}T12:00:00`);
+    if (!Number.isNaN(born.getTime())) {
+      const now = new Date();
+      let years = now.getFullYear() - born.getFullYear();
+      const beforeBirthday =
+        now.getMonth() < born.getMonth() ||
+        (now.getMonth() === born.getMonth() && now.getDate() < born.getDate());
+      if (beforeBirthday) years -= 1;
+      if (years >= 1) return years === 1 ? "1 year" : `${years} years`;
+      let months = (now.getFullYear() - born.getFullYear()) * 12 + (now.getMonth() - born.getMonth());
+      if (now.getDate() < born.getDate()) months -= 1;
+      if (months >= 1) return months === 1 ? "1 month" : `${months} months`;
+      return "Under 1 month";
+    }
+  }
+  return answers?.estimated_age?.trim() || row.age_description?.trim() || "";
+}
+
+function locationTypeLabel(value: string | undefined): string {
+  if (value === "foster") return "Foster home";
+  if (value === "petstore") return "Pet store";
+  return "";
+}
+
 export function AdoptableCatsManager({ cats: initial, applications }: AdoptableCatsManagerProps) {
   const router = useRouter();
   const photoInputRef = useRef<HTMLInputElement>(null);
@@ -92,8 +119,9 @@ export function AdoptableCatsManager({ cats: initial, applications }: AdoptableC
         sortValue: (row) => row.name,
         render: (row) => {
           const record = recordByCatId.get(row.id);
-          const age = record?.answers.estimated_age || row.age_description;
+          const age = catAgeLabel(record?.answers, row);
           const gender = genderLabel(record?.answers.gender || row.sex);
+          const details = [age, gender].filter(Boolean).join(" · ");
           return (
             <div className="flex items-center gap-3">
               {row.profile_photo_url ? (
@@ -112,7 +140,7 @@ export function AdoptableCatsManager({ cats: initial, applications }: AdoptableC
               <div>
                 <p className="font-medium">{record?.answers.new_name || row.name}</p>
                 <p className="text-xs text-muted-foreground">
-                  {[age, gender].filter(Boolean).join(" · ") || "Rescue application"}
+                  {details || "Age and gender not listed"}
                 </p>
               </div>
             </div>
@@ -133,18 +161,17 @@ export function AdoptableCatsManager({ cats: initial, applications }: AdoptableC
         label: "Location",
         render: (row) => {
           const answers = recordByCatId.get(row.id)?.answers;
-          const foster = answers?.foster_name?.trim() ?? "";
-          const atPetStore = Boolean(
-            answers?.date_placed_pet_store?.trim() && !answers?.date_left_pet_store?.trim()
-          );
-          if (!foster && !atPetStore) {
+          const name = answers?.location_name?.trim() || "";
+          const type = locationTypeLabel(answers?.location_type);
+          const city = answers?.location_city?.trim() ?? "";
+          if (!name && !type) {
             return <span className="text-muted-foreground">Unassigned</span>;
           }
           return (
             <div className="text-sm">
-              <p className="font-medium">{foster || "Pet store"}</p>
-              {foster && atPetStore ? (
-                <p className="text-xs text-muted-foreground">At pet store</p>
+              <p className="font-medium">{name || type}</p>
+              {name && (type || city) ? (
+                <p className="text-xs text-muted-foreground">{[type, city].filter(Boolean).join(" · ")}</p>
               ) : null}
             </div>
           );
@@ -164,7 +191,7 @@ export function AdoptableCatsManager({ cats: initial, applications }: AdoptableC
       },
       {
         id: "actions",
-        label: "",
+        label: "Actions",
         render: (row) => (
           <div className="flex justify-end gap-1">
             <Button type="button" size="icon" variant="ghost" onClick={() => openRecord(row)}>
