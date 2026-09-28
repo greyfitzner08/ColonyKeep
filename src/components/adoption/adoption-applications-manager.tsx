@@ -360,9 +360,11 @@ function DetailsTab({ answers }: { answers: AdoptionApplicationAnswers }) {
 
 function ApplicationCard({
   application,
+  cats,
   defaultOpen = false,
 }: {
   application: AdoptionApplication;
+  cats: { id: string; name: string }[];
   defaultOpen?: boolean;
 }) {
   const router = useRouter();
@@ -372,10 +374,12 @@ function ApplicationCard({
   const [status, setStatus] = useState<AdoptionApplicationStatus>(application.status);
   const [staffNotes, setStaffNotes] = useState(application.staff_notes ?? "");
   const [additionalNotes, setAdditionalNotes] = useState(application.additional_notes ?? "");
+  const [catId, setCatId] = useState(application.cat_id ?? "none");
   const [savedSnapshot, setSavedSnapshot] = useState({
     status: application.status,
     staffNotes: application.staff_notes ?? "",
     additionalNotes: application.additional_notes ?? "",
+    catId: application.cat_id ?? "none",
   });
   const [saving, setSaving] = useState(false);
   const [justSaved, setJustSaved] = useState(false);
@@ -386,7 +390,9 @@ function ApplicationCard({
   const dirty =
     status !== savedSnapshot.status ||
     staffNotes !== savedSnapshot.staffNotes ||
-    additionalNotes !== savedSnapshot.additionalNotes;
+    additionalNotes !== savedSnapshot.additionalNotes ||
+    catId !== savedSnapshot.catId;
+  const linkedCat = cats.find((cat) => cat.id === catId);
 
   async function save() {
     setSaving(true);
@@ -400,6 +406,7 @@ function ApplicationCard({
         status,
         staff_notes: staffNotes,
         additional_notes: additionalNotes,
+        cat_id: catId === "none" ? null : catId,
       }),
     });
     const result = await response.json().catch(() => null);
@@ -412,6 +419,7 @@ function ApplicationCard({
       status,
       staffNotes,
       additionalNotes,
+      catId,
     });
     setJustSaved(true);
     router.refresh();
@@ -446,8 +454,9 @@ function ApplicationCard({
             <div className="min-w-0 space-y-1">
               <p className="text-xl font-semibold leading-tight tracking-tight">{fullName}</p>
               <p className="text-sm text-muted-foreground">
-                Interested in{" "}
+                Wrote{" "}
                 <span className="font-medium text-foreground">{application.cat_interest_name}</span>
+                {linkedCat ? ` · linked to ${linkedCat.name}` : " · not linked to a cat yet"}
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
@@ -505,8 +514,34 @@ function ApplicationCard({
             <TabsContent value="review" className="mt-0 space-y-4">
               <SectionHeading
                 title="Internal use only"
-                description="Update workflow status and keep staff notes with this application"
+                description="Update workflow status, choose the cat this application is for, and keep staff notes"
               />
+              <div className="space-y-2">
+                <Label>Cat this application is for</Label>
+                <p className="text-sm text-muted-foreground">
+                  The name they typed stays “{application.cat_interest_name}”. Choose the cat in the program when
+                  the spelling is off or they want a different cat. Their household answers stay on this application.
+                </p>
+                <Select
+                  value={cats.some((cat) => cat.id === catId) ? catId : "none"}
+                  onValueChange={(value) => {
+                    markEdited();
+                    setCatId(value);
+                  }}
+                >
+                  <SelectTrigger className="max-w-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Not linked yet</SelectItem>
+                    {cats.map((cat) => (
+                      <SelectItem key={cat.id} value={cat.id}>
+                        {cat.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
               <div className="space-y-2">
                 <Label>Status</Label>
                 <Select
@@ -588,6 +623,7 @@ function ApplicationCard({
 
 interface AdoptionApplicationsManagerProps {
   applications: AdoptionApplication[];
+  cats: { id: string; name: string }[];
 }
 
 const OPEN_APPLICATION_STATUSES = new Set<AdoptionApplicationStatus>([
@@ -597,6 +633,7 @@ const OPEN_APPLICATION_STATUSES = new Set<AdoptionApplicationStatus>([
 
 export function AdoptionApplicationsManager({
   applications: initial,
+  cats,
 }: AdoptionApplicationsManagerProps) {
   const [statusFilter, setStatusFilter] = useState("open");
   const [rankFilter, setRankFilter] = useState("all");
@@ -720,7 +757,7 @@ export function AdoptionApplicationsManager({
       ) : (
         <div className="space-y-3">
           {rows.map((application) => (
-            <ApplicationCard key={application.id} application={application} />
+            <ApplicationCard key={application.id} application={application} cats={cats} />
           ))}
         </div>
       )}

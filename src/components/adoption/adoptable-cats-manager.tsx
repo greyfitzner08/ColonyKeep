@@ -19,6 +19,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  adoptionApplicationStatusLabel,
+  adoptionReviewFromApplication,
+  type AdoptionApplicationLink,
+} from "@/lib/adoption/application";
+import {
   ADOPTABLE_CAT_STATUSES,
   adoptableCatStatusLabel,
   type AdoptableCat,
@@ -37,6 +42,7 @@ import {
 interface AdoptableCatsManagerProps {
   cats: AdoptableCat[];
   applications: AdoptionEntranceApplication[];
+  adoptionApplications: AdoptionApplicationLink[];
 }
 
 function answersFor(
@@ -80,7 +86,11 @@ function locationSummary(answers: EntranceAnswers | undefined): { foster: string
   return { foster, store };
 }
 
-export function AdoptableCatsManager({ cats: initial, applications }: AdoptableCatsManagerProps) {
+export function AdoptableCatsManager({
+  cats: initial,
+  applications,
+  adoptionApplications,
+}: AdoptableCatsManagerProps) {
   const router = useRouter();
   const photoInputRef = useRef<HTMLInputElement>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -94,6 +104,7 @@ export function AdoptableCatsManager({ cats: initial, applications }: AdoptableC
   const [saved, setSaved] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [relinkApplicationId, setRelinkApplicationId] = useState<string | null>(null);
 
   const recordByCatId = useMemo(() => {
     const byCat = new Map<string, AdoptionEntranceApplication>();
@@ -216,7 +227,32 @@ export function AdoptableCatsManager({ cats: initial, applications }: AdoptableC
     setSectionId(ENTRANCE_SECTIONS[0]?.id ?? "profile");
     setSaveError(null);
     setSaved(false);
+    setRelinkApplicationId(null);
     setDialogOpen(true);
+  }
+
+  function chooseAdoptionApplication(record: AdoptionEntranceApplication, applicationId: string) {
+    setSaved(false);
+    setRelinkApplicationId(applicationId === "none" ? "" : applicationId);
+    const base = answersFor(record, drafts);
+    if (applicationId === "none") {
+      setDrafts((current) => ({
+        ...current,
+        [record.id]: applyEntranceAnswer(
+          current[record.id] ?? base,
+          "linked_adoption_application_id",
+          ""
+        ),
+      }));
+      return;
+    }
+    const application = adoptionApplications.find((entry) => entry.id === applicationId);
+    if (!application) return;
+    const filled = adoptionReviewFromApplication(application);
+    setDrafts((current) => ({
+      ...current,
+      [record.id]: { ...(current[record.id] ?? base), ...filled },
+    }));
   }
 
   function updateAnswer(application: AdoptionEntranceApplication, key: string, value: string) {
@@ -306,6 +342,21 @@ export function AdoptableCatsManager({ cats: initial, applications }: AdoptableC
       }
       if (result?.answers) {
         setDrafts((current) => ({ ...current, [editingRecord.id]: result.answers }));
+      }
+      if (relinkApplicationId && editing) {
+        const linkResponse = await fetch("/api/adoption/applications/update", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: relinkApplicationId, cat_id: editing.id }),
+        });
+        const linkResult = await linkResponse.json().catch(() => null);
+        if (!linkResponse.ok) {
+          setSaveError(
+            linkResult?.error ?? "The review was saved, but the application could not be linked to this cat."
+          );
+          return;
+        }
+        setRelinkApplicationId(null);
       }
       setSaved(true);
       router.refresh();
@@ -453,6 +504,53 @@ export function AdoptableCatsManager({ cats: initial, applications }: AdoptableC
                   </button>
                 ))}
               </div>
+
+              {section.id === "adoption_review" ? (
+                <div className="space-y-2">
+                  <Label>Adoption application</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Optional. Choosing an application copies that person’s name, phone, email, address, date, and
+                    status into the fields below, and those fields stay editable. An adopter with no online
+                    application can be typed in with this left blank. Saving attaches the chosen application to
+                    this cat. The name they typed stays on their application.
+                  </p>
+                  <Select
+                    value={answers.linked_adoption_application_id || "none"}
+                    onValueChange={(value) => chooseAdoptionApplication(editingRecord, value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="No application" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">No application — enter the adopter below</SelectItem>
+                      {adoptionApplications
+                        .filter(
+                          (application) =>
+                            application.cat_id === editing.id ||
+                            !application.cat_id ||
+                            application.id === answers.linked_adoption_application_id
+                        )
+                        .map((application) => {
+                          const name =
+                            `${application.applicant_first_name} ${application.applicant_last_name}`.trim();
+                          const wrote = application.cat_interest_name.trim() || "no name written";
+                          const elsewhere =
+                            application.cat_id && application.cat_id !== editing.id
+                              ? ` · linked to ${application.cat?.name || "another cat"}`
+                              : !application.cat_id
+                                ? " · not linked yet"
+                                : "";
+                          return (
+                            <SelectItem key={application.id} value={application.id}>
+                              {name} · wrote {wrote} · {adoptionApplicationStatusLabel(application.status)}
+                              {elsewhere}
+                            </SelectItem>
+                          );
+                        })}
+                    </SelectContent>
+                  </Select>
+                </div>
+              ) : null}
 
               <div className="grid gap-4 sm:grid-cols-2">
                 {section.fields.map((field) => {

@@ -15,19 +15,23 @@ export default async function AdoptionApplicationsPage() {
   if (!profile || !canAccessAdoptions(profile)) redirect("/");
 
   const service = await createServiceClient();
-  const { data } = await service
-    .from("adoption_applications")
-    .select("*, cat:adoptable_cats(id, name, profile_photo_url)")
-    .order("created_at", { ascending: false });
+  const [{ data }, { data: cats }] = await Promise.all([
+    service
+      .from("adoption_applications")
+      .select("*, cat:adoptable_cats(id, name, profile_photo_url)")
+      .order("created_at", { ascending: false }),
+    service.from("adoptable_cats").select("id, name").order("name"),
+  ]);
 
   const applications = (data ?? []) as AdoptionApplication[];
+  const catChoices = (cats ?? []) as { id: string; name: string }[];
 
   return (
     <div className="space-y-6">
       <AdoptionApplicationsSeenTracker profileId={profile.id} />
       <PageHeader
         title="Adoption Applications"
-        description="Review public adoption applications, update status, and keep staff notes."
+        description="Review public adoption applications, update status, keep staff notes, and choose which cat each application is for."
         actions={
           <>
             <Button type="button" size="sm" variant="outline" asChild>
@@ -45,7 +49,7 @@ export default async function AdoptionApplicationsPage() {
           </>
         }
       />
-      <AdoptionApplicationsManager applications={applications} />
+      <AdoptionApplicationsManager applications={applications} cats={catChoices} />
     </div>
   );
 }

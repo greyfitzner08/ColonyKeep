@@ -159,6 +159,47 @@ export interface AdoptionApplication {
   } | null;
 }
 
+export interface AdoptionApplicationLink {
+  id: string;
+  status: AdoptionApplicationStatus;
+  cat_id: string | null;
+  cat_interest_name: string;
+  applicant_first_name: string;
+  applicant_last_name: string;
+  applicant_email: string;
+  applicant_phone: string;
+  created_at: string;
+  answers: AdoptionApplicationAnswers;
+  cat?: { id: string; name: string } | null;
+}
+
+export function adoptionReviewFromApplication(application: AdoptionApplicationLink): Record<string, string> {
+  const parts = application.answers;
+  const cityState = [parts?.city, parts?.state].map((part) => part?.trim() ?? "").filter(Boolean).join(", ");
+  const address = [parts?.address_line_1, parts?.address_line_2, cityState]
+    .map((part) => (part ?? "").trim())
+    .filter(Boolean)
+    .join(", ");
+  const reviewStatus =
+    application.status === "approved"
+      ? "approved"
+      : application.status === "denied"
+        ? "declined"
+        : application.status === "pending" || application.status === "in_review"
+          ? "pending"
+          : "";
+  const filled: Record<string, string> = {
+    linked_adoption_application_id: application.id,
+    adopter_name: `${application.applicant_first_name} ${application.applicant_last_name}`.trim(),
+    adopter_phone: application.applicant_phone ?? "",
+    adopter_email: application.applicant_email ?? "",
+    adopter_address: address,
+    adoption_application_date: application.created_at.slice(0, 10),
+  };
+  if (reviewStatus) filled.adopter_application_status = reviewStatus;
+  return filled;
+}
+
 export const ADOPTION_APPLICATION_STATUSES: {
   value: AdoptionApplicationStatus;
   label: string;

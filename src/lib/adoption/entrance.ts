@@ -178,6 +178,7 @@ const ENTRANCE_SECTION_SOURCE: EntranceSection[] = [
     id: "adoption_review",
     title: "Adoption Review",
     fields: [
+      { key: "linked_adoption_application_id", label: "Linked adoption application", kind: "text", staff: true },
       { key: "adopter_name", label: "Adopter Name", kind: "text", staff: true },
       { key: "adoption_application_date", label: "Adoption Application Date", kind: "date" },
       { key: "check_dna_list", label: "Check DNA List?", kind: "yesno" },
@@ -357,6 +358,7 @@ export function applyEntranceAnswer(
 }
 
 export function showEntranceField(field: Pick<EntranceField, "key">, answers: EntranceAnswers): boolean {
+  if (field.key === "linked_adoption_application_id") return false;
   if (field.key === "new_name") return answers.name_changed === "yes";
   if ((PET_STORE_LOCATION_KEYS as readonly string[]).includes(field.key)) {
     return answers.at_pet_store === "yes";

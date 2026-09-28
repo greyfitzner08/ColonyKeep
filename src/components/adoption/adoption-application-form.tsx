@@ -342,10 +342,12 @@ function PetFields({
 
 interface AdoptionApplicationFormProps {
   initialCatInterestName?: string;
+  initialCatId?: string;
 }
 
 export function AdoptionApplicationForm({
   initialCatInterestName = "",
+  initialCatId = "",
 }: AdoptionApplicationFormProps) {
   const [step, setStep] = useState(0);
   const [submitting, setSubmitting] = useState(false);
@@ -508,6 +510,10 @@ export function AdoptionApplicationForm({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         cat_interest_name: catInterestName,
+        cat_id:
+          initialCatId && catInterestName.trim() === initialCatInterestName.trim()
+            ? initialCatId
+            : undefined,
         applicant_first_name: firstName,
         applicant_last_name: lastName,
         applicant_email: email,

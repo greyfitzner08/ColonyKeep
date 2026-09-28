@@ -49,11 +49,30 @@ export async function POST(request: NextRequest) {
     updates.additional_notes = body.additional_notes.trim() || null;
   }
 
+  let nextCatId: string | null | undefined;
+  if ("cat_id" in body) {
+    const raw = body.cat_id;
+    if (raw == null || raw === "") nextCatId = null;
+    else if (typeof raw === "string") nextCatId = raw;
+    else return NextResponse.json({ error: "Choose a cat in the program." }, { status: 400 });
+    updates.cat_id = nextCatId;
+  }
+
   if (Object.keys(updates).length === 0) {
     return NextResponse.json({ error: "No updates provided" }, { status: 400 });
   }
 
   const service = await createServiceClient();
+  if (typeof nextCatId === "string") {
+    const { data: cat } = await service
+      .from("adoptable_cats")
+      .select("id")
+      .eq("id", nextCatId)
+      .maybeSingle();
+    if (!cat) {
+      return NextResponse.json({ error: "Choose a cat in the program." }, { status: 400 });
+    }
+  }
   const { data, error } = await service
     .from("adoption_applications")
     .update(updates)

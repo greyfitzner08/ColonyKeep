@@ -8,6 +8,7 @@ import { VetCareDueBanner } from "@/components/adoption/vet-care-due-banner";
 import { RescueAboutEditor } from "@/components/adoption/entrance-about-editor";
 import { EntranceReviewManager } from "@/components/adoption/entrance-review-manager";
 import { Button } from "@/components/ui/button";
+import type { AdoptionApplicationLink } from "@/lib/adoption/application";
 import { collectVetCareDueAlerts, type AdoptionEntranceApplication } from "@/lib/adoption/entrance";
 import type { AdoptableCat } from "@/lib/adoption/constants";
 
@@ -16,6 +17,7 @@ type Section = "cats" | "rescue" | "about";
 export function AdoptableCatsWorkspace({
   cats,
   applications,
+  adoptionApplications,
   initialSection,
   aboutMessage,
   buttonText,
@@ -23,6 +25,7 @@ export function AdoptableCatsWorkspace({
 }: {
   cats: AdoptableCat[];
   applications: AdoptionEntranceApplication[];
+  adoptionApplications: AdoptionApplicationLink[];
   initialSection: Section;
   aboutMessage: string;
   buttonText: string;
@@ -59,7 +62,11 @@ export function AdoptableCatsWorkspace({
       </div>
 
       {section === "cats" && (
-        <AdoptableCatsManager cats={cats} applications={applications} />
+        <AdoptableCatsManager
+          cats={cats}
+          applications={applications}
+          adoptionApplications={adoptionApplications}
+        />
       )}
 
       {section === "rescue" && (

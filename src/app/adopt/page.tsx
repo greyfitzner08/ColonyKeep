@@ -8,20 +8,25 @@ export default async function AdoptPage({
 }) {
   const params = await searchParams;
   let initialCatInterestName = "";
+  let initialCatId = "";
 
   if (params.cat?.trim()) {
     const service = await createServiceClient();
     const { data } = await service
       .from("adoptable_cats")
-      .select("name")
+      .select("id, name")
       .eq("id", params.cat.trim())
       .maybeSingle();
     initialCatInterestName = data?.name?.trim() ?? "";
+    initialCatId = initialCatInterestName && data?.id ? data.id : "";
   }
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-background to-muted/40">
-      <AdoptionApplicationForm initialCatInterestName={initialCatInterestName} />
+      <AdoptionApplicationForm
+        initialCatInterestName={initialCatInterestName}
+        initialCatId={initialCatId}
+      />
     </main>
   );
 }
