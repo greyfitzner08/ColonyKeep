@@ -47,6 +47,7 @@ export async function POST(request: NextRequest) {
   const service = await createServiceClient();
   const names: string[] = [];
   const errors = [...parsed.errors];
+  const warnings = [...parsed.warnings];
   const reviewedAt = new Date().toISOString();
 
   for (const cat of parsed.cats) {
@@ -100,5 +101,6 @@ export async function POST(request: NextRequest) {
     imported: names.length,
     names,
     errors,
+    warnings,
   });
 }

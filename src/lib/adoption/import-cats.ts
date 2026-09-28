@@ -134,8 +134,24 @@ export function normalizeImportDate(value: string): string | null {
 function normalizeYesNo(value: string): "yes" | "no" | "" | null {
   const key = normalizeHeader(value);
   if (!key) return "";
-  if (key === "yes" || key === "y" || key === "true") return "yes";
-  if (key === "no" || key === "n" || key === "false") return "no";
+  if (["yes", "y", "true", "t", "1", "x", "checked", "adopted"].includes(key)) return "yes";
+  if (["no", "n", "false", "f", "0", "not adopted", "unadopted", "unchecked"].includes(key)) return "no";
+  if (
+    [
+      "na",
+      "n a",
+      "none",
+      "unknown",
+      "not applicable",
+      "not sure",
+      "not yet",
+      "tbd",
+      "blank",
+      "null",
+    ].includes(key)
+  ) {
+    return "";
+  }
   return null;
 }
 
@@ -205,12 +221,17 @@ function toVetCareJson(value: string): { value: string; error?: string } {
   return { value: JSON.stringify(rows) };
 }
 
-function prepareValue(field: EntranceField, raw: string): { value: string; error?: string } {
+function prepareValue(field: EntranceField, raw: string): { value: string; error?: string; skipped?: string } {
   const trimmed = raw.trim();
   if (!trimmed) return { value: "" };
   if (field.kind === "yesno") {
+    if (field.key === "adopted") {
+      const status = canonicalStatus(trimmed);
+      if (status === "adopted") return { value: "yes" };
+      if (status) return { value: "no" };
+    }
     const yesNo = normalizeYesNo(trimmed);
-    if (yesNo == null) return { value: "", error: `Use Yes or No for ${field.label}.` };
+    if (yesNo == null) return { value: "", skipped: trimmed };
     return { value: yesNo };
   }
   if (field.kind === "date") {
@@ -248,11 +269,12 @@ export function buildCatImportTemplateCsv(): string {
 export function parseCatImportCsv(text: string): {
   cats: { row: number; answers: EntranceAnswers }[];
   errors: { row: number; error: string }[];
+  warnings: { row: number; error: string }[];
   fileError?: string;
 } {
   const records = parseCsvRecords(text.replace(/^\uFEFF/, "").trim());
   if (records.length < 2) {
-    return { cats: [], errors: [], fileError: "Add a header row and at least one cat." };
+    return { cats: [], errors: [], warnings: [], fileError: "Add a header row and at least one cat." };
   }
 
   const headers = records[0] ?? [];
@@ -261,18 +283,20 @@ export function parseCatImportCsv(text: string): {
     return {
       cats: [],
       errors: [],
+      warnings: [],
       fileError: "The CSV needs a Cat name column. Download the template for the column names.",
     };
   }
 
   const objects = recordsToObjects(records, 0);
   if (objects.length > MAX_IMPORT_ROWS) {
-    return { cats: [], errors: [], fileError: "Import up to 200 cats at a time." };
+    return { cats: [], errors: [], warnings: [], fileError: "Import up to 200 cats at a time." };
   }
 
   const fieldByKey = new Map(ENTRANCE_FIELDS.map((field) => [field.key, field]));
   const cats: { row: number; answers: EntranceAnswers }[] = [];
   const errors: { row: number; error: string }[] = [];
+  const warnings: { row: number; error: string }[] = [];
 
   objects.forEach((record, index) => {
     const rowNumber = index + 2;
@@ -287,6 +311,12 @@ export function parseCatImportCsv(text: string): {
         errors.push({ row: rowNumber, error: prepared.error });
         return;
       }
+      if (prepared.skipped) {
+        warnings.push({
+          row: rowNumber,
+          error: `${field.label} was “${prepared.skipped}”, so that answer was left blank. Use Yes or No to set it.`,
+        });
+      }
       if (prepared.value) source[key] = prepared.value;
     }
 
@@ -300,8 +330,8 @@ export function parseCatImportCsv(text: string): {
   });
 
   if (cats.length === 0 && errors.length === 0) {
-    return { cats, errors, fileError: "Add a header row and at least one cat." };
+    return { cats, errors, warnings, fileError: "Add a header row and at least one cat." };
   }
 
-  return { cats, errors };
+  return { cats, errors, warnings };
 }
