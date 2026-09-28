@@ -173,7 +173,14 @@ type IntakeFieldErrorKey =
   | "colony_address"
   | "colony_city"
   | "colony_zip"
-  | "colony_county";
+  | "colony_county"
+  | "feeding_cats"
+  | "trapping_experience"
+  | "need_traps"
+  | "willing_to_trap_transport"
+  | "able_to_trap_transport"
+  | "has_recovery_space"
+  | "how_heard";
 
 type IntakeFieldErrors = Partial<Record<IntakeFieldErrorKey, string>>;
 
@@ -269,6 +276,41 @@ function locationFieldErrors(
   return errors;
 }
 
+function yesNoAnswered(value: string): boolean {
+  return value === "Yes" || value === "No";
+}
+
+function catsFieldErrors(form: CommunityIntakeSubmission): IntakeFieldErrors {
+  const errors: IntakeFieldErrors = {};
+  if (!yesNoAnswered(form.feeding_cats)) {
+    errors.feeding_cats = "Say whether you are feeding the cats.";
+  }
+  return errors;
+}
+
+function helpFieldErrors(form: CommunityIntakeSubmission): IntakeFieldErrors {
+  const errors: IntakeFieldErrors = {};
+  if (!yesNoAnswered(form.trapping_experience)) {
+    errors.trapping_experience = "Say whether you have trapping experience.";
+  }
+  if (!yesNoAnswered(form.need_traps)) {
+    errors.need_traps = "Say whether you need to borrow traps.";
+  }
+  if (!yesNoAnswered(form.willing_to_trap_transport)) {
+    errors.willing_to_trap_transport = "Say whether you are willing to trap and transport.";
+  }
+  if (!yesNoAnswered(form.able_to_trap_transport)) {
+    errors.able_to_trap_transport = "Say whether you are able to trap and transport.";
+  }
+  if (!yesNoAnswered(form.has_recovery_space)) {
+    errors.has_recovery_space = "Say whether you have a place to hold cats before and after surgery.";
+  }
+  if (!form.how_heard.trim()) {
+    errors.how_heard = "Tell us how you heard about us.";
+  }
+  return errors;
+}
+
 function scrollToIntakeField(key: string) {
   window.setTimeout(() => {
     document.getElementById(`intake-${key}`)?.scrollIntoView({
@@ -318,14 +360,20 @@ function YesNoSelect({
   value,
   onChange,
   id,
+  invalid,
 }: {
   value: string;
   onChange: (value: string) => void;
   id: string;
+  invalid?: boolean;
 }) {
   return (
     <Select value={value || "unset"} onValueChange={(v) => onChange(v === "unset" ? "" : v)}>
-      <SelectTrigger id={id}>
+      <SelectTrigger
+        id={id}
+        aria-invalid={invalid || undefined}
+        className={invalid ? invalidInputClass : undefined}
+      >
         <SelectValue placeholder="Select..." />
       </SelectTrigger>
       <SelectContent>
@@ -379,7 +427,13 @@ export function ColonyIntakeForm({
       field === "colony_address" ||
       field === "colony_city" ||
       field === "colony_zip" ||
-      field === "colony_county"
+      field === "colony_county" ||
+      field === "trapping_experience" ||
+      field === "need_traps" ||
+      field === "willing_to_trap_transport" ||
+      field === "able_to_trap_transport" ||
+      field === "has_recovery_space" ||
+      field === "how_heard"
     ) {
       clearFieldError(field);
     }
@@ -430,6 +484,7 @@ export function ColonyIntakeForm({
   }
 
   function handleRelationshipChange(value: string) {
+    if (/\bfeeder\b/i.test(value)) clearFieldError("feeding_cats");
     setForm((prev) => {
       const next = { ...prev, relationship_to_cats: value };
       if (/\bfeeder\b/i.test(value)) {
@@ -444,6 +499,7 @@ export function ColonyIntakeForm({
   }
 
   function handleFeedingCatsChange(value: string) {
+    clearFieldError("feeding_cats");
     setForm((prev) => ({
       ...prev,
       feeding_cats: value,
@@ -468,6 +524,8 @@ export function ColonyIntakeForm({
   function errorsForStep(currentStep: number): IntakeFieldErrors {
     if (currentStep === 1) return reporterFieldErrors(form, serviceCounty);
     if (currentStep === 2) return locationFieldErrors(form, colonySameAsHome);
+    if (currentStep === 3) return catsFieldErrors(form);
+    if (currentStep === 4) return helpFieldErrors(form);
     return {};
   }
 
@@ -499,6 +557,20 @@ export function ColonyIntakeForm({
       setFieldErrors(locationErrors);
       setStep(2);
       scrollToIntakeField(Object.keys(locationErrors)[0]);
+      return;
+    }
+    const catsErrors = errorsForStep(3);
+    if (Object.keys(catsErrors).length > 0) {
+      setFieldErrors(catsErrors);
+      setStep(3);
+      scrollToIntakeField(Object.keys(catsErrors)[0]);
+      return;
+    }
+    const helpErrors = errorsForStep(4);
+    if (Object.keys(helpErrors).length > 0) {
+      setFieldErrors(helpErrors);
+      setStep(4);
+      scrollToIntakeField(Object.keys(helpErrors)[0]);
       return;
     }
 
@@ -1048,12 +1120,16 @@ export function ColonyIntakeForm({
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>Are you feeding the cats?</Label>
+                  <Label htmlFor="intake-feeding_cats">Are you feeding the cats?</Label>
                   <YesNoSelect
-                    id="feeding_cats"
+                    id="intake-feeding_cats"
+                    invalid={Boolean(fieldErrors.feeding_cats)}
                     value={form.feeding_cats}
                     onChange={handleFeedingCatsChange}
                   />
+                  {fieldErrors.feeding_cats && (
+                    <p className="text-sm text-destructive">{fieldErrors.feeding_cats}</p>
+                  )}
                 </div>
                 {showFeederPreview && feederPreview && (
                   <div className="rounded-md border bg-muted/30 p-3 text-sm space-y-1">
@@ -1104,51 +1180,77 @@ export function ColonyIntakeForm({
             {step === 4 && (
               <>
                 <div className="space-y-2">
-                  <Label>Do you have trapping experience?</Label>
+                  <Label htmlFor="intake-trapping_experience">Do you have trapping experience?</Label>
                   <YesNoSelect
-                    id="trapping_experience"
+                    id="intake-trapping_experience"
+                    invalid={Boolean(fieldErrors.trapping_experience)}
                     value={form.trapping_experience}
                     onChange={(value) => update("trapping_experience", value)}
                   />
+                  {fieldErrors.trapping_experience && (
+                    <p className="text-sm text-destructive">{fieldErrors.trapping_experience}</p>
+                  )}
                 </div>
                 <div className="space-y-2">
-                  <Label>Do you need to borrow traps?</Label>
+                  <Label htmlFor="intake-need_traps">Do you need to borrow traps?</Label>
                   <YesNoSelect
-                    id="need_traps"
+                    id="intake-need_traps"
+                    invalid={Boolean(fieldErrors.need_traps)}
                     value={form.need_traps}
                     onChange={(value) => update("need_traps", value)}
                   />
+                  {fieldErrors.need_traps && (
+                    <p className="text-sm text-destructive">{fieldErrors.need_traps}</p>
+                  )}
                 </div>
                 <div className="space-y-2">
-                  <Label>Are you willing to trap and transport?</Label>
+                  <Label htmlFor="intake-willing_to_trap_transport">Are you willing to trap and transport?</Label>
                   <YesNoSelect
-                    id="willing_to_trap_transport"
+                    id="intake-willing_to_trap_transport"
+                    invalid={Boolean(fieldErrors.willing_to_trap_transport)}
                     value={form.willing_to_trap_transport}
                     onChange={(value) => update("willing_to_trap_transport", value)}
                   />
+                  {fieldErrors.willing_to_trap_transport && (
+                    <p className="text-sm text-destructive">{fieldErrors.willing_to_trap_transport}</p>
+                  )}
                 </div>
                 <div className="space-y-2">
-                  <Label>Are you able to trap and transport?</Label>
+                  <Label htmlFor="intake-able_to_trap_transport">Are you able to trap and transport?</Label>
                   <YesNoSelect
-                    id="able_to_trap_transport"
+                    id="intake-able_to_trap_transport"
+                    invalid={Boolean(fieldErrors.able_to_trap_transport)}
                     value={form.able_to_trap_transport}
                     onChange={(value) => update("able_to_trap_transport", value)}
                   />
+                  {fieldErrors.able_to_trap_transport && (
+                    <p className="text-sm text-destructive">{fieldErrors.able_to_trap_transport}</p>
+                  )}
                 </div>
                 <div className="space-y-2">
-                  <Label>Do you have a place to hold cats before and after surgery?</Label>
+                  <Label htmlFor="intake-has_recovery_space">Do you have a place to hold cats before and after surgery?</Label>
                   <YesNoSelect
-                    id="has_recovery_space"
+                    id="intake-has_recovery_space"
+                    invalid={Boolean(fieldErrors.has_recovery_space)}
                     value={form.has_recovery_space}
                     onChange={(value) => update("has_recovery_space", value)}
                   />
+                  {fieldErrors.has_recovery_space && (
+                    <p className="text-sm text-destructive">{fieldErrors.has_recovery_space}</p>
+                  )}
                 </div>
                 <div className="space-y-2">
-                  <Label>How did you hear about us?</Label>
+                  <Label htmlFor="intake-how_heard">How did you hear about us?</Label>
                   <Input
+                    id="intake-how_heard"
                     value={form.how_heard}
+                    aria-invalid={Boolean(fieldErrors.how_heard)}
+                    className={fieldErrors.how_heard ? invalidInputClass : undefined}
                     onChange={(e) => update("how_heard", e.target.value)}
                   />
+                  {fieldErrors.how_heard && (
+                    <p className="text-sm text-destructive">{fieldErrors.how_heard}</p>
+                  )}
                 </div>
               </>
             )}

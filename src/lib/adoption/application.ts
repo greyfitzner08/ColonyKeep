@@ -201,6 +201,14 @@ export const HOW_HEARD_SOURCES: { value: HowHeardSource; label: string }[] = [
   { value: "other", label: "Other" },
 ];
 
+export function isEmployedStatus(status: string): boolean {
+  return (
+    status === "employed_full_time" ||
+    status === "employed_part_time" ||
+    status === "self_employed"
+  );
+}
+
 export const EMPLOYMENT_STATUSES: { value: EmploymentStatus; label: string }[] = [
   { value: "employed_full_time", label: "Employed full-time" },
   { value: "employed_part_time", label: "Employed part-time" },
@@ -242,6 +250,13 @@ export const REHOME_CIRCUMSTANCES: { value: RehomeCircumstance; label: string }[
   { value: "other", label: "Other" },
 ];
 
+export const PET_GENDERS: { value: string; label: string }[] = [
+  { value: "male", label: "Male" },
+  { value: "female", label: "Female" },
+  { value: "spayed_female", label: "Spayed Female" },
+  { value: "neutered_male", label: "Neutered Male" },
+];
+
 export const PET_TYPES: { value: string; label: string }[] = [
   { value: "cat", label: "Cat" },
   { value: "dog", label: "Dog" },
@@ -275,6 +290,11 @@ export function isDogPetType(animalType: string | null | undefined): boolean {
   return value === "dog" || value === "dogs";
 }
 
+export function petGenderLabel(gender: string | null | undefined): string {
+  if (!gender) return "";
+  return PET_GENDERS.find((entry) => entry.value === gender)?.label ?? gender;
+}
+
 export function petTypeLabel(pet: Pick<AdoptionApplicationPet, "animal_type" | "animal_type_other">): string {
   if (pet.animal_type === "other") return pet.animal_type_other?.trim() || "Other";
   return PET_TYPES.find((entry) => entry.value === pet.animal_type)?.label ?? pet.animal_type;
@@ -302,10 +322,22 @@ export interface AdoptionFieldError {
 export function validateListedPets(answers: AdoptionApplicationAnswers): AdoptionFieldError[] {
   const errors: AdoptionFieldError[] = [];
   for (const { index, pet } of listedAdoptionPets(answers)) {
+    if (!pet.name.trim()) {
+      errors.push({ field: `pet-${index}-name`, message: "Pet name is required." });
+    }
+    if (!pet.age.trim()) {
+      errors.push({ field: `pet-${index}-age`, message: "Age is required." });
+    }
+    if (!pet.year_acquired.trim()) {
+      errors.push({ field: `pet-${index}-year`, message: "Year acquired is required." });
+    }
     if (!pet.animal_type.trim()) {
       errors.push({ field: `pet-${index}-type`, message: "Pet type is required." });
     } else if (pet.animal_type === "other" && !pet.animal_type_other.trim()) {
       errors.push({ field: `pet-${index}-type-other`, message: "Describe the pet type." });
+    }
+    if (!PET_GENDERS.some((entry) => entry.value === pet.gender)) {
+      errors.push({ field: `pet-${index}-gender`, message: "Gender is required." });
     }
     if (!pet.current_status) {
       errors.push({ field: `pet-${index}-status`, message: "Current status is required." });
@@ -317,6 +349,18 @@ export function validateListedPets(answers: AdoptionApplicationAnswers): Adoptio
       });
     }
   }
+  return errors;
+}
+
+export function validatePetHistory(answers: AdoptionApplicationAnswers): AdoptionFieldError[] {
+  if (answers.had_pets_last_five_years !== "yes") return [];
+  const errors: AdoptionFieldError[] = [];
+  if (!answers.vet_practice_name.trim() && !answers.vet_phone.trim()) {
+    const message = "Enter the veterinary practice name or phone number.";
+    errors.push({ field: "vet-practice", message });
+    errors.push({ field: "vet-phone", message });
+  }
+  errors.push(...validateListedPets(answers));
   return errors;
 }
 

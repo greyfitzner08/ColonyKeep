@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { CheckCircle, ChevronLeft, ChevronRight } from "lucide-react";
 import { BrandMark } from "@/components/branding/brand-mark";
 import { Button } from "@/components/ui/button";
@@ -21,14 +21,16 @@ import {
   HOME_ACTIVITY_OPTIONS,
   HOW_HEARD_SOURCES,
   PET_CURRENT_STATUSES,
+  PET_GENDERS,
   PET_TYPES,
   REHOME_CIRCUMSTANCES,
   RESIDENCE_TYPES,
   APPLICANT_AGE_RANGES,
   emptyAdoptionAnswers,
   emptyAdoptionPet,
+  isEmployedStatus,
   validateAdoptionReferences,
-  validateListedPets,
+  validatePetHistory,
   type AdoptionApplicationAnswers,
   type AdoptionApplicationPet,
   type CatLivingPlan,
@@ -60,14 +62,21 @@ function ChoiceGroup<T extends string>({
   value,
   options,
   onChange,
+  invalid,
+  id,
 }: {
   name: string;
   value: T | "";
   options: ChoiceOption<T>[];
   onChange: (value: T) => void;
+  invalid?: boolean;
+  id?: string;
 }) {
   return (
-    <div className="flex flex-col gap-2">
+    <div
+      id={id}
+      className={invalid ? "flex flex-col gap-2 rounded-md border border-destructive p-2" : "flex flex-col gap-2"}
+    >
       {options.map((option) => (
         <label key={option.value} className="flex items-center gap-2 text-sm">
           <input
@@ -88,13 +97,20 @@ function MultiChoiceGroup<T extends string>({
   values,
   options,
   onToggle,
+  invalid,
+  id,
 }: {
   values: T[];
   options: ChoiceOption<T>[];
   onToggle: (value: T, checked: boolean) => void;
+  invalid?: boolean;
+  id?: string;
 }) {
   return (
-    <div className="flex flex-col gap-2">
+    <div
+      id={id}
+      className={invalid ? "flex flex-col gap-2 rounded-md border border-destructive p-2" : "flex flex-col gap-2"}
+    >
       {options.map((option) => (
         <label key={option.value} className="flex items-center gap-2 text-sm">
           <Checkbox
@@ -153,16 +169,40 @@ function PetFields({
     <div className="space-y-3 rounded-lg border p-4" id={`pet-${index}`}>
       <p className="text-sm font-semibold">Pet #{index + 1}</p>
       <div className="grid gap-3 sm:grid-cols-2">
-        <Field label="Name">
-          <Input value={pet.name} onChange={(e) => onChange({ ...pet, name: e.target.value })} />
-        </Field>
-        <Field label="Age">
-          <Input value={pet.age} onChange={(e) => onChange({ ...pet, age: e.target.value })} />
-        </Field>
-        <Field label="Year acquired">
+        <Field label="Name *" error={errors[`pet-${index}-name`]}>
           <Input
+            id={`pet-${index}-name`}
+            value={pet.name}
+            aria-invalid={Boolean(errors[`pet-${index}-name`])}
+            className={errors[`pet-${index}-name`] ? invalidClass : undefined}
+            onChange={(e) => {
+              clearError(`pet-${index}-name`);
+              onChange({ ...pet, name: e.target.value });
+            }}
+          />
+        </Field>
+        <Field label="Age *" error={errors[`pet-${index}-age`]}>
+          <Input
+            id={`pet-${index}-age`}
+            value={pet.age}
+            aria-invalid={Boolean(errors[`pet-${index}-age`])}
+            className={errors[`pet-${index}-age`] ? invalidClass : undefined}
+            onChange={(e) => {
+              clearError(`pet-${index}-age`);
+              onChange({ ...pet, age: e.target.value });
+            }}
+          />
+        </Field>
+        <Field label="Year acquired *" error={errors[`pet-${index}-year`]}>
+          <Input
+            id={`pet-${index}-year`}
             value={pet.year_acquired}
-            onChange={(e) => onChange({ ...pet, year_acquired: e.target.value })}
+            aria-invalid={Boolean(errors[`pet-${index}-year`])}
+            className={errors[`pet-${index}-year`] ? invalidClass : undefined}
+            onChange={(e) => {
+              clearError(`pet-${index}-year`);
+              onChange({ ...pet, year_acquired: e.target.value });
+            }}
           />
         </Field>
         <Field label="Pet type *" error={typeError}>
@@ -208,11 +248,30 @@ function PetFields({
             />
           </Field>
         )}
-        <Field label="Gender">
-          <Input
-            value={pet.gender}
-            onChange={(e) => onChange({ ...pet, gender: e.target.value })}
-          />
+        <Field label="Gender *" error={errors[`pet-${index}-gender`]}>
+          <Select
+            value={pet.gender || "__none__"}
+            onValueChange={(value) => {
+              clearError(`pet-${index}-gender`);
+              onChange({ ...pet, gender: value === "__none__" ? "" : value });
+            }}
+          >
+            <SelectTrigger
+              id={`pet-${index}-gender`}
+              aria-invalid={Boolean(errors[`pet-${index}-gender`])}
+              className={errors[`pet-${index}-gender`] ? invalidClass : undefined}
+            >
+              <SelectValue placeholder="Select gender" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__none__">Select gender</SelectItem>
+              {PET_GENDERS.map((entry) => (
+                <SelectItem key={entry.value} value={entry.value}>
+                  {entry.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </Field>
         <Field label="Current status *" error={statusError}>
           <Select
@@ -299,6 +358,17 @@ export function AdoptionApplicationForm({
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [answers, setAnswers] = useState<AdoptionApplicationAnswers>(emptyAdoptionAnswers);
+  const formTopRef = useRef<HTMLDivElement>(null);
+  const skipInitialScroll = useRef(true);
+
+  useEffect(() => {
+    if (skipInitialScroll.current) {
+      skipInitialScroll.current = false;
+      return;
+    }
+    (document.activeElement as HTMLElement | null)?.blur?.();
+    formTopRef.current?.scrollIntoView({ behavior: "auto", block: "start" });
+  }, [step]);
 
   function updateAnswers(patch: Partial<AdoptionApplicationAnswers>) {
     setAnswers((prev) => ({ ...prev, ...patch }));
@@ -320,69 +390,73 @@ export function AdoptionApplicationForm({
     });
   }
 
-  function validateStep(): string | null {
+  function stepFieldErrors(): Record<string, string> {
+    const errors: Record<string, string> = {};
     if (step === 0) {
-      if (!catInterestName.trim()) return "Please enter the cat or kitten you are interested in.";
-      if (!answers.how_heard) return "Please tell us how you heard about the cat.";
-      if (answers.how_heard === "other" && !answers.how_heard_other.trim()) {
-        return "Please describe how you heard about the cat.";
+      if (!catInterestName.trim()) {
+        errors["adoption-cat-name"] = "Enter the cat or kitten you are interested in.";
       }
-      if (!answers.lifelong_commitment) return "Please answer the lifelong commitment question.";
+      if (!answers.how_heard) errors["adoption-how-heard"] = "Tell us how you heard about the cat.";
+      if (answers.how_heard === "other" && !answers.how_heard_other.trim()) {
+        errors["adoption-how-heard-other"] = "Describe how you heard about the cat.";
+      }
+      if (!answers.lifelong_commitment) {
+        errors["adoption-lifelong"] = "Answer the lifelong commitment question.";
+      }
     }
     if (step === 1) {
-      if (!firstName.trim() || !lastName.trim()) return "First and last name are required.";
-      if (!email.trim() || !email.includes("@")) return "A valid email is required.";
-      if (!phone.trim()) return "Phone number is required.";
-      if (!answers.address_line_1.trim() || !answers.city.trim() || !answers.state.trim()) {
-        return "Address, city, and state are required.";
+      if (!firstName.trim()) errors["adoption-first-name"] = "First name is required.";
+      if (!lastName.trim()) errors["adoption-last-name"] = "Last name is required.";
+      if (!email.trim() || !email.includes("@")) {
+        errors["adoption-email"] = "A valid email is required.";
       }
-      if (!answers.residence_type || !answers.rents) return "Residence type and rent status are required.";
+      if (!phone.trim()) errors["adoption-phone"] = "Phone number is required.";
+      if (!answers.address_line_1.trim()) errors["adoption-address"] = "Address is required.";
+      if (!answers.city.trim()) errors["adoption-city"] = "City is required.";
+      if (!answers.state.trim()) errors["adoption-state"] = "State is required.";
+      if (!answers.residence_type) errors["adoption-residence"] = "Residence type is required.";
+      if (!answers.rents) errors["adoption-rents"] = "Rent status is required.";
     }
     if (step === 2) {
-      if (!answers.employment_status) return "Employment status is required.";
-      if (!answers.age_range.trim()) return "Age range is required.";
-      if (!answers.adults_in_home.trim()) return "Number of adults is required.";
-      if (answers.activity_levels.length === 0) return "Select at least one home activity level.";
-      if (!answers.allergic_to_cats) return "Please answer the allergy question.";
+      if (!answers.employment_status) errors["adoption-employment"] = "Employment status is required.";
+      if (!answers.age_range.trim()) errors["adoption-age"] = "Age range is required.";
+      if (!answers.adults_in_home.trim()) errors["adoption-adults"] = "Number of adults is required.";
+      if (answers.activity_levels.length === 0) {
+        errors["adoption-activity"] = "Select at least one home activity level.";
+      }
+      if (!answers.allergic_to_cats) errors["adoption-allergy"] = "Answer the allergy question.";
     }
     if (step === 3) {
-      if (!answers.living_plan) return "Please select indoor/outdoor plans.";
-      if (!answers.plan_to_declaw) return "Please answer the declaw question.";
-      if (!answers.hours_alone.trim()) return "Please estimate hours alone per day.";
-      if (!answers.backup_caregiver.trim()) return "Please name a backup caregiver.";
+      if (!answers.living_plan) errors["adoption-living"] = "Select indoor or outdoor plans.";
+      if (!answers.plan_to_declaw) errors["adoption-declaw"] = "Answer the declaw question.";
+      if (!answers.hours_alone.trim()) errors["adoption-hours"] = "Estimate hours alone per day.";
+      if (!answers.backup_caregiver.trim()) errors["adoption-backup"] = "Name a backup caregiver.";
       if (answers.rehome_circumstances.length === 0) {
-        return "Please select rehoming circumstances (or none anticipated).";
+        errors["adoption-rehome"] = "Select rehoming circumstances, or none anticipated.";
       }
-      if (!answers.can_pay_vet_costs || !answers.cat_is_family) {
-        return "Please complete the veterinary cost and family questions.";
-      }
+      if (!answers.can_pay_vet_costs) errors["adoption-vet-costs"] = "Answer the veterinary cost question.";
+      if (!answers.cat_is_family) errors["adoption-family"] = "Answer whether a cat is part of the family.";
     }
     if (step === 4) {
-      if (!answers.had_pets_last_five_years) return "Please answer whether you have had pets.";
-      const petErrors = validateListedPets(answers);
-      if (petErrors.length > 0) {
-        setFieldErrors(Object.fromEntries(petErrors.map((entry) => [entry.field, entry.message])));
-        document.getElementById(petErrors[0].field)?.scrollIntoView({
-          behavior: "smooth",
-          block: "center",
-        });
-        return petErrors[0].message;
+      if (!answers.had_pets_last_five_years) {
+        errors["adoption-had-pets"] = "Answer whether you have had pets.";
+      }
+      for (const entry of validatePetHistory(answers)) {
+        errors[entry.field] = entry.message;
+      }
+      if (answers.had_pets_last_five_years === "yes" && !answers.has_pet_2) {
+        errors["adoption-pet-2"] = "Say whether you have a second pet to list.";
+      }
+      if (answers.has_pet_2 === "yes" && !answers.has_pet_3) {
+        errors["adoption-pet-3"] = "Say whether you have a third pet to list.";
       }
     }
     if (step === 5) {
-      const referenceErrors = validateAdoptionReferences(answers);
-      if (referenceErrors.length > 0) {
-        setFieldErrors(
-          Object.fromEntries(referenceErrors.map((entry) => [entry.field, entry.message]))
-        );
-        document.getElementById(referenceErrors[0].field)?.scrollIntoView({
-          behavior: "smooth",
-          block: "center",
-        });
-        return referenceErrors[0].message;
+      for (const entry of validateAdoptionReferences(answers)) {
+        errors[entry.field] = entry.message;
       }
     }
-    return null;
+    return errors;
   }
 
   function clearFieldError(field: string) {
@@ -395,11 +469,18 @@ export function AdoptionApplicationForm({
   }
 
   function next() {
-    const message = validateStep();
-    if (message) {
-      const fieldLevel =
-        step === 5 || (step === 4 && answers.had_pets_last_five_years === "yes");
-      setError(fieldLevel ? null : message);
+    const errors = stepFieldErrors();
+    const firstField = Object.keys(errors)[0];
+    if (firstField) {
+      setFieldErrors(errors);
+      setError(null);
+      window.setTimeout(() => {
+        (document.activeElement as HTMLElement | null)?.blur?.();
+        document.getElementById(firstField)?.scrollIntoView({
+          behavior: "auto",
+          block: "start",
+        });
+      }, 50);
       return;
     }
     setError(null);
@@ -413,9 +494,11 @@ export function AdoptionApplicationForm({
   }
 
   async function submit() {
-    const message = validateStep();
-    if (message) {
-      setError(message);
+    const errors = stepFieldErrors();
+    const firstField = Object.keys(errors)[0];
+    if (firstField) {
+      setFieldErrors(errors);
+      setError(errors[firstField]);
       return;
     }
     setSubmitting(true);
@@ -456,7 +539,7 @@ export function AdoptionApplicationForm({
   }
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6 px-4 py-8">
+    <div ref={formTopRef} className="mx-auto max-w-2xl scroll-mt-4 space-y-6 px-4 py-8">
       <div className="space-y-2 text-center">
         <BrandMark className="mx-auto h-12 w-auto" />
         <p className="text-xs font-medium uppercase tracking-wide text-blue-800">
@@ -490,22 +573,39 @@ export function AdoptionApplicationForm({
         {step === 0 && (
           <>
             <h2 className="text-lg font-semibold">Adoption interest</h2>
-            <Field label="Name of the cat or kitten you are interested in adopting">
+            <Field
+              label="Name of the cat or kitten you are interested in adopting"
+              error={fieldErrors["adoption-cat-name"]}
+            >
               <Input
+                id="adoption-cat-name"
                 value={catInterestName}
-                onChange={(e) => setCatInterestName(e.target.value)}
+                aria-invalid={Boolean(fieldErrors["adoption-cat-name"])}
+                className={fieldErrors["adoption-cat-name"] ? invalidClass : undefined}
+                onChange={(e) => {
+                  setCatInterestName(e.target.value);
+                  clearFieldError("adoption-cat-name");
+                }}
               />
             </Field>
-            <Field label="How did you hear about the cat or kitten you are interested in adopting?">
+            <Field
+              label="How did you hear about the cat or kitten you are interested in adopting?"
+              error={fieldErrors["adoption-how-heard"]}
+            >
               <Select
                 value={answers.how_heard || "__none__"}
-                onValueChange={(value) =>
+                onValueChange={(value) => {
+                  clearFieldError("adoption-how-heard");
                   updateAnswers({
                     how_heard: value === "__none__" ? "" : (value as HowHeardSource),
-                  })
-                }
+                  });
+                }}
               >
-                <SelectTrigger>
+                <SelectTrigger
+                  id="adoption-how-heard"
+                  aria-invalid={Boolean(fieldErrors["adoption-how-heard"])}
+                  className={fieldErrors["adoption-how-heard"] ? invalidClass : undefined}
+                >
                   <SelectValue placeholder="Select an option" />
                 </SelectTrigger>
                 <SelectContent>
@@ -519,22 +619,36 @@ export function AdoptionApplicationForm({
               </Select>
             </Field>
             {answers.how_heard === "other" && (
-              <Field label="Please tell us how you heard about the cat">
+              <Field label="Please tell us how you heard about the cat" error={fieldErrors["adoption-how-heard-other"]}>
                 <Input
+                  id="adoption-how-heard-other"
                   value={answers.how_heard_other}
-                  onChange={(e) => updateAnswers({ how_heard_other: e.target.value })}
+                  aria-invalid={Boolean(fieldErrors["adoption-how-heard-other"])}
+                  className={fieldErrors["adoption-how-heard-other"] ? invalidClass : undefined}
+                  onChange={(e) => {
+                    clearFieldError("adoption-how-heard-other");
+                    updateAnswers({ how_heard_other: e.target.value });
+                  }}
                 />
               </Field>
             )}
-            <Field label="Are you aware that adopting a cat is a significant, lifelong commitment?">
+            <Field
+              label="Are you aware that adopting a cat is a significant, lifelong commitment?"
+              error={fieldErrors["adoption-lifelong"]}
+            >
               <ChoiceGroup
+                id="adoption-lifelong"
                 name="lifelong"
+                invalid={Boolean(fieldErrors["adoption-lifelong"])}
                 value={answers.lifelong_commitment}
                 options={[
                   { value: "yes", label: "Yes" },
                   { value: "no", label: "No" },
                 ]}
-                onChange={(value: YesNo) => updateAnswers({ lifelong_commitment: value })}
+                onChange={(value: YesNo) => {
+                  clearFieldError("adoption-lifelong");
+                  updateAnswers({ lifelong_commitment: value });
+                }}
               />
             </Field>
           </>
@@ -544,18 +658,55 @@ export function AdoptionApplicationForm({
           <>
             <h2 className="text-lg font-semibold">Applicant contact information</h2>
             <div className="grid gap-3 sm:grid-cols-2">
-              <Field label="First name">
-                <Input value={firstName} onChange={(e) => setFirstName(e.target.value)} />
+              <Field label="First name" error={fieldErrors["adoption-first-name"]}>
+                <Input
+                  id="adoption-first-name"
+                  value={firstName}
+                  aria-invalid={Boolean(fieldErrors["adoption-first-name"])}
+                  className={fieldErrors["adoption-first-name"] ? invalidClass : undefined}
+                  onChange={(e) => {
+                    setFirstName(e.target.value);
+                    clearFieldError("adoption-first-name");
+                  }}
+                />
               </Field>
-              <Field label="Last name">
-                <Input value={lastName} onChange={(e) => setLastName(e.target.value)} />
+              <Field label="Last name" error={fieldErrors["adoption-last-name"]}>
+                <Input
+                  id="adoption-last-name"
+                  value={lastName}
+                  aria-invalid={Boolean(fieldErrors["adoption-last-name"])}
+                  className={fieldErrors["adoption-last-name"] ? invalidClass : undefined}
+                  onChange={(e) => {
+                    setLastName(e.target.value);
+                    clearFieldError("adoption-last-name");
+                  }}
+                />
               </Field>
             </div>
-            <Field label="Email address">
-              <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+            <Field label="Email address" error={fieldErrors["adoption-email"]}>
+              <Input
+                id="adoption-email"
+                type="email"
+                value={email}
+                aria-invalid={Boolean(fieldErrors["adoption-email"])}
+                className={fieldErrors["adoption-email"] ? invalidClass : undefined}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  clearFieldError("adoption-email");
+                }}
+              />
             </Field>
-            <Field label="Phone number">
-              <Input value={phone} onChange={(e) => setPhone(e.target.value)} />
+            <Field label="Phone number" error={fieldErrors["adoption-phone"]}>
+              <Input
+                id="adoption-phone"
+                value={phone}
+                aria-invalid={Boolean(fieldErrors["adoption-phone"])}
+                className={fieldErrors["adoption-phone"] ? invalidClass : undefined}
+                onChange={(e) => {
+                  setPhone(e.target.value);
+                  clearFieldError("adoption-phone");
+                }}
+              />
             </Field>
             <Field label="Spouse, partner, or housemate’s name" hint="If applicable">
               <Input
@@ -563,10 +714,16 @@ export function AdoptionApplicationForm({
                 onChange={(e) => updateAnswers({ housemate_name: e.target.value })}
               />
             </Field>
-            <Field label="Address line 1">
+            <Field label="Address line 1" error={fieldErrors["adoption-address"]}>
               <Input
+                id="adoption-address"
                 value={answers.address_line_1}
-                onChange={(e) => updateAnswers({ address_line_1: e.target.value })}
+                aria-invalid={Boolean(fieldErrors["adoption-address"])}
+                className={fieldErrors["adoption-address"] ? invalidClass : undefined}
+                onChange={(e) => {
+                  clearFieldError("adoption-address");
+                  updateAnswers({ address_line_1: e.target.value });
+                }}
               />
             </Field>
             <Field label="Address line 2" hint="If applicable">
@@ -576,25 +733,42 @@ export function AdoptionApplicationForm({
               />
             </Field>
             <div className="grid gap-3 sm:grid-cols-2">
-              <Field label="City">
+              <Field label="City" error={fieldErrors["adoption-city"]}>
                 <Input
+                  id="adoption-city"
                   value={answers.city}
-                  onChange={(e) => updateAnswers({ city: e.target.value })}
+                  aria-invalid={Boolean(fieldErrors["adoption-city"])}
+                  className={fieldErrors["adoption-city"] ? invalidClass : undefined}
+                  onChange={(e) => {
+                    clearFieldError("adoption-city");
+                    updateAnswers({ city: e.target.value });
+                  }}
                 />
               </Field>
-              <Field label="State">
+              <Field label="State" error={fieldErrors["adoption-state"]}>
                 <Input
+                  id="adoption-state"
                   value={answers.state}
-                  onChange={(e) => updateAnswers({ state: e.target.value })}
+                  aria-invalid={Boolean(fieldErrors["adoption-state"])}
+                  className={fieldErrors["adoption-state"] ? invalidClass : undefined}
+                  onChange={(e) => {
+                    clearFieldError("adoption-state");
+                    updateAnswers({ state: e.target.value });
+                  }}
                 />
               </Field>
             </div>
-            <Field label="Type of residence">
+            <Field label="Type of residence" error={fieldErrors["adoption-residence"]}>
               <ChoiceGroup
+                id="adoption-residence"
                 name="residence"
+                invalid={Boolean(fieldErrors["adoption-residence"])}
                 value={answers.residence_type}
                 options={RESIDENCE_TYPES}
-                onChange={(value: ResidenceType) => updateAnswers({ residence_type: value })}
+                onChange={(value: ResidenceType) => {
+                  clearFieldError("adoption-residence");
+                  updateAnswers({ residence_type: value });
+                }}
               />
             </Field>
             {answers.residence_type === "other" && (
@@ -605,15 +779,20 @@ export function AdoptionApplicationForm({
                 />
               </Field>
             )}
-            <Field label="Do you rent your residence?">
+            <Field label="Do you rent your residence?" error={fieldErrors["adoption-rents"]}>
               <ChoiceGroup
+                id="adoption-rents"
                 name="rents"
+                invalid={Boolean(fieldErrors["adoption-rents"])}
                 value={answers.rents}
                 options={[
                   { value: "yes", label: "Yes" },
                   { value: "no", label: "No" },
                 ]}
-                onChange={(value: YesNo) => updateAnswers({ rents: value })}
+                onChange={(value: YesNo) => {
+                  clearFieldError("adoption-rents");
+                  updateAnswers({ rents: value });
+                }}
               />
             </Field>
             {answers.rents === "yes" && (
@@ -658,12 +837,20 @@ export function AdoptionApplicationForm({
         {step === 2 && (
           <>
             <h2 className="text-lg font-semibold">Household information</h2>
-            <Field label="What is your current employment status?">
+            <Field label="What is your current employment status?" error={fieldErrors["adoption-employment"]}>
               <ChoiceGroup
+                id="adoption-employment"
                 name="employment"
+                invalid={Boolean(fieldErrors["adoption-employment"])}
                 value={answers.employment_status}
                 options={EMPLOYMENT_STATUSES}
-                onChange={(value: EmploymentStatus) => updateAnswers({ employment_status: value })}
+                onChange={(value: EmploymentStatus) => {
+                  clearFieldError("adoption-employment");
+                  updateAnswers({
+                    employment_status: value,
+                    employer: isEmployedStatus(value) ? answers.employer : "",
+                  });
+                }}
               />
             </Field>
             {answers.employment_status === "other" && (
@@ -674,20 +861,27 @@ export function AdoptionApplicationForm({
                 />
               </Field>
             )}
-            <Field label="If employed, please list your employer" hint='Enter "N/A" if not applicable'>
-              <Input
-                value={answers.employer}
-                onChange={(e) => updateAnswers({ employer: e.target.value })}
-              />
-            </Field>
-            <Field label="What age range do you fall into?">
+            {isEmployedStatus(answers.employment_status) && (
+              <Field label="If employed, please list your employer">
+                <Input
+                  value={answers.employer}
+                  onChange={(e) => updateAnswers({ employer: e.target.value })}
+                />
+              </Field>
+            )}
+            <Field label="What age range do you fall into?" error={fieldErrors["adoption-age"]}>
               <Select
                 value={answers.age_range || "__none__"}
-                onValueChange={(value) =>
-                  updateAnswers({ age_range: value === "__none__" ? "" : value })
-                }
+                onValueChange={(value) => {
+                  clearFieldError("adoption-age");
+                  updateAnswers({ age_range: value === "__none__" ? "" : value });
+                }}
               >
-                <SelectTrigger>
+                <SelectTrigger
+                  id="adoption-age"
+                  aria-invalid={Boolean(fieldErrors["adoption-age"])}
+                  className={fieldErrors["adoption-age"] ? invalidClass : undefined}
+                >
                   <SelectValue placeholder="Select age range" />
                 </SelectTrigger>
                 <SelectContent>
@@ -700,10 +894,16 @@ export function AdoptionApplicationForm({
                 </SelectContent>
               </Select>
             </Field>
-            <Field label="How many adults live in your home?">
+            <Field label="How many adults live in your home?" error={fieldErrors["adoption-adults"]}>
               <Input
+                id="adoption-adults"
                 value={answers.adults_in_home}
-                onChange={(e) => updateAnswers({ adults_in_home: e.target.value })}
+                aria-invalid={Boolean(fieldErrors["adoption-adults"])}
+                className={fieldErrors["adoption-adults"] ? invalidClass : undefined}
+                onChange={(e) => {
+                  clearFieldError("adoption-adults");
+                  updateAnswers({ adults_in_home: e.target.value });
+                }}
               />
             </Field>
             <Field label="Do all adults in the home work outside the home?">
@@ -725,11 +925,18 @@ export function AdoptionApplicationForm({
                 onChange={(e) => updateAnswers({ children_in_home: e.target.value })}
               />
             </Field>
-            <Field label="How would you describe the activity level in your home?" hint="Select all that apply.">
+            <Field
+              label="How would you describe the activity level in your home?"
+              hint="Select all that apply."
+              error={fieldErrors["adoption-activity"]}
+            >
               <MultiChoiceGroup
+                id="adoption-activity"
+                invalid={Boolean(fieldErrors["adoption-activity"])}
                 values={answers.activity_levels}
                 options={HOME_ACTIVITY_OPTIONS}
                 onToggle={(value: HomeActivity, checked) => {
+                  clearFieldError("adoption-activity");
                   updateAnswers({
                     activity_levels: checked
                       ? [...answers.activity_levels, value]
@@ -746,16 +953,21 @@ export function AdoptionApplicationForm({
                 />
               </Field>
             )}
-            <Field label="Is anyone in the home allergic to cats?">
+            <Field label="Is anyone in the home allergic to cats?" error={fieldErrors["adoption-allergy"]}>
               <ChoiceGroup
+                id="adoption-allergy"
                 name="allergic"
+                invalid={Boolean(fieldErrors["adoption-allergy"])}
                 value={answers.allergic_to_cats}
                 options={[
                   { value: "yes", label: "Yes" },
                   { value: "no", label: "No" },
                   { value: "unsure", label: "Unsure" },
                 ]}
-                onChange={(value: YesNoUnsure) => updateAnswers({ allergic_to_cats: value })}
+                onChange={(value: YesNoUnsure) => {
+                  clearFieldError("adoption-allergy");
+                  updateAnswers({ allergic_to_cats: value });
+                }}
               />
             </Field>
             {answers.allergic_to_cats === "yes" && (
@@ -773,45 +985,77 @@ export function AdoptionApplicationForm({
         {step === 3 && (
           <>
             <h2 className="text-lg font-semibold">Cat care and commitment</h2>
-            <Field label="Will your new cat be kept indoors or outdoors?">
+            <Field label="Will your new cat be kept indoors or outdoors?" error={fieldErrors["adoption-living"]}>
               <ChoiceGroup
+                id="adoption-living"
                 name="living"
+                invalid={Boolean(fieldErrors["adoption-living"])}
                 value={answers.living_plan}
                 options={CAT_LIVING_PLANS}
-                onChange={(value: CatLivingPlan) => updateAnswers({ living_plan: value })}
+                onChange={(value: CatLivingPlan) => {
+                  clearFieldError("adoption-living");
+                  updateAnswers({ living_plan: value });
+                }}
               />
             </Field>
-            <Field label="Do you plan to declaw your cat?">
+            <Field label="Do you plan to declaw your cat?" error={fieldErrors["adoption-declaw"]}>
               <ChoiceGroup
+                id="adoption-declaw"
                 name="declaw"
+                invalid={Boolean(fieldErrors["adoption-declaw"])}
                 value={answers.plan_to_declaw}
                 options={[
                   { value: "yes", label: "Yes" },
                   { value: "no", label: "No" },
                 ]}
-                onChange={(value: YesNo) => updateAnswers({ plan_to_declaw: value })}
+                onChange={(value: YesNo) => {
+                  clearFieldError("adoption-declaw");
+                  updateAnswers({ plan_to_declaw: value });
+                }}
               />
             </Field>
-            <Field label="On average, how many hours per day will your new cat be without human companionship?">
+            <Field
+              label="On average, how many hours per day will your new cat be without human companionship?"
+              error={fieldErrors["adoption-hours"]}
+            >
               <Input
+                id="adoption-hours"
                 value={answers.hours_alone}
-                onChange={(e) => updateAnswers({ hours_alone: e.target.value })}
+                aria-invalid={Boolean(fieldErrors["adoption-hours"])}
+                className={fieldErrors["adoption-hours"] ? invalidClass : undefined}
+                onChange={(e) => {
+                  clearFieldError("adoption-hours");
+                  updateAnswers({ hours_alone: e.target.value });
+                }}
               />
             </Field>
-            <Field label="If the primary caregiver is unavailable, who will care for the cat?">
+            <Field
+              label="If the primary caregiver is unavailable, who will care for the cat?"
+              error={fieldErrors["adoption-backup"]}
+            >
               <Input
+                id="adoption-backup"
                 value={answers.backup_caregiver}
-                onChange={(e) => updateAnswers({ backup_caregiver: e.target.value })}
+                aria-invalid={Boolean(fieldErrors["adoption-backup"])}
+                className={fieldErrors["adoption-backup"] ? invalidClass : undefined}
+                onChange={(e) => {
+                  clearFieldError("adoption-backup");
+                  updateAnswers({ backup_caregiver: e.target.value });
+                }}
               />
             </Field>
             <Field
               label="Under what circumstances might you need to find a new home for the cat?"
               hint="Select all that apply."
+              error={fieldErrors["adoption-rehome"]}
             >
               <MultiChoiceGroup
+                id="adoption-rehome"
+                invalid={Boolean(fieldErrors["adoption-rehome"])}
                 values={answers.rehome_circumstances}
                 options={REHOME_CIRCUMSTANCES}
                 onToggle={(value: RehomeCircumstance, checked) => {
+                  clearFieldError("adoption-rehome");
                   updateAnswers({
                     rehome_circumstances: checked
                       ? [...answers.rehome_circumstances, value]
@@ -828,27 +1072,40 @@ export function AdoptionApplicationForm({
                 />
               </Field>
             )}
-            <Field label="Are you willing and able to pay for the veterinary costs of caring for your cat, including routine annual visits and unexpected illness or injury?">
+            <Field
+              label="Are you willing and able to pay for the veterinary costs of caring for your cat, including routine annual visits and unexpected illness or injury?"
+              error={fieldErrors["adoption-vet-costs"]}
+            >
               <ChoiceGroup
+                id="adoption-vet-costs"
                 name="vet_costs"
+                invalid={Boolean(fieldErrors["adoption-vet-costs"])}
                 value={answers.can_pay_vet_costs}
                 options={[
                   { value: "yes", label: "Yes" },
                   { value: "no", label: "No" },
                   { value: "unsure", label: "Unsure" },
                 ]}
-                onChange={(value: YesNoUnsure) => updateAnswers({ can_pay_vet_costs: value })}
+                onChange={(value: YesNoUnsure) => {
+                  clearFieldError("adoption-vet-costs");
+                  updateAnswers({ can_pay_vet_costs: value });
+                }}
               />
             </Field>
-            <Field label="Do you consider a cat to be part of the family?">
+            <Field label="Do you consider a cat to be part of the family?" error={fieldErrors["adoption-family"]}>
               <ChoiceGroup
+                id="adoption-family"
                 name="family"
+                invalid={Boolean(fieldErrors["adoption-family"])}
                 value={answers.cat_is_family}
                 options={[
                   { value: "yes", label: "Yes" },
                   { value: "no", label: "No" },
                 ]}
-                onChange={(value: YesNo) => updateAnswers({ cat_is_family: value })}
+                onChange={(value: YesNo) => {
+                  clearFieldError("adoption-family");
+                  updateAnswers({ cat_is_family: value });
+                }}
               />
             </Field>
           </>
@@ -857,31 +1114,59 @@ export function AdoptionApplicationForm({
         {step === 4 && (
           <>
             <h2 className="text-lg font-semibold">Pet history and veterinary care</h2>
-            <Field label="Have you had any pets within the last five years?">
+            <Field
+              label="Have you had any pets within the last five years?"
+              error={fieldErrors["adoption-had-pets"]}
+            >
               <ChoiceGroup
+                id="adoption-had-pets"
                 name="had_pets"
+                invalid={Boolean(fieldErrors["adoption-had-pets"])}
                 value={answers.had_pets_last_five_years}
                 options={[
                   { value: "yes", label: "Yes" },
                   { value: "no", label: "No" },
                 ]}
                 onChange={(value: YesNo) => {
+                  clearFieldError("adoption-had-pets");
                   updateAnswers({ had_pets_last_five_years: value });
                   if (value === "yes") ensurePets(1);
                 }}
               />
             </Field>
-            <Field label="Current or previous veterinarian’s contact information">
+            <Field
+              label="Current or previous veterinarian’s contact information"
+              hint={
+                answers.had_pets_last_five_years === "yes"
+                  ? "Enter the practice name or the phone number."
+                  : undefined
+              }
+              error={fieldErrors["vet-practice"] || fieldErrors["vet-phone"]}
+            >
               <div className="grid gap-3">
                 <Input
+                  id="vet-practice"
                   placeholder="Veterinary practice name"
                   value={answers.vet_practice_name}
-                  onChange={(e) => updateAnswers({ vet_practice_name: e.target.value })}
+                  aria-invalid={Boolean(fieldErrors["vet-practice"])}
+                  className={fieldErrors["vet-practice"] ? invalidClass : undefined}
+                  onChange={(e) => {
+                    clearFieldError("vet-practice");
+                    clearFieldError("vet-phone");
+                    updateAnswers({ vet_practice_name: e.target.value });
+                  }}
                 />
                 <Input
+                  id="vet-phone"
                   placeholder="Phone number"
                   value={answers.vet_phone}
-                  onChange={(e) => updateAnswers({ vet_phone: e.target.value })}
+                  aria-invalid={Boolean(fieldErrors["vet-phone"])}
+                  className={fieldErrors["vet-phone"] ? invalidClass : undefined}
+                  onChange={(e) => {
+                    clearFieldError("vet-practice");
+                    clearFieldError("vet-phone");
+                    updateAnswers({ vet_phone: e.target.value });
+                  }}
                 />
                 <Input
                   placeholder="Veterinarian name, if known"
@@ -908,18 +1193,28 @@ export function AdoptionApplicationForm({
                   clearError={clearFieldError}
                   onChange={(pet) => setPet(0, pet)}
                 />
-                <Field label="Do you have a second current or previous pet to list?">
+                <Field
+                  label="Do you have a second current or previous pet to list?"
+                  error={fieldErrors["adoption-pet-2"]}
+                >
                   <ChoiceGroup
+                    id="adoption-pet-2"
                     name="pet2"
+                    invalid={Boolean(fieldErrors["adoption-pet-2"])}
                     value={answers.has_pet_2}
                     options={[
                       { value: "yes", label: "Yes" },
                       { value: "no", label: "No" },
                     ]}
                     onChange={(value: YesNo) => {
-                      updateAnswers({ has_pet_2: value });
+                      clearFieldError("adoption-pet-2");
+                      if (value === "no") clearFieldError("adoption-pet-3");
+                      updateAnswers(
+                        value === "no"
+                          ? { has_pet_2: value, has_pet_3: "no" }
+                          : { has_pet_2: value }
+                      );
                       if (value === "yes") ensurePets(2);
-                      if (value === "no") updateAnswers({ has_pet_3: "no" });
                     }}
                   />
                 </Field>
@@ -932,15 +1227,21 @@ export function AdoptionApplicationForm({
                       clearError={clearFieldError}
                       onChange={(pet) => setPet(1, pet)}
                     />
-                    <Field label="Do you have a third current or previous pet to list?">
+                    <Field
+                      label="Do you have a third current or previous pet to list?"
+                      error={fieldErrors["adoption-pet-3"]}
+                    >
                       <ChoiceGroup
+                        id="adoption-pet-3"
                         name="pet3"
+                        invalid={Boolean(fieldErrors["adoption-pet-3"])}
                         value={answers.has_pet_3}
                         options={[
                           { value: "yes", label: "Yes" },
                           { value: "no", label: "No" },
                         ]}
                         onChange={(value: YesNo) => {
+                          clearFieldError("adoption-pet-3");
                           updateAnswers({ has_pet_3: value });
                           if (value === "yes") ensurePets(3);
                         }}

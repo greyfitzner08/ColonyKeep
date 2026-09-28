@@ -103,6 +103,12 @@ export function submissionToImportRow(
   return raw;
 }
 
+function yesNoAnswer(value: unknown): boolean {
+  if (typeof value === "boolean") return true;
+  const answer = String(value ?? "").trim().toLowerCase();
+  return answer === "yes" || answer === "no";
+}
+
 export function mapCommunityIntakeToHelpRequest(
   body: Record<string, unknown>,
   actorName: string
@@ -113,6 +119,33 @@ export function mapCommunityIntakeToHelpRequest(
   const phone = String(raw.phone_number ?? body.contact_phone ?? "").trim();
   if (!email && !phone) {
     return { error: "Email and phone are required." };
+  }
+
+  const feeding = yesNoAnswer(body.feeding_cats ?? raw.feeding_cats);
+  if (!feeding) {
+    return { error: "Say whether you are feeding the cats." };
+  }
+  const helpAnswers: [unknown, string][] = [
+    [body.trapping_experience ?? raw.trapping_experience, "Say whether you have trapping experience."],
+    [body.need_traps ?? raw.need_traps, "Say whether you need to borrow traps."],
+    [
+      body.willing_to_trap_transport ?? raw.willing_to_trap_transport,
+      "Say whether you are willing to trap and transport.",
+    ],
+    [
+      body.able_to_trap_transport ?? raw.able_to_trap_transport,
+      "Say whether you are able to trap and transport.",
+    ],
+    [
+      body.has_recovery_space ?? raw.has_recovery_space,
+      "Say whether you have a place to hold cats before and after surgery.",
+    ],
+  ];
+  for (const [value, message] of helpAnswers) {
+    if (!yesNoAnswer(value)) return { error: message };
+  }
+  if (!String(body.how_heard ?? raw.how_heard ?? "").trim()) {
+    return { error: "Tell us how you heard about us." };
   }
 
   const mapped = mapImportRowToHelpRequest(raw, actorName);

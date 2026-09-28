@@ -4,7 +4,7 @@ import {
   emptyAdoptionAnswers,
   emptyAdoptionPet,
   validateAdoptionReferences,
-  validateListedPets,
+  validatePetHistory,
   type AdoptionApplicationAnswers,
   type AdoptionApplicationPet,
   type CatLivingPlan,
@@ -227,7 +227,7 @@ export async function POST(request: NextRequest) {
   if (!answers.living_plan || !answers.plan_to_declaw || !answers.can_pay_vet_costs) {
     return NextResponse.json({ error: "Cat care questions are required" }, { status: 400 });
   }
-  const petError = validateListedPets(answers)[0];
+  const petError = validatePetHistory(answers)[0];
   if (petError) {
     return NextResponse.json({ error: petError.message }, { status: 400 });
   }

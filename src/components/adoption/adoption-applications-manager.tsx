@@ -29,6 +29,7 @@ import {
   RESIDENCE_TYPES,
   adoptionApplicationStatusLabel,
   isDogPetType,
+  petGenderLabel,
   petTypeLabel,
   type AdoptionApplication,
   type AdoptionApplicationAnswers,
@@ -331,7 +332,7 @@ function DetailsTab({ answers }: { answers: AdoptionApplicationAnswers }) {
                     <Answer label="Age" value={pet.age} />
                     <Answer label="Year acquired" value={pet.year_acquired} />
                     <Answer label="Pet type" value={petTypeLabel(pet)} />
-                    <Answer label="Gender" value={pet.gender} />
+                    <Answer label="Gender" value={petGenderLabel(pet.gender)} />
                     <Answer
                       label="Status"
                       value={
