@@ -74,12 +74,10 @@ function catAgeLabel(answers: EntranceAnswers | undefined, row: AdoptableCat): s
   return answers?.estimated_age?.trim() || row.age_description?.trim() || "";
 }
 
-function locationTypeLabel(answers: EntranceAnswers | undefined): string {
-  const value = answers?.location_type;
-  if (value === "foster") return "Foster home";
-  if (value === "petstore") return "Pet store";
-  if (value === "other") return answers?.location_other?.trim() || "Other";
-  return "";
+function locationSummary(answers: EntranceAnswers | undefined): { foster: string; store: string } {
+  const foster = answers?.location_name?.trim() || "";
+  const store = answers?.at_pet_store === "yes" ? answers.pet_store_name?.trim() || "" : "";
+  return { foster, store };
 }
 
 export function AdoptableCatsManager({ cats: initial, applications }: AdoptableCatsManagerProps) {
@@ -164,18 +162,14 @@ export function AdoptableCatsManager({ cats: initial, applications }: AdoptableC
         label: "Location",
         render: (row) => {
           const answers = recordByCatId.get(row.id)?.answers;
-          const name = answers?.location_name?.trim() || "";
-          const type = locationTypeLabel(answers);
-          const city = answers?.location_city?.trim() ?? "";
-          if (!name && !type) {
+          const { foster, store } = locationSummary(answers);
+          if (!foster && !store) {
             return <span className="text-muted-foreground">Unassigned</span>;
           }
           return (
             <div className="text-sm">
-              <p className="font-medium">{name || type}</p>
-              {name && (type || city) ? (
-                <p className="text-xs text-muted-foreground">{[type, city].filter(Boolean).join(" · ")}</p>
-              ) : null}
+              <p className="font-medium">{foster || "Foster home"}</p>
+              {store ? <p className="text-xs text-muted-foreground">Pet store · {store}</p> : null}
             </div>
           );
         },
@@ -466,16 +460,11 @@ export function AdoptableCatsManager({ cats: initial, applications }: AdoptableC
                   >
                     <Label htmlFor={`entrance-${editingRecord.id}-${field.key}`}>
                       {entranceFieldLabel(field, answers)}
-                      {field.key === "location_other" ? " *" : ""}
+                      {field.key === "pet_store_name" ? " *" : ""}
                       {field.staff && !field.submittedStamp ? (
                         <span className="ml-2 text-xs font-normal text-muted-foreground">Portal only</span>
                       ) : null}
                     </Label>
-                    {field.key === "location_type" ? (
-                      <p className="text-sm text-muted-foreground">
-                        Choose Other and describe the type if it is not listed.
-                      </p>
-                    ) : null}
                     {field.submittedStamp ? (
                       <p className="text-sm">
                         {new Date(editingRecord.created_at).toLocaleString(undefined, {

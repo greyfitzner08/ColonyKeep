@@ -177,14 +177,9 @@ export function EntranceReviewManager({
                             key={field.key}
                             className={entranceFieldSpansRow(field) ? "space-y-2 sm:col-span-2" : "space-y-2"}
                           >
-                            {field.key === "location_type" ? (
-                              <p className="text-sm text-muted-foreground">
-                                Choose Other and describe the type if it is not listed.
-                              </p>
-                            ) : null}
                             <Label htmlFor={`entrance-${application.id}-${field.key}`}>
                               {entranceFieldLabel(field, answers)}
-                              {field.key === "location_other" ? " *" : ""}
+                              {field.key === "pet_store_name" ? " *" : ""}
                               {field.staff && !field.submittedStamp ? (
                                 <span className="ml-2 text-xs font-normal text-muted-foreground">Portal only</span>
                               ) : null}

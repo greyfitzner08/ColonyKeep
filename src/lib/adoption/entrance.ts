@@ -61,12 +61,6 @@ const FEE_RECEIVED_BY: EntranceFieldOption[] = [
   { value: "fff", label: "FFF" },
 ];
 
-const LOCATION_TYPES: EntranceFieldOption[] = [
-  { value: "foster", label: "Foster home" },
-  { value: "petstore", label: "Pet store" },
-  { value: "other", label: "Other" },
-];
-
 const STAFF_ONLY_SECTIONS = new Set([
   "location",
   "adoption_review",
@@ -105,17 +99,25 @@ const ENTRANCE_SECTION_SOURCE: EntranceSection[] = [
     id: "location",
     title: "Location",
     fields: [
-      { key: "location_name", label: "Name", kind: "text" },
-      { key: "location_type", label: "Type", kind: "select", options: LOCATION_TYPES },
-      { key: "location_other", label: "Describe the type", kind: "text" },
-      { key: "location_contact_name", label: "Contact name", kind: "text" },
-      { key: "location_phone", label: "Phone", kind: "text" },
-      { key: "location_email", label: "Email", kind: "text" },
-      { key: "location_address", label: "Address", kind: "text" },
-      { key: "location_city", label: "City", kind: "text" },
-      { key: "location_state", label: "State", kind: "text" },
-      { key: "location_zip", label: "ZIP", kind: "text" },
-      { key: "location_notes", label: "Notes", kind: "textarea" },
+      { key: "location_name", label: "Foster home", kind: "text" },
+      { key: "location_contact_name", label: "Foster contact name", kind: "text" },
+      { key: "location_phone", label: "Foster phone", kind: "text" },
+      { key: "location_email", label: "Foster email", kind: "text" },
+      { key: "location_address", label: "Foster address", kind: "text" },
+      { key: "location_city", label: "Foster city", kind: "text" },
+      { key: "location_state", label: "Foster state", kind: "text" },
+      { key: "location_zip", label: "Foster ZIP", kind: "text" },
+      { key: "location_notes", label: "Foster notes", kind: "textarea" },
+      { key: "at_pet_store", label: "Located at a pet store?", kind: "yesno" },
+      { key: "pet_store_name", label: "Pet store", kind: "text" },
+      { key: "pet_store_contact_name", label: "Pet store contact name", kind: "text" },
+      { key: "pet_store_phone", label: "Pet store phone", kind: "text" },
+      { key: "pet_store_email", label: "Pet store email", kind: "text" },
+      { key: "pet_store_address", label: "Pet store address", kind: "text" },
+      { key: "pet_store_city", label: "Pet store city", kind: "text" },
+      { key: "pet_store_state", label: "Pet store state", kind: "text" },
+      { key: "pet_store_zip", label: "Pet store ZIP", kind: "text" },
+      { key: "pet_store_notes", label: "Pet store notes", kind: "textarea" },
     ],
   },
   {
@@ -322,8 +324,25 @@ export function entranceFieldSpansRow(field: Pick<EntranceField, "kind" | "key">
     field.kind === "textarea" ||
     field.kind === "vaccinations" ||
     field.kind === "vet_care" ||
-    field.key === "name_changed"
+    field.key === "name_changed" ||
+    field.key === "at_pet_store"
   );
+}
+
+const PET_STORE_LOCATION_KEYS = [
+  "pet_store_name",
+  "pet_store_contact_name",
+  "pet_store_phone",
+  "pet_store_email",
+  "pet_store_address",
+  "pet_store_city",
+  "pet_store_state",
+  "pet_store_zip",
+  "pet_store_notes",
+] as const;
+
+function clearPetStoreLocation(answers: EntranceAnswers) {
+  for (const key of PET_STORE_LOCATION_KEYS) answers[key] = "";
 }
 
 export function applyEntranceAnswer(
@@ -333,13 +352,15 @@ export function applyEntranceAnswer(
 ): EntranceAnswers {
   const next = { ...answers, [key]: value };
   if (key === "name_changed" && value !== "yes") next.new_name = "";
-  if (key === "location_type" && value !== "other") next.location_other = "";
+  if (key === "at_pet_store" && value !== "yes") clearPetStoreLocation(next);
   return next;
 }
 
 export function showEntranceField(field: Pick<EntranceField, "key">, answers: EntranceAnswers): boolean {
   if (field.key === "new_name") return answers.name_changed === "yes";
-  if (field.key === "location_other") return answers.location_type === "other";
+  if ((PET_STORE_LOCATION_KEYS as readonly string[]).includes(field.key)) {
+    return answers.at_pet_store === "yes";
+  }
   return true;
 }
 
@@ -619,9 +640,9 @@ export function sanitizeEntranceAnswers(
   if (!options.includeStaff && !/^\d{4}-\d{2}-\d{2}$/.test(answers.date_of_birth)) {
     return { answers, error: "Enter the cat’s date of birth." };
   }
-  if (answers.location_type !== "other") answers.location_other = "";
-  if (answers.location_type === "other" && !answers.location_other.trim()) {
-    return { answers, error: "Describe the location type." };
+  if (answers.at_pet_store !== "yes") clearPetStoreLocation(answers);
+  if (answers.at_pet_store === "yes" && !answers.pet_store_name.trim()) {
+    return { answers, error: "Enter the pet store name." };
   }
   return { answers };
 }
