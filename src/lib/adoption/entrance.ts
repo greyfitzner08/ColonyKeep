@@ -24,6 +24,8 @@ export interface EntranceField {
   staff?: boolean;
   /** Filled from the submission time. One stamp, not a second date field. */
   submittedStamp?: boolean;
+  /** Heading shown once above the fields that belong together. */
+  group?: string;
 }
 
 export interface EntranceSection {
@@ -62,7 +64,6 @@ const FEE_RECEIVED_BY: EntranceFieldOption[] = [
 ];
 
 const STAFF_ONLY_SECTIONS = new Set([
-  "location",
   "adoption_review",
   "adoption_completion",
   "follow_up",
@@ -99,32 +100,44 @@ const ENTRANCE_SECTION_SOURCE: EntranceSection[] = [
     id: "location",
     title: "Location",
     fields: [
-      { key: "location_name", label: "Foster home", kind: "text" },
-      { key: "location_contact_name", label: "Foster contact name", kind: "text" },
-      { key: "location_phone", label: "Foster phone", kind: "text" },
-      { key: "location_email", label: "Foster email", kind: "text" },
-      { key: "location_address", label: "Foster address", kind: "text" },
-      { key: "location_city", label: "Foster city", kind: "text" },
-      { key: "location_state", label: "Foster state", kind: "text" },
-      { key: "location_zip", label: "Foster ZIP", kind: "text" },
-      { key: "location_notes", label: "Foster notes", kind: "textarea" },
-      { key: "approved_pet_store", label: "Approved for Pet Store Placement?", kind: "yesno", staff: true },
-      { key: "pet_store_name", label: "Pet store", kind: "text" },
-      { key: "pet_store_contact_name", label: "Pet store contact name", kind: "text" },
-      { key: "pet_store_phone", label: "Pet store phone", kind: "text" },
-      { key: "pet_store_email", label: "Pet store email", kind: "text" },
-      { key: "pet_store_address", label: "Pet store address", kind: "text" },
-      { key: "pet_store_city", label: "Pet store city", kind: "text" },
-      { key: "pet_store_state", label: "Pet store state", kind: "text" },
-      { key: "pet_store_zip", label: "Pet store ZIP", kind: "text" },
-      { key: "pet_store_notes", label: "Pet store notes", kind: "textarea" },
-      { key: "date_placed_pet_store", label: "Date Placed at Pet Store", kind: "date", staff: true },
-      { key: "date_left_pet_store", label: "Date Left Pet Store", kind: "date", staff: true },
+      { key: "location_name", label: "Home", kind: "text", staff: true, group: "Foster" },
+      { key: "location_contact_name", label: "Contact name", kind: "text", staff: true, group: "Foster" },
+      { key: "location_phone", label: "Phone", kind: "text", staff: true, group: "Foster" },
+      { key: "location_email", label: "Email", kind: "text", staff: true, group: "Foster" },
+      { key: "location_address", label: "Address", kind: "text", staff: true, group: "Foster" },
+      { key: "location_city", label: "City", kind: "text", staff: true, group: "Foster" },
+      { key: "location_state", label: "State", kind: "text", staff: true, group: "Foster" },
+      { key: "location_zip", label: "ZIP", kind: "text", staff: true, group: "Foster" },
+      { key: "location_notes", label: "Notes", kind: "textarea", staff: true, group: "Foster" },
+      { key: "foster_name", label: "Name", kind: "text", group: "Foster" },
+      { key: "foster_agreement_signed", label: "Agreement signed?", kind: "yesno", group: "Foster" },
+      { key: "foster_phone", label: "Phone", kind: "text", group: "Foster" },
+      { key: "foster_email", label: "Email", kind: "text", group: "Foster" },
+      { key: "foster_address", label: "Address", kind: "textarea", group: "Foster" },
+      {
+        key: "approved_pet_store",
+        label: "Approved for placement?",
+        kind: "yesno",
+        staff: true,
+        group: "Pet store",
+      },
+      { key: "pet_store_name", label: "Name", kind: "text", staff: true, group: "Pet store" },
+      { key: "pet_store_contact_name", label: "Contact name", kind: "text", staff: true, group: "Pet store" },
+      { key: "pet_store_phone", label: "Phone", kind: "text", staff: true, group: "Pet store" },
+      { key: "pet_store_email", label: "Email", kind: "text", staff: true, group: "Pet store" },
+      { key: "pet_store_address", label: "Address", kind: "text", staff: true, group: "Pet store" },
+      { key: "pet_store_city", label: "City", kind: "text", staff: true, group: "Pet store" },
+      { key: "pet_store_state", label: "State", kind: "text", staff: true, group: "Pet store" },
+      { key: "pet_store_zip", label: "ZIP", kind: "text", staff: true, group: "Pet store" },
+      { key: "pet_store_notes", label: "Notes", kind: "textarea", staff: true, group: "Pet store" },
+      { key: "date_placed_pet_store", label: "Date placed", kind: "date", staff: true, group: "Pet store" },
+      { key: "date_left_pet_store", label: "Date left", kind: "date", staff: true, group: "Pet store" },
       {
         key: "reason_left_pet_store",
-        label: "Reason Left Pet Store, if Not Adopted",
+        label: "Reason left, if not adopted",
         kind: "textarea",
         staff: true,
+        group: "Pet store",
       },
     ],
   },
@@ -160,17 +173,6 @@ const ENTRANCE_SECTION_SOURCE: EntranceSection[] = [
       { key: "microchipped", label: "Microchipped?", kind: "yesno" },
       { key: "microchip_brand", label: "Microchip Brand", kind: "text" },
       { key: "microchip_number", label: "Microchip Number", kind: "text" },
-    ],
-  },
-  {
-    id: "foster",
-    title: "Foster Information",
-    fields: [
-      { key: "foster_name", label: "Name", kind: "text" },
-      { key: "foster_agreement_signed", label: "Agreement Signed?", kind: "yesno" },
-      { key: "foster_phone", label: "Phone", kind: "text" },
-      { key: "foster_email", label: "Email", kind: "text" },
-      { key: "foster_address", label: "Address", kind: "textarea" },
     ],
   },
   {
@@ -264,8 +266,24 @@ export const ENTRANCE_FIELDS = ENTRANCE_SECTIONS.flatMap((section) => section.fi
 export function publicEntranceSections(): EntranceSection[] {
   return ENTRANCE_SECTIONS.map((section) => ({
     ...section,
+    title: section.id === "location" ? "Foster Information" : section.title,
     fields: section.fields.filter((field) => !field.staff),
   })).filter((section) => section.fields.length > 0);
+}
+
+export function entranceFieldRows(
+  fields: EntranceField[],
+  answers: EntranceAnswers
+): { field: EntranceField; heading: string }[] {
+  const visible = fields.filter((field) => showEntranceField(field, answers));
+  const groups = new Set(visible.map((field) => field.group).filter(Boolean));
+  const showHeadings = groups.size > 1;
+  let previous = "";
+  return visible.map((field) => {
+    const heading = showHeadings && field.group && field.group !== previous ? field.group : "";
+    if (field.group) previous = field.group;
+    return { field, heading };
+  });
 }
 
 const FIELD_BY_KEY = new Map(ENTRANCE_FIELDS.map((field) => [field.key, field]));

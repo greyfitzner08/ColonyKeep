@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { Fragment, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
@@ -34,8 +34,8 @@ import {
   emptyEntranceAnswers,
   applyEntranceAnswer,
   entranceFieldLabel,
+  entranceFieldRows,
   entranceFieldSpansRow,
-  showEntranceField,
   type AdoptionEntranceApplication,
   type EntranceAnswers,
 } from "@/lib/adoption/entrance";
@@ -554,11 +554,12 @@ export function AdoptableCatsManager({
               ) : null}
 
               <div className="grid gap-4 sm:grid-cols-2">
-                {section.fields.map((field) => {
-                  if (!showEntranceField(field, answers)) return null;
-                  return (
+                {entranceFieldRows(section.fields, answers).map(({ field, heading }) => (
+                  <Fragment key={field.key}>
+                    {heading ? (
+                      <h3 className="border-b pb-1 text-sm font-semibold tracking-tight sm:col-span-2">{heading}</h3>
+                    ) : null}
                   <div
-                    key={field.key}
                     className={entranceFieldSpansRow(field) ? "space-y-2 sm:col-span-2" : "space-y-2"}
                   >
                     <Label htmlFor={`entrance-${editingRecord.id}-${field.key}`}>
@@ -584,8 +585,8 @@ export function AdoptableCatsManager({
                       />
                     )}
                   </div>
-                  );
-                })}
+                  </Fragment>
+                ))}
               </div>
 
               <div className="flex flex-wrap items-center gap-3">

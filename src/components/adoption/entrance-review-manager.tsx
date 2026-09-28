@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { useRouter } from "next/navigation";
 import { FieldControl } from "@/components/adoption/entrance-application-form";
 import { Badge } from "@/components/ui/badge";
@@ -13,8 +13,8 @@ import {
   emptyEntranceAnswers,
   applyEntranceAnswer,
   entranceFieldLabel,
+  entranceFieldRows,
   entranceFieldSpansRow,
-  showEntranceField,
   entranceReviewStatusLabel,
   type AdoptionEntranceApplication,
   type EntranceAnswers,
@@ -170,11 +170,14 @@ export function EntranceReviewManager({
                   return (
                     <section key={section.id} className="space-y-4">
                       <div className="grid gap-4 sm:grid-cols-2">
-                        {section.fields.map((field) => {
-                          if (!showEntranceField(field, answers)) return null;
-                          return (
+                        {entranceFieldRows(section.fields, answers).map(({ field, heading }) => (
+                          <Fragment key={field.key}>
+                            {heading ? (
+                              <h3 className="border-b pb-1 text-sm font-semibold tracking-tight sm:col-span-2">
+                                {heading}
+                              </h3>
+                            ) : null}
                           <div
-                            key={field.key}
                             className={entranceFieldSpansRow(field) ? "space-y-2 sm:col-span-2" : "space-y-2"}
                           >
                             <Label htmlFor={`entrance-${application.id}-${field.key}`}>
@@ -202,8 +205,8 @@ export function EntranceReviewManager({
                               />
                             )}
                           </div>
-                          );
-                        })}
+                          </Fragment>
+                        ))}
                       </div>
                     </section>
                   );
