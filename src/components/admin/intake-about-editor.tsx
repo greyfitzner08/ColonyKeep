@@ -287,7 +287,7 @@ export const IntakeAboutEditor = forwardRef<
   const formatButtonClass = documentMode ? "h-8 w-8 px-0" : undefined;
 
   return (
-    <div className={documentMode ? "overflow-hidden rounded-xl border bg-background shadow-sm" : "space-y-2"}>
+    <div className={documentMode ? "w-full overflow-hidden rounded-xl border bg-background shadow-sm" : "space-y-2"}>
       <div
         className={
           documentMode
