@@ -78,7 +78,12 @@ const ENTRANCE_SECTION_SOURCE: EntranceSection[] = [
       { key: "food_preferences", label: "Food Preferences", kind: "text" },
       { key: "personality", label: "Personality", kind: "textarea" },
       { key: "bonded_with", label: "Bonded With", kind: "text" },
-      { key: "new_name", label: "New Name", kind: "text" },
+      {
+        key: "name_changed",
+        label: "Has the name been changed from the name on the medical records?",
+        kind: "yesno",
+      },
+      { key: "new_name", label: "New name", kind: "text" },
       { key: "notes", label: "Notes", kind: "textarea", staff: true },
     ],
   },
@@ -281,8 +286,22 @@ export function entranceFieldLabel(field: EntranceField, answers?: EntranceAnswe
   return "Who told you?";
 }
 
-export function entranceFieldSpansRow(kind: EntranceFieldKind): boolean {
-  return kind === "textarea" || kind === "vaccinations";
+export function entranceFieldSpansRow(field: Pick<EntranceField, "kind" | "key">): boolean {
+  return field.kind === "textarea" || field.kind === "vaccinations" || field.key === "name_changed";
+}
+
+export function applyEntranceAnswer(
+  answers: EntranceAnswers,
+  key: string,
+  value: string
+): EntranceAnswers {
+  const next = { ...answers, [key]: value };
+  if (key === "name_changed" && value !== "yes") next.new_name = "";
+  return next;
+}
+
+export function missingChangedName(answers: EntranceAnswers): boolean {
+  return answers.name_changed === "yes" && !answers.new_name.trim();
 }
 
 function formatIsoDate(value: string): string {
@@ -402,6 +421,10 @@ export function sanitizeEntranceAnswers(
   }
   if (!answers.cat_name) {
     return { answers, error: "Enter the cat’s name." };
+  }
+  if (answers.name_changed !== "yes") answers.new_name = "";
+  if (answers.name_changed === "yes" && !answers.new_name.trim()) {
+    return { answers, error: "Enter the new name." };
   }
   return { answers };
 }

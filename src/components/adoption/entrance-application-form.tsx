@@ -23,6 +23,8 @@ import {
   entranceFieldLabel,
   entranceFieldSpansRow,
   entranceOptionLabel,
+  applyEntranceAnswer,
+  missingChangedName,
   parseVaccinationList,
   publicEntranceSections,
   vaccinationListError,
@@ -125,13 +127,17 @@ export function EntranceApplicationForm({
   }, [step]);
 
   function update(key: string, value: string) {
-    setAnswers((current) => ({ ...current, [key]: value }));
-    if (key === "cat_name") setError(null);
+    setAnswers((current) => applyEntranceAnswer(current, key, value));
+    if (key === "cat_name" || key === "name_changed" || key === "new_name") setError(null);
   }
 
   function goNext() {
     if (steps[step]?.id === "profile" && !answers.cat_name.trim()) {
       setError("Enter the cat’s name.");
+      return;
+    }
+    if (steps[step]?.id === "profile" && missingChangedName(answers)) {
+      setError("Enter the new name.");
       return;
     }
     if (steps[step]?.id === "veterinary") {
@@ -149,6 +155,12 @@ export function EntranceApplicationForm({
     setError(null);
     if (!answers.cat_name.trim()) {
       setError("Enter the cat’s name.");
+      const profileStep = steps.findIndex((entry) => entry.id === "profile");
+      if (profileStep >= 0) setStep(profileStep);
+      return;
+    }
+    if (missingChangedName(answers)) {
+      setError("Enter the new name.");
       const profileStep = steps.findIndex((entry) => entry.id === "profile");
       if (profileStep >= 0) setStep(profileStep);
       return;
@@ -198,6 +210,7 @@ export function EntranceApplicationForm({
   }
 
   const nameMissing = error === "Enter the cat’s name.";
+  const changedNameMissing = error === "Enter the new name.";
 
   return (
     <div className="min-h-screen bg-muted/30 px-4 py-8">
@@ -262,26 +275,40 @@ export function EntranceApplicationForm({
                 <CardTitle className="text-lg">{section.title}</CardTitle>
               </CardHeader>
               <CardContent className="grid gap-4 sm:grid-cols-2">
-                {section.fields.map((field) => (
+                {section.fields.map((field) => {
+                  if (field.key === "new_name" && answers.name_changed !== "yes") return null;
+                  return (
                   <div
                     key={field.key}
-                    className={entranceFieldSpansRow(field.kind) ? "space-y-2 sm:col-span-2" : "space-y-2"}
+                    className={entranceFieldSpansRow(field) ? "space-y-2 sm:col-span-2" : "space-y-2"}
                   >
                     <Label htmlFor={`entrance-${field.key}`}>
                       {entranceFieldLabel(field, answers)}
-                      {field.required ? " *" : ""}
+                      {field.required || field.key === "new_name" ? " *" : ""}
                     </Label>
+                    {field.key === "name_changed" ? (
+                      <p className="text-sm text-muted-foreground">
+                        If yes, list the new name. That name is required.
+                      </p>
+                    ) : null}
                     <FieldControl
                       field={field}
                       value={answers[field.key] ?? ""}
-                      invalid={field.key === "cat_name" && nameMissing}
+                      invalid={
+                        (field.key === "cat_name" && nameMissing) ||
+                        (field.key === "new_name" && changedNameMissing)
+                      }
                       onChange={(value) => update(field.key, value)}
                     />
                     {field.key === "cat_name" && nameMissing && (
                       <p className="text-sm text-destructive">{error}</p>
                     )}
+                    {field.key === "new_name" && changedNameMissing && (
+                      <p className="text-sm text-destructive">{error}</p>
+                    )}
                   </div>
-                ))}
+                  );
+                })}
               </CardContent>
             </Card>
           ) : null
@@ -297,14 +324,17 @@ export function EntranceApplicationForm({
                 <section key={section.id} className="space-y-2">
                   <h3 className="text-sm font-semibold">{section.title}</h3>
                   <dl className="grid gap-2 sm:grid-cols-2">
-                    {section.fields.map((field) => (
-                      <div key={field.key} className={entranceFieldSpansRow(field.kind) ? "sm:col-span-2" : undefined}>
+                    {section.fields.map((field) => {
+                      if (field.key === "new_name" && answers.name_changed !== "yes") return null;
+                      return (
+                      <div key={field.key} className={entranceFieldSpansRow(field) ? "sm:col-span-2" : undefined}>
                         <dt className="text-xs text-muted-foreground">{entranceFieldLabel(field, answers)}</dt>
                         <dd className="text-sm whitespace-pre-wrap">
                           {entranceOptionLabel(field.key, answers[field.key] ?? "")}
                         </dd>
                       </div>
-                    ))}
+                      );
+                    })}
                   </dl>
                 </section>
               ))}

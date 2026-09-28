@@ -27,6 +27,7 @@ import {
 import {
   ENTRANCE_SECTIONS,
   emptyEntranceAnswers,
+  applyEntranceAnswer,
   entranceFieldLabel,
   type AdoptionEntranceApplication,
   type EntranceAnswers,
@@ -197,7 +198,7 @@ export function AdoptableCatsManager({ cats: initial, applications }: AdoptableC
     setSaved(false);
     setDrafts((current) => ({
       ...current,
-      [application.id]: { ...(current[application.id] ?? base), [key]: value },
+      [application.id]: applyEntranceAnswer(current[application.id] ?? base, key, value),
     }));
   }
 
@@ -428,10 +429,12 @@ export function AdoptableCatsManager({ cats: initial, applications }: AdoptableC
               </div>
 
               <div className="grid gap-4 sm:grid-cols-2">
-                {section.fields.map((field) => (
+                {section.fields.map((field) => {
+                  if (field.key === "new_name" && answers.name_changed !== "yes") return null;
+                  return (
                   <div
                     key={field.key}
-                    className={field.kind === "textarea" || field.kind === "vaccinations" ? "space-y-2 sm:col-span-2" : "space-y-2"}
+                    className={field.kind === "textarea" || field.kind === "vaccinations" || field.key === "name_changed" ? "space-y-2 sm:col-span-2" : "space-y-2"}
                   >
                     <Label htmlFor={`entrance-${editingRecord.id}-${field.key}`}>
                       {entranceFieldLabel(field, answers)}
@@ -455,7 +458,8 @@ export function AdoptableCatsManager({ cats: initial, applications }: AdoptableC
                       />
                     )}
                   </div>
-                ))}
+                  );
+                })}
               </div>
 
               <div className="flex flex-wrap items-center gap-3">

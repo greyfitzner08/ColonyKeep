@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   ENTRANCE_SECTIONS,
   emptyEntranceAnswers,
+  applyEntranceAnswer,
   entranceFieldLabel,
   entranceReviewStatusLabel,
   type AdoptionEntranceApplication,
@@ -46,7 +47,7 @@ export function EntranceReviewManager({
     setSavedId(null);
     setDrafts((current) => ({
       ...current,
-      [applicationId]: { ...(current[applicationId] ?? base), [key]: value },
+      [applicationId]: applyEntranceAnswer(current[applicationId] ?? base, key, value),
     }));
   }
 
@@ -164,10 +165,12 @@ export function EntranceReviewManager({
                   return (
                     <section key={section.id} className="space-y-4">
                       <div className="grid gap-4 sm:grid-cols-2">
-                        {section.fields.map((field) => (
+                        {section.fields.map((field) => {
+                          if (field.key === "new_name" && answers.name_changed !== "yes") return null;
+                          return (
                           <div
                             key={field.key}
-                            className={field.kind === "textarea" || field.kind === "vaccinations" ? "space-y-2 sm:col-span-2" : "space-y-2"}
+                            className={field.kind === "textarea" || field.kind === "vaccinations" || field.key === "name_changed" ? "space-y-2 sm:col-span-2" : "space-y-2"}
                           >
                             <Label htmlFor={`entrance-${application.id}-${field.key}`}>
                               {entranceFieldLabel(field, answers)}
@@ -193,7 +196,8 @@ export function EntranceReviewManager({
                               />
                             )}
                           </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     </section>
                   );
