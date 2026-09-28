@@ -24,7 +24,7 @@ export default async function AdoptionPage({
   const [{ data: cats }, branding, applicationsResult] = await Promise.all([
     service
       .from("adoptable_cats")
-      .select("*, location:adoption_locations(*)")
+      .select("*")
       .order("name"),
     getPlatformBranding(),
     service
@@ -33,10 +33,7 @@ export default async function AdoptionPage({
       .order("created_at", { ascending: false }),
   ]);
 
-  const catRows = ((cats ?? []) as AdoptableCat[]).map((cat) => ({
-    ...cat,
-    location: Array.isArray(cat.location) ? cat.location[0] ?? null : cat.location ?? null,
-  }));
+  const catRows = (cats ?? []) as AdoptableCat[];
   const applications = (applicationsResult.data ?? []) as AdoptionEntranceApplication[];
 
   return (

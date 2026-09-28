@@ -4,7 +4,6 @@ export type ExportableTableId =
   | "adoptable_cats"
   | "adoption_applications"
   | "adoption_entrance_applications"
-  | "adoption_locations"
   | "appointments"
   | "cats"
   | "clinic_fixes"
@@ -51,7 +50,6 @@ export const EXPORTABLE_TABLES: ExportableTable[] = [
       { id: "age_description", label: "age description" },
       { id: "sex", label: "sex" },
       { id: "status", label: "status" },
-      { id: "location_id", label: "location id" },
       { id: "spayed_neutered", label: "spayed neutered" },
       { id: "vaccinated", label: "vaccinated" },
       { id: "vaccination_notes", label: "vaccination notes" },
@@ -100,28 +98,6 @@ export const EXPORTABLE_TABLES: ExportableTable[] = [
       { id: "additional_notes", label: "additional notes" },
       { id: "reviewed_by", label: "reviewed by" },
       { id: "reviewed_at", label: "reviewed at" },
-      { id: "created_at", label: "created at" },
-      { id: "updated_at", label: "updated at" },
-    ],
-  },
-  {
-    id: "adoption_locations",
-    label: "Adoption locations",
-    columns: [
-      { id: "id", label: "id" },
-      { id: "name", label: "name" },
-      { id: "location_type", label: "location type" },
-      { id: "contact_name", label: "contact name" },
-      { id: "contact_phone", label: "contact phone" },
-      { id: "contact_email", label: "contact email" },
-      { id: "address", label: "address" },
-      { id: "city", label: "city" },
-      { id: "state", label: "state" },
-      { id: "zip", label: "zip" },
-      { id: "notes", label: "notes" },
-      { id: "foster_profile_id", label: "foster profile id" },
-      { id: "is_active", label: "is active" },
-      { id: "created_by_email", label: "created by email" },
       { id: "created_at", label: "created at" },
       { id: "updated_at", label: "updated at" },
     ],

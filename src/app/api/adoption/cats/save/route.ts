@@ -73,10 +73,6 @@ export async function POST(request: NextRequest) {
       typeof body.age_description === "string" ? body.age_description.trim() || null : null,
     sex,
     status,
-    location_id:
-      typeof body.location_id === "string" && body.location_id.trim()
-        ? body.location_id.trim()
-        : null,
     profile_photo_url: profilePhotoUrl,
     spayed_neutered: optionalBoolean(body.spayed_neutered),
     vaccinated: optionalBoolean(body.vaccinated),
@@ -108,7 +104,7 @@ export async function POST(request: NextRequest) {
       .from("adoptable_cats")
       .update(updatePayload)
       .eq("id", id)
-      .select("*, location:adoption_locations(*)")
+      .select("*")
       .single();
     if (error) return NextResponse.json({ error: error.message }, { status: 400 });
     return NextResponse.json({ cat: data });

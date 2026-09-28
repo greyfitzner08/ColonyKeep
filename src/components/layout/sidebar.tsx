@@ -9,7 +9,6 @@ import {
   Calendar,
   Building2,
   Map,
-  MapPin,
   Users,
   CalendarDays,
   MessageSquare,
@@ -129,7 +128,6 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { href: "/adoption", label: "Adoptable Cats", icon: PawPrint },
       { href: "/adoption/applications", label: "Applications", icon: ClipboardList },
-      { href: "/adoption/locations", label: "Locations", icon: MapPin },
     ],
   },
   {
@@ -172,7 +170,7 @@ function isNavItemActive(pathname: string, href: string, allHrefs: string[]): bo
   if (href === "/") return false;
   if (!pathname.startsWith(`${href}/`)) return false;
 
-  // Prefer a more specific sibling (e.g. /adoption/locations over /adoption).
+  // Prefer a more specific sibling (e.g. /adoption/applications over /adoption).
   const hasMoreSpecificMatch = allHrefs.some(
     (other) =>
       other !== href &&

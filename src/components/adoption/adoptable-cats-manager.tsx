@@ -21,7 +21,6 @@ import {
 import {
   ADOPTABLE_CAT_STATUSES,
   adoptableCatStatusLabel,
-  adoptionLocationTypeLabel,
   type AdoptableCat,
 } from "@/lib/adoption/constants";
 import {
@@ -133,20 +132,22 @@ export function AdoptableCatsManager({ cats: initial, applications }: AdoptableC
         id: "location",
         label: "Location",
         render: (row) => {
-          const foster = recordByCatId.get(row.id)?.answers.foster_name;
-          if (row.location) {
-            return (
-              <div className="text-sm">
-                <p className="font-medium">{row.location.name}</p>
-                <p className="text-xs text-muted-foreground">
-                  {adoptionLocationTypeLabel(row.location.location_type)}
-                  {row.location.city ? ` · ${row.location.city}` : ""}
-                </p>
-              </div>
-            );
+          const answers = recordByCatId.get(row.id)?.answers;
+          const foster = answers?.foster_name?.trim() ?? "";
+          const atPetStore = Boolean(
+            answers?.date_placed_pet_store?.trim() && !answers?.date_left_pet_store?.trim()
+          );
+          if (!foster && !atPetStore) {
+            return <span className="text-muted-foreground">Unassigned</span>;
           }
-          if (foster) return <span className="text-sm">{foster}</span>;
-          return <span className="text-muted-foreground">Unassigned</span>;
+          return (
+            <div className="text-sm">
+              <p className="font-medium">{foster || "Pet store"}</p>
+              {foster && atPetStore ? (
+                <p className="text-xs text-muted-foreground">At pet store</p>
+              ) : null}
+            </div>
+          );
         },
       },
       {
@@ -234,7 +235,6 @@ export function AdoptableCatsManager({ cats: initial, applications }: AdoptableC
         age_description: editing.age_description,
         sex: editing.sex,
         status: editing.status,
-        location_id: editing.location_id,
         profile_photo_url: null,
         spayed_neutered: editing.spayed_neutered,
         vaccinated: editing.vaccinated,
@@ -340,9 +340,6 @@ export function AdoptableCatsManager({ cats: initial, applications }: AdoptableC
               <ExternalLink className="mr-1 h-3.5 w-3.5" />
               Rescue application
             </Link>
-          </Button>
-          <Button type="button" size="sm" variant="outline" className="h-8 px-2.5" asChild>
-            <Link href="/adoption/locations">Locations</Link>
           </Button>
         </div>
       </div>

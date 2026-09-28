@@ -7,7 +7,7 @@ This guide explains how access works in the app. **Page access is controlled by 
 - **TNVR Team** (trap team lead)
 - **Volunteer** (every volunteer sees the same core tools)
 
-**Volunteer interests** (trapper, event volunteer, clinic coordination, etc.) are for staffing, labeling, and matching people to shifts. **Exception:** **Adoption Specialist** unlocks the **Adoption** nav (adoptable cats and locations) after **adoption training** is verified and the interest is granted.
+**Volunteer interests** (trapper, event volunteer, clinic coordination, etc.) are for staffing, labeling, and matching people to shifts. **Exception:** **Adoption Specialist** unlocks the **Adoption** nav (adoptable cats and adoption applications) after **adoption training** is verified and the interest is granted.
 
 ---
 
