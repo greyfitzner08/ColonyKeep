@@ -20,6 +20,10 @@ export async function POST(request: NextRequest) {
   const formData = await request.formData();
   const file = formData.get("file");
   const catId = formData.get("cat_id");
+  if (typeof catId !== "string" || !catId.trim()) {
+    return NextResponse.json({ error: "Choose a cat before uploading a photo." }, { status: 400 });
+  }
+  const id = catId.trim();
 
   if (!(file instanceof File)) {
     return NextResponse.json({ error: "Missing file" }, { status: 400 });
@@ -35,9 +39,7 @@ export async function POST(request: NextRequest) {
   }
 
   const safeName = file.name.replace(/[^a-zA-Z0-9._-]+/g, "-") || "photo.jpg";
-  const folder =
-    typeof catId === "string" && catId.trim() ? catId.trim() : `new-${Date.now()}`;
-  const path = `${folder}/${Date.now()}-${safeName}`;
+  const path = `${id}/${Date.now()}-${safeName}`;
 
   const service = await createServiceClient();
   const buffer = Buffer.from(await file.arrayBuffer());
@@ -52,6 +54,16 @@ export async function POST(request: NextRequest) {
   }
 
   const { data: publicUrl } = service.storage.from("adoption-photos").getPublicUrl(path);
+  const { data: saved, error: saveError } = await service
+    .from("adoptable_cats")
+    .update({ profile_photo_url: publicUrl.publicUrl })
+    .eq("id", id)
+    .select("id")
+    .maybeSingle();
+
+  if (saveError || !saved) {
+    return NextResponse.json({ error: "Unable to save the photo on this cat." }, { status: 400 });
+  }
 
   return NextResponse.json({
     profile_photo_url: publicUrl.publicUrl,

@@ -243,6 +243,10 @@ export function AdoptableCatsManager({ cats: initial, applications }: AdoptableC
       return;
     }
     setPhotoUrl(typeof result?.profile_photo_url === "string" ? result.profile_photo_url : null);
+    if (typeof result?.profile_photo_url === "string") {
+      const url = result.profile_photo_url;
+      setEditing((current) => (current ? { ...current, profile_photo_url: url } : current));
+    }
     router.refresh();
   }
 
