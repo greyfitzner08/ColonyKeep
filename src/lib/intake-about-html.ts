@@ -104,13 +104,33 @@ export interface IntakeAboutSanitizeOptions {
   allowLinks?: boolean;
 }
 
+/** Document line spacing. Stored as a line-height on each paragraph. */
+export const LINE_SPACINGS = ["1", "1.15", "1.5", "2"] as const;
+export type LineSpacing = (typeof LINE_SPACINGS)[number];
+export const DEFAULT_LINE_SPACING: LineSpacing = "1.15";
+
+export function normalizeLineHeight(style: string | null | undefined): LineSpacing | null {
+  if (!style) return null;
+  const match = style.match(/line-height\s*:\s*(1\.15|1\.5|2|1)(?![0-9.])/);
+  if (!match) return null;
+  return match[1] as LineSpacing;
+}
+
+function lineHeightAttribute(attrs: string): string {
+  const spacing = normalizeLineHeight(readAttribute(attrs, "style"));
+  return spacing ? ` style="line-height:${spacing}"` : "";
+}
+
 function escapeAttribute(value: string): string {
   return value.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
 }
 
 function sanitizeLinkHref(raw: string): string | null {
-  const value = raw.trim();
+  let value = raw.trim();
   if (!value || /javascript:|data:/i.test(value)) return null;
+  if (!/^[a-z][a-z0-9+.-]*:/i.test(value)) {
+    value = `https://${value.replace(/^\/+/, "")}`;
+  }
   try {
     const url = new URL(value);
     if (url.protocol === "http:" || url.protocol === "https:") return url.toString();
@@ -153,7 +173,7 @@ export function sanitizeIntakeAboutHtml(
         }
         continue;
       }
-      if (!ALLOWED_TAGS.has(tag) && tag !== "font") continue;
+      if (!ALLOWED_TAGS.has(tag) && tag !== "font" && !(tag === "a" && options.allowLinks)) continue;
       const closeIndex = [...stack].reverse().findIndex((open) => open.tag === tag);
       if (closeIndex === -1) continue;
       const from = stack.length - 1 - closeIndex;
@@ -207,7 +227,7 @@ export function sanitizeIntakeAboutHtml(
           html += "<ul>";
           stack.push({ tag: "ul", emitted: "ul" });
         }
-        html += "<li>";
+        html += `<li${lineHeightAttribute(attrs)}>`;
         if (!selfClosing) stack.push({ tag: "li", emitted: "li" });
         continue;
       }
@@ -248,7 +268,7 @@ export function sanitizeIntakeAboutHtml(
       }
 
       let emitted = tag === "div" ? "p" : tag;
-      let openTag = `<${emitted}>`;
+      let openTag = `<${emitted}${BLOCK_TAGS.has(tag) ? lineHeightAttribute(attrs) : ""}>`;
       if (tag === "span") {
         const style = sanitizeDeclarations(readAttribute(attrs, "style") ?? "");
         if (!style) continue;

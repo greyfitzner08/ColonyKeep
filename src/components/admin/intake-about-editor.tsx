@@ -1,10 +1,17 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { Component, forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
+import type { MutableRefObject, RefObject } from "react";
 import { Bold, Eraser, Italic, Link2, List, Underline } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { sanitizeIntakeAboutHtml } from "@/lib/intake-about-html";
+import {
+  DEFAULT_LINE_SPACING,
+  LINE_SPACINGS,
+  normalizeLineHeight,
+  sanitizeIntakeAboutHtml,
+  type LineSpacing,
+} from "@/lib/intake-about-html";
 import { cn } from "@/lib/utils";
 
 const COLORS = [
@@ -18,9 +25,66 @@ const editorClassName =
   "min-h-40 w-full rounded-md border border-input bg-background px-3 py-2 text-sm leading-relaxed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&_li+li]:mt-1 [&_p+p]:mt-3 [&_ul]:my-2 [&_ul]:list-disc [&_ul]:pl-5";
 
 const documentEditorClassName =
-  "min-h-[22rem] w-full bg-background px-6 py-5 text-[15px] leading-7 outline-none [&_a]:text-primary [&_a]:underline [&_a]:underline-offset-2 [&_li+li]:mt-1 [&_p+p]:mt-3 [&_ul]:my-3 [&_ul]:list-disc [&_ul]:pl-6";
+  "min-h-[22rem] w-full bg-background px-6 py-5 text-[15px] leading-[1.15] outline-none [&_a]:text-primary [&_a]:underline [&_a]:underline-offset-2 [&_li]:my-0 [&_p]:my-0 [&_ul]:my-2 [&_ul]:list-disc [&_ul]:pl-6";
 
-export function IntakeAboutEditor({
+type EditorHandlers = {
+  onInput: () => void;
+  onBlur: () => void;
+  onFocus: () => void;
+  onMouseUp: () => void;
+  onKeyUp: () => void;
+};
+
+/** Stays mounted so React re-renders do not wipe what the user typed. */
+class FrozenEditor extends Component<{
+  editorRef: RefObject<HTMLDivElement | null>;
+  handlersRef: MutableRefObject<EditorHandlers>;
+  className: string;
+  id: string;
+}> {
+  shouldComponentUpdate() {
+    return false;
+  }
+
+  render() {
+    const { editorRef, handlersRef, className, id } = this.props;
+    return (
+      <div
+        id={id}
+        ref={editorRef}
+        role="textbox"
+        aria-multiline="true"
+        aria-label="About us"
+        contentEditable
+        suppressContentEditableWarning
+        className={className}
+        onFocus={() => handlersRef.current.onFocus()}
+        onMouseUp={() => handlersRef.current.onMouseUp()}
+        onKeyUp={() => handlersRef.current.onKeyUp()}
+        onInput={() => handlersRef.current.onInput()}
+        onBlur={() => handlersRef.current.onBlur()}
+      />
+    );
+  }
+}
+
+export type IntakeAboutEditorHandle = {
+  getHtml: () => string;
+  setHtml: (html: string) => void;
+};
+
+export const IntakeAboutEditor = forwardRef<
+  IntakeAboutEditorHandle,
+  {
+    id: string;
+    value: string;
+    disabled?: boolean;
+    onChange: (value: string) => void;
+    allowLinks?: boolean;
+    allowLists?: boolean;
+    variant?: "plain" | "document";
+  }
+>(function IntakeAboutEditor({
   id,
   value,
   disabled,
@@ -28,29 +92,75 @@ export function IntakeAboutEditor({
   allowLinks = false,
   allowLists = false,
   variant = "plain",
-}: {
-  id: string;
-  value: string;
-  disabled?: boolean;
-  onChange: (value: string) => void;
-  allowLinks?: boolean;
-  allowLists?: boolean;
-  variant?: "plain" | "document";
-}) {
+}, ref) {
   const editorRef = useRef<HTMLDivElement>(null);
-  const savedOffsets = useRef<{ start: number; end: number } | null>(null);
+  const savedRange = useRef<Range | null>(null);
+  const lastPublished = useRef<string | null>(null);
+  const handlersRef = useRef<EditorHandlers>({
+    onInput: () => undefined,
+    onBlur: () => undefined,
+    onFocus: () => undefined,
+    onMouseUp: () => undefined,
+    onKeyUp: () => undefined,
+  });
   const [linkUrl, setLinkUrl] = useState("");
   const [linkOpen, setLinkOpen] = useState(false);
   const [colorsOpen, setColorsOpen] = useState(false);
+  const [spacingOpen, setSpacingOpen] = useState(false);
+  const [lineSpacing, setLineSpacing] = useState<LineSpacing>(
+    () => normalizeLineHeight(value) ?? DEFAULT_LINE_SPACING
+  );
+  const lineSpacingRef = useRef(lineSpacing);
+  lineSpacingRef.current = lineSpacing;
   const [active, setActive] = useState({ bold: false, italic: false, underline: false, list: false });
   const documentMode = variant === "document";
 
   useEffect(() => {
     const editor = editorRef.current;
-    if (!editor || document.activeElement === editor) return;
-    const html = sanitizeIntakeAboutHtml(value, { allowLinks });
-    if (editor.innerHTML !== html) editor.innerHTML = html;
-  }, [allowLinks, value]);
+    if (!editor) return;
+    editor.contentEditable = disabled ? "false" : "true";
+  }, [disabled]);
+
+  useEffect(() => {
+    const editor = editorRef.current;
+    if (!editor) return;
+    const clean = sanitizeIntakeAboutHtml(value, { allowLinks });
+    if (lastPublished.current === null) {
+      editor.innerHTML = clean;
+      editor.style.lineHeight = documentMode ? lineSpacingRef.current : "";
+      lastPublished.current = value;
+      return;
+    }
+    if (value === lastPublished.current) return;
+    if (sanitizeIntakeAboutHtml(lastPublished.current, { allowLinks }) === clean) {
+      lastPublished.current = value;
+      return;
+    }
+    if (document.activeElement === editor) return;
+    editor.innerHTML = clean;
+    lastPublished.current = value;
+  }, [allowLinks, documentMode, value]);
+
+  useImperativeHandle(ref, () => ({
+    getHtml() {
+      const editor = editorRef.current;
+      if (editor && documentMode) stampLineSpacing(editor, lineSpacingRef.current);
+      return sanitizeIntakeAboutHtml(editor?.innerHTML ?? "", { allowLinks });
+    },
+    setHtml(html: string) {
+      const editor = editorRef.current;
+      const clean = sanitizeIntakeAboutHtml(html, { allowLinks });
+      const spacing = normalizeLineHeight(clean) ?? DEFAULT_LINE_SPACING;
+      lineSpacingRef.current = spacing;
+      setLineSpacing(spacing);
+      if (editor) {
+        editor.innerHTML = clean;
+        if (documentMode) editor.style.lineHeight = spacing;
+      }
+      lastPublished.current = clean;
+      onChange(clean);
+    },
+  }));
 
   useEffect(() => {
     function syncActive() {
@@ -75,52 +185,61 @@ export function IntakeAboutEditor({
     if (!editor || !selection || selection.rangeCount === 0) return;
     const range = selection.getRangeAt(0);
     if (!editor.contains(range.commonAncestorContainer)) return;
-    const before = range.cloneRange();
-    before.selectNodeContents(editor);
-    before.setEnd(range.startContainer, range.startOffset);
-    const start = before.toString().length;
-    savedOffsets.current = { start, end: start + range.toString().length };
+    savedRange.current = range.cloneRange();
   }
 
   function restoreSelection() {
-    const editor = editorRef.current;
-    const offsets = savedOffsets.current;
-    if (!editor || !offsets) return;
-    const walker = document.createTreeWalker(editor, NodeFilter.SHOW_TEXT);
-    let consumed = 0;
-    let startNode: Text | null = null;
-    let startOffset = 0;
-    let endNode: Text | null = null;
-    let endOffset = 0;
-    let node = walker.nextNode() as Text | null;
-    while (node) {
-      const length = node.data.length;
-      if (!startNode && consumed + length >= offsets.start) {
-        startNode = node;
-        startOffset = offsets.start - consumed;
-      }
-      if (consumed + length >= offsets.end) {
-        endNode = node;
-        endOffset = offsets.end - consumed;
-        break;
-      }
-      consumed += length;
-      node = walker.nextNode() as Text | null;
-    }
-    if (!startNode || !endNode) return;
-    const range = document.createRange();
-    range.setStart(startNode, Math.min(startOffset, startNode.data.length));
-    range.setEnd(endNode, Math.min(endOffset, endNode.data.length));
+    const range = savedRange.current;
+    if (!range) return;
     const selection = window.getSelection();
     selection?.removeAllRanges();
-    selection?.addRange(range);
+    try {
+      selection?.addRange(range);
+    } catch {
+      savedRange.current = null;
+    }
+  }
+
+  function stampLineSpacing(root: HTMLElement, spacing: LineSpacing) {
+    root.style.lineHeight = spacing;
+    root.querySelectorAll<HTMLElement>("p, li, div").forEach((node) => {
+      node.style.lineHeight = spacing;
+    });
   }
 
   function publish() {
     const editor = editorRef.current;
     if (!editor) return;
+    if (documentMode) stampLineSpacing(editor, lineSpacingRef.current);
+    lastPublished.current = editor.innerHTML;
     onChange(editor.innerHTML);
   }
+
+  function chooseLineSpacing(spacing: LineSpacing) {
+    lineSpacingRef.current = spacing;
+    setLineSpacing(spacing);
+    const editor = editorRef.current;
+    if (!editor || disabled) return;
+    stampLineSpacing(editor, spacing);
+    setSpacingOpen(false);
+    publish();
+  }
+
+  handlersRef.current = {
+    onInput: publish,
+    onBlur() {
+      const editor = editorRef.current;
+      if (!editor) return;
+      const clean = sanitizeIntakeAboutHtml(editor.innerHTML, { allowLinks });
+      lastPublished.current = clean;
+      onChange(clean);
+    },
+    onFocus() {
+      document.execCommand("defaultParagraphSeparator", false, "p");
+    },
+    onMouseUp: rememberSelection,
+    onKeyUp: rememberSelection,
+  };
 
   function captureLiveSelection() {
     const editor = editorRef.current;
@@ -139,8 +258,9 @@ export function IntakeAboutEditor({
     restoreSelection();
     const selection = window.getSelection();
     const collapsed = !selection || selection.rangeCount === 0 || selection.isCollapsed;
+    const safeHref = href.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
     if (collapsed) {
-      document.execCommand("insertHTML", false, `<a href="${href}">${href}</a>`);
+      document.execCommand("insertHTML", false, `<a href="${safeHref}">${safeHref}</a>`);
     } else {
       document.execCommand("createLink", false, href);
     }
@@ -157,9 +277,9 @@ export function IntakeAboutEditor({
     document.execCommand("styleWithCSS", false, "false");
     document.execCommand("defaultParagraphSeparator", false, "p");
     restoreSelection();
-    const offsets = savedOffsets.current;
+    const range = savedRange.current?.cloneRange() ?? null;
     document.execCommand(command, false, commandValue);
-    if (offsets && offsets.start !== offsets.end) savedOffsets.current = offsets;
+    if (range && !range.collapsed) savedRange.current = range;
     restoreSelection();
     publish();
   }
@@ -245,6 +365,27 @@ export function IntakeAboutEditor({
             {documentMode ? null : "Bullets"}
           </Button>
         )}
+        {documentMode && (
+          <Button
+            type="button"
+            variant={spacingOpen ? "secondary" : "ghost"}
+            size="sm"
+            className="h-8 px-2 text-xs tabular-nums"
+            aria-label="Line spacing"
+            aria-expanded={spacingOpen}
+            title="Line spacing"
+            disabled={disabled}
+            onMouseDown={(event) => {
+              event.preventDefault();
+              rememberSelection();
+              setLinkOpen(false);
+              setColorsOpen(false);
+              setSpacingOpen((open) => !open);
+            }}
+          >
+            {lineSpacing}
+          </Button>
+        )}
         <span className="mx-1 hidden h-6 w-px bg-border sm:inline-block" aria-hidden />
         {documentMode ? (
           <Button
@@ -260,6 +401,7 @@ export function IntakeAboutEditor({
               event.preventDefault();
               rememberSelection();
               setLinkOpen(false);
+              setSpacingOpen(false);
               setColorsOpen((open) => !open);
             }}
           >
@@ -313,6 +455,7 @@ export function IntakeAboutEditor({
               event.preventDefault();
               rememberSelection();
               setColorsOpen(false);
+              setSpacingOpen(false);
               setLinkOpen((open) => !open);
             }}
           >
@@ -368,6 +511,28 @@ export function IntakeAboutEditor({
           {documentMode ? null : "Clear formatting"}
         </Button>
       </div>
+      {documentMode && spacingOpen && (
+        <div className="flex flex-wrap items-center gap-1 border-b px-3 py-2">
+          <span className="mr-1 text-xs text-muted-foreground">Line spacing</span>
+          {LINE_SPACINGS.map((spacing) => (
+            <Button
+              key={spacing}
+              type="button"
+              size="sm"
+              variant={lineSpacing === spacing ? "secondary" : "ghost"}
+              className="h-8 px-2 text-xs tabular-nums"
+              aria-pressed={lineSpacing === spacing}
+              disabled={disabled}
+              onMouseDown={(event) => {
+                event.preventDefault();
+                chooseLineSpacing(spacing);
+              }}
+            >
+              {spacing}
+            </Button>
+          ))}
+        </div>
+      )}
       {documentMode && colorsOpen && (
         <div className="flex flex-wrap items-center gap-2 border-b px-3 py-2">
           {COLORS.map((color) => (
@@ -423,32 +588,15 @@ export function IntakeAboutEditor({
           </Button>
         </form>
       )}
-      <div
+      <FrozenEditor
         id={id}
-        ref={editorRef}
-        role="textbox"
-        aria-multiline="true"
-        aria-label="About us"
-        contentEditable={!disabled}
-        suppressContentEditableWarning
+        editorRef={editorRef}
+        handlersRef={handlersRef}
         className={cn(
           documentMode ? documentEditorClassName : editorClassName,
           disabled && "cursor-not-allowed opacity-50"
         )}
-        onFocus={() => {
-          document.execCommand("defaultParagraphSeparator", false, "p");
-        }}
-        onMouseUp={rememberSelection}
-        onKeyUp={rememberSelection}
-        onInput={publish}
-        onBlur={() => {
-          const editor = editorRef.current;
-          if (!editor) return;
-          const clean = sanitizeIntakeAboutHtml(editor.innerHTML, { allowLinks });
-          editor.innerHTML = clean;
-          onChange(clean);
-        }}
       />
     </div>
   );
-}
+});

@@ -130,8 +130,11 @@ export function normalizePublicHttpsUrl(
 ): string | null | undefined {
   if (value === null || value === undefined) return null;
   if (typeof value !== "string") return undefined;
-  const trimmed = value.trim();
+  let trimmed = value.trim();
   if (!trimmed) return null;
+  if (!/^[a-z][a-z0-9+.-]*:/i.test(trimmed)) {
+    trimmed = `https://${trimmed.replace(/^\/+/, "")}`;
+  }
   try {
     const url = new URL(trimmed);
     if (url.protocol !== "https:" && url.protocol !== "http:") return undefined;

@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Plus, RotateCcw, Trash2 } from "lucide-react";
-import { IntakeAboutEditor } from "@/components/admin/intake-about-editor";
+import { IntakeAboutEditor, type IntakeAboutEditorHandle } from "@/components/admin/intake-about-editor";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -22,6 +22,7 @@ export function RescueAboutEditor({
   initialButtonUrl: string | null;
   initialLinks: RescueAboutLink[];
 }) {
+  const editorRef = useRef<IntakeAboutEditorHandle>(null);
   const [message, setMessage] = useState(initialMessage);
   const [buttonText, setButtonText] = useState(initialButtonText);
   const [buttonUrl, setButtonUrl] = useState(initialButtonUrl ?? "");
@@ -36,6 +37,8 @@ export function RescueAboutEditor({
   }
 
   async function save() {
+    const html = editorRef.current?.getHtml() ?? message;
+    setMessage(html);
     setSaving(true);
     setError(null);
     setSaved(false);
@@ -44,7 +47,7 @@ export function RescueAboutEditor({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          message,
+          message: html,
           buttonText,
           buttonUrl: buttonUrl.trim() || null,
           links,
@@ -59,6 +62,9 @@ export function RescueAboutEditor({
       if (typeof result?.buttonText === "string") setButtonText(result.buttonText);
       setButtonUrl(typeof result?.buttonUrl === "string" ? result.buttonUrl : "");
       if (Array.isArray(result?.links)) setLinks(result.links);
+      if (typeof result?.warning === "string" && result.warning) {
+        setError(result.warning);
+      }
       setSaved(true);
     } catch {
       setError("Network error — check your connection and try again.");
@@ -70,6 +76,7 @@ export function RescueAboutEditor({
   return (
     <div className="mx-auto max-w-3xl space-y-8">
       <IntakeAboutEditor
+        ref={editorRef}
         id="rescue-about-us"
         variant="document"
         allowLinks
@@ -191,7 +198,7 @@ export function RescueAboutEditor({
           variant="ghost"
           disabled={saving}
           onClick={() => {
-            setMessage(DEFAULT_ENTRANCE_ABOUT_MESSAGE);
+            editorRef.current?.setHtml(DEFAULT_ENTRANCE_ABOUT_MESSAGE);
             setSaved(false);
           }}
         >

@@ -40,12 +40,12 @@ export async function POST(request: NextRequest) {
   const buttonUrl = normalizePublicHttpsUrl(
     typeof buttonUrlRaw === "string" || buttonUrlRaw === null ? buttonUrlRaw : undefined
   );
-  if (buttonUrl === undefined) {
-    return NextResponse.json({ error: "The button link must be a valid http(s) URL." }, { status: 400 });
-  }
-  if (buttonText && !buttonUrl) {
-    return NextResponse.json({ error: "Add a link for the button, or clear the button label." }, { status: 400 });
-  }
+  const buttonWarning =
+    buttonUrl === undefined
+      ? "The button link needs to be a web address. Your text was saved."
+      : buttonText && !buttonUrl
+        ? "Add a link for the button, or clear the button label. Your text was saved."
+        : null;
 
   const links = normalizeRescueAboutLinks("links" in body ? (body as { links: unknown }).links : []);
 
@@ -54,9 +54,13 @@ export async function POST(request: NextRequest) {
     .from("platform_branding")
     .update({
       adoption_entrance_about_message: message,
-      adoption_entrance_button_text: buttonText,
-      adoption_entrance_button_url: buttonUrl,
       adoption_entrance_links: links,
+      ...(buttonWarning
+        ? {}
+        : {
+            adoption_entrance_button_text: buttonText,
+            adoption_entrance_button_url: buttonUrl,
+          }),
       updated_by: profile?.id ?? null,
     })
     .eq("id", 1)
@@ -77,5 +81,6 @@ export async function POST(request: NextRequest) {
     buttonText: data.adoption_entrance_button_text ?? "",
     buttonUrl: data.adoption_entrance_button_url,
     links: normalizeRescueAboutLinks(data.adoption_entrance_links),
+    warning: buttonWarning,
   });
 }

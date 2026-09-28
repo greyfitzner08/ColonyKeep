@@ -10,6 +10,7 @@ export function AboutUsStep({
   description = "A few things to know before you tell us about the colony.",
   links = [],
   allowLinks = false,
+  matchEditorSpacing = false,
 }: {
   message: string;
   donateUrl: string | null;
@@ -17,6 +18,8 @@ export function AboutUsStep({
   description?: string;
   links?: RescueAboutLink[];
   allowLinks?: boolean;
+  /** Use the line height saved in the text, without extra space between paragraphs. */
+  matchEditorSpacing?: boolean;
 }) {
   const html = sanitizeIntakeAboutHtml(message, { allowLinks });
   const includesConsent = /occasional communications/i.test(intakeAboutPlainText(message));
@@ -28,7 +31,11 @@ export function AboutUsStep({
         <p className="text-sm text-muted-foreground">{description}</p>
       </div>
       <div
-        className="space-y-3 text-sm leading-relaxed text-foreground [&_a]:font-medium [&_a]:text-primary [&_a]:underline [&_a]:underline-offset-2 [&_li+li]:mt-1 [&_p+p]:mt-3 [&_ul]:my-2 [&_ul]:list-disc [&_ul]:pl-5"
+        className={
+          matchEditorSpacing
+            ? "text-sm leading-[1.15] text-foreground [&_a]:font-medium [&_a]:text-primary [&_a]:underline [&_a]:underline-offset-2 [&_li]:my-0 [&_p]:my-0 [&_ul]:my-2 [&_ul]:list-disc [&_ul]:pl-5"
+            : "space-y-3 text-sm leading-relaxed text-foreground [&_a]:font-medium [&_a]:text-primary [&_a]:underline [&_a]:underline-offset-2 [&_li+li]:mt-1 [&_p+p]:mt-3 [&_ul]:my-2 [&_ul]:list-disc [&_ul]:pl-5"
+        }
         dangerouslySetInnerHTML={{ __html: html }}
       />
       {links.length > 0 && (
