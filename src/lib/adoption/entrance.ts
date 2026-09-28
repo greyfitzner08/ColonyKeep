@@ -26,6 +26,8 @@ export interface EntranceField {
   submittedStamp?: boolean;
   /** Heading shown once above the fields that belong together. */
   group?: string;
+  /** Kept in saved answers, omitted from every form. */
+  hidden?: boolean;
 }
 
 export interface EntranceSection {
@@ -37,6 +39,11 @@ export interface EntranceSection {
 const YES_NO: EntranceFieldOption[] = [
   { value: "yes", label: "Yes" },
   { value: "no", label: "No" },
+];
+
+export const PET_STORE_OPTIONS: EntranceFieldOption[] = [
+  { value: "pet_supermarket_matthews", label: "Pet Supermarket (Matthews)" },
+  { value: "other", label: "Other" },
 ];
 
 const GENDERS: EntranceFieldOption[] = [
@@ -106,9 +113,6 @@ const ENTRANCE_SECTION_SOURCE: EntranceSection[] = [
       { key: "foster_phone", label: "Phone", kind: "text", group: "Foster" },
       { key: "foster_email", label: "Email", kind: "text", group: "Foster" },
       { key: "location_address", label: "Address", kind: "text", group: "Foster" },
-      { key: "location_city", label: "City", kind: "text", group: "Foster" },
-      { key: "location_state", label: "State", kind: "text", group: "Foster" },
-      { key: "location_zip", label: "ZIP", kind: "text", group: "Foster" },
       {
         key: "approved_pet_store",
         label: "Approved for placement?",
@@ -116,23 +120,31 @@ const ENTRANCE_SECTION_SOURCE: EntranceSection[] = [
         staff: true,
         group: "Pet store",
       },
-      { key: "pet_store_name", label: "Name", kind: "text", staff: true, group: "Pet store" },
-      { key: "pet_store_contact_name", label: "Contact name", kind: "text", staff: true, group: "Pet store" },
+      {
+        key: "pet_store_name",
+        label: "Store",
+        kind: "select",
+        options: PET_STORE_OPTIONS,
+        staff: true,
+        group: "Pet store",
+      },
+      { key: "pet_store_other_name", label: "Pet store name", kind: "text", staff: true, group: "Pet store" },
       { key: "pet_store_phone", label: "Phone", kind: "text", staff: true, group: "Pet store" },
       { key: "pet_store_email", label: "Email", kind: "text", staff: true, group: "Pet store" },
-      { key: "pet_store_address", label: "Address", kind: "text", staff: true, group: "Pet store" },
-      { key: "pet_store_city", label: "City", kind: "text", staff: true, group: "Pet store" },
-      { key: "pet_store_state", label: "State", kind: "text", staff: true, group: "Pet store" },
-      { key: "pet_store_zip", label: "ZIP", kind: "text", staff: true, group: "Pet store" },
-      { key: "pet_store_notes", label: "Notes", kind: "textarea", staff: true, group: "Pet store" },
-      { key: "date_placed_pet_store", label: "Date placed", kind: "date", staff: true, group: "Pet store" },
-      { key: "date_left_pet_store", label: "Date left", kind: "date", staff: true, group: "Pet store" },
+      { key: "pet_store_contact_name", label: "Contact name", kind: "text", staff: true, hidden: true },
+      { key: "pet_store_address", label: "Address", kind: "text", staff: true, hidden: true },
+      { key: "pet_store_city", label: "City", kind: "text", staff: true, hidden: true },
+      { key: "pet_store_state", label: "State", kind: "text", staff: true, hidden: true },
+      { key: "pet_store_zip", label: "ZIP", kind: "text", staff: true, hidden: true },
+      { key: "pet_store_notes", label: "Notes", kind: "textarea", staff: true, hidden: true },
+      { key: "date_placed_pet_store", label: "Date placed", kind: "date", staff: true, hidden: true },
+      { key: "date_left_pet_store", label: "Date left", kind: "date", staff: true, hidden: true },
       {
         key: "reason_left_pet_store",
         label: "Reason left, if not adopted",
         kind: "textarea",
         staff: true,
-        group: "Pet store",
+        hidden: true,
       },
       { key: "location_notes", label: "Notes", kind: "textarea", staff: true },
     ],
@@ -264,7 +276,7 @@ export function publicEntranceSections(): EntranceSection[] {
   return ENTRANCE_SECTIONS.map((section) => ({
     ...section,
     title: section.id === "location" ? "Foster Information" : section.title,
-    fields: section.fields.filter((field) => !field.staff),
+    fields: section.fields.filter((field) => !field.staff && !field.hidden),
   })).filter((section) => section.fields.length > 0);
 }
 
@@ -326,56 +338,70 @@ export function entranceFieldSpansRow(field: Pick<EntranceField, "kind" | "key">
     field.kind === "vaccinations" ||
     field.kind === "vet_care" ||
     field.key === "name_changed" ||
-    field.key === "approved_pet_store"
+    field.key === "approved_pet_store" ||
+    field.key === "location_address"
   );
 }
 
 const PET_STORE_QUESTION_KEYS = [
   "pet_store_name",
-  "pet_store_contact_name",
+  "pet_store_other_name",
   "pet_store_phone",
   "pet_store_email",
-  "pet_store_address",
-  "pet_store_city",
-  "pet_store_state",
-  "pet_store_zip",
-  "pet_store_notes",
-  "date_placed_pet_store",
-  "date_left_pet_store",
-  "reason_left_pet_store",
 ] as const;
 
 function clearPetStoreQuestions(answers: EntranceAnswers) {
   for (const key of PET_STORE_QUESTION_KEYS) answers[key] = "";
 }
 
-const PLACE_ADDRESS_FIELDS: Record<string, { city: string; state: string; zip: string }> = {
-  location_address: { city: "location_city", state: "location_state", zip: "location_zip" },
-  pet_store_address: { city: "pet_store_city", state: "pet_store_state", zip: "pet_store_zip" },
-};
+const SINGLE_LINE_ADDRESS_KEYS = ["location_address"];
+
+export function condenseAddressLine(parts: {
+  address: string;
+  city: string;
+  state: string;
+  zip: string;
+  formatted_address?: string;
+}): string {
+  const formatted = parts.formatted_address?.trim() ?? "";
+  if (formatted) return formatted;
+  const street = parts.address.trim();
+  const cityState = [parts.city.trim(), parts.state.trim()].filter(Boolean).join(", ");
+  const tail = [cityState, parts.zip.trim()].filter(Boolean).join(" ");
+  if (!tail) return street;
+  if (street.toLowerCase().includes(tail.toLowerCase())) return street;
+  if (parts.city.trim() && street.toLowerCase().includes(parts.city.trim().toLowerCase())) return street;
+  return [street, tail].filter(Boolean).join(", ");
+}
 
 export function entrancePlaceAddressKey(key: string): string | null {
-  return (
-    Object.keys(PLACE_ADDRESS_FIELDS).find((entry) => key === entry || key.endsWith(`-${entry}`)) ??
-    null
-  );
+  return SINGLE_LINE_ADDRESS_KEYS.find((entry) => key === entry || key.endsWith(`-${entry}`)) ?? null;
 }
 
 export function applyEntranceAddress(
   answers: EntranceAnswers,
   key: string,
-  parts: { address: string; city: string; state: string; zip: string }
+  parts: { address: string; city: string; state: string; zip: string; formatted_address?: string }
 ): EntranceAnswers {
   const addressKey = entrancePlaceAddressKey(key);
-  if (!addressKey) return { ...answers, [key]: parts.address };
-  const group = PLACE_ADDRESS_FIELDS[addressKey];
-  return {
-    ...answers,
-    [addressKey]: parts.address,
-    [group.city]: parts.city,
-    [group.state]: parts.state,
-    [group.zip]: parts.zip,
-  };
+  const line = condenseAddressLine(parts);
+  if (!addressKey) return { ...answers, [key]: line };
+  return { ...answers, [addressKey]: line };
+}
+
+export function petStoreChoiceFromName(value: string): "pet_supermarket_matthews" | "other" | "" {
+  const trimmed = value.trim();
+  if (!trimmed) return "";
+  if (trimmed === "pet_supermarket_matthews") return "pet_supermarket_matthews";
+  const key = trimmed.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  if (key.includes("pet supermarket")) return "pet_supermarket_matthews";
+  return "other";
+}
+
+export function petStoreDisplayName(answers: EntranceAnswers | undefined): string {
+  if (!answers || answers.approved_pet_store !== "yes") return "";
+  if (answers.pet_store_name === "other") return (answers.pet_store_other_name ?? "").trim();
+  return PET_STORE_OPTIONS.find((option) => option.value === answers.pet_store_name)?.label ?? "";
 }
 
 export function applyEntranceAnswer(
@@ -387,14 +413,22 @@ export function applyEntranceAnswer(
   if (key === "name_changed" && value !== "yes") next.new_name = "";
   if (key === "how_referred" && value !== "fff_volunteer") next.fff_volunteer_name = "";
   if (key === "approved_pet_store" && value !== "yes") clearPetStoreQuestions(next);
+  if (key === "pet_store_name" && value !== "other") next.pet_store_other_name = "";
   return next;
 }
 
-export function showEntranceField(field: Pick<EntranceField, "key">, answers: EntranceAnswers): boolean {
+export function showEntranceField(
+  field: Pick<EntranceField, "key" | "hidden">,
+  answers: EntranceAnswers
+): boolean {
+  if (field.hidden) return false;
   if (field.key === "linked_adoption_application_id") return false;
   if (field.key === "fff_volunteer_name") return answers.how_referred === "fff_volunteer";
   if (field.key === "trapper_provider") return answers.how_referred !== "fff_volunteer";
   if (field.key === "new_name") return answers.name_changed === "yes";
+  if (field.key === "pet_store_other_name") {
+    return answers.approved_pet_store === "yes" && answers.pet_store_name === "other";
+  }
   if ((PET_STORE_QUESTION_KEYS as readonly string[]).includes(field.key)) {
     return answers.approved_pet_store === "yes";
   }
@@ -663,7 +697,8 @@ export function sanitizeEntranceAnswers(
   input: unknown,
   options: { includeStaff?: boolean } = {}
 ): { answers: EntranceAnswers; error?: string } {
-  const source = input && typeof input === "object" ? (input as Record<string, unknown>) : {};
+  const source = input && typeof input === "object" ? { ...(input as Record<string, unknown>) } : {};
+  normalizePetStoreSource(source);
   const answers = emptyEntranceAnswers();
   for (const field of ENTRANCE_FIELDS) {
     if (field.staff && !options.includeStaff) continue;
@@ -709,9 +744,24 @@ export function sanitizeEntranceAnswers(
   }
   if (answers.approved_pet_store !== "yes") clearPetStoreQuestions(answers);
   if (answers.approved_pet_store === "yes" && !answers.pet_store_name.trim()) {
+    return { answers, error: "Choose the pet store." };
+  }
+  if (answers.pet_store_name !== "other") answers.pet_store_other_name = "";
+  if (answers.approved_pet_store === "yes" && answers.pet_store_name === "other" && !answers.pet_store_other_name.trim()) {
     return { answers, error: "Enter the pet store name." };
   }
   return { answers };
+}
+
+function normalizePetStoreSource(source: Record<string, unknown>) {
+  const raw = typeof source.pet_store_name === "string" ? source.pet_store_name.trim() : "";
+  if (!raw) return;
+  const choice = petStoreChoiceFromName(raw);
+  if (choice === "other" && raw !== "other") {
+    const other = typeof source.pet_store_other_name === "string" ? source.pet_store_other_name.trim() : "";
+    if (!other) source.pet_store_other_name = raw;
+  }
+  source.pet_store_name = choice;
 }
 
 export function entranceOptionLabel(fieldKey: string, value: string): string {

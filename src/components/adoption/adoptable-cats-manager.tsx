@@ -36,6 +36,7 @@ import {
   applyEntranceAnswer,
   entranceFieldGroupClass,
   entranceFieldGroups,
+  petStoreDisplayName,
   entranceFieldLabel,
   entranceFieldSpansRow,
   type AdoptionEntranceApplication,
@@ -85,7 +86,7 @@ function catAgeLabel(answers: EntranceAnswers | undefined, row: AdoptableCat): s
 
 function locationSummary(answers: EntranceAnswers | undefined): { foster: string; store: string } {
   const foster = answers?.foster_name?.trim() || answers?.location_contact_name?.trim() || answers?.location_name?.trim() || "";
-  const store = answers?.approved_pet_store === "yes" ? answers.pet_store_name?.trim() || "" : "";
+  const store = petStoreDisplayName(answers);
   return { foster, store };
 }
 
@@ -590,7 +591,11 @@ export function AdoptableCatsManager({
                   >
                     <Label htmlFor={`entrance-${editingRecord.id}-${field.key}`}>
                       {entranceFieldLabel(field, answers)}
-                      {field.key === "pet_store_name" || field.key === "fff_volunteer_name" ? " *" : ""}
+                      {field.key === "pet_store_name" ||
+                      field.key === "pet_store_other_name" ||
+                      field.key === "fff_volunteer_name"
+                        ? " *"
+                        : ""}
                       {field.staff && !field.submittedStamp ? (
                         <span className="ml-2 text-xs font-normal text-muted-foreground">Portal only</span>
                       ) : null}

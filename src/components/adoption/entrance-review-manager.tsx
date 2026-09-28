@@ -199,7 +199,11 @@ export function EntranceReviewManager({
                           >
                             <Label htmlFor={`entrance-${application.id}-${field.key}`}>
                               {entranceFieldLabel(field, answers)}
-                              {field.key === "pet_store_name" || field.key === "fff_volunteer_name" ? " *" : ""}
+                              {field.key === "pet_store_name" ||
+                              field.key === "pet_store_other_name" ||
+                              field.key === "fff_volunteer_name"
+                                ? " *"
+                                : ""}
                               {field.staff && !field.submittedStamp ? (
                                 <span className="ml-2 text-xs font-normal text-muted-foreground">Portal only</span>
                               ) : null}

@@ -2,6 +2,7 @@ import { parseCsvRecords, recordsToObjects } from "@/lib/csv";
 import { ADOPTABLE_CAT_STATUSES } from "@/lib/adoption/constants";
 import {
   ENTRANCE_FIELDS,
+  condenseAddressLine,
   sanitizeEntranceAnswers,
   type EntranceAnswers,
   type EntranceField,
@@ -23,19 +24,11 @@ export const CAT_IMPORT_TEMPLATE_HEADERS = [
   "Foster phone",
   "Foster email",
   "Foster address",
-  "Foster city",
-  "Foster state",
-  "Foster ZIP",
   "Foster notes",
   "Located at a pet store",
   "Pet store",
-  "Pet store contact name",
   "Pet store phone",
   "Pet store email",
-  "Pet store address",
-  "Pet store city",
-  "Pet store state",
-  "Pet store ZIP",
   "Date spayed or neutered",
   "Ear tip",
   "Microchipped",
@@ -86,9 +79,6 @@ function headerKeyMap(): Record<string, string> {
     "foster phone": "foster_phone",
     "foster email": "foster_email",
     "foster address": "location_address",
-    "foster city": "location_city",
-    "foster state": "location_state",
-    "foster zip": "location_zip",
     "foster notes": "location_notes",
     "located at a pet store": "approved_pet_store",
     "at a pet store": "approved_pet_store",
@@ -357,6 +347,7 @@ function prepareValue(
     return { value: "", skipped: trimmed };
   }
   if (field.kind === "select") {
+    if (field.key === "pet_store_name") return { value: trimmed };
     if (field.key === "gender") {
       const gender = normalizeGender(trimmed);
       if (gender == null) return { value: "", skipped: trimmed };
@@ -422,8 +413,22 @@ export function parseCatImportCsv(text: string): {
   objects.forEach((record, index) => {
     const rowNumber = index + 2;
     const source: Record<string, string> = {};
+    const addressParts = { city: "", state: "", zip: "" };
     for (const [header, raw] of Object.entries(record)) {
-      const key = HEADER_KEYS[normalizeHeader(header)];
+      const headerKey = normalizeHeader(header);
+      if (headerKey === "foster city") {
+        addressParts.city = raw.trim();
+        continue;
+      }
+      if (headerKey === "foster state") {
+        addressParts.state = raw.trim();
+        continue;
+      }
+      if (headerKey === "foster zip" || headerKey === "foster zip code") {
+        addressParts.zip = raw.trim();
+        continue;
+      }
+      const key = HEADER_KEYS[headerKey];
       if (!key || SKIPPED_KEYS.has(key)) continue;
       const field = fieldByKey.get(key);
       if (!field) continue;
@@ -454,6 +459,14 @@ export function parseCatImportCsv(text: string): {
       if (prepared.value) source[key] = prepared.value;
     }
 
+    if (addressParts.city || addressParts.state || addressParts.zip) {
+      source.location_address = condenseAddressLine({
+        address: source.location_address ?? "",
+        city: addressParts.city,
+        state: addressParts.state,
+        zip: addressParts.zip,
+      });
+    }
     if (source.current_status === "adopted" && !source.adopted) source.adopted = "yes";
     const parsed = sanitizeEntranceAnswers(source, { includeStaff: true });
     if (parsed.error) {
