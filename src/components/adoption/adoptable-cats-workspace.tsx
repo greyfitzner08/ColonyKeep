@@ -8,13 +8,12 @@ import { RescueAboutEditor } from "@/components/adoption/entrance-about-editor";
 import { EntranceReviewManager } from "@/components/adoption/entrance-review-manager";
 import { Button } from "@/components/ui/button";
 import type { AdoptionEntranceApplication } from "@/lib/adoption/entrance";
-import type { AdoptableCat, AdoptionLocation } from "@/lib/adoption/constants";
+import type { AdoptableCat } from "@/lib/adoption/constants";
 
 type Section = "cats" | "rescue" | "about";
 
 export function AdoptableCatsWorkspace({
   cats,
-  locations,
   applications,
   initialSection,
   aboutMessage,
@@ -22,7 +21,6 @@ export function AdoptableCatsWorkspace({
   buttonUrl,
 }: {
   cats: AdoptableCat[];
-  locations: AdoptionLocation[];
   applications: AdoptionEntranceApplication[];
   initialSection: Section;
   aboutMessage: string;
@@ -56,7 +54,9 @@ export function AdoptableCatsWorkspace({
         ))}
       </div>
 
-      {section === "cats" && <AdoptableCatsManager cats={cats} locations={locations} />}
+      {section === "cats" && (
+        <AdoptableCatsManager cats={cats} applications={applications} />
+      )}
 
       {section === "rescue" && (
         <div className="space-y-4">

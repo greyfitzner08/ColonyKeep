@@ -4,13 +4,12 @@ import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
-import { ExternalLink, Loader2, Pencil, Plus, Trash2, Upload } from "lucide-react";
+import { ExternalLink, Pencil, Trash2, Upload } from "lucide-react";
+import { FieldControl } from "@/components/adoption/entrance-application-form";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -19,164 +18,69 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
-import { AddressAutocomplete } from "@/components/forms/address-autocomplete";
 import {
-  ADOPTABLE_CAT_SEXES,
   ADOPTABLE_CAT_STATUSES,
-  ADOPTION_LOCATION_TYPES,
-  DISEASE_TEST_STATUSES,
-  FIP_STATUSES,
   adoptableCatStatusLabel,
   adoptionLocationTypeLabel,
-  formatAdoptionLocationLine,
   type AdoptableCat,
-  type AdoptableCatSex,
-  type AdoptableCatStatus,
-  type AdoptionLocation,
-  type AdoptionLocationType,
-  type DiseaseTestStatus,
-  type FipStatus,
 } from "@/lib/adoption/constants";
+import {
+  ENTRANCE_SECTIONS,
+  emptyEntranceAnswers,
+  type AdoptionEntranceApplication,
+  type EntranceAnswers,
+} from "@/lib/adoption/entrance";
 
 interface AdoptableCatsManagerProps {
   cats: AdoptableCat[];
-  locations: AdoptionLocation[];
+  applications: AdoptionEntranceApplication[];
 }
 
-type CatForm = {
-  name: string;
-  age_description: string;
-  sex: AdoptableCatSex | "";
-  status: AdoptableCatStatus;
-  location_id: string;
-  profile_photo_url: string;
-  spayed_neutered: boolean | null;
-  vaccinated: boolean | null;
-  vaccination_notes: string;
-  fiv_status: DiseaseTestStatus;
-  felv_status: DiseaseTestStatus;
-  fip_status: FipStatus;
-  medical_notes: string;
-  personality_notes: string;
-  notes: string;
-};
-
-const NONE = "__none__";
-
-type NewLocationForm = {
-  name: string;
-  location_type: AdoptionLocationType;
-  contact_name: string;
-  contact_phone: string;
-  contact_email: string;
-  address: string;
-  city: string;
-  state: string;
-  zip: string;
-};
-
-const emptyLocationForm = (): NewLocationForm => ({
-  name: "",
-  location_type: "petstore",
-  contact_name: "",
-  contact_phone: "",
-  contact_email: "",
-  address: "",
-  city: "",
-  state: "",
-  zip: "",
-});
-
-const emptyForm = (): CatForm => ({
-  name: "",
-  age_description: "",
-  sex: "",
-  status: "available",
-  location_id: "",
-  profile_photo_url: "",
-  spayed_neutered: null,
-  vaccinated: null,
-  vaccination_notes: "",
-  fiv_status: "unknown",
-  felv_status: "unknown",
-  fip_status: "unknown",
-  medical_notes: "",
-  personality_notes: "",
-  notes: "",
-});
-
-function yesNoUnknown(value: boolean | null): string {
-  if (value === true) return "Yes";
-  if (value === false) return "No";
-  return "Unknown";
+function answersFor(
+  application: AdoptionEntranceApplication,
+  drafts: Record<string, EntranceAnswers>
+): EntranceAnswers {
+  return drafts[application.id] ?? { ...emptyEntranceAnswers(), ...application.answers };
 }
 
-export function AdoptableCatsManager({ cats: initial, locations }: AdoptableCatsManagerProps) {
+function genderLabel(value: string | null | undefined): string {
+  if (value === "female") return "Female";
+  if (value === "male") return "Male";
+  if (value === "unknown") return "Unknown";
+  return "";
+}
+
+export function AdoptableCatsManager({ cats: initial, applications }: AdoptableCatsManagerProps) {
   const router = useRouter();
   const photoInputRef = useRef<HTMLInputElement>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<AdoptableCat | null>(null);
-  const [form, setForm] = useState<CatForm>(emptyForm());
+  const [sectionId, setSectionId] = useState(ENTRANCE_SECTIONS[0]?.id ?? "profile");
+  const [drafts, setDrafts] = useState<Record<string, EntranceAnswers>>({});
+  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [addedLocations, setAddedLocations] = useState<AdoptionLocation[]>([]);
-  const [creatingLocation, setCreatingLocation] = useState(false);
-  const [locationForm, setLocationForm] = useState<NewLocationForm>(emptyLocationForm());
-  const [savingLocation, setSavingLocation] = useState(false);
-  const [locationError, setLocationError] = useState<string | null>(null);
 
-  const locationOptions = useMemo(() => {
-    const byId = new Map(locations.map((location) => [location.id, location]));
-    for (const location of addedLocations) {
-      if (!byId.has(location.id)) byId.set(location.id, location);
+  const recordByCatId = useMemo(() => {
+    const byCat = new Map<string, AdoptionEntranceApplication>();
+    for (const application of applications) {
+      if (application.adoptable_cat_id && application.status === "approved") {
+        byCat.set(application.adoptable_cat_id, application);
+      }
     }
-    return [...byId.values()].sort((a, b) => a.name.localeCompare(b.name));
-  }, [locations, addedLocations]);
-
-  const activeLocations = locationOptions.filter(
-    (location) => location.is_active || location.id === form.location_id
-  );
-
-  function resetLocationDraft() {
-    setCreatingLocation(false);
-    setLocationForm(emptyLocationForm());
-    setLocationError(null);
-    setSavingLocation(false);
-  }
-
-  async function saveNewLocation() {
-    if (!locationForm.name.trim()) {
-      setLocationError("Location name is required.");
-      return;
-    }
-    setSavingLocation(true);
-    setLocationError(null);
-    const response = await fetch("/api/adoption/locations/save", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(locationForm),
-    });
-    const result = await response.json().catch(() => null);
-    setSavingLocation(false);
-    if (!response.ok || !result?.location?.id) {
-      setLocationError(result?.error ?? "Unable to save location");
-      return;
-    }
-    const created = result.location as AdoptionLocation;
-    setAddedLocations((current) => [...current, created]);
-    setForm((current) => ({ ...current, location_id: created.id }));
-    resetLocationDraft();
-    router.refresh();
-  }
+    return byCat;
+  }, [applications]);
 
   const rows = useMemo(() => {
     if (statusFilter === "all") return initial;
     return initial.filter((cat) => cat.status === statusFilter);
   }, [initial, statusFilter]);
+
+  const editingRecord = editing ? recordByCatId.get(editing.id) ?? null : null;
 
   const columns = useMemo<DataTableColumn<AdoptableCat>[]>(
     () => [
@@ -184,72 +88,82 @@ export function AdoptableCatsManager({ cats: initial, locations }: AdoptableCats
         id: "name",
         label: "Cat",
         sortValue: (row) => row.name,
-        render: (row) => (
-          <div className="flex items-center gap-3">
-            {row.profile_photo_url ? (
-              <Image
-                src={row.profile_photo_url}
-                alt={row.name}
-                width={40}
-                height={40}
-                className="h-10 w-10 rounded-full object-cover"
-              />
-            ) : (
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted text-xs text-muted-foreground">
-                —
+        render: (row) => {
+          const record = recordByCatId.get(row.id);
+          const age = record?.answers.estimated_age || row.age_description;
+          const gender = genderLabel(record?.answers.gender || row.sex);
+          return (
+            <div className="flex items-center gap-3">
+              {row.profile_photo_url ? (
+                <Image
+                  src={row.profile_photo_url}
+                  alt={row.name}
+                  width={40}
+                  height={40}
+                  className="h-10 w-10 rounded-full object-cover"
+                />
+              ) : (
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted text-xs text-muted-foreground">
+                  —
+                </div>
+              )}
+              <div>
+                <p className="font-medium">{record?.answers.new_name || row.name}</p>
+                <p className="text-xs text-muted-foreground">
+                  {[age, gender].filter(Boolean).join(" · ") || "Rescue application"}
+                </p>
               </div>
-            )}
-            <div>
-              <p className="font-medium">{row.name}</p>
-              <p className="text-xs text-muted-foreground">
-                {[row.age_description, row.sex ? row.sex : null].filter(Boolean).join(" · ") ||
-                  "Age/sex not set"}
-              </p>
             </div>
-          </div>
-        ),
+          );
+        },
       },
       {
         id: "status",
         label: "Status",
         sortValue: (row) => row.status,
-        render: (row) => <Badge variant="secondary">{adoptableCatStatusLabel(row.status)}</Badge>,
+        render: (row) => {
+          const label = recordByCatId.get(row.id)?.answers.current_status || adoptableCatStatusLabel(row.status);
+          return <Badge variant="secondary">{label}</Badge>;
+        },
       },
       {
         id: "location",
         label: "Location",
-        render: (row) =>
-          row.location ? (
-            <div className="text-sm">
-              <p className="font-medium">{row.location.name}</p>
-              <p className="text-xs text-muted-foreground">
-                {adoptionLocationTypeLabel(row.location.location_type)}
-                {row.location.city ? ` · ${row.location.city}` : ""}
-              </p>
-            </div>
-          ) : (
-            <span className="text-muted-foreground">Unassigned</span>
-          ),
+        render: (row) => {
+          const foster = recordByCatId.get(row.id)?.answers.foster_name;
+          if (row.location) {
+            return (
+              <div className="text-sm">
+                <p className="font-medium">{row.location.name}</p>
+                <p className="text-xs text-muted-foreground">
+                  {adoptionLocationTypeLabel(row.location.location_type)}
+                  {row.location.city ? ` · ${row.location.city}` : ""}
+                </p>
+              </div>
+            );
+          }
+          if (foster) return <span className="text-sm">{foster}</span>;
+          return <span className="text-muted-foreground">Unassigned</span>;
+        },
       },
       {
-        id: "medical",
-        label: "Medical",
-        render: (row) => (
-          <div className="text-xs space-y-0.5">
-            <p>S/N: {yesNoUnknown(row.spayed_neutered)}</p>
-            <p>Vax: {yesNoUnknown(row.vaccinated)}</p>
-            <p>
-              FIV {row.fiv_status} · FeLV {row.felv_status} · FIP {row.fip_status}
+        id: "profile",
+        label: "Profile",
+        render: (row) => {
+          const personality = recordByCatId.get(row.id)?.answers.personality || row.personality_notes;
+          return (
+            <p className="max-w-xs truncate text-xs text-muted-foreground">
+              {personality || "No personality notes yet"}
             </p>
-          </div>
-        ),
+          );
+        },
       },
       {
         id: "actions",
         label: "",
         render: (row) => (
           <div className="flex justify-end gap-1">
-            <Button type="button" size="icon" variant="ghost" onClick={() => openEdit(row)}>
+            <Button type="button" size="icon" variant="ghost" onClick={() => openRecord(row)}>
               <Pencil className="h-4 w-4" />
             </Button>
             <Button
@@ -265,82 +179,110 @@ export function AdoptableCatsManager({ cats: initial, locations }: AdoptableCats
         ),
       },
     ],
-    [deletingId]
+    [deletingId, recordByCatId]
   );
 
-  function openNew() {
-    setEditing(null);
-    setForm(emptyForm());
+  function openRecord(cat: AdoptableCat) {
+    setEditing(cat);
+    setPhotoUrl(cat.profile_photo_url);
+    setSectionId(ENTRANCE_SECTIONS[0]?.id ?? "profile");
     setSaveError(null);
-    resetLocationDraft();
+    setSaved(false);
     setDialogOpen(true);
   }
 
-  function openEdit(cat: AdoptableCat) {
-    setEditing(cat);
-    setForm({
-      name: cat.name,
-      age_description: cat.age_description ?? "",
-      sex: cat.sex ?? "",
-      status: cat.status,
-      location_id: cat.location_id ?? "",
-      profile_photo_url: cat.profile_photo_url ?? "",
-      spayed_neutered: cat.spayed_neutered,
-      vaccinated: cat.vaccinated,
-      vaccination_notes: cat.vaccination_notes ?? "",
-      fiv_status: cat.fiv_status,
-      felv_status: cat.felv_status,
-      fip_status: cat.fip_status,
-      medical_notes: cat.medical_notes ?? "",
-      personality_notes: cat.personality_notes ?? "",
-      notes: cat.notes ?? "",
-    });
-    setSaveError(null);
-    resetLocationDraft();
-    setDialogOpen(true);
+  function updateAnswer(application: AdoptionEntranceApplication, key: string, value: string) {
+    const base = answersFor(application, drafts);
+    setSaved(false);
+    setDrafts((current) => ({
+      ...current,
+      [application.id]: { ...(current[application.id] ?? base), [key]: value },
+    }));
   }
 
   async function uploadPhoto(file: File) {
+    if (!editing) return;
     setUploadingPhoto(true);
     setSaveError(null);
     const data = new FormData();
     data.append("file", file);
-    if (editing?.id) data.append("cat_id", editing.id);
-    const response = await fetch("/api/adoption/cats/photo", {
-      method: "POST",
-      body: data,
-    });
+    data.append("cat_id", editing.id);
+    const response = await fetch("/api/adoption/cats/photo", { method: "POST", body: data });
     const result = await response.json().catch(() => null);
     setUploadingPhoto(false);
     if (!response.ok) {
       setSaveError(result?.error ?? "Unable to upload photo");
       return;
     }
-    setForm((prev) => ({ ...prev, profile_photo_url: result.profile_photo_url ?? "" }));
+    setPhotoUrl(typeof result?.profile_photo_url === "string" ? result.profile_photo_url : null);
+    router.refresh();
   }
 
-  async function save() {
-    setSaving(true);
+  async function clearPhoto() {
+    if (!editing) return;
+    setUploadingPhoto(true);
     setSaveError(null);
     const response = await fetch("/api/adoption/cats/save", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        id: editing?.id,
-        ...form,
-        sex: form.sex || null,
-        location_id: form.location_id || null,
-        profile_photo_url: form.profile_photo_url || null,
+        id: editing.id,
+        name: editing.name,
+        age_description: editing.age_description,
+        sex: editing.sex,
+        status: editing.status,
+        location_id: editing.location_id,
+        profile_photo_url: null,
+        spayed_neutered: editing.spayed_neutered,
+        vaccinated: editing.vaccinated,
+        vaccination_notes: editing.vaccination_notes,
+        fiv_status: editing.fiv_status,
+        felv_status: editing.felv_status,
+        fip_status: editing.fip_status,
+        medical_notes: editing.medical_notes,
+        personality_notes: editing.personality_notes,
+        notes: editing.notes,
       }),
     });
     const result = await response.json().catch(() => null);
-    setSaving(false);
+    setUploadingPhoto(false);
     if (!response.ok) {
-      setSaveError(result?.error ?? "Unable to save cat");
+      setSaveError(result?.error ?? "Unable to remove photo");
       return;
     }
-    setDialogOpen(false);
+    setPhotoUrl(null);
     router.refresh();
+  }
+
+  async function saveRecord() {
+    if (!editingRecord) return;
+    setSaving(true);
+    setSaveError(null);
+    setSaved(false);
+    try {
+      const response = await fetch("/api/adoption/entrance/update", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: editingRecord.id,
+          answers: answersFor(editingRecord, drafts),
+        }),
+      });
+      const result = await response.json().catch(() => null);
+      if (!response.ok) {
+        setSaveError(result?.error ?? "Unable to save this cat.");
+        return;
+      }
+      if (result?.answers) {
+        setDrafts((current) => ({ ...current, [editingRecord.id]: result.answers }));
+      }
+      setSaved(true);
+      router.refresh();
+    } catch {
+      setSaveError("Network error — check your connection and try again.");
+    } finally {
+      setSaving(false);
+    }
   }
 
   async function remove(cat: AdoptableCat) {
@@ -359,6 +301,9 @@ export function AdoptableCatsManager({ cats: initial, locations }: AdoptableCats
     }
     router.refresh();
   }
+
+  const answers = editingRecord ? answersFor(editingRecord, drafts) : null;
+  const section = ENTRANCE_SECTIONS.find((entry) => entry.id === sectionId) ?? ENTRANCE_SECTIONS[0];
 
   return (
     <div className="space-y-4">
@@ -396,10 +341,6 @@ export function AdoptableCatsManager({ cats: initial, locations }: AdoptableCats
           <Button type="button" size="sm" variant="outline" className="h-8 px-2.5" asChild>
             <Link href="/adoption/locations">Locations</Link>
           </Button>
-          <Button type="button" size="sm" className="h-8 px-2.5" onClick={openNew}>
-            <Plus className="mr-1 h-3.5 w-3.5" />
-            Add cat
-          </Button>
         </div>
       </div>
 
@@ -408,28 +349,27 @@ export function AdoptableCatsManager({ cats: initial, locations }: AdoptableCats
         columns={columns}
         rows={rows}
         getRowKey={(row) => row.id}
-        emptyMessage="No adoptable cats yet. Add a cat to start the adoption roster."
+        emptyMessage="No cats yet. Cats appear here after a rescue application is approved."
       />
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{editing ? "Edit adoptable cat" : "Add adoptable cat"}</DialogTitle>
+            <DialogTitle>{editing?.name ?? "Cat record"}</DialogTitle>
           </DialogHeader>
-          <div className="space-y-5">
-            <section className="space-y-3 rounded-lg border p-4">
-              <p className="text-sm font-semibold">Profile photo</p>
+          {editing && answers && editingRecord && section ? (
+            <div className="space-y-5">
               <div className="flex items-center gap-4">
-                {form.profile_photo_url ? (
+                {photoUrl ? (
                   <Image
-                    src={form.profile_photo_url}
-                    alt={form.name || "Cat photo"}
-                    width={80}
-                    height={80}
-                    className="h-20 w-20 rounded-full object-cover"
+                    src={photoUrl}
+                    alt={editing.name}
+                    width={64}
+                    height={64}
+                    className="h-16 w-16 rounded-full object-cover"
                   />
                 ) : (
-                  <div className="flex h-20 w-20 items-center justify-center rounded-full bg-muted text-sm text-muted-foreground">
+                  <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted text-xs text-muted-foreground">
                     No photo
                   </div>
                 )}
@@ -439,417 +379,97 @@ export function AdoptableCatsManager({ cats: initial, locations }: AdoptableCats
                     type="file"
                     accept="image/jpeg,image/png,image/webp,image/gif"
                     className="hidden"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
+                    onChange={(event) => {
+                      const file = event.target.files?.[0];
                       if (file) void uploadPhoto(file);
-                      e.target.value = "";
+                      event.target.value = "";
                     }}
                   />
                   <Button
                     type="button"
+                    size="sm"
                     variant="outline"
                     disabled={uploadingPhoto}
                     onClick={() => photoInputRef.current?.click()}
                   >
                     <Upload className="mr-2 h-4 w-4" />
-                    {uploadingPhoto
-                      ? "Uploading…"
-                      : form.profile_photo_url
-                        ? "Replace photo"
-                        : "Upload photo"}
+                    {uploadingPhoto ? "Uploading…" : photoUrl ? "Replace photo" : "Upload photo"}
                   </Button>
-                  {form.profile_photo_url && (
+                  {photoUrl ? (
                     <Button
                       type="button"
-                      variant="ghost"
                       size="sm"
-                      onClick={() => setForm({ ...form, profile_photo_url: "" })}
+                      variant="ghost"
+                      disabled={uploadingPhoto}
+                      onClick={() => void clearPhoto()}
                     >
                       Remove photo
                     </Button>
-                  )}
-                  <p className="text-xs text-muted-foreground">
-                    One profile photo. JPEG, PNG, WebP, or GIF up to 5MB.
-                  </p>
+                  ) : null}
                 </div>
               </div>
-            </section>
 
-            <section className="space-y-3 rounded-lg border p-4">
-              <p className="text-sm font-semibold">Cat details</p>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div className="space-y-2 sm:col-span-2">
-                  <Label>Name</Label>
-                  <Input
-                    value={form.name}
-                    onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Age</Label>
-                  <Input
-                    placeholder="e.g. 2 years, 4 months"
-                    value={form.age_description}
-                    onChange={(e) => setForm({ ...form, age_description: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Sex</Label>
-                  <Select
-                    value={form.sex || NONE}
-                    onValueChange={(value) =>
-                      setForm({ ...form, sex: value === NONE ? "" : (value as AdoptableCatSex) })
-                    }
+              <div className="flex flex-wrap gap-2">
+                {ENTRANCE_SECTIONS.map((entry) => (
+                  <button
+                    key={entry.id}
+                    type="button"
+                    className={`rounded-full border px-2 py-1 text-xs ${
+                      section.id === entry.id
+                        ? "border-primary bg-primary text-primary-foreground"
+                        : "border-transparent bg-muted text-muted-foreground"
+                    }`}
+                    onClick={() => setSectionId(entry.id)}
                   >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value={NONE}>Unknown / not set</SelectItem>
-                      {ADOPTABLE_CAT_SEXES.map((entry) => (
-                        <SelectItem key={entry.value} value={entry.value}>
-                          {entry.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Status</Label>
-                  <Select
-                    value={form.status}
-                    onValueChange={(value) =>
-                      setForm({ ...form, status: value as AdoptableCatStatus })
-                    }
+                    {entry.title}
+                  </button>
+                ))}
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                {section.fields.map((field) => (
+                  <div
+                    key={field.key}
+                    className={field.kind === "textarea" ? "space-y-2 sm:col-span-2" : "space-y-2"}
                   >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {ADOPTABLE_CAT_STATUSES.map((entry) => (
-                        <SelectItem key={entry.value} value={entry.value}>
-                          {entry.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Location</Label>
-                  <Select
-                    value={form.location_id || NONE}
-                    onValueChange={(value) =>
-                      setForm({ ...form, location_id: value === NONE ? "" : value })
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select location" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value={NONE}>Unassigned</SelectItem>
-                      {activeLocations.map((location) => (
-                        <SelectItem key={location.id} value={location.id}>
-                          {formatAdoptionLocationLine(location)}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {creatingLocation ? (
-                    <div className="space-y-3 rounded-md border bg-muted/30 p-3">
-                      <p className="text-sm font-medium">New location</p>
-                      <div className="space-y-2">
-                        <Label>Name</Label>
-                        <Input
-                          value={locationForm.name}
-                          placeholder="Pet store or foster name"
-                          onChange={(e) =>
-                            setLocationForm({ ...locationForm, name: e.target.value })
-                          }
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Type</Label>
-                        <Select
-                          value={locationForm.location_type}
-                          onValueChange={(value) =>
-                            setLocationForm({
-                              ...locationForm,
-                              location_type: value as AdoptionLocationType,
-                            })
-                          }
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {ADOPTION_LOCATION_TYPES.map((entry) => (
-                              <SelectItem key={entry.value} value={entry.value}>
-                                {entry.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <AddressAutocomplete
-                        label="Street address"
-                        defaultValue={locationForm.address}
-                        onAddressChange={(address) =>
-                          setLocationForm((current) => ({ ...current, address }))
-                        }
-                        onSelect={(parts) =>
-                          setLocationForm((current) => ({
-                            ...current,
-                            address: parts.address,
-                            city: parts.city || current.city,
-                            state: parts.state || current.state,
-                            zip: parts.zip || current.zip,
-                          }))
-                        }
-                      />
-                      <div className="grid gap-3 sm:grid-cols-3">
-                        <div className="space-y-2">
-                          <Label>City</Label>
-                          <Input
-                            value={locationForm.city}
-                            onChange={(e) =>
-                              setLocationForm({ ...locationForm, city: e.target.value })
-                            }
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label>State</Label>
-                          <Input
-                            value={locationForm.state}
-                            onChange={(e) =>
-                              setLocationForm({ ...locationForm, state: e.target.value })
-                            }
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label>ZIP</Label>
-                          <Input
-                            value={locationForm.zip}
-                            onChange={(e) =>
-                              setLocationForm({ ...locationForm, zip: e.target.value })
-                            }
-                          />
-                        </div>
-                      </div>
-                      <div className="grid gap-3 sm:grid-cols-2">
-                        <div className="space-y-2">
-                          <Label>Contact name</Label>
-                          <Input
-                            value={locationForm.contact_name}
-                            onChange={(e) =>
-                              setLocationForm({ ...locationForm, contact_name: e.target.value })
-                            }
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label>Contact phone</Label>
-                          <Input
-                            value={locationForm.contact_phone}
-                            onChange={(e) =>
-                              setLocationForm({ ...locationForm, contact_phone: e.target.value })
-                            }
-                          />
-                        </div>
-                        <div className="space-y-2 sm:col-span-2">
-                          <Label>Contact email</Label>
-                          <Input
-                            type="email"
-                            value={locationForm.contact_email}
-                            onChange={(e) =>
-                              setLocationForm({ ...locationForm, contact_email: e.target.value })
-                            }
-                          />
-                        </div>
-                      </div>
-                      {locationError ? (
-                        <p className="text-sm text-destructive">{locationError}</p>
+                    <Label htmlFor={`entrance-${editingRecord.id}-${field.key}`}>
+                      {field.label}
+                      {field.staff && !field.submittedStamp ? (
+                        <span className="ml-2 text-xs font-normal text-muted-foreground">Portal only</span>
                       ) : null}
-                      <div className="flex gap-2">
-                        <Button
-                          type="button"
-                          size="sm"
-                          disabled={savingLocation}
-                          onClick={() => void saveNewLocation()}
-                        >
-                          {savingLocation ? (
-                            <>
-                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                              Saving…
-                            </>
-                          ) : (
-                            "Save location"
-                          )}
-                        </Button>
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="outline"
-                          disabled={savingLocation}
-                          onClick={resetLocationDraft}
-                        >
-                          Cancel
-                        </Button>
-                      </div>
-                    </div>
-                  ) : (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        setLocationError(null);
-                        setCreatingLocation(true);
-                      }}
-                    >
-                      <Plus className="mr-1.5 h-4 w-4" />
-                      Add location
-                    </Button>
-                  )}
-                </div>
+                    </Label>
+                    {field.submittedStamp ? (
+                      <p className="text-sm">
+                        {new Date(editingRecord.created_at).toLocaleString(undefined, {
+                          dateStyle: "medium",
+                          timeStyle: "short",
+                        })}
+                      </p>
+                    ) : (
+                      <FieldControl
+                        field={{ ...field, key: `${editingRecord.id}-${field.key}` }}
+                        value={answers[field.key] ?? ""}
+                        invalid={false}
+                        onChange={(value) => updateAnswer(editingRecord, field.key, value)}
+                      />
+                    )}
+                  </div>
+                ))}
               </div>
-            </section>
 
-            <section className="space-y-3 rounded-lg border p-4">
-              <p className="text-sm font-semibold">Medical records</p>
-              <div className="flex flex-wrap gap-6">
-                <label className="flex items-center gap-2 text-sm">
-                  <Checkbox
-                    checked={form.spayed_neutered === true}
-                    onCheckedChange={(checked) =>
-                      setForm({
-                        ...form,
-                        spayed_neutered: checked === true ? true : checked === false ? false : null,
-                      })
-                    }
-                  />
-                  Spayed / neutered
-                </label>
-                <label className="flex items-center gap-2 text-sm">
-                  <Checkbox
-                    checked={form.vaccinated === true}
-                    onCheckedChange={(checked) =>
-                      setForm({
-                        ...form,
-                        vaccinated: checked === true ? true : checked === false ? false : null,
-                      })
-                    }
-                  />
-                  Vaccinated
-                </label>
+              <div className="flex flex-wrap items-center gap-3">
+                <Button type="button" disabled={saving} onClick={() => void saveRecord()}>
+                  {saving ? "Saving..." : "Save changes"}
+                </Button>
+                {saved && !saveError ? <p className="text-sm text-muted-foreground">Saved</p> : null}
+                {saveError ? <p className="text-sm text-destructive">{saveError}</p> : null}
               </div>
-              <div className="space-y-2">
-                <Label>Vaccination notes</Label>
-                <Input
-                  placeholder="FVRCP, rabies dates…"
-                  value={form.vaccination_notes}
-                  onChange={(e) => setForm({ ...form, vaccination_notes: e.target.value })}
-                />
-              </div>
-              <div className="grid gap-3 sm:grid-cols-3">
-                <div className="space-y-2">
-                  <Label>FIV</Label>
-                  <Select
-                    value={form.fiv_status}
-                    onValueChange={(value) =>
-                      setForm({ ...form, fiv_status: value as DiseaseTestStatus })
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {DISEASE_TEST_STATUSES.map((entry) => (
-                        <SelectItem key={entry.value} value={entry.value}>
-                          {entry.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>FeLV</Label>
-                  <Select
-                    value={form.felv_status}
-                    onValueChange={(value) =>
-                      setForm({ ...form, felv_status: value as DiseaseTestStatus })
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {DISEASE_TEST_STATUSES.map((entry) => (
-                        <SelectItem key={entry.value} value={entry.value}>
-                          {entry.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>FIP</Label>
-                  <Select
-                    value={form.fip_status}
-                    onValueChange={(value) => setForm({ ...form, fip_status: value as FipStatus })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {FIP_STATUSES.map((entry) => (
-                        <SelectItem key={entry.value} value={entry.value}>
-                          {entry.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label>Medical notes</Label>
-                <Textarea
-                  rows={3}
-                  value={form.medical_notes}
-                  onChange={(e) => setForm({ ...form, medical_notes: e.target.value })}
-                  placeholder="Treatments, special needs, vet history…"
-                />
-              </div>
-            </section>
-
-            <section className="space-y-3 rounded-lg border p-4">
-              <p className="text-sm font-semibold">Notes</p>
-              <div className="space-y-2">
-                <Label>Personality / temperament</Label>
-                <Textarea
-                  rows={2}
-                  value={form.personality_notes}
-                  onChange={(e) => setForm({ ...form, personality_notes: e.target.value })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>General notes</Label>
-                <Textarea
-                  rows={2}
-                  value={form.notes}
-                  onChange={(e) => setForm({ ...form, notes: e.target.value })}
-                />
-              </div>
-            </section>
-
-            {saveError && <p className="text-sm text-destructive">{saveError}</p>}
-            <div className="flex justify-end gap-2">
-              <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
-                Cancel
-              </Button>
-              <Button type="button" onClick={() => void save()} disabled={saving || uploadingPhoto}>
-                {saving ? "Saving…" : "Save cat"}
-              </Button>
             </div>
-          </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              This cat does not have a rescue application record yet.
+            </p>
+          )}
         </DialogContent>
       </Dialog>
     </div>

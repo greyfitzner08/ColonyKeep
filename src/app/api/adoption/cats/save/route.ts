@@ -96,7 +96,13 @@ export async function POST(request: NextRequest) {
   const service = await createServiceClient();
   const id = typeof body.id === "string" ? body.id : null;
 
-  if (id) {
+  if (!id) {
+    return NextResponse.json(
+      { error: "New cats are added through the rescue application." },
+      { status: 400 }
+    );
+  }
+
     const { created_by_email: _createdBy, ...updatePayload } = payload;
     const { data, error } = await service
       .from("adoptable_cats")
@@ -106,13 +112,4 @@ export async function POST(request: NextRequest) {
       .single();
     if (error) return NextResponse.json({ error: error.message }, { status: 400 });
     return NextResponse.json({ cat: data });
-  }
-
-  const { data, error } = await service
-    .from("adoptable_cats")
-    .insert(payload)
-    .select("*, location:adoption_locations(*)")
-    .single();
-  if (error) return NextResponse.json({ error: error.message }, { status: 400 });
-  return NextResponse.json({ cat: data });
 }
