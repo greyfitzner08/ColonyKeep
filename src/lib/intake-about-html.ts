@@ -1,4 +1,4 @@
-const ALLOWED_TAGS = new Set(["p", "div", "br", "strong", "b", "em", "i", "u", "span"]);
+const ALLOWED_TAGS = new Set(["p", "div", "br", "strong", "b", "em", "i", "u", "span", "ul", "li"]);
 const DROP_CONTENT_TAGS = new Set([
   "script",
   "style",
@@ -185,6 +185,33 @@ export function sanitizeIntakeAboutHtml(
         continue;
       }
 
+      if (tag === "ul" || tag === "li") {
+        if (tag === "ul") {
+          while (stack.length > 0) {
+            const top = stack[stack.length - 1];
+            if (top.tag === "li") break;
+            stack.pop();
+            html += `</${top.emitted}>`;
+          }
+          html += "<ul>";
+          if (!selfClosing) stack.push({ tag: "ul", emitted: "ul" });
+          continue;
+        }
+        while (stack.length > 0) {
+          const top = stack[stack.length - 1];
+          if (top.tag === "ul") break;
+          stack.pop();
+          html += `</${top.emitted}>`;
+        }
+        if (stack[stack.length - 1]?.tag !== "ul") {
+          html += "<ul>";
+          stack.push({ tag: "ul", emitted: "ul" });
+        }
+        html += "<li>";
+        if (!selfClosing) stack.push({ tag: "li", emitted: "li" });
+        continue;
+      }
+
       if (tag === "a" && options.allowLinks) {
         const href = sanitizeLinkHref(readAttribute(attrs, "href") ?? "");
         if (!href) continue;
@@ -248,13 +275,21 @@ export function sanitizeIntakeAboutHtml(
     if (open) html += `</${open.emitted}>`;
   }
 
-  return html.replace(/<(p|span|strong|b|em|i|u|a)>\s*<\/\1>/gi, "").trim();
+  let cleaned = html.trim();
+  let previous = "";
+  while (cleaned !== previous) {
+    previous = cleaned;
+    cleaned = cleaned
+      .replace(/<(p|span|strong|b|em|i|u|a|li)>\s*<\/\1>/gi, "")
+      .replace(/<ul>\s*<\/ul>/gi, "");
+  }
+  return cleaned.trim();
 }
 
 export function intakeAboutPlainText(value: string): string {
   return sanitizeIntakeAboutHtml(value)
     .replace(/<br\s*\/?>/gi, "\n")
-    .replace(/<\/p>/gi, "\n")
+    .replace(/<\/(p|li|ul)>/gi, "\n")
     .replace(/<[^>]+>/g, "")
     .replace(/&nbsp;/gi, " ")
     .replace(/&amp;/gi, "&")

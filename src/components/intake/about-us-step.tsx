@@ -28,7 +28,7 @@ export function AboutUsStep({
         <p className="text-sm text-muted-foreground">{description}</p>
       </div>
       <div
-        className="space-y-3 text-sm leading-relaxed text-foreground [&_a]:font-medium [&_a]:text-primary [&_a]:underline [&_a]:underline-offset-2 [&_p+p]:mt-3"
+        className="space-y-3 text-sm leading-relaxed text-foreground [&_a]:font-medium [&_a]:text-primary [&_a]:underline [&_a]:underline-offset-2 [&_li+li]:mt-1 [&_p+p]:mt-3 [&_ul]:my-2 [&_ul]:list-disc [&_ul]:pl-5"
         dangerouslySetInnerHTML={{ __html: html }}
       />
       {links.length > 0 && (
