@@ -13,7 +13,6 @@ export default async function AdoptionEntrancePage() {
       aboutMessage={branding.adoption_entrance_about_message}
       buttonUrl={branding.adoption_entrance_button_url}
       buttonText={branding.adoption_entrance_button_text}
-      links={branding.adoption_entrance_links}
     />
   );
 }

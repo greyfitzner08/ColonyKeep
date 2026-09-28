@@ -24,8 +24,6 @@ import {
   type EntranceAnswers,
   type EntranceField,
 } from "@/lib/adoption/entrance";
-import type { RescueAboutLink } from "@/lib/branding";
-
 const invalidClass = "border-destructive focus-visible:ring-destructive";
 
 export function FieldControl({
@@ -89,12 +87,10 @@ export function EntranceApplicationForm({
   aboutMessage,
   buttonUrl,
   buttonText,
-  links,
 }: {
   aboutMessage: string;
   buttonUrl: string | null;
   buttonText: string;
-  links: RescueAboutLink[];
 }) {
   const sections = publicEntranceSections();
   const steps = [
@@ -222,10 +218,8 @@ export function EntranceApplicationForm({
                 message={aboutMessage}
                 donateUrl={buttonUrl}
                 donateText={buttonText}
-                links={links}
                 allowLinks
                 matchEditorSpacing
-                buttonFirst
                 description="A few things to know before you submit a cat."
               />
               <div className="flex justify-end">

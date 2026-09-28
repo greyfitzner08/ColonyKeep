@@ -1,19 +1,15 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { ImagePlus, RotateCcw, Trash2 } from "lucide-react";
+import { ChevronDown, ImagePlus, RotateCcw, Trash2 } from "lucide-react";
 import { BrandMark } from "@/components/branding/brand-mark";
 import { brandingStyleProps } from "@/components/branding/branding-provider";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { IntakeAboutEditor } from "@/components/admin/intake-about-editor";
 import { Label } from "@/components/ui/label";
 import {
-  DEFAULT_INTAKE_ABOUT_MESSAGE,
-  DEFAULT_INTAKE_DONATE_TEXT,
-  DEFAULT_INTAKE_DONATE_URL,
   DEFAULT_PRIMARY_COLOR,
   DEFAULT_SIDEBAR_COLOR,
   isValidHexColor,
@@ -33,12 +29,40 @@ type BrandingPayload = {
   primary_color: string;
   sidebar_color: string;
   google_calendar_embed_url: string | null;
-  intake_about_message: string;
-  intake_donate_url: string | null;
-  intake_donate_text: string;
 };
 
 type LogoSlot = "dark" | "light";
+
+function CollapsibleCard({
+  title,
+  description,
+  children,
+}: {
+  title: string;
+  description?: string;
+  children: ReactNode;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <Card>
+      <CardHeader className="p-0">
+        <button
+          type="button"
+          className="flex w-full items-start justify-between gap-3 px-6 py-4 text-left"
+          aria-expanded={open}
+          onClick={() => setOpen((current) => !current)}
+        >
+          <span>
+            <CardTitle className="text-base">{title}</CardTitle>
+            {description ? <CardDescription className="mt-1">{description}</CardDescription> : null}
+          </span>
+          <ChevronDown className={`mt-1 h-4 w-4 shrink-0 transition-transform ${open ? "rotate-180" : ""}`} />
+        </button>
+      </CardHeader>
+      {open ? <CardContent className="space-y-4 border-t pt-4">{children}</CardContent> : null}
+    </Card>
+  );
+}
 
 function ColorField({
   id,
@@ -93,15 +117,6 @@ export function BrandingSettings({ branding }: BrandingSettingsProps) {
   const [calendarEmbedUrl, setCalendarEmbedUrl] = useState(
     branding.google_calendar_embed_url ?? ""
   );
-  const [intakeAboutMessage, setIntakeAboutMessage] = useState(
-    branding.intake_about_message || DEFAULT_INTAKE_ABOUT_MESSAGE
-  );
-  const [intakeDonateUrl, setIntakeDonateUrl] = useState(
-    branding.intake_donate_url ?? DEFAULT_INTAKE_DONATE_URL
-  );
-  const [intakeDonateText, setIntakeDonateText] = useState(
-    branding.intake_donate_text || DEFAULT_INTAKE_DONATE_TEXT
-  );
   const [saving, setSaving] = useState(false);
   const [uploadingSlot, setUploadingSlot] = useState<LogoSlot | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -143,9 +158,6 @@ export function BrandingSettings({ branding }: BrandingSettingsProps) {
       setPrimaryColor(saved.primary_color);
       setSidebarColor(saved.sidebar_color);
       setCalendarEmbedUrl(saved.google_calendar_embed_url ?? "");
-      setIntakeAboutMessage(saved.intake_about_message || DEFAULT_INTAKE_ABOUT_MESSAGE);
-      setIntakeDonateUrl(saved.intake_donate_url ?? "");
-      setIntakeDonateText(saved.intake_donate_text || DEFAULT_INTAKE_DONATE_TEXT);
     }
     setSavedMessage("Branding saved. Theme colors apply across the app after refresh.");
     router.refresh();
@@ -162,9 +174,6 @@ export function BrandingSettings({ branding }: BrandingSettingsProps) {
       primary_color: normalizeHexColor(primaryColor, DEFAULT_PRIMARY_COLOR),
       sidebar_color: normalizeHexColor(sidebarColor, DEFAULT_SIDEBAR_COLOR),
       google_calendar_embed_url: calendarEmbedUrl.trim() || null,
-      intake_about_message: intakeAboutMessage.trim() || DEFAULT_INTAKE_ABOUT_MESSAGE,
-      intake_donate_url: intakeDonateUrl.trim() || null,
-      intake_donate_text: intakeDonateText.trim() || DEFAULT_INTAKE_DONATE_TEXT,
       ...overrides,
     };
   }
@@ -253,15 +262,11 @@ export function BrandingSettings({ branding }: BrandingSettingsProps) {
   const busy = saving || uploadingSlot != null;
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_300px]">
-      <Card>
-        <CardHeader>
-          <CardTitle>App branding</CardTitle>
-          <CardDescription>
-            Set the name, logos for light and dark surfaces, and theme colors used across the app.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
+    <div className="max-w-3xl space-y-3">
+      <CollapsibleCard
+        title="App name and logos"
+        description="The name and logos used on the sidebar, login, and public pages."
+      >
           <div className="space-y-2">
             <Label htmlFor="branding-app-name">App name</Label>
             <Input
@@ -367,15 +372,13 @@ export function BrandingSettings({ branding }: BrandingSettingsProps) {
               </p>
             </div>
           </div>
+      </CollapsibleCard>
 
-          <div className="space-y-4 rounded-lg border p-4">
-            <div className="flex flex-wrap items-start justify-between gap-2">
-              <div>
-                <p className="text-sm font-medium">Theme colors</p>
-                <p className="text-xs text-muted-foreground">
-                  Primary drives buttons and links. Sidebar sets the navigation background.
-                </p>
-              </div>
+      <CollapsibleCard
+        title="Theme colors"
+        description="Primary drives buttons and links. Sidebar sets the navigation background."
+      >
+            <div className="flex justify-end">
               <Button
                 type="button"
                 variant="ghost"
@@ -403,17 +406,12 @@ export function BrandingSettings({ branding }: BrandingSettingsProps) {
                 onChange={setSidebarColor}
               />
             </div>
-          </div>
+      </CollapsibleCard>
 
-          <div className="space-y-2 rounded-lg border p-4">
-            <div>
-              <p className="text-sm font-medium">Public Google Calendar</p>
-              <p className="text-xs text-muted-foreground">
-                Shown on the Shift Board for all volunteers. In Google Calendar → Settings →
-                Integrate calendar, copy the embed URL (or the full iframe HTML). The calendar must
-                be set to public.
-              </p>
-            </div>
+      <CollapsibleCard
+        title="Public Google Calendar"
+        description="Shown on the Shift Board. Paste the public embed URL from Google Calendar settings."
+      >
             <Label htmlFor="branding-google-calendar">Embed URL</Label>
             <Input
               id="branding-google-calendar"
@@ -433,56 +431,7 @@ export function BrandingSettings({ branding }: BrandingSettingsProps) {
                 Clear calendar
               </Button>
             )}
-          </div>
-
-          <div className="space-y-3 rounded-lg border p-4">
-            <div>
-              <p className="text-sm font-medium">Colony request intro</p>
-              <p className="text-xs text-muted-foreground">
-                Shown as the first step of the public report-a-colony form. Select text to make it
-                bold, italic, underlined, or a different color. The donate button uses the link and
-                label below.
-              </p>
-            </div>
-            <Label htmlFor="branding-intake-about">About us</Label>
-            <IntakeAboutEditor
-              id="branding-intake-about"
-              value={intakeAboutMessage}
-              disabled={busy}
-              onChange={setIntakeAboutMessage}
-            />
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              disabled={busy}
-              onClick={() => setIntakeAboutMessage(DEFAULT_INTAKE_ABOUT_MESSAGE)}
-            >
-              <RotateCcw className="h-3.5 w-3.5" />
-              Reset intro text
-            </Button>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="branding-donate-url">Donate link</Label>
-                <Input
-                  id="branding-donate-url"
-                  value={intakeDonateUrl}
-                  onChange={(event) => setIntakeDonateUrl(event.target.value)}
-                  placeholder="https://givebutter.com/…"
-                  className="font-mono text-sm"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="branding-donate-text">Donate button</Label>
-                <Input
-                  id="branding-donate-text"
-                  value={intakeDonateText}
-                  onChange={(event) => setIntakeDonateText(event.target.value)}
-                  maxLength={80}
-                />
-              </div>
-            </div>
-          </div>
+      </CollapsibleCard>
 
           {error && <p className="text-sm text-destructive">{error}</p>}
           {savedMessage && <p className="text-sm text-muted-foreground">{savedMessage}</p>}
@@ -499,14 +448,11 @@ export function BrandingSettings({ branding }: BrandingSettingsProps) {
           >
             {saving ? "Saving…" : "Save branding"}
           </Button>
-        </CardContent>
-      </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Preview</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
+      <CollapsibleCard
+        title="Preview"
+        description="Preview updates as you edit. Save to apply site-wide."
+      >
           <div
             className="rounded-lg border bg-sidebar p-4 text-sidebar-foreground"
             style={previewStyle}
@@ -544,11 +490,7 @@ export function BrandingSettings({ branding }: BrandingSettingsProps) {
               nameClassName="text-primary"
             />
           </div>
-          <p className="text-xs text-muted-foreground">
-            Preview updates as you edit. Save to apply site-wide.
-          </p>
-        </CardContent>
-      </Card>
+      </CollapsibleCard>
     </div>
   );
 }

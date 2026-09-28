@@ -711,7 +711,14 @@ export function ColonyIntakeForm({
                 />
               )}
 
-            {step === 0 && <AboutUsStep message={aboutMessage} donateUrl={donateUrl} donateText={donateText} />}
+            {step === 0 && (
+              <AboutUsStep
+                message={aboutMessage}
+                donateUrl={donateUrl}
+                donateText={donateText}
+                allowLinks
+              />
+            )}
 
             {step === 1 && (
               <>

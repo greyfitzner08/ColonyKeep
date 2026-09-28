@@ -55,7 +55,6 @@ export default async function AdoptionPage({
         aboutMessage={branding.adoption_entrance_about_message}
         buttonText={branding.adoption_entrance_button_text}
         buttonUrl={branding.adoption_entrance_button_url}
-        links={branding.adoption_entrance_links}
       />
     </div>
   );

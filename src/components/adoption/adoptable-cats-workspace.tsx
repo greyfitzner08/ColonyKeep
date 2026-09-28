@@ -7,7 +7,6 @@ import { AdoptableCatsManager } from "@/components/adoption/adoptable-cats-manag
 import { RescueAboutEditor } from "@/components/adoption/entrance-about-editor";
 import { EntranceReviewManager } from "@/components/adoption/entrance-review-manager";
 import { Button } from "@/components/ui/button";
-import type { RescueAboutLink } from "@/lib/branding";
 import type { AdoptionEntranceApplication } from "@/lib/adoption/entrance";
 import type { AdoptableCat, AdoptionLocation } from "@/lib/adoption/constants";
 
@@ -21,7 +20,6 @@ export function AdoptableCatsWorkspace({
   aboutMessage,
   buttonText,
   buttonUrl,
-  links,
 }: {
   cats: AdoptableCat[];
   locations: AdoptionLocation[];
@@ -30,7 +28,6 @@ export function AdoptableCatsWorkspace({
   aboutMessage: string;
   buttonText: string;
   buttonUrl: string | null;
-  links: RescueAboutLink[];
 }) {
   const [section, setSection] = useState<Section>(initialSection);
   const pending = applications.filter((application) => application.status === "pending").length;
@@ -83,7 +80,6 @@ export function AdoptableCatsWorkspace({
           initialMessage={aboutMessage}
           initialButtonText={buttonText}
           initialButtonUrl={buttonUrl}
-          initialLinks={links}
         />
       )}
     </div>

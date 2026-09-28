@@ -184,7 +184,7 @@ export function normalizePlatformBranding(
     intake_about_message: about || DEFAULT_INTAKE_ABOUT_MESSAGE,
     intake_donate_url:
       donateUrl === undefined ? DEFAULT_INTAKE_DONATE_URL : donateUrl,
-    intake_donate_text: donateText || DEFAULT_INTAKE_DONATE_TEXT,
+    intake_donate_text: donateText ?? "",
     adoption_entrance_about_message: entranceAbout || DEFAULT_ENTRANCE_ABOUT_MESSAGE,
     adoption_entrance_button_text: entranceButtonText.slice(0, 80),
     adoption_entrance_button_url: entranceButtonUrl === undefined ? null : entranceButtonUrl,

@@ -831,7 +831,6 @@ export const IntakeAboutEditor = forwardRef<
           </Button>
         </form>
       )}
-      {preview}
       <FrozenEditor
         id={id}
         editorRef={editorRef}
@@ -841,6 +840,7 @@ export const IntakeAboutEditor = forwardRef<
           disabled && "cursor-not-allowed opacity-50"
         )}
       />
+      {preview}
     </div>
   );
 });

@@ -5,7 +5,6 @@ import {
   DEFAULT_SIDEBAR_COLOR,
   isValidHexColor,
   DEFAULT_INTAKE_ABOUT_MESSAGE,
-  DEFAULT_INTAKE_DONATE_TEXT,
   normalizeGoogleCalendarEmbedUrl,
   normalizeHexColor,
   normalizePlatformBranding,
@@ -76,6 +75,66 @@ export async function GET() {
   }
 }
 
+async function saveIntakeIntro(
+  body: {
+    intake_about_message?: unknown;
+    intake_donate_text?: unknown;
+    intake_donate_url?: unknown;
+  },
+  profileId: string
+): Promise<NextResponse> {
+  const aboutRaw = body.intake_about_message ?? null;
+  const aboutMessage =
+    typeof aboutRaw === "string" && intakeAboutPlainText(aboutRaw).trim()
+      ? sanitizeIntakeAboutHtml(aboutRaw, { allowLinks: true })
+      : DEFAULT_INTAKE_ABOUT_MESSAGE;
+  if (aboutMessage.length > MAX_INTAKE_ABOUT_LENGTH) {
+    return NextResponse.json({ error: "The colony request intro is too long." }, { status: 400 });
+  }
+
+  const donateTextRaw = body.intake_donate_text ?? "";
+  const donateText =
+    typeof donateTextRaw === "string" ? donateTextRaw.trim().slice(0, MAX_DONATE_TEXT_LENGTH) : "";
+  const donateRaw = body.intake_donate_url ?? null;
+  const donateUrl = normalizePublicHttpsUrl(
+    typeof donateRaw === "string" || donateRaw === null ? donateRaw : undefined
+  );
+  const warning =
+    donateUrl === undefined
+      ? "The button link needs to be a web address. Your text was saved."
+      : donateText && !donateUrl
+        ? "Add a link for the button, or clear the button label. Your text was saved."
+        : null;
+
+  const service = await createServiceClient();
+  const { data, error } = await service
+    .from("platform_branding")
+    .update({
+      intake_about_message: aboutMessage,
+      ...(warning
+        ? {}
+        : {
+            intake_donate_text: donateText,
+            intake_donate_url: donateUrl,
+          }),
+      updated_by: profileId,
+    })
+    .eq("id", 1)
+    .select(BRANDING_SELECT)
+    .maybeSingle();
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 400 });
+  }
+  if (!data) {
+    return NextResponse.json({ error: "Branding settings were not found." }, { status: 404 });
+  }
+  return NextResponse.json({
+    branding: normalizePlatformBranding(data),
+    warning,
+  });
+}
+
 export async function POST(request: NextRequest) {
   const { profile, response } = await requireApiRole(["admin"]);
   if (response) return response;
@@ -83,6 +142,10 @@ export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => null);
   if (!body || typeof body !== "object") {
     return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+  }
+
+  if ("section" in body && body.section === "intake") {
+    return saveIntakeIntro(body, profile!.id);
   }
 
   const appName = validateName((body as { app_name?: unknown }).app_name);
@@ -154,44 +217,6 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const aboutRaw = (body as { intake_about_message?: unknown }).intake_about_message;
-  const aboutMessage =
-    typeof aboutRaw === "string" && intakeAboutPlainText(aboutRaw).trim()
-      ? sanitizeIntakeAboutHtml(aboutRaw)
-      : DEFAULT_INTAKE_ABOUT_MESSAGE;
-  if (aboutMessage.length > MAX_INTAKE_ABOUT_LENGTH) {
-    return NextResponse.json(
-      { error: "The colony request intro is too long." },
-      { status: 400 }
-    );
-  }
-
-  const donateTextRaw = (body as { intake_donate_text?: unknown }).intake_donate_text;
-  const donateText =
-    typeof donateTextRaw === "string" && donateTextRaw.trim()
-      ? donateTextRaw.trim()
-      : DEFAULT_INTAKE_DONATE_TEXT;
-  if (donateText.length > MAX_DONATE_TEXT_LENGTH) {
-    return NextResponse.json(
-      { error: `Donate button text must be ${MAX_DONATE_TEXT_LENGTH} characters or fewer.` },
-      { status: 400 }
-    );
-  }
-
-  const donateRaw = (body as { intake_donate_url?: unknown }).intake_donate_url;
-  const donateUrl =
-    donateRaw === undefined
-      ? null
-      : normalizePublicHttpsUrl(
-          typeof donateRaw === "string" || donateRaw === null ? donateRaw : undefined
-        );
-  if (donateUrl === undefined) {
-    return NextResponse.json(
-      { error: "Donate link must be a valid http(s) URL." },
-      { status: 400 }
-    );
-  }
-
   const service = await createServiceClient();
   const payload = {
     id: 1,
@@ -201,9 +226,6 @@ export async function POST(request: NextRequest) {
     primary_color: primaryColor,
     sidebar_color: sidebarColor,
     google_calendar_embed_url: calendarEmbed,
-    intake_about_message: aboutMessage,
-    intake_donate_url: donateUrl,
-    intake_donate_text: donateText,
     updated_by: profile!.id,
   };
 

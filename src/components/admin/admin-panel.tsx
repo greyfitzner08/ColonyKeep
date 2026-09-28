@@ -3,6 +3,7 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AdminUsersManager } from "@/components/admin/admin-users-manager";
 import { BrandingSettings } from "@/components/admin/branding-settings";
+import { ColonyRequestIntroEditor } from "@/components/admin/colony-request-intro-editor";
 import { RoleDescriptionsManager } from "@/components/admin/role-descriptions-manager";
 import { TrapTeamsManager } from "@/components/admin/trap-teams-manager";
 import { VolunteerImporter } from "@/components/volunteers/volunteer-importer";
@@ -35,6 +36,7 @@ export function AdminPanel({
         <TabsTrigger value="teams">Trap Teams</TabsTrigger>
         <TabsTrigger value="roles">Volunteer Roles</TabsTrigger>
         <TabsTrigger value="branding">Branding</TabsTrigger>
+        <TabsTrigger value="colony-intro">Colony Request Intro</TabsTrigger>
         <TabsTrigger value="imports">Data Import</TabsTrigger>
       </TabsList>
 
@@ -61,6 +63,10 @@ export function AdminPanel({
 
       <TabsContent value="branding" className="mt-4">
         <BrandingSettings branding={branding} />
+      </TabsContent>
+
+      <TabsContent value="colony-intro" className="mt-4">
+        <ColonyRequestIntroEditor branding={branding} />
       </TabsContent>
 
       <TabsContent value="imports" className="mt-4 space-y-4">
