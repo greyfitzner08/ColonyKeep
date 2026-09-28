@@ -1,6 +1,13 @@
 export type EntranceReviewStatus = "pending" | "approved" | "denied";
 
-export type EntranceFieldKind = "text" | "textarea" | "date" | "yesno" | "select" | "vaccinations";
+export type EntranceFieldKind =
+  | "text"
+  | "textarea"
+  | "date"
+  | "yesno"
+  | "select"
+  | "vaccinations"
+  | "vet_care";
 
 export interface EntranceFieldOption {
   value: string;
@@ -115,7 +122,7 @@ const ENTRANCE_SECTION_SOURCE: EntranceSection[] = [
       { key: "vaccinations", label: "Vaccinations", kind: "vaccinations" },
       { key: "prior_vet_record", label: "Prior Veterinary Record / Clinic Name", kind: "text" },
       { key: "tests_treatments", label: "Tests / Treatments", kind: "textarea" },
-      { key: "next_vet_care_due", label: "Next Veterinary Care Due", kind: "text", staff: true },
+      { key: "next_vet_care_due", label: "Next Veterinary Care Due", kind: "vet_care", staff: true },
       { key: "microchipped", label: "Microchipped?", kind: "yesno" },
       { key: "microchip_brand", label: "Microchip Brand", kind: "text" },
       { key: "microchip_number", label: "Microchip Number", kind: "text" },
@@ -287,7 +294,12 @@ export function entranceFieldLabel(field: EntranceField, answers?: EntranceAnswe
 }
 
 export function entranceFieldSpansRow(field: Pick<EntranceField, "kind" | "key">): boolean {
-  return field.kind === "textarea" || field.kind === "vaccinations" || field.key === "name_changed";
+  return (
+    field.kind === "textarea" ||
+    field.kind === "vaccinations" ||
+    field.kind === "vet_care" ||
+    field.key === "name_changed"
+  );
 }
 
 export function applyEntranceAnswer(
@@ -374,6 +386,144 @@ export function formatVaccinationList(value: string): string {
     .join("\n");
 }
 
+export interface VetCareDueEntry {
+  service: string;
+  date: string;
+}
+
+export interface VetCareDueAlert {
+  applicationId: string;
+  catName: string;
+  service: string;
+  date: string;
+}
+
+export function parseVetCareDueList(value: string): VetCareDueEntry[] {
+  const trimmed = value.trim();
+  if (!trimmed) return [];
+  if (trimmed.startsWith("[")) {
+    try {
+      const parsed = JSON.parse(trimmed) as unknown;
+      if (Array.isArray(parsed)) {
+        return parsed.flatMap((item) => {
+          if (!item || typeof item !== "object") return [];
+          const row = item as Record<string, unknown>;
+          return [
+            {
+              service: typeof row.service === "string" ? row.service : "",
+              date: typeof row.date === "string" ? row.date : "",
+            },
+          ];
+        });
+      }
+    } catch {
+      // Older records stored a sentence instead of a list.
+    }
+  }
+  return [{ service: trimmed.slice(0, 200), date: "" }];
+}
+
+export function vetCareDueListError(rows: VetCareDueEntry[]): string | null {
+  const filled = rows.filter((row) => row.service.trim() || row.date);
+  if (filled.length > 12) return "List up to 12 veterinary services.";
+  for (const row of filled) {
+    if (!row.service.trim()) return "Enter the service for each due date.";
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(row.date)) return "Enter the date each service is due.";
+  }
+  return null;
+}
+
+function cleanVetCareDue(raw: string): { value: string; error?: string } {
+  const rows = parseVetCareDueList(raw).filter((row) => row.service.trim() || row.date);
+  const error = vetCareDueListError(rows);
+  if (error) return { value: "", error };
+  if (rows.length === 0) return { value: "" };
+  return {
+    value: JSON.stringify(
+      rows.map((row) => ({
+        service: row.service.trim().slice(0, 200),
+        date: row.date,
+      }))
+    ),
+  };
+}
+
+export function formatVetCareDueList(value: string): string {
+  return parseVetCareDueList(value)
+    .filter((row) => row.service.trim() || row.date)
+    .map((row) => {
+      const service = row.service.trim() || "Service";
+      const date = formatIsoDate(row.date);
+      return date ? `${service} — ${date}` : service;
+    })
+    .join("\n");
+}
+
+function startOfLocalDay(date: Date): Date {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+}
+
+export function daysUntilVetCare(date: string, asOf = new Date()): number | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return null;
+  const [year, month, day] = date.split("-").map(Number);
+  const due = new Date(year, month - 1, day);
+  const today = startOfLocalDay(asOf);
+  return Math.round((due.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+}
+
+export function collectVetCareDueAlerts(
+  applications: {
+    id: string;
+    cat_name: string;
+    status: string;
+    answers: Record<string, string | undefined>;
+  }[]
+): VetCareDueAlert[] {
+  const alerts: VetCareDueAlert[] = [];
+  for (const application of applications) {
+    if (application.status === "denied") continue;
+    if (application.answers.adopted === "yes") continue;
+    const renamed =
+      application.answers.name_changed === "yes" ? application.answers.new_name?.trim() : "";
+    const catName = renamed || application.cat_name.trim() || "Cat";
+    for (const row of parseVetCareDueList(application.answers.next_vet_care_due ?? "")) {
+      if (daysUntilVetCare(row.date) == null) continue;
+      const service = row.service.trim();
+      if (!service) continue;
+      alerts.push({
+        applicationId: application.id,
+        catName,
+        service,
+        date: row.date,
+      });
+    }
+  }
+  return alerts.sort((a, b) => a.date.localeCompare(b.date) || a.catName.localeCompare(b.catName));
+}
+
+/** Overdue dates, plus dates due within the next week — the same window as birthday banners. */
+export function upcomingVetCareAlerts(
+  alerts: VetCareDueAlert[],
+  asOf = new Date(),
+  withinDays = 7
+): VetCareDueAlert[] {
+  return alerts
+    .filter((alert) => {
+      const days = daysUntilVetCare(alert.date, asOf);
+      return days != null && days <= withinDays;
+    })
+    .sort((a, b) => a.date.localeCompare(b.date) || a.catName.localeCompare(b.catName));
+}
+
+export function vetCareDueTimingLabel(date: string, asOf = new Date()): string {
+  const days = daysUntilVetCare(date, asOf);
+  if (days == null) return "";
+  if (days < 0) return days === -1 ? "1 day overdue" : `${-days} days overdue`;
+  if (days === 0) return "today";
+  if (days === 1) return "tomorrow";
+  return formatIsoDate(date);
+}
+
 function allowedValue(field: EntranceField, value: string): string | null {
   const trimmed = value.trim();
   if (!trimmed) return "";
@@ -413,6 +563,12 @@ export function sanitizeEntranceAnswers(
       answers[field.key] = cleaned.value;
       continue;
     }
+    if (field.kind === "vet_care") {
+      const cleaned = cleanVetCareDue(raw);
+      if (cleaned.error) return { answers, error: cleaned.error };
+      answers[field.key] = cleaned.value;
+      continue;
+    }
     const next = allowedValue(field, raw);
     if (next == null) {
       return { answers, error: `Choose a valid answer for ${field.label}` };
@@ -434,6 +590,7 @@ export function entranceOptionLabel(fieldKey: string, value: string): string {
   const field = FIELD_BY_KEY.get(fieldKey);
   if (!field) return value;
   if (field.kind === "vaccinations") return formatVaccinationList(value) || "—";
+  if (field.kind === "vet_care") return formatVetCareDueList(value) || "—";
   if (field.kind === "yesno") return value === "yes" ? "Yes" : value === "no" ? "No" : value;
   const match = field.options?.find((option) => option.value === value);
   return match?.label ?? value;

@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { VaccinationList } from "@/components/adoption/vaccination-list";
+import { VetCareDueList } from "@/components/adoption/vet-care-due-list";
 import {
   emptyEntranceAnswers,
   entranceFieldLabel,
@@ -47,6 +48,9 @@ export function FieldControl({
   const id = `entrance-${field.key}`;
   if (field.kind === "vaccinations") {
     return <VaccinationList id={id} value={value} invalid={invalid} onChange={onChange} />;
+  }
+  if (field.kind === "vet_care") {
+    return <VetCareDueList id={id} value={value} invalid={invalid} onChange={onChange} />;
   }
   if (field.kind === "textarea") {
     return (

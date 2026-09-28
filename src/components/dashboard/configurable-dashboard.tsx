@@ -12,6 +12,8 @@ import { CommunityStatsDisplay, type CommunityStats } from "@/components/dashboa
 import { TrapTeamPanel } from "@/components/dashboard/trap-team-panel";
 import { DashboardSectionShell } from "@/components/dashboard/dashboard-section-shell";
 import { PendingClinicResultsBanner } from "@/components/appointments/pending-clinic-results-banner";
+import { VetCareDueBanner } from "@/components/dashboard/vet-care-due-banner";
+import type { VetCareDueAlert } from "@/lib/adoption/entrance";
 import type { ClinicResultAppointment } from "@/components/appointments/log-clinic-result-dialog";
 import { PageHeader } from "@/components/layout/page-header";
 import { formatDate } from "@/lib/utils";
@@ -59,6 +61,7 @@ interface ConfigurableDashboardProps {
   pendingAppointments: number;
   appointmentsScope: "program" | "mine";
   pendingClinicResults: ClinicResultAppointment[];
+  vetCareDue: VetCareDueAlert[];
   communityStats: CommunityStats | null;
 }
 
@@ -108,6 +111,7 @@ export function ConfigurableDashboard({
   pendingAppointments,
   appointmentsScope,
   pendingClinicResults,
+  vetCareDue,
   communityStats,
 }: ConfigurableDashboardProps) {
   const visibleSectionIds = useMemo(() => {
@@ -337,6 +341,7 @@ export function ConfigurableDashboard({
         }
       />
 
+      <VetCareDueBanner alerts={vetCareDue} />
       <PendingClinicResultsBanner appointments={pendingClinicResults} />
 
       <div className="space-y-4">

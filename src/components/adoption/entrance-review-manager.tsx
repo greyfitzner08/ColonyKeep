@@ -13,6 +13,7 @@ import {
   emptyEntranceAnswers,
   applyEntranceAnswer,
   entranceFieldLabel,
+  entranceFieldSpansRow,
   entranceReviewStatusLabel,
   type AdoptionEntranceApplication,
   type EntranceAnswers,
@@ -170,7 +171,7 @@ export function EntranceReviewManager({
                           return (
                           <div
                             key={field.key}
-                            className={field.kind === "textarea" || field.kind === "vaccinations" || field.key === "name_changed" ? "space-y-2 sm:col-span-2" : "space-y-2"}
+                            className={entranceFieldSpansRow(field) ? "space-y-2 sm:col-span-2" : "space-y-2"}
                           >
                             <Label htmlFor={`entrance-${application.id}-${field.key}`}>
                               {entranceFieldLabel(field, answers)}
