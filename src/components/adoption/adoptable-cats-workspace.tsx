@@ -29,7 +29,8 @@ export function AdoptableCatsWorkspace({
   buttonUrl: string | null;
 }) {
   const [section, setSection] = useState<Section>(initialSection);
-  const pending = applications.filter((application) => application.status === "pending").length;
+  const openApplications = applications.filter((application) => application.status !== "approved");
+  const pending = openApplications.filter((application) => application.status === "pending").length;
   const vetCareDue = useMemo(() => collectVetCareDueAlerts(applications), [applications]);
 
   const tabs: { id: Section; label: string }[] = [
@@ -65,7 +66,7 @@ export function AdoptableCatsWorkspace({
         <div className="space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="text-sm text-muted-foreground">
-              Cats submitted through the rescue application. Approving one adds it to Adoptable Cats.
+              Cats waiting for a decision, and cats that were declined. Approving a cat lists it under Cats.
             </p>
             <Button type="button" size="sm" variant="outline" asChild>
               <Link href="/adoption-entrance" target="_blank">
@@ -74,7 +75,10 @@ export function AdoptableCatsWorkspace({
               </Link>
             </Button>
           </div>
-          <EntranceReviewManager applications={applications} />
+          <EntranceReviewManager
+            applications={openApplications}
+            onApproved={() => setSection("cats")}
+          />
         </div>
       )}
 

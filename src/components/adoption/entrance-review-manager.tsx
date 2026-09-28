@@ -28,8 +28,10 @@ function statusClass(status: EntranceReviewStatus): string {
 
 export function EntranceReviewManager({
   applications,
+  onApproved,
 }: {
   applications: AdoptionEntranceApplication[];
+  onApproved?: () => void;
 }) {
   const router = useRouter();
   const [openId, setOpenId] = useState<string | null>(applications[0]?.id ?? null);
@@ -103,6 +105,7 @@ export function EntranceReviewManager({
         setError(result?.error ?? "Unable to save this decision.");
         return;
       }
+      if (decision === "approved") onApproved?.();
       router.refresh();
     } catch {
       setError("Network error — check your connection and try again.");
@@ -114,7 +117,7 @@ export function EntranceReviewManager({
   if (applications.length === 0) {
     return (
       <p className="text-sm text-muted-foreground">
-        No rescue applications yet. Share the public form to start receiving cats.
+        No rescue applications are waiting for review. Approved cats are listed under Cats.
       </p>
     );
   }
