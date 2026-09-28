@@ -64,6 +64,7 @@ const FEE_RECEIVED_BY: EntranceFieldOption[] = [
 const LOCATION_TYPES: EntranceFieldOption[] = [
   { value: "foster", label: "Foster home" },
   { value: "petstore", label: "Pet store" },
+  { value: "other", label: "Other" },
 ];
 
 const STAFF_ONLY_SECTIONS = new Set([
@@ -84,10 +85,10 @@ const ENTRANCE_SECTION_SOURCE: EntranceSection[] = [
       { key: "adopted", label: "Adopted?", kind: "yesno", staff: true },
       { key: "petfinder_only", label: "Petfinder Only?", kind: "yesno", staff: true },
       { key: "order_to_place", label: "Order to Place / Points", kind: "text", staff: true },
-      { key: "gender", label: "Gender", kind: "select", options: GENDERS },
+      { key: "gender", label: "Gender", kind: "select", options: GENDERS, required: true },
       { key: "breed", label: "Breed", kind: "text" },
       { key: "colors", label: "Color(s)", kind: "text" },
-      { key: "date_of_birth", label: "Date of Birth (Estimated or Actual)", kind: "date" },
+      { key: "date_of_birth", label: "Date of Birth (Estimated or Actual)", kind: "date", required: true },
       { key: "food_preferences", label: "Food Preferences", kind: "text" },
       { key: "personality", label: "Personality", kind: "textarea" },
       { key: "bonded_with", label: "Bonded With", kind: "text" },
@@ -106,6 +107,7 @@ const ENTRANCE_SECTION_SOURCE: EntranceSection[] = [
     fields: [
       { key: "location_name", label: "Name", kind: "text" },
       { key: "location_type", label: "Type", kind: "select", options: LOCATION_TYPES },
+      { key: "location_other", label: "Describe the type", kind: "text" },
       { key: "location_contact_name", label: "Contact name", kind: "text" },
       { key: "location_phone", label: "Phone", kind: "text" },
       { key: "location_email", label: "Email", kind: "text" },
@@ -114,7 +116,6 @@ const ENTRANCE_SECTION_SOURCE: EntranceSection[] = [
       { key: "location_state", label: "State", kind: "text" },
       { key: "location_zip", label: "ZIP", kind: "text" },
       { key: "location_notes", label: "Notes", kind: "textarea" },
-      { key: "location_active", label: "Active?", kind: "yesno" },
     ],
   },
   {
@@ -332,7 +333,14 @@ export function applyEntranceAnswer(
 ): EntranceAnswers {
   const next = { ...answers, [key]: value };
   if (key === "name_changed" && value !== "yes") next.new_name = "";
+  if (key === "location_type" && value !== "other") next.location_other = "";
   return next;
+}
+
+export function showEntranceField(field: Pick<EntranceField, "key">, answers: EntranceAnswers): boolean {
+  if (field.key === "new_name") return answers.name_changed === "yes";
+  if (field.key === "location_other") return answers.location_type === "other";
+  return true;
 }
 
 export function missingChangedName(answers: EntranceAnswers): boolean {
@@ -604,6 +612,16 @@ export function sanitizeEntranceAnswers(
   if (answers.name_changed !== "yes") answers.new_name = "";
   if (answers.name_changed === "yes" && !answers.new_name.trim()) {
     return { answers, error: "Enter the new name." };
+  }
+  if (!options.includeStaff && !answers.gender) {
+    return { answers, error: "Choose the cat’s gender." };
+  }
+  if (!options.includeStaff && !/^\d{4}-\d{2}-\d{2}$/.test(answers.date_of_birth)) {
+    return { answers, error: "Enter the cat’s date of birth." };
+  }
+  if (answers.location_type !== "other") answers.location_other = "";
+  if (answers.location_type === "other" && !answers.location_other.trim()) {
+    return { answers, error: "Describe the location type." };
   }
   return { answers };
 }

@@ -26,6 +26,7 @@ import {
   entranceOptionLabel,
   applyEntranceAnswer,
   missingChangedName,
+  showEntranceField,
   parseVaccinationList,
   publicEntranceSections,
   vaccinationListError,
@@ -132,12 +133,22 @@ export function EntranceApplicationForm({
 
   function update(key: string, value: string) {
     setAnswers((current) => applyEntranceAnswer(current, key, value));
-    if (key === "cat_name" || key === "name_changed" || key === "new_name") setError(null);
+    if (key === "cat_name" || key === "gender" || key === "date_of_birth" || key === "name_changed" || key === "new_name") {
+      setError(null);
+    }
   }
 
   function goNext() {
     if (steps[step]?.id === "profile" && !answers.cat_name.trim()) {
       setError("Enter the cat’s name.");
+      return;
+    }
+    if (steps[step]?.id === "profile" && !answers.gender) {
+      setError("Choose the cat’s gender.");
+      return;
+    }
+    if (steps[step]?.id === "profile" && !/^\d{4}-\d{2}-\d{2}$/.test(answers.date_of_birth.trim())) {
+      setError("Enter the cat’s date of birth.");
       return;
     }
     if (steps[step]?.id === "profile" && missingChangedName(answers)) {
@@ -159,6 +170,18 @@ export function EntranceApplicationForm({
     setError(null);
     if (!answers.cat_name.trim()) {
       setError("Enter the cat’s name.");
+      const profileStep = steps.findIndex((entry) => entry.id === "profile");
+      if (profileStep >= 0) setStep(profileStep);
+      return;
+    }
+    if (!answers.gender) {
+      setError("Choose the cat’s gender.");
+      const profileStep = steps.findIndex((entry) => entry.id === "profile");
+      if (profileStep >= 0) setStep(profileStep);
+      return;
+    }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(answers.date_of_birth.trim())) {
+      setError("Enter the cat’s date of birth.");
       const profileStep = steps.findIndex((entry) => entry.id === "profile");
       if (profileStep >= 0) setStep(profileStep);
       return;
@@ -214,6 +237,8 @@ export function EntranceApplicationForm({
   }
 
   const nameMissing = error === "Enter the cat’s name.";
+  const genderMissing = error === "Choose the cat’s gender.";
+  const ageMissing = error === "Enter the cat’s date of birth.";
   const changedNameMissing = error === "Enter the new name.";
 
   return (
@@ -280,7 +305,7 @@ export function EntranceApplicationForm({
               </CardHeader>
               <CardContent className="grid gap-4 sm:grid-cols-2">
                 {section.fields.map((field) => {
-                  if (field.key === "new_name" && answers.name_changed !== "yes") return null;
+                  if (!showEntranceField(field, answers)) return null;
                   return (
                   <div
                     key={field.key}
@@ -300,11 +325,19 @@ export function EntranceApplicationForm({
                       value={answers[field.key] ?? ""}
                       invalid={
                         (field.key === "cat_name" && nameMissing) ||
+                        (field.key === "gender" && genderMissing) ||
+                        (field.key === "date_of_birth" && ageMissing) ||
                         (field.key === "new_name" && changedNameMissing)
                       }
                       onChange={(value) => update(field.key, value)}
                     />
                     {field.key === "cat_name" && nameMissing && (
+                      <p className="text-sm text-destructive">{error}</p>
+                    )}
+                    {field.key === "gender" && genderMissing && (
+                      <p className="text-sm text-destructive">{error}</p>
+                    )}
+                    {field.key === "date_of_birth" && ageMissing && (
                       <p className="text-sm text-destructive">{error}</p>
                     )}
                     {field.key === "new_name" && changedNameMissing && (
@@ -329,7 +362,7 @@ export function EntranceApplicationForm({
                   <h3 className="text-sm font-semibold">{section.title}</h3>
                   <dl className="grid gap-2 sm:grid-cols-2">
                     {section.fields.map((field) => {
-                      if (field.key === "new_name" && answers.name_changed !== "yes") return null;
+                      if (!showEntranceField(field, answers)) return null;
                       return (
                       <div key={field.key} className={entranceFieldSpansRow(field) ? "sm:col-span-2" : undefined}>
                         <dt className="text-xs text-muted-foreground">{entranceFieldLabel(field, answers)}</dt>
@@ -348,7 +381,9 @@ export function EntranceApplicationForm({
 
         {steps[step]?.id !== "about" && (
           <>
-            {error && !nameMissing && <p className="text-sm text-destructive">{error}</p>}
+            {error && !nameMissing && !genderMissing && !ageMissing && !changedNameMissing && (
+              <p className="text-sm text-destructive">{error}</p>
+            )}
             <div className="flex justify-between gap-2">
               <Button
                 type="button"

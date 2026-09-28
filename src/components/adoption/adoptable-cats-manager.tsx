@@ -29,6 +29,7 @@ import {
   applyEntranceAnswer,
   entranceFieldLabel,
   entranceFieldSpansRow,
+  showEntranceField,
   type AdoptionEntranceApplication,
   type EntranceAnswers,
 } from "@/lib/adoption/entrance";
@@ -73,9 +74,11 @@ function catAgeLabel(answers: EntranceAnswers | undefined, row: AdoptableCat): s
   return answers?.estimated_age?.trim() || row.age_description?.trim() || "";
 }
 
-function locationTypeLabel(value: string | undefined): string {
+function locationTypeLabel(answers: EntranceAnswers | undefined): string {
+  const value = answers?.location_type;
   if (value === "foster") return "Foster home";
   if (value === "petstore") return "Pet store";
+  if (value === "other") return answers?.location_other?.trim() || "Other";
   return "";
 }
 
@@ -162,7 +165,7 @@ export function AdoptableCatsManager({ cats: initial, applications }: AdoptableC
         render: (row) => {
           const answers = recordByCatId.get(row.id)?.answers;
           const name = answers?.location_name?.trim() || "";
-          const type = locationTypeLabel(answers?.location_type);
+          const type = locationTypeLabel(answers);
           const city = answers?.location_city?.trim() ?? "";
           if (!name && !type) {
             return <span className="text-muted-foreground">Unassigned</span>;
@@ -455,7 +458,7 @@ export function AdoptableCatsManager({ cats: initial, applications }: AdoptableC
 
               <div className="grid gap-4 sm:grid-cols-2">
                 {section.fields.map((field) => {
-                  if (field.key === "new_name" && answers.name_changed !== "yes") return null;
+                  if (!showEntranceField(field, answers)) return null;
                   return (
                   <div
                     key={field.key}
@@ -463,10 +466,16 @@ export function AdoptableCatsManager({ cats: initial, applications }: AdoptableC
                   >
                     <Label htmlFor={`entrance-${editingRecord.id}-${field.key}`}>
                       {entranceFieldLabel(field, answers)}
+                      {field.key === "location_other" ? " *" : ""}
                       {field.staff && !field.submittedStamp ? (
                         <span className="ml-2 text-xs font-normal text-muted-foreground">Portal only</span>
                       ) : null}
                     </Label>
+                    {field.key === "location_type" ? (
+                      <p className="text-sm text-muted-foreground">
+                        Choose Other and describe the type if it is not listed.
+                      </p>
+                    ) : null}
                     {field.submittedStamp ? (
                       <p className="text-sm">
                         {new Date(editingRecord.created_at).toLocaleString(undefined, {

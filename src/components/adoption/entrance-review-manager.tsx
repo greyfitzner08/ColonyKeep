@@ -14,6 +14,7 @@ import {
   applyEntranceAnswer,
   entranceFieldLabel,
   entranceFieldSpansRow,
+  showEntranceField,
   entranceReviewStatusLabel,
   type AdoptionEntranceApplication,
   type EntranceAnswers,
@@ -170,14 +171,20 @@ export function EntranceReviewManager({
                     <section key={section.id} className="space-y-4">
                       <div className="grid gap-4 sm:grid-cols-2">
                         {section.fields.map((field) => {
-                          if (field.key === "new_name" && answers.name_changed !== "yes") return null;
+                          if (!showEntranceField(field, answers)) return null;
                           return (
                           <div
                             key={field.key}
                             className={entranceFieldSpansRow(field) ? "space-y-2 sm:col-span-2" : "space-y-2"}
                           >
+                            {field.key === "location_type" ? (
+                              <p className="text-sm text-muted-foreground">
+                                Choose Other and describe the type if it is not listed.
+                              </p>
+                            ) : null}
                             <Label htmlFor={`entrance-${application.id}-${field.key}`}>
                               {entranceFieldLabel(field, answers)}
+                              {field.key === "location_other" ? " *" : ""}
                               {field.staff && !field.submittedStamp ? (
                                 <span className="ml-2 text-xs font-normal text-muted-foreground">Portal only</span>
                               ) : null}
