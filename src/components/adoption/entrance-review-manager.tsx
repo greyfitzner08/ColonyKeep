@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   ENTRANCE_SECTIONS,
   emptyEntranceAnswers,
+  applyEntranceAddress,
   applyEntranceAnswer,
   entranceFieldLabel,
   entranceFieldRows,
@@ -45,6 +46,19 @@ export function EntranceReviewManager({
 
   function answersFor(application: AdoptionEntranceApplication): EntranceAnswers {
     return drafts[application.id] ?? { ...emptyEntranceAnswers(), ...application.answers };
+  }
+
+  function updateAddress(
+    applicationId: string,
+    base: EntranceAnswers,
+    key: string,
+    parts: { address: string; city: string; state: string; zip: string }
+  ) {
+    setSavedId(null);
+    setDrafts((current) => ({
+      ...current,
+      [applicationId]: applyEntranceAddress(current[applicationId] ?? base, key, parts),
+    }));
   }
 
   function updateAnswer(applicationId: string, base: EntranceAnswers, key: string, value: string) {
@@ -201,6 +215,9 @@ export function EntranceReviewManager({
                                 invalid={false}
                                 onChange={(value) =>
                                   updateAnswer(application.id, answers, field.key, value)
+                                }
+                                onAddressSelect={(parts) =>
+                                  updateAddress(application.id, answers, field.key, parts)
                                 }
                               />
                             )}

@@ -26,6 +26,7 @@ interface AddressAutocompleteProps {
   id?: string;
   placeholder?: string;
   error?: string;
+  hideLabel?: boolean;
 }
 
 interface Prediction {
@@ -63,6 +64,7 @@ export function AddressAutocomplete({
   id,
   placeholder = "Start typing an address...",
   error,
+  hideLabel = false,
 }: AddressAutocompleteProps) {
   const reactId = useId();
   const inputId = id ?? `address-${reactId}`;
@@ -206,7 +208,7 @@ export function AddressAutocomplete({
 
   return (
     <div ref={rootRef} className="relative space-y-2">
-      <Label htmlFor={inputId}>{label}</Label>
+      {hideLabel ? null : <Label htmlFor={inputId}>{label}</Label>}
       <Input
         ref={inputRef}
         id={inputId}

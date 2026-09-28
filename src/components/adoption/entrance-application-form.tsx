@@ -18,12 +18,15 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { VaccinationList } from "@/components/adoption/vaccination-list";
+import { AddressAutocomplete, type AddressParts } from "@/components/forms/address-autocomplete";
 import { VetCareDueList } from "@/components/adoption/vet-care-due-list";
 import {
   emptyEntranceAnswers,
   entranceFieldLabel,
   entranceFieldSpansRow,
   entranceOptionLabel,
+  entrancePlaceAddressKey,
+  applyEntranceAddress,
   applyEntranceAnswer,
   missingChangedName,
   showEntranceField,
@@ -40,13 +43,27 @@ export function FieldControl({
   value,
   invalid,
   onChange,
+  onAddressSelect,
 }: {
   field: EntranceField;
   value: string;
   invalid: boolean;
   onChange: (value: string) => void;
+  onAddressSelect?: (parts: AddressParts) => void;
 }) {
   const id = `entrance-${field.key}`;
+  if (entrancePlaceAddressKey(field.key)) {
+    return (
+      <AddressAutocomplete
+        id={id}
+        hideLabel
+        defaultValue={value}
+        error={invalid ? "Enter an address." : undefined}
+        onAddressChange={onChange}
+        onSelect={(parts) => onAddressSelect?.(parts)}
+      />
+    );
+  }
   if (field.kind === "vaccinations") {
     return <VaccinationList id={id} value={value} invalid={invalid} onChange={onChange} />;
   }
@@ -130,6 +147,10 @@ export function EntranceApplicationForm({
     if (active instanceof HTMLElement) active.blur();
     topRef.current?.scrollIntoView({ behavior: "auto", block: "start" });
   }, [step]);
+
+  function applyAddress(key: string, parts: AddressParts) {
+    setAnswers((current) => applyEntranceAddress(current, key, parts));
+  }
 
   function update(key: string, value: string) {
     setAnswers((current) => applyEntranceAnswer(current, key, value));
@@ -330,6 +351,7 @@ export function EntranceApplicationForm({
                         (field.key === "new_name" && changedNameMissing)
                       }
                       onChange={(value) => update(field.key, value)}
+                      onAddressSelect={(parts) => applyAddress(field.key, parts)}
                     />
                     {field.key === "cat_name" && nameMissing && (
                       <p className="text-sm text-destructive">{error}</p>

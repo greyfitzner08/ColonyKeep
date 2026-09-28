@@ -366,6 +366,36 @@ function clearPetStoreQuestions(answers: EntranceAnswers) {
   for (const key of PET_STORE_QUESTION_KEYS) answers[key] = "";
 }
 
+const PLACE_ADDRESS_FIELDS: Record<string, { city: string; state: string; zip: string }> = {
+  location_address: { city: "location_city", state: "location_state", zip: "location_zip" },
+  foster_address: { city: "location_city", state: "location_state", zip: "location_zip" },
+  pet_store_address: { city: "pet_store_city", state: "pet_store_state", zip: "pet_store_zip" },
+};
+
+export function entrancePlaceAddressKey(key: string): string | null {
+  return (
+    Object.keys(PLACE_ADDRESS_FIELDS).find((entry) => key === entry || key.endsWith(`-${entry}`)) ??
+    null
+  );
+}
+
+export function applyEntranceAddress(
+  answers: EntranceAnswers,
+  key: string,
+  parts: { address: string; city: string; state: string; zip: string }
+): EntranceAnswers {
+  const addressKey = entrancePlaceAddressKey(key);
+  if (!addressKey) return { ...answers, [key]: parts.address };
+  const group = PLACE_ADDRESS_FIELDS[addressKey];
+  return {
+    ...answers,
+    [addressKey]: parts.address,
+    [group.city]: parts.city,
+    [group.state]: parts.state,
+    [group.zip]: parts.zip,
+  };
+}
+
 export function applyEntranceAnswer(
   answers: EntranceAnswers,
   key: string,

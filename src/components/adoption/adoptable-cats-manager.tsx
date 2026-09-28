@@ -32,6 +32,7 @@ import {
 import {
   ENTRANCE_SECTIONS,
   emptyEntranceAnswers,
+  applyEntranceAddress,
   applyEntranceAnswer,
   entranceFieldLabel,
   entranceFieldRows,
@@ -253,6 +254,19 @@ export function AdoptableCatsManager({
     setDrafts((current) => ({
       ...current,
       [record.id]: { ...(current[record.id] ?? base), ...filled },
+    }));
+  }
+
+  function updateAddress(
+    application: AdoptionEntranceApplication,
+    key: string,
+    parts: { address: string; city: string; state: string; zip: string }
+  ) {
+    const base = answersFor(application, drafts);
+    setSaved(false);
+    setDrafts((current) => ({
+      ...current,
+      [application.id]: applyEntranceAddress(current[application.id] ?? base, key, parts),
     }));
   }
 
@@ -582,6 +596,7 @@ export function AdoptableCatsManager({
                         value={answers[field.key] ?? ""}
                         invalid={false}
                         onChange={(value) => updateAnswer(editingRecord, field.key, value)}
+                        onAddressSelect={(parts) => updateAddress(editingRecord, field.key, parts)}
                       />
                     )}
                   </div>
