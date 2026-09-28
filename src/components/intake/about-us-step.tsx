@@ -9,6 +9,7 @@ export function AboutUsStep({
   description = "A few things to know before you tell us about the colony.",
   allowLinks = false,
   matchEditorSpacing = false,
+  communicationsNotice = true,
 }: {
   message: string;
   donateUrl: string | null;
@@ -17,8 +18,16 @@ export function AboutUsStep({
   allowLinks?: boolean;
   /** Use the line height saved in the text, without extra space between paragraphs. */
   matchEditorSpacing?: boolean;
+  /** Colony requests append a consent line when the saved text does not already include one. */
+  communicationsNotice?: boolean;
 }) {
-  const html = sanitizeIntakeAboutHtml(message, { allowLinks });
+  const sanitized = sanitizeIntakeAboutHtml(message, { allowLinks });
+  const html = communicationsNotice
+    ? sanitized
+    : sanitized.replace(
+        /<p[^>]*>\s*By submitting a request for help, you agree to receive occasional communications from Friends of Feral Felines via email\.\s*<\/p>/gi,
+        ""
+      );
   const includesConsent = /occasional communications/i.test(intakeAboutPlainText(message));
 
   return (
@@ -35,7 +44,7 @@ export function AboutUsStep({
         }
         dangerouslySetInnerHTML={{ __html: html }}
       />
-      {!includesConsent && (
+      {communicationsNotice && !includesConsent && (
         <p className="text-sm leading-relaxed text-foreground">{INTAKE_COMMUNICATIONS_NOTICE}</p>
       )}
       {donateUrl && (

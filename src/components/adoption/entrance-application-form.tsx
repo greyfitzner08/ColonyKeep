@@ -220,6 +220,7 @@ export function EntranceApplicationForm({
                 donateText={buttonText}
                 allowLinks
                 matchEditorSpacing
+                communicationsNotice={false}
                 description="A few things to know before you submit a cat."
               />
               <div className="flex justify-end">
