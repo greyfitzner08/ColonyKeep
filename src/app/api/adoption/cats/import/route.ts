@@ -45,6 +45,12 @@ export async function POST(request: NextRequest) {
   }
 
   const service = await createServiceClient();
+  const { data: existingCats } = await service.from("adoptable_cats").select("name");
+  const seenNames = new Set(
+    (existingCats ?? [])
+      .map((cat) => (typeof cat.name === "string" ? cat.name.trim().toLowerCase() : ""))
+      .filter(Boolean)
+  );
   const names: string[] = [];
   const errors = [...parsed.errors];
   const warnings = [...parsed.warnings];
@@ -55,6 +61,15 @@ export async function POST(request: NextRequest) {
       ...cat.answers,
       date_referred: submissionDateStamp(),
     };
+    const nameKey = answers.cat_name.trim().toLowerCase();
+    if (seenNames.has(nameKey)) {
+      warnings.push({
+        row: cat.row,
+        error: `${answers.cat_name} is already on the list, so that row was skipped.`,
+      });
+      continue;
+    }
+    seenNames.add(nameKey);
     const vaccinationLines = formatVaccinationList(answers.vaccinations);
     const { data: created, error: catError } = await service
       .from("adoptable_cats")

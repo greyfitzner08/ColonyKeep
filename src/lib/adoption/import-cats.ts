@@ -116,19 +116,84 @@ function isRealDate(iso: string): boolean {
   return date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day;
 }
 
-export function normalizeImportDate(value: string): string | null {
-  const trimmed = value.trim();
-  if (!trimmed) return "";
-  const iso = /^(\d{4})-(\d{2})-(\d{2})$/.exec(trimmed);
-  if (iso) return isRealDate(trimmed) ? trimmed : null;
-  const parts = /^(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})$/.exec(trimmed);
-  if (!parts) return null;
-  let year = Number(parts[3]);
-  const month = Number(parts[1]);
-  const day = Number(parts[2]);
+const MONTH_NUMBERS: Record<string, number> = {
+  jan: 1,
+  january: 1,
+  feb: 2,
+  february: 2,
+  mar: 3,
+  march: 3,
+  apr: 4,
+  april: 4,
+  may: 5,
+  jun: 6,
+  june: 6,
+  jul: 7,
+  july: 7,
+  aug: 8,
+  august: 8,
+  sep: 9,
+  sept: 9,
+  september: 9,
+  oct: 10,
+  october: 10,
+  nov: 11,
+  november: 11,
+  dec: 12,
+  december: 12,
+};
+
+function toIsoDate(year: number, month: number, day: number): string | null {
   if (year < 100) year += year >= 70 ? 1900 : 2000;
-  const next = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-  return isRealDate(next) ? next : null;
+  const iso = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+  return isRealDate(iso) ? iso : null;
+}
+
+function looksLikeAge(value: string): boolean {
+  return /\d|year|yr|month|week|kitten|adult|senior|approx|about|estimated|est\b/i.test(value);
+}
+
+export function normalizeImportDate(value: string): string | null {
+  let trimmed = value.trim();
+  if (!trimmed) return "";
+  const blank = normalizeHeader(trimmed);
+  if (
+    ["na", "n a", "none", "unknown", "not applicable", "not sure", "tbd", "blank", "null"].includes(blank)
+  ) {
+    return "";
+  }
+  trimmed = trimmed.replace(/\s+\d{1,2}:\d{2}(:\d{2})?(\s*[ap]m)?$/i, "").trim();
+
+  if (/^\d{5}$/.test(trimmed)) {
+    const serial = Number(trimmed);
+    if (serial >= 20000 && serial <= 80000) {
+      const utc = new Date(Date.UTC(1899, 11, 30) + serial * 86400000);
+      return toIsoDate(utc.getUTCFullYear(), utc.getUTCMonth() + 1, utc.getUTCDate());
+    }
+  }
+
+  const iso = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(trimmed);
+  if (iso) return toIsoDate(Number(iso[1]), Number(iso[2]), Number(iso[3]));
+
+  const yearFirst = /^(\d{4})[/.](\d{1,2})[/.](\d{1,2})$/.exec(trimmed);
+  if (yearFirst) return toIsoDate(Number(yearFirst[1]), Number(yearFirst[2]), Number(yearFirst[3]));
+
+  const monthFirst = /^(\d{1,2})[./-](\d{1,2})[./-](\d{2,4})$/.exec(trimmed);
+  if (monthFirst) return toIsoDate(Number(monthFirst[3]), Number(monthFirst[1]), Number(monthFirst[2]));
+
+  const monthName = /^([A-Za-z]+)\.?\s+(\d{1,2}),?\s+(\d{4})$/.exec(trimmed);
+  if (monthName) {
+    const month = MONTH_NUMBERS[monthName[1].toLowerCase()];
+    if (month) return toIsoDate(Number(monthName[3]), month, Number(monthName[2]));
+  }
+
+  const dayFirst = /^(\d{1,2})[-\s]([A-Za-z]+)\.?,?\s+(\d{4})$/.exec(trimmed);
+  if (dayFirst) {
+    const month = MONTH_NUMBERS[dayFirst[2].toLowerCase()];
+    if (month) return toIsoDate(Number(dayFirst[3]), month, Number(dayFirst[1]));
+  }
+
+  return null;
 }
 
 function normalizeYesNo(value: string): "yes" | "no" | "" | null {
@@ -192,12 +257,24 @@ function normalizeGender(value: string): "female" | "male" | "unknown" | "" | nu
 function canonicalStatus(value: string): string | null {
   const key = normalizeHeader(value);
   if (!key) return "";
+  if (["na", "n a", "none", "unknown", "not applicable", "blank", "null", "tbd"].includes(key)) return "";
   const match = ADOPTABLE_CAT_STATUSES.find(
     (entry) => normalizeHeader(entry.value) === key || normalizeHeader(entry.label) === key
   );
   if (match) return match.value;
-  if (key === "pending") return "pending";
-  if (key === "hold" || key === "on hold") return "hold";
+  if (["pending", "pending adoption", "application pending", "in review"].includes(key)) return "pending";
+  if (["hold", "on hold", "medical hold"].includes(key)) return "hold";
+  if (
+    ["available", "avail", "adoptable", "in foster", "foster", "foster care", "at pet store", "pet store", "ready"].includes(
+      key
+    )
+  ) {
+    return "available";
+  }
+  if (["adopted", "placed", "adopted out"].includes(key)) return "adopted";
+  if (["unavailable", "not available", "not adoptable", "deceased", "passed", "passed away"].includes(key)) {
+    return "unavailable";
+  }
   return null;
 }
 
@@ -255,7 +332,10 @@ function toVetCareJson(value: string): { value: string; error?: string } {
   return { value: JSON.stringify(rows) };
 }
 
-function prepareValue(field: EntranceField, raw: string): { value: string; error?: string; skipped?: string } {
+function prepareValue(
+  field: EntranceField,
+  raw: string
+): { value: string; error?: string; skipped?: string; ageText?: string } {
   const trimmed = raw.trim();
   if (!trimmed) return { value: "" };
   if (field.kind === "yesno") {
@@ -270,8 +350,10 @@ function prepareValue(field: EntranceField, raw: string): { value: string; error
   }
   if (field.kind === "date") {
     const date = normalizeImportDate(trimmed);
-    if (!date) return { value: "", error: `Use a date like 2024-01-15 for ${field.label}.` };
-    return { value: date };
+    if (date === "") return { value: "" };
+    if (date) return { value: date };
+    if (field.key === "date_of_birth" && looksLikeAge(trimmed)) return { value: "", ageText: trimmed };
+    return { value: "", skipped: trimmed };
   }
   if (field.kind === "select") {
     if (field.key === "gender") {
@@ -289,16 +371,14 @@ function prepareValue(field: EntranceField, raw: string): { value: string; error
   }
   if (field.key === "current_status") {
     const status = canonicalStatus(trimmed);
-    if (status == null) {
-      return {
-        value: "",
-        error: "Choose a status: Available, Pending adoption, On hold, Adopted, or Unavailable.",
-      };
-    }
+    if (status == null) return { value: "", skipped: trimmed };
     return { value: status };
   }
-  if (field.kind === "vaccinations") return toVaccinationJson(trimmed);
-  if (field.kind === "vet_care") return toVetCareJson(trimmed);
+  if (field.kind === "vaccinations" || field.kind === "vet_care") {
+    const cleaned = field.kind === "vaccinations" ? toVaccinationJson(trimmed) : toVetCareJson(trimmed);
+    if (cleaned.error) return { value: "", skipped: trimmed };
+    return { value: cleaned.value };
+  }
   return { value: trimmed };
 }
 
@@ -351,7 +431,20 @@ export function parseCatImportCsv(text: string): {
         errors.push({ row: rowNumber, error: prepared.error });
         return;
       }
-      if (prepared.skipped) {
+      if (prepared.ageText) {
+        if (!source.estimated_age) {
+          source.estimated_age = prepared.ageText;
+          warnings.push({
+            row: rowNumber,
+            error: `${field.label} was “${prepared.ageText}”, so it was saved as the estimated age.`,
+          });
+        } else {
+          warnings.push({
+            row: rowNumber,
+            error: `${field.label} was “${prepared.ageText}”, so that answer was left blank.`,
+          });
+        }
+      } else if (prepared.skipped) {
         warnings.push({
           row: rowNumber,
           error: `${field.label} was “${prepared.skipped}”, so that answer was left blank.`,

@@ -72,7 +72,7 @@ export function AdoptableCatImporter({ children }: { children?: React.ReactNode 
       return;
     }
 
-    const listed = names.slice(0, 8).join(", ");
+    const listed = names.slice(0, 8).join(" · ");
     const extra = names.length > 8 ? ` and ${names.length - 8} more` : "";
     if (warningText) setWarning(warningText);
     if (errors.length > 0) {
@@ -110,9 +110,8 @@ export function AdoptableCatImporter({ children }: { children?: React.ReactNode 
         {children}
       </div>
       <p className="max-w-xl text-right text-xs text-muted-foreground">
-        One row per cat. Cat name is required. Gender can be Female, Male, F, or M. Adopted can be Yes, No, or blank.
-        Dates use YYYY-MM-DD. Vaccinations
-        and next veterinary care list each item as Service YYYY-MM-DD, separated by semicolons.
+        One row per cat. Cat name is required. Gender can be Female, Male, F, or M. Dates can be 2024-01-15 or
+        1/15/2024. An age such as 2 years is saved as the estimated age. A cat already on the list is skipped.
       </p>
       {message ? <p className="max-w-md text-right text-sm text-muted-foreground">{message}</p> : null}
       {warning ? <p className="max-w-md text-right text-sm text-muted-foreground">{warning}</p> : null}
