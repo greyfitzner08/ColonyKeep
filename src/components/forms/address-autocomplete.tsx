@@ -25,6 +25,7 @@ interface AddressAutocompleteProps {
   required?: boolean;
   id?: string;
   placeholder?: string;
+  error?: string;
 }
 
 interface Prediction {
@@ -61,6 +62,7 @@ export function AddressAutocomplete({
   required = false,
   id,
   placeholder = "Start typing an address...",
+  error,
 }: AddressAutocompleteProps) {
   const reactId = useId();
   const inputId = id ?? `address-${reactId}`;
@@ -223,9 +225,12 @@ export function AddressAutocomplete({
         placeholder={placeholder}
         autoComplete="off"
         required={required}
+        aria-invalid={Boolean(error)}
         aria-autocomplete="list"
         aria-expanded={showMenu}
+        className={cn(error && "border-destructive focus-visible:ring-destructive")}
       />
+      {error && <p className="text-sm text-destructive">{error}</p>}
       {showMenu &&
         typeof document !== "undefined" &&
         createPortal(

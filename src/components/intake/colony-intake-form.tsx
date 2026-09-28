@@ -28,6 +28,8 @@ import {
   MECKLENBURG_RESOURCES_URL,
   getMecklenburgServiceAreaBlock,
   isMecklenburgCountyName,
+  isMecklenburgZip,
+  normalizeZip5,
 } from "@/lib/mecklenburg-service-area";
 import type { CommunityIntakeSubmission } from "@/lib/cases/public-intake";
 import {
@@ -177,15 +179,6 @@ function homeAddressComplete(form: CommunityIntakeSubmission) {
   );
 }
 
-function colonyAddressComplete(form: CommunityIntakeSubmission) {
-  return Boolean(
-    form.colony_address.trim() &&
-      form.colony_city.trim() &&
-      form.colony_zip.trim() &&
-      form.colony_county.trim()
-  );
-}
-
 function copyHomeAddressToColony(form: CommunityIntakeSubmission): CommunityIntakeSubmission {
   return {
     ...form,
@@ -203,6 +196,125 @@ function formatHomeAddress(form: CommunityIntakeSubmission) {
   return [form.contact_street, form.contact_city, form.contact_state, form.contact_zip]
     .filter(Boolean)
     .join(", ");
+}
+
+const invalidInputClass = "border-destructive focus-visible:ring-destructive";
+
+type IntakeFieldErrorKey =
+  | "service_county"
+  | "contact_first_name"
+  | "contact_last_name"
+  | "contact_street"
+  | "contact_city"
+  | "contact_zip"
+  | "contact_email"
+  | "contact_phone"
+  | "colony_address"
+  | "colony_city"
+  | "colony_zip"
+  | "colony_county";
+
+type IntakeFieldErrors = Partial<Record<IntakeFieldErrorKey, string>>;
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function countyError(county: string): string | null {
+  if (!county.trim()) {
+    return "Select the county where the colony is located. Choose Mecklenburg County to continue.";
+  }
+  if (!isMecklenburgCountyName(county)) {
+    return "Select Mecklenburg County. We can only help colonies in Mecklenburg County right now.";
+  }
+  return null;
+}
+
+function zipFieldError(zip: string, county: string, place: string): string | null {
+  const trimmed = zip.trim();
+  if (!trimmed) {
+    return `Enter the 5-digit ZIP code for the ${place}.`;
+  }
+  const digits = normalizeZip5(trimmed);
+  if (digits.length !== 5) {
+    return `Enter a 5-digit ZIP code for the ${place}. Use only the numbers, like 28202.`;
+  }
+  if (isMecklenburgCountyName(county) && !isMecklenburgZip(digits)) {
+    return "That ZIP code is outside Mecklenburg County. Check it for a typo, or enter a Mecklenburg County ZIP.";
+  }
+  return null;
+}
+
+function homeFieldErrors(form: CommunityIntakeSubmission): IntakeFieldErrors {
+  const errors: IntakeFieldErrors = {};
+  if (!form.contact_street.trim()) {
+    errors.contact_street =
+      "Enter your home street address. Start typing and choose an address from the list if one appears.";
+  }
+  if (!form.contact_city.trim()) {
+    errors.contact_city = "Enter the city for your home address.";
+  }
+  const zipMessage = zipFieldError(form.contact_zip, form.contact_county || form.colony_county, "home address");
+  if (zipMessage) errors.contact_zip = zipMessage;
+  return errors;
+}
+
+function reporterFieldErrors(form: CommunityIntakeSubmission, county: string): IntakeFieldErrors {
+  const errors: IntakeFieldErrors = {};
+  const countyMessage = countyError(county);
+  if (countyMessage) errors.service_county = countyMessage;
+  if (county.trim() && !isMecklenburgCountyName(county)) {
+    return errors;
+  }
+  if (!form.contact_first_name.trim()) {
+    errors.contact_first_name = "Enter your first name.";
+  }
+  if (!form.contact_last_name.trim()) {
+    errors.contact_last_name = "Enter your last name.";
+  }
+  Object.assign(errors, homeFieldErrors(form));
+  const email = form.contact_email.trim();
+  if (!email) {
+    errors.contact_email = "Enter your email address so we can contact you about this colony.";
+  } else if (!EMAIL_RE.test(email)) {
+    errors.contact_email = "Enter a full email address, like name@example.com.";
+  }
+  const phoneDigits = form.contact_phone.replace(/\D/g, "");
+  if (!form.contact_phone.trim()) {
+    errors.contact_phone = "Enter your phone number so we can contact you about this colony.";
+  } else if (phoneDigits.length < 10) {
+    errors.contact_phone = "Enter a phone number with at least 10 digits, including the area code.";
+  }
+  return errors;
+}
+
+function locationFieldErrors(
+  form: CommunityIntakeSubmission,
+  colonySameAsHome: boolean
+): IntakeFieldErrors {
+  if (colonySameAsHome) {
+    return homeFieldErrors(form);
+  }
+  const errors: IntakeFieldErrors = {};
+  if (!form.colony_address.trim()) {
+    errors.colony_address =
+      "Enter the colony street address. Start typing and choose an address from the list if one appears.";
+  }
+  if (!form.colony_city.trim()) {
+    errors.colony_city = "Enter the city where the colony is located.";
+  }
+  const countyMessage = countyError(form.colony_county);
+  if (countyMessage) errors.colony_county = countyMessage;
+  const zipMessage = zipFieldError(form.colony_zip, form.colony_county, "colony");
+  if (zipMessage) errors.colony_zip = zipMessage;
+  return errors;
+}
+
+function scrollToIntakeField(key: string) {
+  window.setTimeout(() => {
+    document.getElementById(`intake-${key}`)?.scrollIntoView({
+      behavior: "smooth",
+      block: "center",
+    });
+  }, 50);
 }
 
 function OutOfServiceAreaNotice({ reason }: { reason: "county" | "zip" }) {
@@ -278,13 +390,38 @@ export function ColonyIntakeForm({
   const [submitted, setSubmitted] = useState(false);
   const [caseNumber, setCaseNumber] = useState("");
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<IntakeFieldErrors>({});
   const [form, setForm] = useState<CommunityIntakeSubmission>(EMPTY_FORM);
   const [colonySameAsHome, setColonySameAsHome] = useState(true);
+
+  function clearFieldError(key: IntakeFieldErrorKey) {
+    setFieldErrors((current) => {
+      if (!current[key]) return current;
+      const next = { ...current };
+      delete next[key];
+      return next;
+    });
+  }
 
   function update<K extends keyof CommunityIntakeSubmission>(
     field: K,
     value: CommunityIntakeSubmission[K]
   ) {
+    if (
+      field === "contact_first_name" ||
+      field === "contact_last_name" ||
+      field === "contact_street" ||
+      field === "contact_city" ||
+      field === "contact_zip" ||
+      field === "contact_email" ||
+      field === "contact_phone" ||
+      field === "colony_address" ||
+      field === "colony_city" ||
+      field === "colony_zip" ||
+      field === "colony_county"
+    ) {
+      clearFieldError(field);
+    }
     setForm((prev) => {
       const next = { ...prev, [field]: value };
       if (colonySameAsHome && CONTACT_ADDRESS_FIELDS.has(field)) {
@@ -314,6 +451,8 @@ export function ColonyIntakeForm({
   }
 
   function setServiceCounty(county: string) {
+    clearFieldError("service_county");
+    clearFieldError("colony_county");
     const normalized = isMecklenburgCountyName(county) ? "Mecklenburg" : county;
     setForm((prev) => {
       const next = {
@@ -361,34 +500,24 @@ export function ColonyIntakeForm({
     zip: serviceZip,
   });
   const inServiceCounty = isMecklenburgCountyName(serviceCounty);
-  const formUnlocked = inServiceCounty && serviceAreaBlock === null;
   // Only lock non-county fields when the county itself is out of area.
   // A bad ZIP must stay editable so typos can be fixed.
   const remainderLocked = Boolean(serviceCounty.trim()) && !inServiceCounty;
 
-  function canAdvanceFromStep(currentStep: number) {
-    if (currentStep === 0) return true;
-    if (!formUnlocked) return false;
-    if (currentStep === 1) {
-      return Boolean(
-        form.contact_first_name &&
-          form.contact_last_name &&
-          form.contact_email &&
-          form.contact_phone &&
-          serviceCounty
-      );
-    }
-    if (currentStep === 2) {
-      if (colonySameAsHome) {
-        return homeAddressComplete(form);
-      }
-      return colonyAddressComplete(form);
-    }
-    return true;
+  function errorsForStep(currentStep: number): IntakeFieldErrors {
+    if (currentStep === 1) return reporterFieldErrors(form, serviceCounty);
+    if (currentStep === 2) return locationFieldErrors(form, colonySameAsHome);
+    return {};
   }
 
   function goToNextStep() {
-    if (!canAdvanceFromStep(step)) return;
+    const found = errorsForStep(step);
+    setFieldErrors(found);
+    const firstError = Object.keys(found)[0];
+    if (firstError) {
+      scrollToIntakeField(firstError);
+      return;
+    }
     if (step === 2 && colonySameAsHome) {
       setForm((prev) => copyHomeAddressToColony(prev));
     }
@@ -397,6 +526,20 @@ export function ColonyIntakeForm({
 
   async function handleSubmit() {
     setSubmitError(null);
+    const aboutYouErrors = errorsForStep(1);
+    if (Object.keys(aboutYouErrors).length > 0) {
+      setFieldErrors(aboutYouErrors);
+      setStep(1);
+      scrollToIntakeField(Object.keys(aboutYouErrors)[0]);
+      return;
+    }
+    const locationErrors = errorsForStep(2);
+    if (Object.keys(locationErrors).length > 0) {
+      setFieldErrors(locationErrors);
+      setStep(2);
+      scrollToIntakeField(Object.keys(locationErrors)[0]);
+      return;
+    }
 
     const submission = {
       ...intakeFormForSubmission(),
@@ -468,10 +611,6 @@ export function ColonyIntakeForm({
             </div>
 
             <QueueSnapshot />
-
-            <Button type="button" variant="outline" asChild className="w-full">
-              <Link href="/update-case">Update colony progress later</Link>
-            </Button>
           </CardContent>
         </Card>
       </div>
@@ -544,12 +683,14 @@ export function ColonyIntakeForm({
             {step === 1 && (
               <>
                 <CountySelect
+                  id="intake-service_county"
                   label="County where the colony is located"
                   value={serviceCounty}
                   onChange={setServiceCounty}
                   required
+                  error={fieldErrors.service_county}
                 />
-                {!serviceCounty.trim() && (
+                {!serviceCounty.trim() && !fieldErrors.service_county && (
                   <p className="text-sm text-muted-foreground">
                     Select Mecklenburg County to continue with this form.
                   </p>
@@ -558,26 +699,40 @@ export function ColonyIntakeForm({
                 <fieldset disabled={remainderLocked} className="space-y-4 disabled:opacity-60">
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <div className="space-y-2">
-                      <Label>Your first name</Label>
+                      <Label htmlFor="intake-contact_first_name">Your first name</Label>
                       <Input
+                        id="intake-contact_first_name"
                         value={form.contact_first_name}
                         onChange={(e) => update("contact_first_name", e.target.value)}
                         required
+                        aria-invalid={Boolean(fieldErrors.contact_first_name)}
+                        className={fieldErrors.contact_first_name ? invalidInputClass : undefined}
                       />
+                      {fieldErrors.contact_first_name && (
+                        <p className="text-sm text-destructive">{fieldErrors.contact_first_name}</p>
+                      )}
                     </div>
                     <div className="space-y-2">
-                      <Label>Your last name</Label>
+                      <Label htmlFor="intake-contact_last_name">Your last name</Label>
                       <Input
+                        id="intake-contact_last_name"
                         value={form.contact_last_name}
                         onChange={(e) => update("contact_last_name", e.target.value)}
                         required
+                        aria-invalid={Boolean(fieldErrors.contact_last_name)}
+                        className={fieldErrors.contact_last_name ? invalidInputClass : undefined}
                       />
+                      {fieldErrors.contact_last_name && (
+                        <p className="text-sm text-destructive">{fieldErrors.contact_last_name}</p>
+                      )}
                     </div>
                   </div>
                   <AddressAutocomplete
+                    id="intake-contact_street"
                     label="Your home street address"
                     defaultValue={form.contact_street}
                     required
+                    error={fieldErrors.contact_street}
                     onAddressChange={(address) => update("contact_street", address)}
                     onSelect={(parts) => {
                       update("contact_street", parts.address);
@@ -595,11 +750,18 @@ export function ColonyIntakeForm({
                   />
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <div className="space-y-2">
-                      <Label>Your city</Label>
+                      <Label htmlFor="intake-contact_city">Your city</Label>
                       <Input
+                        id="intake-contact_city"
                         value={form.contact_city}
                         onChange={(e) => update("contact_city", e.target.value)}
+                        required
+                        aria-invalid={Boolean(fieldErrors.contact_city)}
+                        className={fieldErrors.contact_city ? invalidInputClass : undefined}
                       />
+                      {fieldErrors.contact_city && (
+                        <p className="text-sm text-destructive">{fieldErrors.contact_city}</p>
+                      )}
                     </div>
                     <div className="space-y-2">
                       <Label>Your state</Label>
@@ -610,13 +772,20 @@ export function ColonyIntakeForm({
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <Label>Your ZIP code</Label>
+                    <Label htmlFor="intake-contact_zip">Your ZIP code</Label>
                     <Input
+                      id="intake-contact_zip"
                       value={form.contact_zip}
                       onChange={(e) => update("contact_zip", e.target.value)}
                       inputMode="numeric"
                       autoComplete="postal-code"
+                      required
+                      aria-invalid={Boolean(fieldErrors.contact_zip)}
+                      className={fieldErrors.contact_zip ? invalidInputClass : undefined}
                     />
+                    {fieldErrors.contact_zip && (
+                      <p className="text-sm text-destructive">{fieldErrors.contact_zip}</p>
+                    )}
                     {serviceAreaBlock === "zip" && (
                       <p className="text-sm text-amber-900">
                         Edit the ZIP above if this was a typo — the form will unlock once it matches
@@ -625,22 +794,34 @@ export function ColonyIntakeForm({
                     )}
                   </div>
                   <div className="space-y-2">
-                    <Label>Your email</Label>
+                    <Label htmlFor="intake-contact_email">Your email</Label>
                     <Input
+                      id="intake-contact_email"
                       type="email"
                       value={form.contact_email}
                       onChange={(e) => update("contact_email", e.target.value)}
                       required
+                      aria-invalid={Boolean(fieldErrors.contact_email)}
+                      className={fieldErrors.contact_email ? invalidInputClass : undefined}
                     />
+                    {fieldErrors.contact_email && (
+                      <p className="text-sm text-destructive">{fieldErrors.contact_email}</p>
+                    )}
                   </div>
                   <div className="space-y-2">
-                    <Label>Your phone number</Label>
+                    <Label htmlFor="intake-contact_phone">Your phone number</Label>
                     <Input
+                      id="intake-contact_phone"
                       type="tel"
                       value={form.contact_phone}
                       onChange={(e) => update("contact_phone", e.target.value)}
                       required
+                      aria-invalid={Boolean(fieldErrors.contact_phone)}
+                      className={fieldErrors.contact_phone ? invalidInputClass : undefined}
                     />
+                    {fieldErrors.contact_phone && (
+                      <p className="text-sm text-destructive">{fieldErrors.contact_phone}</p>
+                    )}
                   </div>
                   <div className="space-y-2">
                     <Label>Your relationship to the cats</Label>
@@ -706,9 +887,11 @@ export function ColonyIntakeForm({
                           above to enter a separate colony location.
                         </p>
                         <AddressAutocomplete
+                          id="intake-contact_street"
                           label="Your home street address"
                           defaultValue={form.contact_street}
                           required
+                          error={fieldErrors.contact_street}
                           onAddressChange={(address) => update("contact_street", address)}
                           onSelect={(parts) => {
                             update("contact_street", parts.address);
@@ -724,12 +907,18 @@ export function ColonyIntakeForm({
                         />
                         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                           <div className="space-y-2">
-                            <Label>Your city</Label>
+                            <Label htmlFor="intake-contact_city">Your city</Label>
                             <Input
+                              id="intake-contact_city"
                               value={form.contact_city}
                               onChange={(e) => update("contact_city", e.target.value)}
                               required
+                              aria-invalid={Boolean(fieldErrors.contact_city)}
+                              className={fieldErrors.contact_city ? invalidInputClass : undefined}
                             />
+                            {fieldErrors.contact_city && (
+                              <p className="text-sm text-destructive">{fieldErrors.contact_city}</p>
+                            )}
                           </div>
                           <div className="space-y-2">
                             <Label>Your state</Label>
@@ -740,14 +929,20 @@ export function ColonyIntakeForm({
                           </div>
                         </div>
                         <div className="space-y-2">
-                          <Label>Your ZIP code</Label>
+                          <Label htmlFor="intake-contact_zip">Your ZIP code</Label>
                           <Input
+                            id="intake-contact_zip"
                             value={form.contact_zip}
                             onChange={(e) => update("contact_zip", e.target.value)}
                             required
                             inputMode="numeric"
                             autoComplete="postal-code"
+                            aria-invalid={Boolean(fieldErrors.contact_zip)}
+                            className={fieldErrors.contact_zip ? invalidInputClass : undefined}
                           />
+                          {fieldErrors.contact_zip && (
+                            <p className="text-sm text-destructive">{fieldErrors.contact_zip}</p>
+                          )}
                           {serviceAreaBlock === "zip" && (
                             <p className="text-sm text-amber-900">
                               Edit the ZIP above if this was a typo — the form will unlock once it
@@ -763,9 +958,11 @@ export function ColonyIntakeForm({
                 {!colonySameAsHome && (
                   <>
                     <AddressAutocomplete
+                      id="intake-colony_address"
                       label="Colony address"
                       defaultValue={form.colony_address}
                       required
+                      error={fieldErrors.colony_address}
                       onAddressChange={(address) => update("colony_address", address)}
                       onSelect={(parts) => {
                         update("colony_address", parts.address);
@@ -780,12 +977,18 @@ export function ColonyIntakeForm({
                     />
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                       <div className="space-y-2">
-                        <Label>Colony City</Label>
+                        <Label htmlFor="intake-colony_city">Colony City</Label>
                         <Input
+                          id="intake-colony_city"
                           value={form.colony_city}
                           onChange={(e) => update("colony_city", e.target.value)}
                           required
+                          aria-invalid={Boolean(fieldErrors.colony_city)}
+                          className={fieldErrors.colony_city ? invalidInputClass : undefined}
                         />
+                        {fieldErrors.colony_city && (
+                          <p className="text-sm text-destructive">{fieldErrors.colony_city}</p>
+                        )}
                       </div>
                       <div className="space-y-2">
                         <Label>Colony State</Label>
@@ -797,14 +1000,20 @@ export function ColonyIntakeForm({
                     </div>
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                       <div className="space-y-2">
-                        <Label>Colony ZIP Code</Label>
+                        <Label htmlFor="intake-colony_zip">Colony ZIP Code</Label>
                         <Input
+                          id="intake-colony_zip"
                           value={form.colony_zip}
                           onChange={(e) => update("colony_zip", e.target.value)}
                           required
                           inputMode="numeric"
                           autoComplete="postal-code"
+                          aria-invalid={Boolean(fieldErrors.colony_zip)}
+                          className={fieldErrors.colony_zip ? invalidInputClass : undefined}
                         />
+                        {fieldErrors.colony_zip && (
+                          <p className="text-sm text-destructive">{fieldErrors.colony_zip}</p>
+                        )}
                         {serviceAreaBlock === "zip" && (
                           <p className="text-sm text-amber-900">
                             Edit the ZIP above if this was a typo — the form will unlock once it
@@ -813,10 +1022,12 @@ export function ColonyIntakeForm({
                         )}
                       </div>
                       <CountySelect
+                        id="intake-colony_county"
                         label="Colony county"
                         value={form.colony_county}
                         onChange={setServiceCounty}
                         required
+                        error={fieldErrors.colony_county}
                       />
                     </div>
                   </>
@@ -840,6 +1051,8 @@ export function ColonyIntakeForm({
                     <NumberInput
                       integer
                       min={0}
+                      zeroAsPlaceholder
+                      placeholder="0"
                       value={form.cats_over_8_weeks}
                       onValueChange={(value) => {
                         if (typeof value === "number") update("cats_over_8_weeks", value);
@@ -851,6 +1064,8 @@ export function ColonyIntakeForm({
                     <NumberInput
                       integer
                       min={0}
+                      zeroAsPlaceholder
+                      placeholder="0"
                       value={form.kittens_under_8_weeks}
                       onValueChange={(value) => {
                         if (typeof value === "number") update("kittens_under_8_weeks", value);
@@ -863,6 +1078,8 @@ export function ColonyIntakeForm({
                   <NumberInput
                     integer
                     min={0}
+                    zeroAsPlaceholder
+                    placeholder="0"
                     value={form.pregnant_count}
                     onValueChange={(value) => {
                       if (typeof value === "number") update("pregnant_count", value);
@@ -1045,15 +1262,20 @@ export function ColonyIntakeForm({
                 <ChevronLeft className="h-4 w-4" /> Back
               </Button>
               {step < STEPS.length - 1 ? (
-                <Button onClick={goToNextStep} disabled={!canAdvanceFromStep(step)}>
+                <Button onClick={goToNextStep}>
                   Next <ChevronRight className="h-4 w-4" />
                 </Button>
               ) : (
-                <Button type="button" onClick={handleSubmit} disabled={submitting || !formUnlocked}>
+                <Button type="button" onClick={handleSubmit} disabled={submitting}>
                   {submitting ? "Submitting..." : "Submit Request"}
                 </Button>
               )}
             </div>
+            {Object.keys(fieldErrors).length > 0 && (
+              <div role="alert" className="space-y-1 text-sm text-destructive">
+                <p className="font-medium">Please fix the highlighted fields before continuing.</p>
+              </div>
+            )}
             {submitError && <p className="text-sm text-destructive">{submitError}</p>}
           </CardContent>
         </Card>

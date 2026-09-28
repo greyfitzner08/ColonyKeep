@@ -19,6 +19,11 @@ type NumberInputProps = Omit<
   allowEmpty?: boolean;
   /** When true, focusing a field whose value is 0 clears it so the user can type freely. */
   clearZeroOnFocus?: boolean;
+  /**
+   * Show 0 as placeholder text. Focusing the field clears it so the user can type
+   * a number. Leaving it empty stores 0 again.
+   */
+  zeroAsPlaceholder?: boolean;
 };
 
 function parseRaw(raw: string, integer: boolean): number | null {
@@ -44,15 +49,22 @@ export const NumberInput = React.forwardRef<HTMLInputElement, NumberInputProps>(
       emptyValue,
       allowEmpty = false,
       clearZeroOnFocus = false,
+      zeroAsPlaceholder = false,
       onBlur,
       onFocus,
+      placeholder,
       className,
       ...props
     },
     ref
   ) => {
     const [draft, setDraft] = React.useState<string | null>(null);
-    const display = draft ?? (value === "" ? "" : String(value));
+    const [focused, setFocused] = React.useState(false);
+    const zeroCleared =
+      zeroAsPlaceholder && (value === 0 || value === "") && (draft === null || draft === "");
+    const display = zeroCleared ? "" : draft ?? (value === "" ? "" : String(value));
+    const resolvedPlaceholder =
+      zeroCleared && !focused ? (placeholder ?? "0") : focused && zeroCleared ? undefined : placeholder;
     const fallback = emptyValue ?? min ?? 0;
     const localRef = React.useRef<HTMLInputElement>(null);
 
@@ -78,9 +90,11 @@ export const NumberInput = React.forwardRef<HTMLInputElement, NumberInputProps>(
         max={max}
         className={cn(
           "[appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none",
+          zeroAsPlaceholder && "placeholder:text-muted-foreground focus:placeholder:text-transparent",
           className
         )}
         value={display}
+        placeholder={resolvedPlaceholder}
         onChange={(event) => {
           const raw = event.target.value;
           setDraft(raw);
@@ -101,13 +115,15 @@ export const NumberInput = React.forwardRef<HTMLInputElement, NumberInputProps>(
           onValueChange(parsed);
         }}
         onFocus={(event) => {
-          if (clearZeroOnFocus && value === 0) {
+          setFocused(true);
+          if ((clearZeroOnFocus || zeroAsPlaceholder) && value === 0) {
             setDraft("");
-            onValueChange("");
+            if (!zeroAsPlaceholder) onValueChange("");
           }
           onFocus?.(event);
         }}
         onBlur={(event) => {
+          setFocused(false);
           const raw = draft ?? event.target.value;
           if (raw === "" && allowEmpty) {
             onValueChange("");

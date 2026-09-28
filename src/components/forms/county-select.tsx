@@ -17,6 +17,7 @@ interface CountySelectProps {
   value: string;
   onChange: (value: string) => void;
   required?: boolean;
+  error?: string;
 }
 
 function isCustomCounty(value: string): boolean {
@@ -30,6 +31,7 @@ export function CountySelect({
   value,
   onChange,
   required = false,
+  error,
 }: CountySelectProps) {
   const generatedId = useId();
   const fieldId = id ?? generatedId;
@@ -68,9 +70,11 @@ export function CountySelect({
           setOtherMode(false);
           onChange(next);
         }}
+        aria-invalid={Boolean(error)}
         className={cn(
           "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm",
-          "ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring"
+          "ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring",
+          error && "border-destructive focus:ring-destructive"
         )}
       >
         <option value="">Select county...</option>
@@ -89,9 +93,12 @@ export function CountySelect({
           onBlur={(event) => onChange(normalizeCountyName(event.target.value))}
           placeholder="Enter county name"
           required={required}
+          aria-invalid={Boolean(error)}
           aria-label={`${label} (other)`}
+          className={cn(error && "border-destructive focus-visible:ring-destructive")}
         />
       )}
+      {error && <p className="text-sm text-destructive">{error}</p>}
     </div>
   );
 }
