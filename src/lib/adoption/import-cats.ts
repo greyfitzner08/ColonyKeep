@@ -155,6 +155,40 @@ function normalizeYesNo(value: string): "yes" | "no" | "" | null {
   return null;
 }
 
+function normalizeGender(value: string): "female" | "male" | "unknown" | "" | null {
+  const key = normalizeHeader(value);
+  if (!key) return "";
+  if (["na", "n a", "none", "not applicable", "blank", "null", "tbd"].includes(key)) return "";
+  if (
+    key === "f" ||
+    key === "female" ||
+    key === "girl" ||
+    key === "queen" ||
+    key === "fs" ||
+    key === "f s" ||
+    key.startsWith("female ") ||
+    key.startsWith("spayed") ||
+    key.includes("female")
+  ) {
+    return "female";
+  }
+  if (
+    key === "m" ||
+    key === "male" ||
+    key === "boy" ||
+    key === "tom" ||
+    key === "mn" ||
+    key === "m n" ||
+    key.startsWith("male ") ||
+    key.startsWith("neutered") ||
+    key.includes("male")
+  ) {
+    return "male";
+  }
+  if (key === "u" || key === "unknown" || key === "unsure" || key === "other") return "unknown";
+  return null;
+}
+
 function canonicalStatus(value: string): string | null {
   const key = normalizeHeader(value);
   if (!key) return "";
@@ -240,11 +274,17 @@ function prepareValue(field: EntranceField, raw: string): { value: string; error
     return { value: date };
   }
   if (field.kind === "select") {
+    if (field.key === "gender") {
+      const gender = normalizeGender(trimmed);
+      if (gender == null) return { value: "", skipped: trimmed };
+      return { value: gender };
+    }
     const key = normalizeHeader(trimmed);
+    if (!key) return { value: "" };
     const match = field.options?.find(
       (option) => normalizeHeader(option.value) === key || normalizeHeader(option.label) === key
     );
-    if (!match) return { value: "", error: `Choose a listed answer for ${field.label}.` };
+    if (!match) return { value: "", skipped: trimmed };
     return { value: match.value };
   }
   if (field.key === "current_status") {
@@ -314,7 +354,7 @@ export function parseCatImportCsv(text: string): {
       if (prepared.skipped) {
         warnings.push({
           row: rowNumber,
-          error: `${field.label} was “${prepared.skipped}”, so that answer was left blank. Use Yes or No to set it.`,
+          error: `${field.label} was “${prepared.skipped}”, so that answer was left blank.`,
         });
       }
       if (prepared.value) source[key] = prepared.value;

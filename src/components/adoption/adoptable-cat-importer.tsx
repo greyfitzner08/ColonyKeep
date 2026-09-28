@@ -110,7 +110,8 @@ export function AdoptableCatImporter({ children }: { children?: React.ReactNode 
         {children}
       </div>
       <p className="max-w-xl text-right text-xs text-muted-foreground">
-        One row per cat. Cat name is required. Adopted can be Yes, No, or blank. Dates use YYYY-MM-DD. Vaccinations
+        One row per cat. Cat name is required. Gender can be Female, Male, F, or M. Adopted can be Yes, No, or blank.
+        Dates use YYYY-MM-DD. Vaccinations
         and next veterinary care list each item as Service YYYY-MM-DD, separated by semicolons.
       </p>
       {message ? <p className="max-w-md text-right text-sm text-muted-foreground">{message}</p> : null}
