@@ -83,7 +83,7 @@ function catAgeLabel(answers: EntranceAnswers | undefined, row: AdoptableCat): s
 
 function locationSummary(answers: EntranceAnswers | undefined): { foster: string; store: string } {
   const foster = answers?.location_name?.trim() || "";
-  const store = answers?.at_pet_store === "yes" ? answers.pet_store_name?.trim() || "" : "";
+  const store = answers?.approved_pet_store === "yes" ? answers.pet_store_name?.trim() || "" : "";
   return { foster, store };
 }
 

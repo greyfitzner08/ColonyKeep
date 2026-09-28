@@ -108,7 +108,7 @@ const ENTRANCE_SECTION_SOURCE: EntranceSection[] = [
       { key: "location_state", label: "Foster state", kind: "text" },
       { key: "location_zip", label: "Foster ZIP", kind: "text" },
       { key: "location_notes", label: "Foster notes", kind: "textarea" },
-      { key: "at_pet_store", label: "Located at a pet store?", kind: "yesno" },
+      { key: "approved_pet_store", label: "Approved for Pet Store Placement?", kind: "yesno", staff: true },
       { key: "pet_store_name", label: "Pet store", kind: "text" },
       { key: "pet_store_contact_name", label: "Pet store contact name", kind: "text" },
       { key: "pet_store_phone", label: "Pet store phone", kind: "text" },
@@ -118,6 +118,14 @@ const ENTRANCE_SECTION_SOURCE: EntranceSection[] = [
       { key: "pet_store_state", label: "Pet store state", kind: "text" },
       { key: "pet_store_zip", label: "Pet store ZIP", kind: "text" },
       { key: "pet_store_notes", label: "Pet store notes", kind: "textarea" },
+      { key: "date_placed_pet_store", label: "Date Placed at Pet Store", kind: "date", staff: true },
+      { key: "date_left_pet_store", label: "Date Left Pet Store", kind: "date", staff: true },
+      {
+        key: "reason_left_pet_store",
+        label: "Reason Left Pet Store, if Not Adopted",
+        kind: "textarea",
+        staff: true,
+      },
     ],
   },
   {
@@ -163,15 +171,6 @@ const ENTRANCE_SECTION_SOURCE: EntranceSection[] = [
       { key: "foster_phone", label: "Phone", kind: "text" },
       { key: "foster_email", label: "Email", kind: "text" },
       { key: "foster_address", label: "Address", kind: "textarea" },
-      { key: "approved_pet_store", label: "Approved for Pet Store Placement?", kind: "yesno", staff: true },
-      { key: "date_placed_pet_store", label: "Date Placed at Pet Store", kind: "date", staff: true },
-      { key: "date_left_pet_store", label: "Date Left Pet Store", kind: "date", staff: true },
-      {
-        key: "reason_left_pet_store",
-        label: "Reason Left Pet Store, if Not Adopted",
-        kind: "textarea",
-        staff: true,
-      },
     ],
   },
   {
@@ -326,11 +325,11 @@ export function entranceFieldSpansRow(field: Pick<EntranceField, "kind" | "key">
     field.kind === "vaccinations" ||
     field.kind === "vet_care" ||
     field.key === "name_changed" ||
-    field.key === "at_pet_store"
+    field.key === "approved_pet_store"
   );
 }
 
-const PET_STORE_LOCATION_KEYS = [
+const PET_STORE_QUESTION_KEYS = [
   "pet_store_name",
   "pet_store_contact_name",
   "pet_store_phone",
@@ -340,10 +339,13 @@ const PET_STORE_LOCATION_KEYS = [
   "pet_store_state",
   "pet_store_zip",
   "pet_store_notes",
+  "date_placed_pet_store",
+  "date_left_pet_store",
+  "reason_left_pet_store",
 ] as const;
 
-function clearPetStoreLocation(answers: EntranceAnswers) {
-  for (const key of PET_STORE_LOCATION_KEYS) answers[key] = "";
+function clearPetStoreQuestions(answers: EntranceAnswers) {
+  for (const key of PET_STORE_QUESTION_KEYS) answers[key] = "";
 }
 
 export function applyEntranceAnswer(
@@ -353,15 +355,15 @@ export function applyEntranceAnswer(
 ): EntranceAnswers {
   const next = { ...answers, [key]: value };
   if (key === "name_changed" && value !== "yes") next.new_name = "";
-  if (key === "at_pet_store" && value !== "yes") clearPetStoreLocation(next);
+  if (key === "approved_pet_store" && value !== "yes") clearPetStoreQuestions(next);
   return next;
 }
 
 export function showEntranceField(field: Pick<EntranceField, "key">, answers: EntranceAnswers): boolean {
   if (field.key === "linked_adoption_application_id") return false;
   if (field.key === "new_name") return answers.name_changed === "yes";
-  if ((PET_STORE_LOCATION_KEYS as readonly string[]).includes(field.key)) {
-    return answers.at_pet_store === "yes";
+  if ((PET_STORE_QUESTION_KEYS as readonly string[]).includes(field.key)) {
+    return answers.approved_pet_store === "yes";
   }
   return true;
 }
@@ -642,8 +644,8 @@ export function sanitizeEntranceAnswers(
   if (!options.includeStaff && !/^\d{4}-\d{2}-\d{2}$/.test(answers.date_of_birth)) {
     return { answers, error: "Enter the cat’s date of birth." };
   }
-  if (answers.at_pet_store !== "yes") clearPetStoreLocation(answers);
-  if (answers.at_pet_store === "yes" && !answers.pet_store_name.trim()) {
+  if (answers.approved_pet_store !== "yes") clearPetStoreQuestions(answers);
+  if (answers.approved_pet_store === "yes" && !answers.pet_store_name.trim()) {
     return { answers, error: "Enter the pet store name." };
   }
   return { answers };
