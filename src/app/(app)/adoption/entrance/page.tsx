@@ -2,9 +2,11 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { EntranceAboutEditor } from "@/components/adoption/entrance-about-editor";
 import { EntranceReviewManager } from "@/components/adoption/entrance-review-manager";
 import { PageHeader } from "@/components/layout/page-header";
 import { getAppProfile } from "@/lib/auth";
+import { getPlatformBranding } from "@/lib/branding-server";
 import { canAccessAdoptions } from "@/lib/permissions";
 import { createServiceClient } from "@/lib/supabase/server";
 import type { AdoptionEntranceApplication } from "@/lib/adoption/entrance";
@@ -14,10 +16,14 @@ export default async function AdoptionEntranceReviewPage() {
   if (!profile || !canAccessAdoptions(profile)) redirect("/");
 
   const service = await createServiceClient();
-  const { data } = await service
-    .from("adoption_entrance_applications")
-    .select("*")
-    .order("created_at", { ascending: false });
+  const [branding, applicationsResult] = await Promise.all([
+    getPlatformBranding(),
+    service
+      .from("adoption_entrance_applications")
+      .select("*")
+      .order("created_at", { ascending: false }),
+  ]);
+  const data = applicationsResult.data;
 
   const applications = (data ?? []) as AdoptionEntranceApplication[];
   const pending = applications.filter((application) => application.status === "pending").length;
@@ -39,12 +45,13 @@ export default async function AdoptionEntranceReviewPage() {
             <Button type="button" size="sm" variant="outline" asChild>
               <Link href="/adoption-entrance" target="_blank">
                 <ExternalLink className="mr-1.5 h-4 w-4" />
-                Public form
+                Entrance form
               </Link>
             </Button>
           </>
         }
       />
+      <EntranceAboutEditor initialMessage={branding.adoption_entrance_about_message} />
       <EntranceReviewManager applications={applications} />
     </div>
   );

@@ -4,7 +4,7 @@ import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
-import { Loader2, MapPin, Pencil, Plus, Trash2, Upload } from "lucide-react";
+import { ExternalLink, Loader2, Pencil, Plus, Trash2, Upload } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -20,7 +20,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { PageControlBar } from "@/components/layout/page-control-bar";
 import { AddressAutocomplete } from "@/components/forms/address-autocomplete";
 import {
   ADOPTABLE_CAT_SEXES,
@@ -363,41 +362,46 @@ export function AdoptableCatsManager({ cats: initial, locations }: AdoptableCats
 
   return (
     <div className="space-y-4">
-      <PageControlBar
-        activeFilterCount={statusFilter !== "all" ? 1 : 0}
-        filters={
-          <div className="space-y-1.5 min-w-0">
-            <Label className="text-xs font-medium text-muted-foreground">Status</Label>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="h-9 w-full sm:w-[180px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All statuses</SelectItem>
-                {ADOPTABLE_CAT_STATUSES.map((entry) => (
-                  <SelectItem key={entry.value} value={entry.value}>
-                    {entry.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        }
-        primaryActions={
-          <Button type="button" size="sm" onClick={openNew}>
-            <Plus className="mr-1.5 h-4 w-4" />
-            Add cat
-          </Button>
-        }
-        actions={
-          <Button type="button" size="sm" variant="outline" asChild>
-            <Link href="/adoption/locations">
-              <MapPin className="mr-1.5 h-4 w-4" />
-              Locations
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <SelectTrigger className="h-8 w-[9.5rem]" aria-label="Status">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All statuses</SelectItem>
+            {ADOPTABLE_CAT_STATUSES.map((entry) => (
+              <SelectItem key={entry.value} value={entry.value}>
+                {entry.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <div className="flex flex-wrap items-center gap-1.5">
+          <Button type="button" size="sm" variant="ghost" className="h-8 px-2.5" asChild>
+            <Link href="/adopt" target="_blank" title="Public form for a person who wants to adopt">
+              <ExternalLink className="mr-1 h-3.5 w-3.5" />
+              Adoption application
             </Link>
           </Button>
-        }
-      />
+          <Button type="button" size="sm" variant="ghost" className="h-8 px-2.5" asChild>
+            <Link
+              href="/adoption-entrance"
+              target="_blank"
+              title="Public form for a cat joining the program"
+            >
+              <ExternalLink className="mr-1 h-3.5 w-3.5" />
+              Entrance application
+            </Link>
+          </Button>
+          <Button type="button" size="sm" variant="outline" className="h-8 px-2.5" asChild>
+            <Link href="/adoption/locations">Locations</Link>
+          </Button>
+          <Button type="button" size="sm" className="h-8 px-2.5" onClick={openNew}>
+            <Plus className="mr-1 h-3.5 w-3.5" />
+            Add cat
+          </Button>
+        </div>
+      </div>
 
       <DataTable
         tableId="adoptable-cats"

@@ -420,6 +420,7 @@ export const EXPORTABLE_TABLES: ExportableTable[] = [
       { id: "intake_about_message", label: "colony request intro" },
       { id: "intake_donate_url", label: "colony donate url" },
       { id: "intake_donate_text", label: "colony donate button" },
+      { id: "adoption_entrance_about_message", label: "entrance about us" },
     ],
   },
   {

@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { CheckCircle } from "lucide-react";
+import { CheckCircle, ChevronLeft, ChevronRight } from "lucide-react";
 import { BrandMark } from "@/components/branding/brand-mark";
+import { AboutUsStep } from "@/components/intake/about-us-step";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -82,7 +83,16 @@ function FieldControl({
   );
 }
 
-export function EntranceApplicationForm() {
+export function EntranceApplicationForm({
+  aboutMessage,
+  donateUrl,
+  donateText,
+}: {
+  aboutMessage: string;
+  donateUrl: string | null;
+  donateText: string;
+}) {
+  const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState<EntranceAnswers>(emptyEntranceAnswers);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -149,14 +159,53 @@ export function EntranceApplicationForm() {
           <Link href="/login" className="mb-4 inline-flex justify-center text-primary">
             <BrandMark nameClassName="text-xl text-primary" />
           </Link>
-          <h1 className="text-xl font-bold sm:text-2xl">Adoption Program Entrance Application</h1>
+          <p className="text-xs font-medium uppercase tracking-wide text-amber-800">
+            Cat entering the program
+          </p>
+          <h1 className="text-xl font-bold sm:text-2xl">Adoption program entrance</h1>
           <p className="mx-auto mt-2 max-w-2xl text-muted-foreground">
-            Use this form to submit a cat for the adoption program. An adoption specialist reviews
-            each application and approves or declines entry.
+            Submit a cat to join the adoption program. This is not the form for a person who wants
+            to adopt a cat.
           </p>
         </div>
 
-        {ENTRANCE_SECTIONS.map((section) => (
+        <div className="flex justify-center gap-2">
+          {["About us", "Cat application"].map((label, index) => (
+            <span
+              key={label}
+              className={`rounded-full border px-3 py-1 text-xs ${
+                index === step
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : index < step
+                    ? "border-primary/20 bg-primary/20 text-primary"
+                    : "border-transparent bg-muted text-muted-foreground"
+              }`}
+            >
+              {label}
+            </span>
+          ))}
+        </div>
+
+        {step === 0 && (
+          <Card>
+            <CardContent className="space-y-4 pt-6">
+              <AboutUsStep
+                message={aboutMessage}
+                donateUrl={donateUrl}
+                donateText={donateText}
+                description="A few things to know before you submit a cat."
+              />
+              <div className="flex justify-end">
+                <Button type="button" onClick={() => setStep(1)}>
+                  Next
+                  <ChevronRight className="ml-1 h-4 w-4" />
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {step === 1 && ENTRANCE_SECTIONS.map((section) => (
           <Card key={section.id}>
             <CardHeader>
               <CardTitle className="text-lg">{section.title}</CardTitle>
@@ -186,12 +235,20 @@ export function EntranceApplicationForm() {
           </Card>
         ))}
 
-        {error && !nameMissing && <p className="text-sm text-destructive">{error}</p>}
-        <div className="flex justify-end">
-          <Button type="button" onClick={() => void handleSubmit()} disabled={submitting}>
-            {submitting ? "Submitting..." : "Submit application"}
-          </Button>
-        </div>
+        {step === 1 && (
+          <>
+            {error && !nameMissing && <p className="text-sm text-destructive">{error}</p>}
+            <div className="flex justify-between gap-2">
+              <Button type="button" variant="outline" onClick={() => setStep(0)} disabled={submitting}>
+                <ChevronLeft className="mr-1 h-4 w-4" />
+                Back
+              </Button>
+              <Button type="button" onClick={() => void handleSubmit()} disabled={submitting}>
+                {submitting ? "Submitting..." : "Submit cat"}
+              </Button>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

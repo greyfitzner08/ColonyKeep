@@ -20,7 +20,11 @@ export interface PlatformBranding {
   /** Optional donate button on the colony request intro. */
   intake_donate_url: string | null;
   intake_donate_text: string;
+  /** Intro shown before the public adoption-program entrance form. */
+  adoption_entrance_about_message: string;
 }
+
+export const DEFAULT_ENTRANCE_ABOUT_MESSAGE = `<p>Friends of Feral Felines is a 100% volunteer-run nonprofit serving Mecklenburg County. We do not have paid employees.</p><p>This form is for a cat entering the adoption program. An adoption specialist reviews the information and approves or declines entry. It is separate from the adoption application, which is for a person who wants to adopt a cat.</p><p>By submitting this entrance application, you agree to receive occasional communications from Friends of Feral Felines via email.</p>`;
 
 export const DEFAULT_INTAKE_DONATE_URL = "https://givebutter.com/mobile-tnvr-clinic-atzvj9";
 export const DEFAULT_INTAKE_DONATE_TEXT = "Donate to our mobile clinics";
@@ -44,6 +48,7 @@ export function defaultPlatformBranding(): PlatformBranding {
     intake_about_message: DEFAULT_INTAKE_ABOUT_MESSAGE,
     intake_donate_url: DEFAULT_INTAKE_DONATE_URL,
     intake_donate_text: DEFAULT_INTAKE_DONATE_TEXT,
+    adoption_entrance_about_message: DEFAULT_ENTRANCE_ABOUT_MESSAGE,
   };
 }
 
@@ -118,6 +123,7 @@ export function normalizePlatformBranding(
         intake_about_message?: string | null;
         intake_donate_url?: string | null;
         intake_donate_text?: string | null;
+        adoption_entrance_about_message?: string | null;
       }
     | null
     | undefined
@@ -128,6 +134,7 @@ export function normalizePlatformBranding(
   const calendarEmbed = normalizeGoogleCalendarEmbedUrl(row?.google_calendar_embed_url);
   const donateUrl = normalizePublicHttpsUrl(row?.intake_donate_url);
   const about = row?.intake_about_message?.trim();
+  const entranceAbout = row?.adoption_entrance_about_message?.trim();
   const donateText = row?.intake_donate_text?.trim();
   return {
     app_name: name || DEFAULT_APP_NAME,
@@ -140,6 +147,7 @@ export function normalizePlatformBranding(
     intake_donate_url:
       donateUrl === undefined ? DEFAULT_INTAKE_DONATE_URL : donateUrl,
     intake_donate_text: donateText || DEFAULT_INTAKE_DONATE_TEXT,
+    adoption_entrance_about_message: entranceAbout || DEFAULT_ENTRANCE_ABOUT_MESSAGE,
   };
 }
 

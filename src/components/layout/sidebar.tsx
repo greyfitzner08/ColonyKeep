@@ -27,6 +27,7 @@ import {
   Contact,
   PawPrint,
   ClipboardList,
+  FileInput,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getProfilePermissions } from "@/lib/permissions";
@@ -129,6 +130,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { href: "/adoption", label: "Adoptable Cats", icon: PawPrint },
       { href: "/adoption/applications", label: "Applications", icon: ClipboardList },
+      { href: "/adoption/entrance", label: "Entrance applications", icon: FileInput },
       { href: "/adoption/locations", label: "Locations", icon: MapPin },
     ],
   },

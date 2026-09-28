@@ -52,7 +52,7 @@ function validateThemeColor(value: unknown, fallback: string): string | null {
 }
 
 const BRANDING_SELECT =
-  "app_name, logo_url, logo_light_url, primary_color, sidebar_color, google_calendar_embed_url, intake_about_message, intake_donate_url, intake_donate_text" as const;
+  "app_name, logo_url, logo_light_url, primary_color, sidebar_color, google_calendar_embed_url, intake_about_message, intake_donate_url, intake_donate_text, adoption_entrance_about_message" as const;
 
 export async function GET() {
   try {

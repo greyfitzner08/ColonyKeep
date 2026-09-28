@@ -459,9 +459,13 @@ export function AdoptionApplicationForm({
     <div className="mx-auto max-w-2xl space-y-6 px-4 py-8">
       <div className="space-y-2 text-center">
         <BrandMark className="mx-auto h-12 w-auto" />
-        <h1 className="text-2xl font-semibold">Adoption Application</h1>
+        <p className="text-xs font-medium uppercase tracking-wide text-blue-800">
+          Person applying to adopt
+        </p>
+        <h1 className="text-2xl font-semibold">Adoption application</h1>
         <p className="text-sm text-muted-foreground">
-          Friends of Feral Felines — thank you for considering adoption.
+          Use this form if you want to adopt a cat or kitten. Submitting a cat into the program
+          uses the entrance application instead.
         </p>
       </div>
 
