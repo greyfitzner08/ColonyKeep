@@ -453,8 +453,9 @@ export function runReport(
         }))
       );
       return {
-        title: "Cats by clinic",
-        description: "Cats with clinic assignments in the filtered date range.",
+        title: "TNVR cats by clinic",
+        description:
+          "Trap-case cats with clinic assignments in the filtered date range. Adoptable Cats are not included.",
         columns: [
           { key: "label", label: "Clinic" },
           { key: "count", label: "Cats" },
@@ -475,9 +476,9 @@ export function runReport(
       const adults = fosterPlacements.filter((p) => p.ageCategory === "adult").length;
       const kittens = fosterPlacements.filter((p) => p.ageCategory === "kitten").length;
       return {
-        title: "Cats sent to foster / facility",
+        title: "TNVR cats sent to foster / facility",
         description:
-          "Cats recorded as going to foster or a facility, grouped by destination. Includes clinic fixes and tracked cats not yet linked to a fix.",
+          "Trap-case cats recorded as going to foster or a facility, grouped by destination. This is not the Adoptable Cats list. A cat from a trap team may later be entered there; that adoption record is not assigned to a trap team.",
         columns: [
           { key: "label", label: "Foster / facility" },
           { key: "count", label: "Cats" },
@@ -506,20 +507,21 @@ export function runReport(
             date: placement.placementDate.slice(0, 10),
             zip: hr ? normalizeZip(hr.colony_zip) || "—" : "—",
             team: team?.name ?? "—",
-            source: placement.source === "clinic_fix" ? "Clinic fix" : "Tracked cat",
+            source: placement.source === "clinic_fix" ? "Clinic outcome" : "TNVR cat on the case",
           },
         };
       });
       return {
-        title: "Foster / facility placement detail",
-        description: "One row per cat sent to foster or a facility, matching current filters.",
+        title: "TNVR foster / facility detail",
+        description:
+          "One row per trap-case cat sent to foster or a facility. The trap team is the case team. Adoptable Cats are a separate list and are not included.",
         columns: [
           { key: "label", label: "Case #" },
-          { key: "sublabel", label: "Foster / facility" },
+          { key: "sublabel", label: "Where the cat went" },
           { key: "extra.age", label: "Age" },
           { key: "extra.date", label: "Date" },
           { key: "extra.zip", label: "ZIP" },
-          { key: "extra.team", label: "Team" },
+          { key: "extra.team", label: "Trap team" },
           { key: "extra.source", label: "Source" },
         ],
         rows,

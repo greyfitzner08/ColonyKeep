@@ -60,17 +60,17 @@ const REPORT_TYPES: { value: ReportType; label: string; hint: string }[] = [
   {
     value: "cats_by_clinic",
     label: "Cats by clinic",
-    hint: "Cats linked to each clinic in the filtered period.",
+    hint: "TNVR case cats linked to each clinic. Adoptable Cats are not included.",
   },
   {
     value: "cats_by_foster_facility",
-    label: "Foster / facility totals",
-    hint: "How many cats went to foster or a facility, grouped by destination.",
+    label: "TNVR foster totals",
+    hint: "Trap-case cats sent to foster or a facility. Adoptable Cats are not included and have no trap team.",
   },
   {
     value: "foster_placements_detail",
-    label: "Foster / facility detail",
-    hint: "Row-level list of each cat sent to foster or a facility.",
+    label: "TNVR foster detail",
+    hint: "Each trap-case cat sent to foster or a facility, with that case’s trap team.",
   },
   {
     value: "clinic_usage",

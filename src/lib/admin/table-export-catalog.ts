@@ -37,6 +37,7 @@ export interface ExportableColumn {
 export interface ExportableTable {
   id: ExportableTableId;
   label: string;
+  description?: string;
   columns: ExportableColumn[];
 }
 
@@ -44,6 +45,8 @@ export const EXPORTABLE_TABLES: ExportableTable[] = [
   {
     id: "adoptable_cats",
     label: "Adoptable cats",
+    description:
+      "The Adoption roster. These cats are not assigned to a trap team, even when a TNVR cat was later entered here.",
     columns: [
       { id: "id", label: "id" },
       { id: "name", label: "name" },
@@ -138,7 +141,9 @@ export const EXPORTABLE_TABLES: ExportableTable[] = [
   },
   {
     id: "cats",
-    label: "Tracked cats",
+    label: "TNVR case cats",
+    description:
+      "Cats tracked on trap cases. This is not the Adoptable Cats list.",
     columns: [
       { id: "id", label: "id" },
       { id: "help_request_id", label: "help request id" },

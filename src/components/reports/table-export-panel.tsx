@@ -170,6 +170,7 @@ export function TableExportPanel() {
             </SelectContent>
           </Select>
           <p className="text-xs text-muted-foreground">
+            {table.description ? `${table.description} ` : ""}
             {table.columns.length} columns available · exports up to 50,000 rows
           </p>
         </div>

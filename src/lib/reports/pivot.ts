@@ -61,10 +61,14 @@ export interface PivotFieldOption {
 }
 
 export const PIVOT_DATASETS: { value: PivotDataset; label: string; hint: string }[] = [
-  { value: "cases", label: "Cases", hint: "Colony help requests / trap queue cases" },
-  { value: "cats", label: "Tracked cats", hint: "Individual cats linked to cases" },
+  { value: "cases", label: "TNVR cases", hint: "Colony help requests in the trap queue" },
+  {
+    value: "cats",
+    label: "TNVR case cats",
+    hint: "Cats on trap cases. Adoptable Cats are a separate list and are not assigned to a trap team.",
+  },
   { value: "appointments", label: "Appointments", hint: "Clinic appointment slots" },
-  { value: "clinic_fixes", label: "Clinic fixes", hint: "Logged clinic outcomes" },
+  { value: "clinic_fixes", label: "Clinic fixes", hint: "Clinic outcomes logged on trap cases" },
 ];
 
 export const PIVOT_MEASURES: { value: PivotMeasure; label: string; datasets: PivotDataset[] }[] = [
