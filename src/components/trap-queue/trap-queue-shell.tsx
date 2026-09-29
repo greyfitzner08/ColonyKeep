@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { IntakeCaseTable } from "@/components/cases/intake-case-table";
+import { ClosedCasesList } from "@/components/trap-queue/closed-cases-list";
 import { TrapQueueBoard } from "@/components/trap-queue/trap-queue-board";
 import { TrapQueueToolbar } from "@/components/trap-queue/trap-queue-toolbar";
 import { filterCasesBySearch } from "@/lib/cases/search-cases";
@@ -45,6 +46,7 @@ export function TrapQueueShell({
   const layout = (searchParams.get("layout") === "table" ? "table" : "cards") as CaseViewMode;
   const sort = (searchParams.get("sort") ?? "date_desc") as IntakeSortKey;
   const searchQuery = searchParams.get("q") ?? "";
+  const isClosedScope = searchParams.get("scope") === "closed";
 
   function updateParam(key: string, value: string) {
     const params = new URLSearchParams(searchParams.toString());
@@ -58,8 +60,9 @@ export function TrapQueueShell({
 
   const visibleCases = useMemo(() => {
     const filtered = filterCasesBySearch(cases, searchQuery);
+    if (isClosedScope) return filtered;
     return sortIntakeCases(filtered, sort);
-  }, [cases, searchQuery, sort]);
+  }, [cases, searchQuery, sort, isClosedScope]);
 
   return (
     <div className="space-y-4">
@@ -79,7 +82,14 @@ export function TrapQueueShell({
         actions={toolbarActions}
       />
 
-      {visibleCases.length === 0 ? (
+      {isClosedScope ? (
+        <ClosedCasesList
+          cases={visibleCases}
+          emptyMessage={
+            searchQuery.trim() ? "No cases match your search." : "No closed cases in this view."
+          }
+        />
+      ) : visibleCases.length === 0 ? (
         <p className="py-8 text-center text-muted-foreground">
           {searchQuery.trim() ? "No cases match your search." : "No cases in this view."}
         </p>

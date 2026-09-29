@@ -45,7 +45,8 @@ export function TrapQueueToolbar({
 }: TrapQueueToolbarProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const scope = searchParams.get("scope") === "history" ? "history" : "queue";
+  const scopeParam = searchParams.get("scope");
+  const scope = scopeParam === "history" ? "history" : scopeParam === "closed" ? "closed" : "queue";
   const currentView = searchParams.get("view") ?? defaultView;
 
   function updateParams(mutate: (params: URLSearchParams) => void) {
@@ -84,6 +85,8 @@ export function TrapQueueToolbar({
                     if (value === "history") {
                       params.set("scope", "history");
                       params.delete("view");
+                    } else if (value === "closed") {
+                      params.set("scope", "closed");
                     } else {
                       params.delete("scope");
                     }
@@ -95,6 +98,7 @@ export function TrapQueueToolbar({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="queue">Trap queue</SelectItem>
+                  <SelectItem value="closed">Closed</SelectItem>
                   <SelectItem value="history">My work history</SelectItem>
                 </SelectContent>
               </Select>
@@ -139,6 +143,7 @@ export function TrapQueueToolbar({
             </div>
           ) : null}
 
+          {scope === "closed" ? null : (
           <div className="space-y-1.5 min-w-0 sm:col-span-2 xl:min-w-[280px] xl:flex-1">
             <p className="text-xs font-medium text-muted-foreground">Layout & sort</p>
             <CaseQueueControls
@@ -148,6 +153,7 @@ export function TrapQueueToolbar({
               onSortChange={onSortChange}
             />
           </div>
+          )}
         </>
       }
     />

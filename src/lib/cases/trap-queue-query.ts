@@ -50,6 +50,30 @@ export function buildTrapQueueQuery(
   return query.eq("assigned_team_id", view);
 }
 
+const CLOSED_CASE_STATUSES = ["closed", "completed"] as const;
+
+/** Finished cases kept off the active trap board. */
+export function buildClosedCasesQuery(
+  supabase: SupabaseClient,
+  { view, teamId, userEmail }: TrapQueueQueryOptions
+) {
+  let query = supabase
+    .from("help_requests")
+    .select("*")
+    .in("status", [...CLOSED_CASE_STATUSES])
+    .order("closed_at", { ascending: false, nullsFirst: false });
+
+  if (view === "all") return query;
+  if (view === "unassigned") return query.is("assigned_team_id", null);
+  if (view === "mine") {
+    if (teamId) {
+      return query.or(`assigned_team_id.eq.${teamId},claimed_by_email.eq.${userEmail}`);
+    }
+    return query.eq("claimed_by_email", userEmail);
+  }
+  return query.eq("assigned_team_id", view);
+}
+
 export function trapQueueViewLabel(
   view: TrapQueueView,
   teams: { id: string; name: string }[],

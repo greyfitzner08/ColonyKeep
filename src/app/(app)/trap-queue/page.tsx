@@ -4,6 +4,7 @@ import { getAppProfile } from "@/lib/auth";
 import { sortCasesMedicalFirst } from "@/lib/cases/sort-cases";
 import { fetchUserCaseWorkHistory } from "@/lib/cases/user-work-history";
 import {
+  buildClosedCasesQuery,
   buildTrapQueueQuery,
   defaultTrapQueueView,
   trapQueueViewLabel,
@@ -27,6 +28,7 @@ export default async function TrapQueuePage({ searchParams }: TrapQueuePageProps
   const isTrapRole = profile?.role === "admin" || profile?.role === "trap_team_lead";
 
   const isHistoryScope = params.scope === "history";
+  const isClosedScope = params.scope === "closed";
   const defaultView = defaultTrapQueueView({
     role: profile?.role,
     teamId: profile?.team_id,
@@ -44,6 +46,14 @@ export default async function TrapQueuePage({ searchParams }: TrapQueuePageProps
 
   if (isHistoryScope) {
     cases = await fetchUserCaseWorkHistory(supabase, profile?.email ?? "", { limit: 100 });
+  } else if (isClosedScope) {
+    const query = buildClosedCasesQuery(supabase, {
+      view,
+      teamId: profile?.team_id ?? null,
+      userEmail: profile?.email ?? "",
+    });
+    const { data: helpRequests } = await query;
+    cases = (helpRequests ?? []) as HelpRequest[];
   } else {
     const query = buildTrapQueueQuery(supabase, {
       view,
@@ -57,6 +67,12 @@ export default async function TrapQueuePage({ searchParams }: TrapQueuePageProps
   const viewLabel = trapQueueViewLabel(view, teams ?? [], myTeam?.name);
   const viewDescription = isHistoryScope
     ? "Cases you have claimed, annotated, reserved appointments for, or logged clinic results on."
+    : isClosedScope
+      ? view === "all"
+        ? "Closed and completed cases from every team. They stay off the active trap queue."
+        : view === "unassigned"
+          ? "Closed and completed cases that were never assigned to a trap team."
+          : `Closed and completed cases for ${viewLabel}. They stay off the active trap queue.`
     : view === "mine"
       ? "Cases assigned to your trap team and cases you have personally claimed."
       : view === "unassigned"
@@ -95,7 +111,7 @@ export default async function TrapQueuePage({ searchParams }: TrapQueuePageProps
       <Suspense fallback={<div className="h-40 animate-pulse rounded-lg bg-muted" />}>
         <TrapQueueShell
           cases={cases}
-          canClaim={!isHistoryScope && isTrapRole}
+          canClaim={!isHistoryScope && !isClosedScope && isTrapRole}
           userEmail={profile?.email ?? ""}
           isAdmin={profile?.role === "admin"}
           teams={teams ?? []}
