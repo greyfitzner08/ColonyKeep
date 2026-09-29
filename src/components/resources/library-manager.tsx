@@ -48,54 +48,6 @@ function downloadFilename(title: string, extension: string): string {
   return `${base || "document"}.${extension}`;
 }
 
-function fileExtension(url: string): string {
-  try {
-    const name = new URL(url).pathname.split("/").pop() ?? "";
-    const match = /\.([a-z0-9]+)$/i.exec(name);
-    return match?.[1]?.toLowerCase() || "bin";
-  } catch {
-    return "bin";
-  }
-}
-
-function isHostedFile(url: string): boolean {
-  try {
-    const parsed = new URL(url);
-    return (
-      parsed.pathname.includes("/storage/v1/object/") ||
-      /\.(pdf|docx?|xlsx?|pptx?|png|jpe?g|gif|webp|txt|md|csv|zip)$/i.test(parsed.pathname)
-    );
-  } catch {
-    return false;
-  }
-}
-
-function fileDownloadUrl(url: string, filename: string): string {
-  try {
-    const parsed = new URL(url);
-    if (parsed.pathname.includes("/storage/v1/object/public/")) {
-      parsed.searchParams.set("download", filename);
-      return parsed.toString();
-    }
-  } catch {
-    return url;
-  }
-  return url;
-}
-
-function downloadGuide(doc: Pick<LibraryDocument, "title" | "body_markdown">) {
-  const body = doc.body_markdown?.trim() ?? "";
-  const blob = new Blob([body], { type: "text/markdown;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement("a");
-  anchor.href = url;
-  anchor.download = downloadFilename(doc.title, "md");
-  document.body.appendChild(anchor);
-  anchor.click();
-  anchor.remove();
-  URL.revokeObjectURL(url);
-}
-
 interface LibraryManagerProps {
   documents: LibraryDocument[];
   isAdmin: boolean;
@@ -122,6 +74,33 @@ export function LibraryManager({ documents: initial, isAdmin }: LibraryManagerPr
   const [uploading, setUploading] = useState(false);
   const [dragActive, setDragActive] = useState(false);
   const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
+
+  async function downloadPdf(doc: Pick<LibraryDocument, "id" | "title">) {
+    setDownloadingId(doc.id);
+    setError(null);
+    try {
+      const response = await fetch(`/api/library-documents/pdf?id=${encodeURIComponent(doc.id)}`);
+      if (!response.ok) {
+        const result = await response.json().catch(() => null);
+        setError(result?.error ?? "Unable to download this PDF.");
+        return;
+      }
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = downloadFilename(doc.title, "pdf");
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(url);
+    } catch {
+      setError("Unable to download this PDF.");
+    } finally {
+      setDownloadingId(null);
+    }
+  }
 
   const sections = useMemo(() => {
     const names = new Set(initial.map((doc) => doc.section || "General"));
@@ -259,6 +238,8 @@ export function LibraryManager({ documents: initial, isAdmin }: LibraryManagerPr
         </div>
       )}
 
+      {error && !dialogOpen ? <p className="text-sm text-destructive">{error}</p> : null}
+
       <div className="space-y-8">
         {grouped.length === 0 ? (
           <Card>
@@ -306,9 +287,15 @@ export function LibraryManager({ documents: initial, isAdmin }: LibraryManagerPr
                             <BookOpen className="h-3.5 w-3.5" />
                             Open guide
                           </Button>
-                          <Button type="button" size="sm" variant="outline" onClick={() => downloadGuide(doc)}>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            disabled={downloadingId === doc.id}
+                            onClick={() => void downloadPdf(doc)}
+                          >
                             <Download className="h-3.5 w-3.5" />
-                            Download
+                            {downloadingId === doc.id ? "Downloading…" : "Download PDF"}
                           </Button>
                         </>
                       ) : (
@@ -319,27 +306,15 @@ export function LibraryManager({ documents: initial, isAdmin }: LibraryManagerPr
                               Open document
                             </a>
                           </Button>
-                          <Button type="button" size="sm" variant="outline" asChild>
-                            <a
-                              href={
-                                isHostedFile(doc.file_url)
-                                  ? fileDownloadUrl(
-                                      doc.file_url,
-                                      downloadFilename(doc.title, fileExtension(doc.file_url))
-                                    )
-                                  : doc.file_url
-                              }
-                              download={
-                                isHostedFile(doc.file_url)
-                                  ? downloadFilename(doc.title, fileExtension(doc.file_url))
-                                  : downloadFilename(doc.title, "html")
-                              }
-                              target={isHostedFile(doc.file_url) ? undefined : "_blank"}
-                              rel="noopener noreferrer"
-                            >
-                              <Download className="h-3.5 w-3.5" />
-                              Download
-                            </a>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            disabled={downloadingId === doc.id}
+                            onClick={() => void downloadPdf(doc)}
+                          >
+                            <Download className="h-3.5 w-3.5" />
+                            {downloadingId === doc.id ? "Downloading…" : "Download PDF"}
                           </Button>
                         </>
                       )}
@@ -378,9 +353,14 @@ export function LibraryManager({ documents: initial, isAdmin }: LibraryManagerPr
               </DialogHeader>
               <SimpleMarkdown content={readingDoc.body_markdown ?? ""} />
               <div className="flex justify-end gap-2 border-t pt-4">
-                <Button type="button" variant="outline" onClick={() => downloadGuide(readingDoc)}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={downloadingId === readingDoc.id}
+                  onClick={() => void downloadPdf(readingDoc)}
+                >
                   <Download className="h-4 w-4" />
-                  Download
+                  {downloadingId === readingDoc.id ? "Downloading…" : "Download PDF"}
                 </Button>
                 {isAdmin && (
                   <Button
