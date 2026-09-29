@@ -19,7 +19,7 @@ import {
 import { SimpleMarkdown } from "@/components/resources/simple-markdown";
 import { ROLE_PERMISSIONS, VOLUNTEER_ROLES, isKnownUserRole } from "@/lib/constants";
 import type { LibraryDocument, UserRole } from "@/lib/types";
-import { BookOpen, ExternalLink, Plus, Trash2, Upload } from "lucide-react";
+import { BookOpen, Download, ExternalLink, Plus, Trash2, Upload } from "lucide-react";
 
 const ALL_ROLES = Object.keys(ROLE_PERMISSIONS) as UserRole[];
 
@@ -36,6 +36,64 @@ function formatAccessRoleLabel(role: string): string {
 
 function isInlineGuide(doc: Pick<LibraryDocument, "body_markdown">): boolean {
   return Boolean(doc.body_markdown?.trim());
+}
+
+function downloadFilename(title: string, extension: string): string {
+  const base = title
+    .trim()
+    .replace(/[^\w\s.-]+/g, "")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+  return `${base || "document"}.${extension}`;
+}
+
+function fileExtension(url: string): string {
+  try {
+    const name = new URL(url).pathname.split("/").pop() ?? "";
+    const match = /\.([a-z0-9]+)$/i.exec(name);
+    return match?.[1]?.toLowerCase() || "bin";
+  } catch {
+    return "bin";
+  }
+}
+
+function isHostedFile(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    return (
+      parsed.pathname.includes("/storage/v1/object/") ||
+      /\.(pdf|docx?|xlsx?|pptx?|png|jpe?g|gif|webp|txt|md|csv|zip)$/i.test(parsed.pathname)
+    );
+  } catch {
+    return false;
+  }
+}
+
+function fileDownloadUrl(url: string, filename: string): string {
+  try {
+    const parsed = new URL(url);
+    if (parsed.pathname.includes("/storage/v1/object/public/")) {
+      parsed.searchParams.set("download", filename);
+      return parsed.toString();
+    }
+  } catch {
+    return url;
+  }
+  return url;
+}
+
+function downloadGuide(doc: Pick<LibraryDocument, "title" | "body_markdown">) {
+  const body = doc.body_markdown?.trim() ?? "";
+  const blob = new Blob([body], { type: "text/markdown;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = downloadFilename(doc.title, "md");
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(url);
 }
 
 interface LibraryManagerProps {
@@ -241,27 +299,49 @@ export function LibraryManager({ documents: initial, isAdmin }: LibraryManagerPr
                         </div>
                       )}
                     </CardHeader>
-                    <CardContent className="flex flex-wrap items-center gap-3">
+                    <CardContent className="flex flex-wrap items-center gap-2">
                       {isInlineGuide(doc) ? (
-                        <Button
-                          type="button"
-                          variant="link"
-                          className="h-auto p-0 text-sm"
-                          onClick={() => setReadingDoc(doc)}
-                        >
-                          <BookOpen className="mr-2 h-3.5 w-3.5" />
-                          Open guide
-                        </Button>
+                        <>
+                          <Button type="button" size="sm" variant="outline" onClick={() => setReadingDoc(doc)}>
+                            <BookOpen className="h-3.5 w-3.5" />
+                            Open guide
+                          </Button>
+                          <Button type="button" size="sm" variant="outline" onClick={() => downloadGuide(doc)}>
+                            <Download className="h-3.5 w-3.5" />
+                            Download
+                          </Button>
+                        </>
                       ) : (
-                        <a
-                          href={doc.file_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-2 text-primary underline text-sm"
-                        >
-                          Open document
-                          <ExternalLink className="h-3.5 w-3.5" />
-                        </a>
+                        <>
+                          <Button type="button" size="sm" variant="outline" asChild>
+                            <a href={doc.file_url} target="_blank" rel="noopener noreferrer">
+                              <ExternalLink className="h-3.5 w-3.5" />
+                              Open document
+                            </a>
+                          </Button>
+                          <Button type="button" size="sm" variant="outline" asChild>
+                            <a
+                              href={
+                                isHostedFile(doc.file_url)
+                                  ? fileDownloadUrl(
+                                      doc.file_url,
+                                      downloadFilename(doc.title, fileExtension(doc.file_url))
+                                    )
+                                  : doc.file_url
+                              }
+                              download={
+                                isHostedFile(doc.file_url)
+                                  ? downloadFilename(doc.title, fileExtension(doc.file_url))
+                                  : downloadFilename(doc.title, "html")
+                              }
+                              target={isHostedFile(doc.file_url) ? undefined : "_blank"}
+                              rel="noopener noreferrer"
+                            >
+                              <Download className="h-3.5 w-3.5" />
+                              Download
+                            </a>
+                          </Button>
+                        </>
                       )}
                       {isAdmin && (
                         <div className="flex flex-wrap gap-1">
@@ -297,8 +377,12 @@ export function LibraryManager({ documents: initial, isAdmin }: LibraryManagerPr
                 ) : null}
               </DialogHeader>
               <SimpleMarkdown content={readingDoc.body_markdown ?? ""} />
-              {isAdmin && (
-                <div className="flex justify-end border-t pt-4">
+              <div className="flex justify-end gap-2 border-t pt-4">
+                <Button type="button" variant="outline" onClick={() => downloadGuide(readingDoc)}>
+                  <Download className="h-4 w-4" />
+                  Download
+                </Button>
+                {isAdmin && (
                   <Button
                     type="button"
                     variant="outline"
@@ -309,8 +393,8 @@ export function LibraryManager({ documents: initial, isAdmin }: LibraryManagerPr
                   >
                     Edit guide
                   </Button>
-                </div>
-              )}
+                )}
+              </div>
             </>
           )}
         </DialogContent>
