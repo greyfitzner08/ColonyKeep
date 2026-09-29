@@ -1,3 +1,13 @@
+import {
+  ADOPTION_APPLICATION_STATUSES,
+  adoptionApplicationStatusLabel,
+  type AdoptionApplicationStatus,
+} from "@/lib/adoption/application";
+import {
+  ADOPTABLE_CAT_STATUSES,
+  adoptableCatStatusLabel,
+  type AdoptableCatStatus,
+} from "@/lib/adoption/constants";
 import { findTrapTeamForZip, normalizeZip } from "@/lib/cases/assign-team-by-zip";
 import { fosterFacilityLabel, type FosterFacility } from "@/lib/cases/foster-facility";
 import { CASE_STATUSES } from "@/lib/constants";
@@ -80,7 +90,40 @@ export type ReportType =
   | "foster_placements_detail"
   | "clinic_usage"
   | "case_status_summary"
-  | "case_detail";
+  | "case_detail"
+  | "adoptable_cats_by_status"
+  | "adoptable_cats_detail"
+  | "adoption_applications_by_status"
+  | "adoption_applications_detail";
+
+export interface ReportAdoptableCat {
+  id: string;
+  name: string;
+  sex: string | null;
+  status: AdoptableCatStatus;
+  created_at: string;
+  fosterName: string;
+  petStore: string;
+}
+
+export interface ReportAdoptionApplication {
+  id: string;
+  status: AdoptionApplicationStatus;
+  applicantName: string;
+  applicantEmail: string;
+  catInterestName: string;
+  linkedCatName: string;
+  created_at: string;
+}
+
+export function isAdoptionProgramReport(type: ReportType): boolean {
+  return (
+    type === "adoptable_cats_by_status" ||
+    type === "adoptable_cats_detail" ||
+    type === "adoption_applications_by_status" ||
+    type === "adoption_applications_detail"
+  );
+}
 
 export interface ReportFilters {
   dateFrom: string;
@@ -297,6 +340,36 @@ function collectFosterPlacements(
   return placements.sort((a, b) => b.placementDate.localeCompare(a.placementDate));
 }
 
+function inAdoptionDateRange(createdAt: string, filters: ReportFilters): boolean {
+  return inDateRange(createdAt, filters.dateFrom, filters.dateTo);
+}
+
+function catSexLabel(sex: string | null): string {
+  if (sex === "female") return "Female";
+  if (sex === "male") return "Male";
+  if (sex === "unknown") return "Unknown";
+  return "—";
+}
+
+function filterAdoptableCats(cats: ReportAdoptableCat[], filters: ReportFilters): ReportAdoptableCat[] {
+  return cats.filter((cat) => {
+    if (!inAdoptionDateRange(cat.created_at, filters)) return false;
+    if (filters.status && cat.status !== filters.status) return false;
+    return true;
+  });
+}
+
+function filterAdoptionApplications(
+  applications: ReportAdoptionApplication[],
+  filters: ReportFilters
+): ReportAdoptionApplication[] {
+  return applications.filter((application) => {
+    if (!inAdoptionDateRange(application.created_at, filters)) return false;
+    if (filters.status && application.status !== filters.status) return false;
+    return true;
+  });
+}
+
 export function runReport(
   type: ReportType,
   filters: ReportFilters,
@@ -305,7 +378,9 @@ export function runReport(
   appointments: ReportAppointment[],
   teams: ReportTrapTeam[],
   _clinics: ReportClinic[],
-  clinicFixes: ReportClinicFix[] = []
+  clinicFixes: ReportClinicFix[] = [],
+  adoptableCats: ReportAdoptableCat[] = [],
+  adoptionApplications: ReportAdoptionApplication[] = []
 ): ReportResult {
   const filtered = filterHelpRequests(helpRequests, filters, teams);
   const requestIds = new Set(filtered.map((hr) => hr.id));
@@ -611,6 +686,106 @@ export function runReport(
         ],
         rows,
         totals: [{ label: "Cases", value: rows.length }],
+      };
+    }
+
+    case "adoptable_cats_by_status": {
+      const listed = filterAdoptableCats(adoptableCats, filters);
+      const rows = ADOPTABLE_CAT_STATUSES.map((entry) => ({
+        key: entry.value,
+        label: entry.label,
+        count: listed.filter((cat) => cat.status === entry.value).length,
+      })).filter((row) => row.count > 0);
+      return {
+        title: "Adoptable cats by status",
+        description:
+          "Cats on the Adoption list, grouped by status. These cats are not assigned to a trap team.",
+        columns: [
+          { key: "label", label: "Status" },
+          { key: "count", label: "Cats" },
+        ],
+        rows,
+        totals: [{ label: "Adoptable cats", value: listed.length }],
+      };
+    }
+
+    case "adoptable_cats_detail": {
+      const listed = filterAdoptableCats(adoptableCats, filters);
+      const rows: ReportRow[] = listed.map((cat) => ({
+        key: cat.id,
+        label: cat.name,
+        sublabel: adoptableCatStatusLabel(cat.status),
+        count: 1,
+        extra: {
+          sex: catSexLabel(cat.sex),
+          foster: cat.fosterName || "—",
+          store: cat.petStore || "—",
+          added: cat.created_at.slice(0, 10),
+        },
+      }));
+      return {
+        title: "Adoptable cats",
+        description:
+          "Each cat on the Adoption list. Foster and pet store come from that cat’s profile, not from a trap team.",
+        columns: [
+          { key: "label", label: "Cat" },
+          { key: "sublabel", label: "Status" },
+          { key: "extra.sex", label: "Sex" },
+          { key: "extra.foster", label: "Foster" },
+          { key: "extra.store", label: "Pet store" },
+          { key: "extra.added", label: "Added" },
+        ],
+        rows,
+        totals: [{ label: "Adoptable cats", value: rows.length }],
+      };
+    }
+
+    case "adoption_applications_by_status": {
+      const listed = filterAdoptionApplications(adoptionApplications, filters);
+      const rows = ADOPTION_APPLICATION_STATUSES.map((entry) => ({
+        key: entry.value,
+        label: entry.label,
+        count: listed.filter((application) => application.status === entry.value).length,
+      })).filter((row) => row.count > 0);
+      return {
+        title: "Adoption applications by status",
+        description: "Applications from people who want to adopt, grouped by review status.",
+        columns: [
+          { key: "label", label: "Status" },
+          { key: "count", label: "Applications" },
+        ],
+        rows,
+        totals: [{ label: "Applications", value: listed.length }],
+      };
+    }
+
+    case "adoption_applications_detail": {
+      const listed = filterAdoptionApplications(adoptionApplications, filters);
+      const rows: ReportRow[] = listed.map((application) => ({
+        key: application.id,
+        label: application.applicantName || "—",
+        sublabel: adoptionApplicationStatusLabel(application.status),
+        count: 1,
+        extra: {
+          email: application.applicantEmail || "—",
+          wrote: application.catInterestName || "—",
+          linked: application.linkedCatName || "—",
+          submitted: application.created_at.slice(0, 10),
+        },
+      }));
+      return {
+        title: "Adoption applications",
+        description: "Each application from a person who wants to adopt a cat.",
+        columns: [
+          { key: "label", label: "Applicant" },
+          { key: "sublabel", label: "Status" },
+          { key: "extra.email", label: "Email" },
+          { key: "extra.wrote", label: "Cat named on the form" },
+          { key: "extra.linked", label: "Linked cat" },
+          { key: "extra.submitted", label: "Submitted" },
+        ],
+        rows,
+        totals: [{ label: "Applications", value: rows.length }],
       };
     }
 

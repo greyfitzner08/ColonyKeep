@@ -22,6 +22,8 @@ import { TableExportPanel } from "@/components/reports/table-export-panel";
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import {
   DEFAULT_REPORT_FILTERS,
+  type ReportAdoptableCat,
+  type ReportAdoptionApplication,
   type ReportAppointment,
   type ReportCat,
   type ReportClinic,
@@ -30,9 +32,13 @@ import {
   type ReportHelpRequest,
   type ReportTrapTeam,
   type ReportType,
+  isAdoptionProgramReport,
   reportFilterOptions,
   runReport,
 } from "@/lib/reports/aggregations";
+import { ADOPTABLE_CAT_STATUSES } from "@/lib/adoption/constants";
+import { ADOPTION_APPLICATION_STATUSES } from "@/lib/adoption/application";
+import { CASE_STATUSES } from "@/lib/constants";
 import { downloadCsv, reportToCsv } from "@/lib/reports/export-csv";
 import { cn } from "@/lib/utils";
 
@@ -87,6 +93,26 @@ const REPORT_TYPES: { value: ReportType; label: string; hint: string }[] = [
     label: "Case detail list",
     hint: "Exportable row-level list of cases matching filters.",
   },
+  {
+    value: "adoptable_cats_by_status",
+    label: "Adoptable cats by status",
+    hint: "Cats on the Adoption list, grouped by status. Not assigned to a trap team.",
+  },
+  {
+    value: "adoptable_cats_detail",
+    label: "Adoptable cats list",
+    hint: "Each Adoptable Cat, with foster and pet store from that profile.",
+  },
+  {
+    value: "adoption_applications_by_status",
+    label: "Applications by status",
+    hint: "Adoption applications grouped by review status.",
+  },
+  {
+    value: "adoption_applications_detail",
+    label: "Applications list",
+    hint: "Each application from a person who wants to adopt.",
+  },
 ];
 
 interface NewsletterSignupRow {
@@ -106,6 +132,8 @@ interface ReportsDashboardProps {
   teams: ReportTrapTeam[];
   clinics: ReportClinic[];
   newsletterSignups: NewsletterSignupRow[];
+  adoptableCats: ReportAdoptableCat[];
+  adoptionApplications: ReportAdoptionApplication[];
 }
 
 function cellValue(
@@ -130,6 +158,8 @@ export function ReportsDashboard({
   teams,
   clinics,
   newsletterSignups,
+  adoptableCats,
+  adoptionApplications,
 }: ReportsDashboardProps) {
   const [filters, setFilters] = useState<ReportFilters>(DEFAULT_REPORT_FILTERS);
   const [reportType, setReportType] = useState<ReportType>("inquiries_by_zip");
@@ -150,9 +180,22 @@ export function ReportsDashboard({
         appointments,
         teams,
         clinics,
-        clinicFixes
+        clinicFixes,
+        adoptableCats,
+        adoptionApplications
       ),
-    [reportType, filters, helpRequests, cats, appointments, teams, clinics, clinicFixes]
+    [
+      reportType,
+      filters,
+      helpRequests,
+      cats,
+      appointments,
+      teams,
+      clinics,
+      clinicFixes,
+      adoptableCats,
+      adoptionApplications,
+    ]
   );
 
   const activeReport = REPORT_TYPES.find((entry) => entry.value === reportType);
@@ -170,6 +213,28 @@ export function ReportsDashboard({
     setFilters((current) => ({ ...current, [key]: value }));
   }
 
+  function selectReportType(next: ReportType) {
+    setReportType(next);
+    setFilters((current) => {
+      const allowed = isAdoptionProgramReport(next)
+        ? next.startsWith("adoption_application")
+          ? ADOPTION_APPLICATION_STATUSES
+          : ADOPTABLE_CAT_STATUSES
+        : CASE_STATUSES;
+      if (current.status && !allowed.some((entry) => entry.value === current.status)) {
+        return { ...current, status: "" };
+      }
+      return current;
+    });
+  }
+
+  const adoptionReport = isAdoptionProgramReport(reportType);
+  const statusOptions = adoptionReport
+    ? reportType.startsWith("adoption_application")
+      ? ADOPTION_APPLICATION_STATUSES
+      : ADOPTABLE_CAT_STATUSES
+    : options.statuses;
+
   function resetFilters() {
     setFilters(DEFAULT_REPORT_FILTERS);
   }
@@ -183,12 +248,14 @@ export function ReportsDashboard({
     let count = 0;
     if (filters.dateFrom) count += 1;
     if (filters.dateTo) count += 1;
-    if (filters.zip) count += 1;
-    if (filters.teamId) count += 1;
-    if (filters.clinicId) count += 1;
-    if (filters.trapper.trim()) count += 1;
     if (filters.status) count += 1;
-    if (filters.intakeOnly) count += 1;
+    if (!adoptionReport) {
+      if (filters.zip) count += 1;
+      if (filters.teamId) count += 1;
+      if (filters.clinicId) count += 1;
+      if (filters.trapper.trim()) count += 1;
+      if (filters.intakeOnly) count += 1;
+    }
     return count;
   }
 
@@ -271,7 +338,7 @@ export function ReportsDashboard({
                   <button
                     key={entry.value}
                     type="button"
-                    onClick={() => setReportType(entry.value)}
+                    onClick={() => selectReportType(entry.value)}
                     className={cn(
                       "rounded-lg border p-3 text-left transition-colors",
                       reportType === entry.value
@@ -290,7 +357,9 @@ export function ReportsDashboard({
               <div>
                 <p className="text-sm font-medium">Filters</p>
                 <p className="text-xs text-muted-foreground">
-                  Narrow results by date, location, team, clinic, trapper, or status.
+                  {adoptionReport
+                    ? "Narrow this Adoption report by date or status. Trap team, clinic, and ZIP filters apply to TNVR cases only."
+                    : "Narrow results by date, location, team, clinic, trapper, or status."}
                 </p>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
@@ -312,6 +381,8 @@ export function ReportsDashboard({
                 onChange={(event) => updateFilter("dateTo", event.target.value)}
               />
             </div>
+            {adoptionReport ? null : (
+            <>
             <div className="space-y-2">
               <Label>ZIP code</Label>
               <Select
@@ -378,8 +449,10 @@ export function ReportsDashboard({
                 onChange={(event) => updateFilter("trapper", event.target.value)}
               />
             </div>
+            </>
+            )}
             <div className="space-y-2">
-              <Label>Case status</Label>
+              <Label>{adoptionReport ? (reportType.startsWith("adoption_application") ? "Application status" : "Cat status") : "Case status"}</Label>
               <Select
                 value={filters.status || "all"}
                 onValueChange={(value) => updateFilter("status", value === "all" ? "" : value)}
@@ -389,7 +462,7 @@ export function ReportsDashboard({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All statuses</SelectItem>
-                  {options.statuses.map((status) => (
+                  {statusOptions.map((status) => (
                     <SelectItem key={status.value} value={status.value}>
                       {status.label}
                     </SelectItem>
@@ -397,6 +470,7 @@ export function ReportsDashboard({
                 </SelectContent>
               </Select>
             </div>
+            {adoptionReport ? null : (
             <div className="flex items-end">
               <div className="flex items-center gap-2 rounded-md border px-3 py-2 w-full">
                 <Checkbox
@@ -409,6 +483,7 @@ export function ReportsDashboard({
                 </Label>
               </div>
             </div>
+            )}
           </div>
 
               <div className="flex justify-end">

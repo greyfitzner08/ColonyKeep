@@ -2,7 +2,12 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getAppProfile } from "@/lib/auth";
 import { ReportsDashboard } from "@/components/reports/reports-dashboard";
+import { petStoreDisplayName, type EntranceAnswers } from "@/lib/adoption/entrance";
+import type { AdoptableCatStatus } from "@/lib/adoption/constants";
+import type { AdoptionApplicationStatus } from "@/lib/adoption/application";
 import type {
+  ReportAdoptableCat,
+  ReportAdoptionApplication,
   ReportAppointment,
   ReportCat,
   ReportClinic,
@@ -28,6 +33,9 @@ export default async function ReportsPage() {
     { data: teams },
     { data: clinics },
     { data: newsletterSignups },
+    { data: adoptableCatRows },
+    { data: adoptionApplicationRows },
+    { data: entranceRows },
   ] = await Promise.all([
     supabase.from("help_requests").select(HELP_REQUEST_REPORT_FIELDS).order("created_at", {
       ascending: false,
@@ -54,7 +62,63 @@ export default async function ReportsPage() {
       .not("contact_email", "is", null)
       .neq("contact_email", "")
       .order("created_at", { ascending: false }),
+    supabase.from("adoptable_cats").select("id, name, sex, status, created_at").order("created_at", {
+      ascending: false,
+    }),
+    supabase
+      .from("adoption_applications")
+      .select(
+        "id, status, cat_interest_name, applicant_first_name, applicant_last_name, applicant_email, created_at, cat:adoptable_cats(name)"
+      )
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("adoption_entrance_applications")
+      .select("adoptable_cat_id, answers, updated_at")
+      .not("adoptable_cat_id", "is", null)
+      .order("updated_at", { ascending: false }),
   ]);
+
+  const locationByCat = new Map<string, { fosterName: string; petStore: string }>();
+  for (const row of entranceRows ?? []) {
+    const catId = row.adoptable_cat_id;
+    if (!catId || locationByCat.has(catId)) continue;
+    const answers =
+      row.answers && typeof row.answers === "object" ? (row.answers as EntranceAnswers) : undefined;
+    locationByCat.set(catId, {
+      fosterName: answers?.foster_name?.trim() || "",
+      petStore: petStoreDisplayName(answers),
+    });
+  }
+
+  const adoptableCats: ReportAdoptableCat[] = (adoptableCatRows ?? []).map((cat) => {
+    const location = locationByCat.get(cat.id);
+    return {
+      id: cat.id,
+      name: cat.name,
+      sex: cat.sex,
+      status: cat.status as AdoptableCatStatus,
+      created_at: cat.created_at,
+      fosterName: location?.fosterName ?? "",
+      petStore: location?.petStore ?? "",
+    };
+  });
+
+  const adoptionApplications: ReportAdoptionApplication[] = (adoptionApplicationRows ?? []).map((application) => {
+    const related = Array.isArray(application.cat) ? application.cat[0] : application.cat;
+    const linkedCatName =
+      related && typeof related === "object" && "name" in related && typeof related.name === "string"
+        ? related.name
+        : "";
+    return {
+      id: application.id,
+      status: application.status as AdoptionApplicationStatus,
+      applicantName: `${application.applicant_first_name} ${application.applicant_last_name}`.trim(),
+      applicantEmail: application.applicant_email ?? "",
+      catInterestName: application.cat_interest_name ?? "",
+      linkedCatName,
+      created_at: application.created_at,
+    };
+  });
 
   return (
     <ReportsDashboard
@@ -65,6 +129,8 @@ export default async function ReportsPage() {
       teams={(teams ?? []) as ReportTrapTeam[]}
       clinics={(clinics ?? []) as ReportClinic[]}
       newsletterSignups={newsletterSignups ?? []}
+      adoptableCats={adoptableCats}
+      adoptionApplications={adoptionApplications}
     />
   );
 }
