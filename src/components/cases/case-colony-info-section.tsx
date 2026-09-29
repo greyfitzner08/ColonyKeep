@@ -6,7 +6,6 @@ import {
   displayContactName,
   formatSingleLineAddress,
 } from "@/lib/cases/colony-notes";
-import { NEWSLETTER_SIGNUP_LABEL } from "@/lib/constants";
 import { formatDateTime } from "@/lib/utils";
 import type { HelpRequest } from "@/lib/types";
 
@@ -39,7 +38,7 @@ export function CaseReporterSection({ helpRequest: hr }: { helpRequest: HelpRequ
         <InfoRow label="Relationship to cats" value={hr.relationship_to_cats} />
         <InfoRow label="How they heard about us" value={hr.how_heard} />
         <InfoRow label="Apartment / community" value={hr.apartment_name} />
-        <InfoRow label={NEWSLETTER_SIGNUP_LABEL} value={hr.consent_communications} />
+        <InfoRow label="Agrees to communications" value={hr.consent_communications} />
         <InfoRow label="Submitted" value={formatDateTime(hr.created_at)} alwaysShow />
       </InfoCard>
 

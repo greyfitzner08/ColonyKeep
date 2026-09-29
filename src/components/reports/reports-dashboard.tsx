@@ -16,7 +16,6 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PageHeader } from "@/components/layout/page-header";
-import { NewsletterSignupPanel } from "@/components/reports/newsletter-signup-panel";
 import { PivotReportBuilder } from "@/components/reports/pivot-report-builder";
 import { TableExportPanel } from "@/components/reports/table-export-panel";
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
@@ -115,15 +114,6 @@ const REPORT_TYPES: { value: ReportType; label: string; hint: string }[] = [
   },
 ];
 
-interface NewsletterSignupRow {
-  id: string;
-  case_number: string | null;
-  contact_name: string;
-  contact_email: string;
-  created_at: string;
-  newsletter_list_added_at: string | null;
-}
-
 interface ReportsDashboardProps {
   helpRequests: ReportHelpRequest[];
   cats: ReportCat[];
@@ -131,7 +121,6 @@ interface ReportsDashboardProps {
   appointments: ReportAppointment[];
   teams: ReportTrapTeam[];
   clinics: ReportClinic[];
-  newsletterSignups: NewsletterSignupRow[];
   adoptableCats: ReportAdoptableCat[];
   adoptionApplications: ReportAdoptionApplication[];
 }
@@ -157,7 +146,6 @@ export function ReportsDashboard({
   appointments,
   teams,
   clinics,
-  newsletterSignups,
   adoptableCats,
   adoptionApplications,
 }: ReportsDashboardProps) {
@@ -264,16 +252,15 @@ export function ReportsDashboard({
       <div className="print:hidden">
         <PageHeader
           title="Reports"
-          description="Build pivot tables, run quick operational reports, export any table, and manage newsletter signups."
+          description="Build pivot tables, run quick operational reports, and export any table."
         />
       </div>
 
       <Tabs defaultValue="pivot" className="space-y-4 print:block">
-        <TabsList className="print:hidden grid h-auto w-full grid-cols-1 gap-1 sm:grid-cols-2 lg:grid-cols-4">
+        <TabsList className="print:hidden grid h-auto w-full grid-cols-1 gap-1 sm:grid-cols-3">
           <TabsTrigger value="pivot">Pivot builder</TabsTrigger>
           <TabsTrigger value="quick">Quick reports</TabsTrigger>
           <TabsTrigger value="table-export">Table export</TabsTrigger>
-          <TabsTrigger value="newsletter">Newsletter signups</TabsTrigger>
         </TabsList>
 
         <TabsContent value="pivot" className="mt-0 space-y-4">
@@ -527,9 +514,6 @@ export function ReportsDashboard({
       </Card>
         </TabsContent>
 
-        <TabsContent value="newsletter" className="mt-0 print:hidden">
-          <NewsletterSignupPanel signups={newsletterSignups} />
-        </TabsContent>
       </Tabs>
     </div>
   );

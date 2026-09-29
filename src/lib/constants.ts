@@ -106,12 +106,6 @@ export const MEDICAL_KEYWORDS = [
   "paralyzed",
 ];
 
-/** Display label for help_requests.consent_communications (FFF intake / case export field). */
-export const NEWSLETTER_SIGNUP_LABEL = "Newsletter Signup";
-
-export const NEWSLETTER_SIGNUP_DESCRIPTION =
-  "I agree to receive occasional communications from Friends of Feral Felines, including volunteer opportunities, TNVR updates, and organizational news.";
-
 /** Shown on the public colony intake form (implied consent, not a checkbox). */
 export const INTAKE_COMMUNICATIONS_NOTICE =
   "By submitting a request for help, you agree to receive occasional communications from Friends of Feral Felines via email.";

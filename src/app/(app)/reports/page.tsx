@@ -32,7 +32,6 @@ export default async function ReportsPage() {
     { data: appointments },
     { data: teams },
     { data: clinics },
-    { data: newsletterSignups },
     { data: adoptableCatRows },
     { data: adoptionApplicationRows },
     { data: entranceRows },
@@ -55,13 +54,6 @@ export default async function ReportsPage() {
       .select("id, clinic_id, clinic_name, date, status, help_request_id"),
     supabase.from("trap_teams").select("id, name, zip_codes, is_active"),
     supabase.from("clinics").select("id, name, is_active"),
-    supabase
-      .from("help_requests")
-      .select("id, case_number, contact_name, contact_email, created_at, newsletter_list_added_at")
-      .eq("consent_communications", true)
-      .not("contact_email", "is", null)
-      .neq("contact_email", "")
-      .order("created_at", { ascending: false }),
     supabase.from("adoptable_cats").select("id, name, sex, status, created_at").order("created_at", {
       ascending: false,
     }),
@@ -128,7 +120,6 @@ export default async function ReportsPage() {
       appointments={(appointments ?? []) as ReportAppointment[]}
       teams={(teams ?? []) as ReportTrapTeam[]}
       clinics={(clinics ?? []) as ReportClinic[]}
-      newsletterSignups={newsletterSignups ?? []}
       adoptableCats={adoptableCats}
       adoptionApplications={adoptionApplications}
     />
