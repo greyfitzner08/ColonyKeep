@@ -6,6 +6,15 @@ import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import { formatDateTime } from "@/lib/utils";
 import type { HelpRequest } from "@/lib/types";
 
+function contactLabel(helpRequest: HelpRequest): string {
+  return (
+    [helpRequest.contact_first_name, helpRequest.contact_last_name]
+      .filter(Boolean)
+      .join(" ")
+      .trim() || helpRequest.contact_name?.trim() || "—"
+  );
+}
+
 function colonyLabel(helpRequest: HelpRequest): string {
   const place = [helpRequest.colony_address, helpRequest.colony_city].filter(Boolean).join(", ");
   return place || "—";
@@ -35,6 +44,13 @@ export function ClosedCasesList({
             {helpRequest.case_number}
           </Link>
         ),
+      },
+      {
+        id: "contact",
+        label: "Contact name",
+        defaultWidth: 180,
+        sortValue: (helpRequest) => contactLabel(helpRequest),
+        render: (helpRequest) => contactLabel(helpRequest),
       },
       {
         id: "colony",
