@@ -3,6 +3,7 @@ const OPEN_CLAIM_STATUSES = new Set(["new_intake", "under_review"]);
 export interface ImportedClaimProfile {
   email: string;
   full_name: string | null;
+  aliases?: string[];
 }
 
 function normalizePerson(value: string): string {
@@ -21,7 +22,10 @@ export function applyImportedClaimant(
 
   const key = normalizePerson(raw);
   const byEmail = raw.includes("@")
-    ? profiles.find((person) => person.email && normalizePerson(person.email) === key)
+    ? profiles.find((person) => {
+        const emails = [person.email, ...(person.aliases ?? [])];
+        return emails.some((email) => email && normalizePerson(email) === key);
+      })
     : undefined;
   const byName = profiles.filter(
     (person) => person.full_name && normalizePerson(person.full_name) === key

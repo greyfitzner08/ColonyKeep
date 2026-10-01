@@ -38,10 +38,30 @@ export async function POST(request: NextRequest) {
   }
 
   const service = await createServiceClient();
-  const [{ data: teams }, { data: people }] = await Promise.all([
+  const [{ data: teams }, { data: people }, { data: aliases }] = await Promise.all([
     service.from("trap_teams").select("id, name, zip_codes, is_active").eq("is_active", true),
-    service.from("profiles").select("email, full_name"),
+    service.from("profiles").select("id, email, full_name"),
+    service.from("profile_email_aliases").select("profile_id, email"),
   ]);
+
+  const aliasesByProfile = new Map<string, string[]>();
+  for (const alias of aliases ?? []) {
+    if (!alias.profile_id || !alias.email) continue;
+    const current = aliasesByProfile.get(alias.profile_id) ?? [];
+    current.push(alias.email);
+    aliasesByProfile.set(alias.profile_id, current);
+  }
+  const claimProfiles = (people ?? []).flatMap((person) =>
+    person.email
+      ? [
+          {
+            email: person.email,
+            full_name: person.full_name,
+            aliases: aliasesByProfile.get(person.id) ?? [],
+          },
+        ]
+      : []
+  );
 
   const created: { case_number: string }[] = [];
   const errors: { row: number; error: string }[] = [];
@@ -60,9 +80,7 @@ export async function POST(request: NextRequest) {
     const record = sanitizeHelpRequestRecord(
       applyImportedClaimant(
         applyCaseTrapTeamAssignment(mapped.record, teams ?? []),
-        (people ?? []).flatMap((person) =>
-          person.email ? [{ email: person.email, full_name: person.full_name }] : []
-        )
+        claimProfiles
       )
     );
     if (!record.status) {
