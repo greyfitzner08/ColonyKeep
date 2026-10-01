@@ -133,6 +133,12 @@ const TRAP_STATUS_LABEL_OVERRIDES: Partial<Record<HelpRequestStatus, string>> = 
   appointment_reserved: "Appointment Scheduled",
 };
 
+export function isClaimedTrapCase(
+  hr: Pick<HelpRequest, "status" | "claimed_by_email">
+): boolean {
+  return hr.status === "claimed" || Boolean(hr.claimed_by_email?.trim());
+}
+
 export function isTrapCasePersonallyClaimed(
   hr: Pick<HelpRequest, "claimed_by_email" | "claimed_by_name" | "assigned_to" | "status">
 ): boolean {

@@ -15,10 +15,11 @@ import { InquiryAdminMenu } from "@/components/cases/inquiry-admin-menu";
 import { ShareRequestFormLink } from "@/components/cases/share-request-form-link";
 import { PageHeader } from "@/components/layout/page-header";
 import { getServerAppUrl } from "@/lib/app-url";
+import { isClaimedTrapCase } from "@/lib/cases/statuses";
 import type { HelpRequest } from "@/lib/types";
 
 interface TrapQueuePageProps {
-  searchParams: Promise<{ view?: string; scope?: string }>;
+  searchParams: Promise<{ view?: string; scope?: string; claimed?: string }>;
 }
 
 export default async function TrapQueuePage({ searchParams }: TrapQueuePageProps) {
@@ -29,6 +30,7 @@ export default async function TrapQueuePage({ searchParams }: TrapQueuePageProps
 
   const isHistoryScope = params.scope === "history";
   const isClosedScope = params.scope === "closed";
+  const hideClaimed = !isHistoryScope && !isClosedScope && params.claimed === "hide";
   const defaultView = defaultTrapQueueView({
     role: profile?.role,
     teamId: profile?.team_id,
@@ -62,6 +64,9 @@ export default async function TrapQueuePage({ searchParams }: TrapQueuePageProps
     });
     const { data: helpRequests } = await query;
     cases = sortCasesMedicalFirst((helpRequests ?? []) as HelpRequest[]);
+    if (hideClaimed) {
+      cases = cases.filter((helpRequest) => !isClaimedTrapCase(helpRequest));
+    }
   }
 
   const viewLabel = trapQueueViewLabel(view, teams ?? [], myTeam?.name);

@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { CaseQueueControls } from "@/components/cases/case-queue-controls";
 import { CaseQueueSearch } from "@/components/cases/case-queue-search";
 import { PageControlBar } from "@/components/layout/page-control-bar";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { CaseViewMode } from "@/components/cases/case-queue-view";
@@ -48,6 +49,7 @@ export function TrapQueueToolbar({
   const scopeParam = searchParams.get("scope");
   const scope = scopeParam === "history" ? "history" : scopeParam === "closed" ? "closed" : "queue";
   const currentView = searchParams.get("view") ?? defaultView;
+  const hideClaimed = scope === "queue" && searchParams.get("claimed") === "hide";
 
   function updateParams(mutate: (params: URLSearchParams) => void) {
     const params = new URLSearchParams(searchParams.toString());
@@ -57,7 +59,8 @@ export function TrapQueueToolbar({
 
   const activeFilterCount =
     (showWorkHistory && scope !== "queue" ? 1 : 0) +
-    (scope !== "history" && currentView !== defaultView ? 1 : 0);
+    (scope !== "history" && currentView !== defaultView ? 1 : 0) +
+    (hideClaimed ? 1 : 0);
 
   return (
     <PageControlBar
@@ -140,6 +143,29 @@ export function TrapQueueToolbar({
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+          ) : null}
+
+          {scope === "queue" ? (
+            <div className="flex items-end min-w-0">
+              <div className="flex h-9 items-center gap-2">
+                <Checkbox
+                  id="trap-queue-show-claimed"
+                  checked={!hideClaimed}
+                  onCheckedChange={(value) =>
+                    updateParams((params) => {
+                      if (value) {
+                        params.delete("claimed");
+                      } else {
+                        params.set("claimed", "hide");
+                      }
+                    })
+                  }
+                />
+                <Label htmlFor="trap-queue-show-claimed" className="text-sm font-normal">
+                  Show claimed cases
+                </Label>
+              </div>
             </div>
           ) : null}
 
