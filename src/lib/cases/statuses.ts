@@ -93,6 +93,16 @@ export const TRAP_KANBAN_STATUSES: HelpRequestStatus[] = [
   "appointment_reserved",
 ];
 
+/**
+ * Cases loaded on the trap queue.
+ * New intake is an open case nobody has claimed yet.
+ */
+export const TRAP_QUEUE_STATUSES: HelpRequestStatus[] = [
+  "new_intake",
+  "under_review",
+  ...TRAP_KANBAN_STATUSES,
+];
+
 /** Colony hotspots map — inquiry queue, active trap workflow, and closed cases. */
 export const HOTSPOT_COLONY_STATUSES: HelpRequestStatus[] = [
   ...INTAKE_QUEUE_STATUSES,
@@ -119,6 +129,7 @@ export const TRAP_EDITABLE_STATUSES: HelpRequestStatus[] = [
 ];
 
 const TRAP_STATUS_LABEL_OVERRIDES: Partial<Record<HelpRequestStatus, string>> = {
+  new_intake: "Open",
   appointment_reserved: "Appointment Scheduled",
 };
 

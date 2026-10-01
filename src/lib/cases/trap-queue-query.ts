@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { TRAP_KANBAN_STATUSES } from "@/lib/cases/statuses";
+import { TRAP_QUEUE_STATUSES } from "@/lib/cases/statuses";
 
-export { TRAP_KANBAN_STATUSES } from "@/lib/cases/statuses";
+export { TRAP_KANBAN_STATUSES, TRAP_QUEUE_STATUSES } from "@/lib/cases/statuses";
 
 export type TrapQueueView = "mine" | "unassigned" | "all" | string;
 
@@ -29,7 +29,7 @@ export function buildTrapQueueQuery(
   let query = supabase
     .from("help_requests")
     .select("*")
-    .in("status", TRAP_KANBAN_STATUSES)
+    .in("status", TRAP_QUEUE_STATUSES)
     .order("created_at", { ascending: false });
 
   if (view === "all") {
