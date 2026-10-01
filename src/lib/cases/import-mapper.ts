@@ -371,6 +371,20 @@ export function mapImportRowToHelpRequest(
           ? `Imported legacy case ${row.case_number}`
           : "Imported from CSV",
       },
+      ...(row.resolution?.trim()
+        ? [
+            {
+              timestamp: closedAt ?? createdAt ?? new Date().toISOString(),
+              action: "note",
+              actor_email: actorEmail,
+              actor_name: actorEmail,
+              details: row.resolution.trim(),
+              highlighted: false,
+              follow_up: false,
+              text_color: "default",
+            },
+          ]
+        : []),
     ],
   };
 
