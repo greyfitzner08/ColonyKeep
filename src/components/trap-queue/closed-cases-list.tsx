@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useMemo } from "react";
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
+import { ClaimantReviewFlag } from "@/components/cases/claimant-review-flag";
 import { formatDateTime } from "@/lib/utils";
 import type { HelpRequest } from "@/lib/types";
 
@@ -40,9 +41,12 @@ export function ClosedCasesList({
         defaultWidth: 120,
         sortValue: (helpRequest) => helpRequest.case_number,
         render: (helpRequest) => (
-          <Link href={`/case/${helpRequest.id}`} className="font-medium text-primary hover:underline">
-            {helpRequest.case_number}
-          </Link>
+          <div className="flex items-center gap-1.5">
+            <Link href={`/case/${helpRequest.id}`} className="font-medium text-primary hover:underline">
+              {helpRequest.case_number}
+            </Link>
+            <ClaimantReviewFlag helpRequest={helpRequest} />
+          </div>
         ),
       },
       {

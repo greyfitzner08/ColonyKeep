@@ -3,6 +3,7 @@ import { requireApiRole } from "@/lib/api/auth";
 import { applyCaseTrapTeamAssignment } from "@/lib/cases/assign-case-team";
 import { mapImportRowToHelpRequest } from "@/lib/cases/import-mapper";
 import { parseCaseImportCsv } from "@/lib/cases/parse-case-import-csv";
+import { applyImportedClaimant } from "@/lib/cases/imported-claimant";
 import { sanitizeHelpRequestRecord } from "@/lib/cases/help-request-insert";
 import {
   geocodeColonyFields,
@@ -37,10 +38,10 @@ export async function POST(request: NextRequest) {
   }
 
   const service = await createServiceClient();
-  const { data: teams } = await service
-    .from("trap_teams")
-    .select("id, name, zip_codes, is_active")
-    .eq("is_active", true);
+  const [{ data: teams }, { data: people }] = await Promise.all([
+    service.from("trap_teams").select("id, name, zip_codes, is_active").eq("is_active", true),
+    service.from("profiles").select("email, full_name"),
+  ]);
 
   const created: { case_number: string }[] = [];
   const errors: { row: number; error: string }[] = [];
@@ -57,7 +58,12 @@ export async function POST(request: NextRequest) {
     }
 
     const record = sanitizeHelpRequestRecord(
-      applyCaseTrapTeamAssignment(mapped.record, teams ?? [])
+      applyImportedClaimant(
+        applyCaseTrapTeamAssignment(mapped.record, teams ?? []),
+        (people ?? []).flatMap((person) =>
+          person.email ? [{ email: person.email, full_name: person.full_name }] : []
+        )
+      )
     );
     if (!record.status) {
       record.status = "routed_to_trap_team";

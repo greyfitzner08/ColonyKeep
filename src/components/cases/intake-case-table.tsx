@@ -10,6 +10,7 @@ import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import { STATUS_COLORS } from "@/lib/constants";
 import { hasActiveMedicalFlag } from "@/lib/medical-flags";
 import { CaseFollowUpIndicator } from "@/components/cases/case-follow-up-indicator";
+import { ClaimantReviewFlag } from "@/components/cases/claimant-review-flag";
 import {
   getCaseLifecycleLabel,
   getStatusLabel,
@@ -115,6 +116,7 @@ export function IntakeCaseTable({
                 </Link>
               )}
               <CaseFollowUpIndicator helpRequest={helpRequest} />
+              <ClaimantReviewFlag helpRequest={helpRequest} />
               {medical && (
                 <Badge variant="destructive" className="gap-1 text-xs whitespace-nowrap">
                   <AlertTriangle className="h-3 w-3" />

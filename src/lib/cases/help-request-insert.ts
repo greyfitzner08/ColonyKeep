@@ -53,6 +53,7 @@ export const HELP_REQUEST_INSERT_COLUMNS = new Set([
   "assigned_team_name",
   "claimed_by_email",
   "claimed_by_name",
+  "claimant_needs_review",
   "intake_notes",
   "follow_up_log",
   "follow_up_due_date",

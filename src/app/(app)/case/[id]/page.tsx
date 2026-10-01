@@ -13,6 +13,7 @@ import {
   intakeCaseRequiresClaim,
   intakeClaimGateMessage,
 } from "@/lib/cases/intake-claim-gate";
+import { ClaimantReviewFlag } from "@/components/cases/claimant-review-flag";
 import { AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { canAddCaseHistoryNote } from "@/lib/cases/case-permissions";
@@ -99,6 +100,7 @@ export default async function CasePage({ params }: CasePageProps) {
                 <AlertTriangle className="h-3 w-3" /> Medical
               </Badge>
             )}
+            <ClaimantReviewFlag helpRequest={hr} />
           </>
         }
         description={

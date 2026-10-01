@@ -178,6 +178,7 @@ export interface HelpRequest {
   assigned_team_name: string | null;
   claimed_by_email: string | null;
   claimed_by_name: string | null;
+  claimant_needs_review?: boolean;
   intake_notes: string | null;
   follow_up_log: FollowUpEntry[];
   follow_up_due_date: string | null;
