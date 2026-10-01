@@ -111,23 +111,29 @@ export function CaseIntakeSection({
               <Label>Status</Label>
               <Select
                 value={lifecycle}
-                onValueChange={(v) =>
+                onValueChange={(v) => {
+                  if (v === "closed") return;
                   onChange({
                     ...hr,
                     status: applyCaseLifecycleStatus(hr.status, v as CaseLifecycleStatus),
-                  })
-                }
+                  });
+                }}
                 disabled={readOnly}
               >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {CASE_LIFECYCLE_STATUSES.map((s) => (
+                  {CASE_LIFECYCLE_STATUSES.filter((status) => status.value !== "closed").map((s) => (
                     <SelectItem key={s.value} value={s.value}>
                       {s.label}
                     </SelectItem>
                   ))}
+                  {lifecycle === "closed" ? (
+                    <SelectItem value="closed" disabled>
+                      Closed
+                    </SelectItem>
+                  ) : null}
                 </SelectContent>
               </Select>
             </div>
@@ -221,10 +227,16 @@ export function CaseIntakeSection({
                 placeholder="Recorded when closing the case…"
               />
             </div>
-            <Button onClick={onCloseCase} variant="destructive" disabled={saveState === "saving"}>
-              <Trash2 className="h-4 w-4 mr-2" />
-              Close case
-            </Button>
+            {hr.closed_at ? (
+              <p className="text-sm text-muted-foreground">
+                Closed {formatDateTime(hr.closed_at)}.
+              </p>
+            ) : (
+              <Button onClick={onCloseCase} variant="destructive" disabled={saveState === "saving"}>
+                <Trash2 className="h-4 w-4 mr-2" />
+                Close case
+              </Button>
+            )}
           </div>
         </CaseCollapsibleSection>
       )}

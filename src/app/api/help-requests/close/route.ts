@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
   const service = await createServiceClient();
   const { data: existing, error: fetchError } = await service
     .from("help_requests")
-    .select("id, status, history_log, claimed_by_email")
+    .select("id, status, closed_at, history_log, claimed_by_email")
     .eq("id", helpRequestId)
     .single();
 
@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
   });
   if (claimBlock) return claimBlock;
 
-  if (existing.status === "closed") {
+  if (existing.status === "closed" && existing.closed_at) {
     return NextResponse.json({ error: "Case is already closed." }, { status: 400 });
   }
 
