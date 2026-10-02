@@ -130,7 +130,7 @@ const ENTRANCE_SECTION_SOURCE: EntranceSection[] = [
       },
       {
         key: "pet_store_rank",
-        label: "Placement rank (1 = next into the store)",
+        label: "Rank",
         kind: "text",
         staff: true,
         group: "Pet store",
