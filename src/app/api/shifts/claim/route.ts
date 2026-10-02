@@ -91,9 +91,9 @@ export async function POST(request: NextRequest) {
   const responseButtons = shiftRsvpButtons(shift);
 
   if (action === "claim") {
-    if (attendance && responseButtons === "decline") {
+    if (attendance && responseButtons !== "both" && responseButtons !== "attending") {
       return NextResponse.json(
-        { error: "This event is only collecting can't make it responses." },
+        { error: "This event is not collecting attending responses." },
         { status: 400 }
       );
     }
@@ -169,9 +169,9 @@ export async function POST(request: NextRequest) {
     }
     waitlist = removeEmail(waitlist, targetEmail);
   } else if (action === "decline") {
-    if (attendance && responseButtons === "attending") {
+    if (attendance && responseButtons !== "both" && responseButtons !== "decline") {
       return NextResponse.json(
-        { error: "This event is only collecting attending responses." },
+        { error: "This event is not collecting can't make it responses." },
         { status: 400 }
       );
     }

@@ -17,13 +17,55 @@ export function isAttendanceShift(shift: Pick<Shift, "signup_mode"> | { signup_m
   return (shift.signup_mode ?? "coverage") === "attendance";
 }
 
+export const DEFAULT_ATTENDING_BUTTON_LABEL = "I'm attending";
+export const DEFAULT_DECLINE_BUTTON_LABEL = "Can't make it";
+
+export interface ResponseButtonChoice {
+  showAttending: boolean;
+  showDecline: boolean;
+  attendingLabel: string;
+  declineLabel: string;
+}
+
 export function shiftRsvpButtons(
   shift: { rsvp_buttons?: ShiftRsvpButtons | string | null }
 ): ShiftRsvpButtons {
-  if (shift.rsvp_buttons === "attending" || shift.rsvp_buttons === "decline") {
+  if (
+    shift.rsvp_buttons === "attending" ||
+    shift.rsvp_buttons === "decline" ||
+    shift.rsvp_buttons === "none"
+  ) {
     return shift.rsvp_buttons;
   }
   return "both";
+}
+
+export function responseButtonsFromChoice(
+  choice: Pick<ResponseButtonChoice, "showAttending" | "showDecline">
+): ShiftRsvpButtons {
+  if (choice.showAttending && choice.showDecline) return "both";
+  if (choice.showAttending) return "attending";
+  if (choice.showDecline) return "decline";
+  return "none";
+}
+
+export function choiceFromShift(shift: {
+  rsvp_buttons?: ShiftRsvpButtons | string | null;
+  attending_label?: string | null;
+  decline_label?: string | null;
+}): ResponseButtonChoice {
+  const buttons = shiftRsvpButtons(shift);
+  return {
+    showAttending: buttons === "both" || buttons === "attending",
+    showDecline: buttons === "both" || buttons === "decline",
+    attendingLabel: buttonLabel(shift.attending_label, DEFAULT_ATTENDING_BUTTON_LABEL),
+    declineLabel: buttonLabel(shift.decline_label, DEFAULT_DECLINE_BUTTON_LABEL),
+  };
+}
+
+export function buttonLabel(value: string | null | undefined, fallback: string): string {
+  const text = (value ?? "").replace(/\s+/g, " ").trim();
+  return (text || fallback).slice(0, 40);
 }
 
 export function shiftRequiredRoleLabel(required: ShiftRequiredRole): string {

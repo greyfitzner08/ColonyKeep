@@ -71,8 +71,8 @@ export type ShiftRequiredRole =
 /** coverage = fill N spots (+ waitlist); attendance = open RSVP who is / isn’t coming. */
 export type ShiftSignupMode = "coverage" | "attendance";
 
-/** Which attendance responses volunteers can submit. */
-export type ShiftRsvpButtons = "both" | "attending" | "decline";
+/** Which attendance responses volunteers can submit. `none` hides both buttons. */
+export type ShiftRsvpButtons = "both" | "attending" | "decline" | "none";
 
 export type PublicBookingStatus =
   | "pending"
@@ -461,6 +461,12 @@ export interface Shift {
   signup_mode: ShiftSignupMode;
   /** Attendance events: which RSVP buttons volunteers see. */
   rsvp_buttons?: ShiftRsvpButtons;
+  /** Wording on the attending button. */
+  attending_label?: string | null;
+  /** Wording on the can't-make-it button. */
+  decline_label?: string | null;
+  /** Google calendar series. Same-title events with different ids stay separate. */
+  event_group?: string | null;
   date: string;
   start_time: string;
   end_time: string;

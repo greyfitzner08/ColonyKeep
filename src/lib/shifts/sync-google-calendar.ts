@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   fetchGoogleCalendarEvents,
   googleCalendarIcalUrl,
+  googleCalendarSeriesId,
   type GoogleCalendarSignupEvent,
 } from "@/lib/shifts/google-calendar-ical";
 
@@ -67,6 +68,7 @@ export async function syncGoogleCalendarShifts(service: SupabaseClient): Promise
     if (!row) {
       inserts.push({
         google_calendar_uid: event.key,
+        event_group: googleCalendarSeriesId(event.key),
         event_name: event.eventName,
         position_name: "Volunteer",
         shift_type: "event",

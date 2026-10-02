@@ -72,6 +72,15 @@ interface RRule {
   wkst: string;
 }
 
+/** Series id shared by a recurring event. One-off events use their own uid. */
+export function googleCalendarSeriesId(uid: string | null | undefined): string | null {
+  const trimmed = uid?.trim();
+  if (!trimmed) return null;
+  const pipe = trimmed.indexOf("|");
+  const series = pipe === -1 ? trimmed : trimmed.slice(0, pipe);
+  return series || null;
+}
+
 export function googleCalendarIcalUrl(): string | null {
   const raw = process.env.GOOGLE_CALENDAR_ICAL_URL?.trim();
   if (!raw) return null;

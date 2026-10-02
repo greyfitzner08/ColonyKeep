@@ -26,12 +26,19 @@ import {
 import { isAppointmentDatePast } from "@/lib/appointments/slot-date";
 import { SHIFT_REQUIRED_ROLES, SHIFT_SIGNUP_MODES, SHIFT_TYPES } from "@/lib/constants";
 import {
+  buttonLabel,
+  choiceFromShift,
+  DEFAULT_ATTENDING_BUTTON_LABEL,
+  DEFAULT_DECLINE_BUTTON_LABEL,
   isAttendanceShift,
+  responseButtonsFromChoice,
   shiftRequiredRoleLabel,
   shiftRsvpButtons,
   shiftSignupBlockedReason,
+  type ResponseButtonChoice,
   type ShiftEligibilityProfile,
 } from "@/lib/shifts/eligibility";
+import { googleCalendarSeriesId } from "@/lib/shifts/google-calendar-ical";
 import { formatDate, formatTimeRange, cn } from "@/lib/utils";
 import { looksLikeHtml, sanitizeCalendarHtml } from "@/lib/shifts/calendar-html";
 import type { Shift, ShiftRequiredRole, ShiftRsvpButtons, ShiftSignupMode, ShiftType } from "@/lib/types";
@@ -80,6 +87,8 @@ interface PositionForm {
   required_roles: ShiftRequiredRole;
   signup_mode: ShiftSignupMode;
   rsvp_buttons: ShiftRsvpButtons;
+  attending_label: string;
+  decline_label: string;
   slots: TimeSlotForm[];
 }
 
@@ -90,6 +99,8 @@ interface EditFormState {
   required_roles: ShiftRequiredRole;
   signup_mode: ShiftSignupMode;
   rsvp_buttons: ShiftRsvpButtons;
+  attending_label: string;
+  decline_label: string;
   date: string;
   start_time: string;
   end_time: string;
@@ -115,70 +126,87 @@ type PendingDestructiveAction =
       confirmLabel: string;
     };
 
-function nextRsvpButtons(
-  current: ShiftRsvpButtons | "mixed",
-  which: "attending" | "decline"
-): ShiftRsvpButtons {
-  if (current === "mixed") return which;
-  const attendingOn = current !== "decline";
-  const declineOn = current !== "attending";
-  if (which === "attending") {
-    if (attendingOn && declineOn) return "decline";
-    if (!attendingOn) return "both";
-    return "attending";
-  }
-  if (attendingOn && declineOn) return "attending";
-  if (!declineOn) return "both";
-  return "decline";
+function formToChoice(form: {
+  rsvp_buttons: ShiftRsvpButtons;
+  attending_label: string;
+  decline_label: string;
+}): ResponseButtonChoice {
+  const buttons = shiftRsvpButtons(form);
+  return {
+    showAttending: buttons === "both" || buttons === "attending",
+    showDecline: buttons === "both" || buttons === "decline",
+    attendingLabel: form.attending_label,
+    declineLabel: form.decline_label,
+  };
 }
 
-function ResponseButtonToggles({
+function choicePatch(choice: ResponseButtonChoice) {
+  return {
+    rsvp_buttons: responseButtonsFromChoice(choice),
+    attending_label: choice.attendingLabel,
+    decline_label: choice.declineLabel,
+  };
+}
+
+function eventCardKey(shift: Shift): string {
+  const group = shift.event_group?.trim() || googleCalendarSeriesId(shift.google_calendar_uid);
+  if (group) return `google:${group}`;
+  return `local:${shift.event_name.trim().toLowerCase() || "untitled event"}`;
+}
+
+function ResponseButtonEditor({
   value,
   onChange,
+  onCommit,
 }: {
-  value: ShiftRsvpButtons | "mixed";
-  onChange: (value: ShiftRsvpButtons) => void;
+  value: ResponseButtonChoice;
+  onChange: (value: ResponseButtonChoice) => void;
+  onCommit: (value: ResponseButtonChoice) => void;
 }) {
-  const attendingOn = value === "both" || value === "attending";
-  const declineOn = value === "both" || value === "decline";
+  function commitLabel(which: "attendingLabel" | "declineLabel", raw: string) {
+    const fallback =
+      which === "attendingLabel" ? DEFAULT_ATTENDING_BUTTON_LABEL : DEFAULT_DECLINE_BUTTON_LABEL;
+    onCommit({ ...value, [which]: buttonLabel(raw, fallback) });
+  }
+
   return (
-    <div className="flex flex-wrap gap-1" role="group" aria-label="Response buttons volunteers can use">
-      <Button
-        type="button"
-        size="sm"
-        variant={attendingOn ? "default" : "outline"}
-        aria-pressed={attendingOn}
-        title={
-          attendingOn
-            ? "Volunteers can mark attending. Click to hide this button."
-            : "Hidden from volunteers. Click to show I'm attending."
-        }
-        className={cn(!attendingOn && "text-muted-foreground")}
-        onClick={() => {
-          const next = nextRsvpButtons(value, "attending");
-          if (next !== value) onChange(next);
-        }}
-      >
-        I&apos;m attending
-      </Button>
-      <Button
-        type="button"
-        size="sm"
-        variant={declineOn ? "secondary" : "outline"}
-        aria-pressed={declineOn}
-        title={
-          declineOn
-            ? "Volunteers can mark can't make it. Click to hide this button."
-            : "Hidden from volunteers. Click to show Can't make it."
-        }
-        className={cn(!declineOn && "text-muted-foreground")}
-        onClick={() => {
-          const next = nextRsvpButtons(value, "decline");
-          if (next !== value) onChange(next);
-        }}
-      >
-        Can&apos;t make it
-      </Button>
+    <div className="space-y-2" role="group" aria-label="Response buttons volunteers can use">
+      <div className="flex items-center gap-2">
+        <input
+          type="checkbox"
+          className="h-4 w-4 shrink-0 accent-primary"
+          checked={value.showAttending}
+          aria-label="Show attending button"
+          onChange={(event) =>
+            onCommit({ ...value, showAttending: event.target.checked })
+          }
+        />
+        <Input
+          value={value.attendingLabel}
+          maxLength={40}
+          aria-label="Attending button text"
+          className="h-8 w-40"
+          onChange={(event) => onChange({ ...value, attendingLabel: event.target.value })}
+          onBlur={(event) => commitLabel("attendingLabel", event.target.value)}
+        />
+      </div>
+      <div className="flex items-center gap-2">
+        <input
+          type="checkbox"
+          className="h-4 w-4 shrink-0 accent-primary"
+          checked={value.showDecline}
+          aria-label="Show can't make it button"
+          onChange={(event) => onCommit({ ...value, showDecline: event.target.checked })}
+        />
+        <Input
+          value={value.declineLabel}
+          maxLength={40}
+          aria-label="Can't make it button text"
+          className="h-8 w-40"
+          onChange={(event) => onChange({ ...value, declineLabel: event.target.value })}
+          onBlur={(event) => commitLabel("declineLabel", event.target.value)}
+        />
+      </div>
     </div>
   );
 }
@@ -208,6 +236,8 @@ function emptyPosition(defaults?: Partial<Omit<PositionForm, "slots">> & { slots
     required_roles: "any",
     signup_mode: "coverage",
     rsvp_buttons: "both",
+    attending_label: DEFAULT_ATTENDING_BUTTON_LABEL,
+    decline_label: DEFAULT_DECLINE_BUTTON_LABEL,
     slots: [emptySlot()],
     ...defaults,
   };
@@ -220,6 +250,8 @@ const EMPTY_EDIT: EditFormState = {
   required_roles: "any",
   signup_mode: "coverage",
   rsvp_buttons: "both",
+  attending_label: DEFAULT_ATTENDING_BUTTON_LABEL,
+  decline_label: DEFAULT_DECLINE_BUTTON_LABEL,
   date: "",
   start_time: "",
   end_time: "",
@@ -351,6 +383,8 @@ function formFromShift(shift: Shift): EditFormState {
     required_roles: shift.required_roles,
     signup_mode: shift.signup_mode === "attendance" ? "attendance" : "coverage",
     rsvp_buttons: shiftRsvpButtons(shift),
+    attending_label: choiceFromShift(shift).attendingLabel,
+    decline_label: choiceFromShift(shift).declineLabel,
     date: shift.date,
     start_time: shift.start_time.slice(0, 5),
     end_time: shift.end_time.slice(0, 5),
@@ -382,16 +416,19 @@ export function ShiftBoard({
   const [additionalSlots, setAdditionalSlots] = useState<TimeSlotForm[]>([]);
   const [createTitle, setCreateTitle] = useState("Create Event");
   const [lockingEventName, setLockingEventName] = useState(false);
+  const [createEventGroup, setCreateEventGroup] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<PendingDestructiveAction | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [openEvents, setOpenEvents] = useState<Set<string>>(() => new Set());
   const [shiftRows, setShiftRows] = useState(initial);
   const shiftRowsRef = useRef(initial);
+  const savedRowsRef = useRef(initial);
   const pendingSignupRef = useRef<string | null>(null);
   const [pendingShiftId, setPendingShiftId] = useState<string | null>(null);
 
   useEffect(() => {
     shiftRowsRef.current = initial;
+    savedRowsRef.current = initial;
     setShiftRows(initial);
   }, [initial]);
 
@@ -402,14 +439,15 @@ export function ShiftBoard({
   const groupedEvents = useMemo(() => {
     const groups = new Map<string, Shift[]>();
     for (const shift of filtered) {
-      const key = shift.event_name.trim() || "Untitled event";
+      const key = eventCardKey(shift);
       const list = groups.get(key) ?? [];
       list.push(shift);
       groups.set(key, list);
     }
 
     return Array.from(groups.entries())
-      .map(([name, shifts]) => {
+      .map(([key, shifts]) => {
+        const name = shifts[0]?.event_name.trim() || "Untitled event";
         const sorted = [...shifts].sort((a, b) => {
           const positionDiff = positionLabel(a).localeCompare(positionLabel(b));
           if (positionDiff !== 0) return positionDiff;
@@ -454,6 +492,7 @@ export function ShiftBoard({
         const hasCoverage = sorted.some((shift) => !isAttendanceShift(shift));
 
         return {
+          key,
           name,
           shifts: sorted,
           whenLabel,
@@ -480,12 +519,22 @@ export function ShiftBoard({
       .sort((a, b) => a.startDate.localeCompare(b.startDate));
   }, [filtered]);
 
-  async function setEventResponseButtons(eventShifts: Shift[], value: ShiftRsvpButtons) {
+  async function setEventResponseButtons(eventShifts: Shift[], choice: ResponseButtonChoice) {
     const ids = eventShifts.filter((shift) => isAttendanceShift(shift)).map((shift) => shift.id);
     if (ids.length === 0) return;
-    const previous = shiftRowsRef.current;
-    const next = previous.map((shift) =>
-      ids.includes(shift.id) ? { ...shift, rsvp_buttons: value } : shift
+    const rsvpButtons = responseButtonsFromChoice(choice);
+    const attendingLabel = buttonLabel(choice.attendingLabel, DEFAULT_ATTENDING_BUTTON_LABEL);
+    const declineLabel = buttonLabel(choice.declineLabel, DEFAULT_DECLINE_BUTTON_LABEL);
+    const previous = savedRowsRef.current;
+    const next = shiftRowsRef.current.map((shift) =>
+      ids.includes(shift.id)
+        ? {
+            ...shift,
+            rsvp_buttons: rsvpButtons,
+            attending_label: attendingLabel,
+            decline_label: declineLabel,
+          }
+        : shift
     );
     shiftRowsRef.current = next;
     setShiftRows(next);
@@ -493,14 +542,21 @@ export function ShiftBoard({
     const response = await fetch("/api/shifts/update", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ids, rsvp_buttons: value }),
+      body: JSON.stringify({
+        ids,
+        rsvp_buttons: rsvpButtons,
+        attending_label: attendingLabel,
+        decline_label: declineLabel,
+      }),
     });
     const result = await response.json().catch(() => null);
     if (!response.ok) {
       shiftRowsRef.current = previous;
       setShiftRows(previous);
       setFormError(result?.error ?? "Unable to update response buttons");
+      return;
     }
+    savedRowsRef.current = next;
   }
 
   function toggleEvent(name: string) {
@@ -519,6 +575,7 @@ export function ShiftBoard({
     setFormError(null);
     setCreateTitle("Create Event");
     setLockingEventName(false);
+    setCreateEventGroup(null);
     setCreateOpen(true);
   }
 
@@ -534,9 +591,16 @@ export function ShiftBoard({
         required_roles: sample?.required_roles ?? "any",
         signup_mode: sample?.signup_mode === "attendance" ? "attendance" : "coverage",
         rsvp_buttons: sample ? shiftRsvpButtons(sample) : "both",
+        attending_label: sample
+          ? choiceFromShift(sample).attendingLabel
+          : DEFAULT_ATTENDING_BUTTON_LABEL,
+        decline_label: sample ? choiceFromShift(sample).declineLabel : DEFAULT_DECLINE_BUTTON_LABEL,
         slots: [emptySlot()],
       }),
     ]);
+    setCreateEventGroup(
+      sample?.event_group?.trim() || googleCalendarSeriesId(sample?.google_calendar_uid) || null
+    );
     setFormError(null);
     setCreateTitle(`Add shifts · ${eventGroupName}`);
     setLockingEventName(true);
@@ -888,6 +952,8 @@ export function ShiftBoard({
       required_roles: ShiftRequiredRole;
       signup_mode: ShiftSignupMode;
       rsvp_buttons: ShiftRsvpButtons;
+      attending_label: string;
+      decline_label: string;
       date: string;
       start_time: string;
       end_time: string;
@@ -913,6 +979,8 @@ export function ShiftBoard({
           required_roles: position.required_roles,
           signup_mode: position.signup_mode,
           rsvp_buttons: position.rsvp_buttons,
+          attending_label: buttonLabel(position.attending_label, DEFAULT_ATTENDING_BUTTON_LABEL),
+          decline_label: buttonLabel(position.decline_label, DEFAULT_DECLINE_BUTTON_LABEL),
           date: slot.date,
           start_time: slot.start_time,
           end_time: slot.end_time,
@@ -977,7 +1045,10 @@ export function ShiftBoard({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         event_name: eventName.trim(),
-        shifts: prepared.map(({ label: _label, ...shift }) => shift),
+        shifts: prepared.map(({ label: _label, ...shift }) => ({
+          ...shift,
+          event_group: createEventGroup,
+        })),
       }),
     });
     const result = await response.json().catch(() => null);
@@ -1108,6 +1179,11 @@ export function ShiftBoard({
             required_roles: editForm.required_roles,
             signup_mode: editForm.signup_mode,
             rsvp_buttons: editForm.rsvp_buttons,
+            attending_label: buttonLabel(editForm.attending_label, DEFAULT_ATTENDING_BUTTON_LABEL),
+            decline_label: buttonLabel(editForm.decline_label, DEFAULT_DECLINE_BUTTON_LABEL),
+            event_group:
+              editingShift.event_group?.trim() ||
+              googleCalendarSeriesId(editingShift.google_calendar_uid),
             date: slot.date,
             start_time: slot.start_time,
             end_time: slot.end_time,
@@ -1199,8 +1275,11 @@ export function ShiftBoard({
 
     if (attendance) {
       const buttons = shiftRsvpButtons(shift);
-      const allowAttending = buttons !== "decline";
-      const allowDecline = buttons !== "attending";
+      const allowAttending = buttons === "both" || buttons === "attending";
+      const allowDecline = buttons === "both" || buttons === "decline";
+      const attendingText = buttonLabel(shift.attending_label, DEFAULT_ATTENDING_BUTTON_LABEL);
+      const declineText = buttonLabel(shift.decline_label, DEFAULT_DECLINE_BUTTON_LABEL);
+      if (!allowAttending && !allowDecline && !isSignedUp && !isDeclined) return null;
       if (isSignedUp) {
         return (
           <div className="flex flex-wrap gap-1">
@@ -1218,7 +1297,7 @@ export function ShiftBoard({
                 size="sm"
                 onClick={() => claimShift(shift.id, "decline")}
               >
-                Can&apos;t make it
+                {declineText}
               </Button>
             ) : null}
           </div>
@@ -1229,7 +1308,7 @@ export function ShiftBoard({
           <div className="flex flex-wrap gap-1">
             {allowAttending ? (
               <Button size="sm" className={className} onClick={() => claimShift(shift.id, "claim")}>
-                I&apos;m attending
+                {attendingText}
               </Button>
             ) : null}
             <Button
@@ -1246,7 +1325,7 @@ export function ShiftBoard({
         <div className="flex flex-wrap gap-1">
           {allowAttending ? (
             <Button size="sm" className={className} onClick={() => claimShift(shift.id, "claim")}>
-              I&apos;m attending
+              {attendingText}
             </Button>
           ) : null}
           {allowDecline ? (
@@ -1255,7 +1334,7 @@ export function ShiftBoard({
               size="sm"
               onClick={() => claimShift(shift.id, "decline")}
             >
-              Can&apos;t make it
+              {declineText}
             </Button>
           ) : null}
         </div>
@@ -1412,10 +1491,11 @@ export function ShiftBoard({
       ) : (
         <div className="space-y-4 sm:space-y-5">
           {groupedEvents.map((event) => {
-            const isOpen = openEvents.has(event.name);
+            const isOpen = openEvents.has(event.key);
+            const attendanceSample = event.shifts.find((shift) => isAttendanceShift(shift));
             return (
               <article
-                key={event.name}
+                key={event.key}
                 className={cn(
                   "overflow-hidden rounded-2xl border border-primary/20 bg-background shadow-sm",
                   "border-l-4 border-l-primary"
@@ -1430,7 +1510,7 @@ export function ShiftBoard({
                   <button
                     type="button"
                     className="flex min-w-0 flex-1 items-start gap-3 rounded-lg text-left outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    onClick={() => toggleEvent(event.name)}
+                    onClick={() => toggleEvent(event.key)}
                     aria-expanded={isOpen}
                   >
                     <div className="min-w-0 flex-1 space-y-1">
@@ -1465,22 +1545,30 @@ export function ShiftBoard({
 
                   {isAdmin && (
                     <div className="flex shrink-0 flex-wrap items-center gap-2 sm:pt-0.5">
-                      {event.shifts.some((shift) => isAttendanceShift(shift)) ? (
-                        <div className="flex items-center gap-1">
-                          <span className="text-xs text-muted-foreground">Show</span>
-                          <ResponseButtonToggles
-                            value={(() => {
-                              const attendance = event.shifts.filter((shift) => isAttendanceShift(shift));
-                              const first = shiftRsvpButtons(attendance[0]);
-                              return attendance.every((shift) => shiftRsvpButtons(shift) === first)
-                                ? first
-                                : "mixed";
-                            })()}
-                            onChange={(value) => {
-                              void setEventResponseButtons(event.shifts, value);
-                            }}
-                          />
-                        </div>
+                      {attendanceSample ? (
+                        <ResponseButtonEditor
+                          value={formToChoice({
+                            rsvp_buttons: shiftRsvpButtons(attendanceSample),
+                            attending_label:
+                              attendanceSample.attending_label ?? DEFAULT_ATTENDING_BUTTON_LABEL,
+                            decline_label:
+                              attendanceSample.decline_label ?? DEFAULT_DECLINE_BUTTON_LABEL,
+                          })}
+                          onChange={(value) => {
+                            const ids = event.shifts
+                              .filter((shift) => isAttendanceShift(shift))
+                              .map((shift) => shift.id);
+                            const patch = choicePatch(value);
+                            const next = shiftRowsRef.current.map((shift) =>
+                              ids.includes(shift.id) ? { ...shift, ...patch } : shift
+                            );
+                            shiftRowsRef.current = next;
+                            setShiftRows(next);
+                          }}
+                          onCommit={(value) => {
+                            void setEventResponseButtons(event.shifts, value);
+                          }}
+                        />
                       ) : null}
                       <Button
                         type="button"
@@ -1848,12 +1936,13 @@ export function ShiftBoard({
                   {position.signup_mode === "attendance" ? (
                     <div className="space-y-1">
                       <Label>Response buttons</Label>
-                      <ResponseButtonToggles
-                        value={position.rsvp_buttons}
-                        onChange={(value) => updatePosition(position.key, { rsvp_buttons: value })}
+                      <ResponseButtonEditor
+                        value={formToChoice(position)}
+                        onChange={(value) => updatePosition(position.key, choicePatch(value))}
+                        onCommit={(value) => updatePosition(position.key, choicePatch(value))}
                       />
                       <p className="text-xs text-muted-foreground">
-                        Highlighted buttons are shown to volunteers. At least one stays on.
+                        Check a button to show it. Edit the words volunteers see. Both can be off.
                       </p>
                     </div>
                   ) : null}
@@ -2097,12 +2186,13 @@ export function ShiftBoard({
             {editForm.signup_mode === "attendance" ? (
               <div className="space-y-1">
                 <Label>Response buttons</Label>
-                <ResponseButtonToggles
-                  value={editForm.rsvp_buttons}
-                  onChange={(value) => setEditForm({ ...editForm, rsvp_buttons: value })}
+                <ResponseButtonEditor
+                  value={formToChoice(editForm)}
+                  onChange={(value) => setEditForm({ ...editForm, ...choicePatch(value) })}
+                  onCommit={(value) => setEditForm({ ...editForm, ...choicePatch(value) })}
                 />
                 <p className="text-xs text-muted-foreground">
-                  Highlighted buttons are shown to volunteers. At least one stays on.
+                  Check a button to show it. Edit the words volunteers see. Both can be off.
                 </p>
               </div>
             ) : null}

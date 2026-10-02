@@ -1,5 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireApiRole } from "@/lib/api/auth";
+import {
+  buttonLabel,
+  DEFAULT_ATTENDING_BUTTON_LABEL,
+  DEFAULT_DECLINE_BUTTON_LABEL,
+  shiftRsvpButtons,
+} from "@/lib/shifts/eligibility";
 import { createServiceClient } from "@/lib/supabase/server";
 
 export async function POST(request: NextRequest) {
@@ -9,18 +15,29 @@ export async function POST(request: NextRequest) {
   const body = await request.json();
 
   if (Array.isArray(body.ids)) {
-    const buttons =
-      body.rsvp_buttons === "attending" || body.rsvp_buttons === "decline"
-        ? body.rsvp_buttons
-        : "both";
+    const buttons = shiftRsvpButtons({ rsvp_buttons: body.rsvp_buttons });
+    const attendingLabel = buttonLabel(body.attending_label, DEFAULT_ATTENDING_BUTTON_LABEL);
+    const declineLabel = buttonLabel(body.decline_label, DEFAULT_DECLINE_BUTTON_LABEL);
     const ids = body.ids.filter((id: unknown): id is string => typeof id === "string" && id.length > 0);
     if (ids.length === 0) {
       return NextResponse.json({ error: "Missing shift ids" }, { status: 400 });
     }
     const service = await createServiceClient();
-    const { error } = await service.from("shifts").update({ rsvp_buttons: buttons }).in("id", ids);
+    const { error } = await service
+      .from("shifts")
+      .update({
+        rsvp_buttons: buttons,
+        attending_label: attendingLabel,
+        decline_label: declineLabel,
+      })
+      .in("id", ids);
     if (error) return NextResponse.json({ error: error.message }, { status: 400 });
-    return NextResponse.json({ rsvp_buttons: buttons, count: ids.length });
+    return NextResponse.json({
+      rsvp_buttons: buttons,
+      attending_label: attendingLabel,
+      decline_label: declineLabel,
+      count: ids.length,
+    });
   }
 
   if (!body.id) {
@@ -33,10 +50,9 @@ export async function POST(request: NextRequest) {
   }
 
   const signupMode = body.signup_mode === "attendance" ? "attendance" : "coverage";
-  const rsvpButtons =
-    body.rsvp_buttons === "attending" || body.rsvp_buttons === "decline"
-      ? body.rsvp_buttons
-      : "both";
+  const rsvpButtons = shiftRsvpButtons({ rsvp_buttons: body.rsvp_buttons });
+  const attendingLabel = buttonLabel(body.attending_label, DEFAULT_ATTENDING_BUTTON_LABEL);
+  const declineLabel = buttonLabel(body.decline_label, DEFAULT_DECLINE_BUTTON_LABEL);
   const volunteersNeeded =
     signupMode === "attendance"
       ? 0
@@ -52,6 +68,8 @@ export async function POST(request: NextRequest) {
       required_roles: body.required_roles ?? "any",
       signup_mode: signupMode,
       rsvp_buttons: rsvpButtons,
+      attending_label: attendingLabel,
+      decline_label: declineLabel,
       date: body.date,
       start_time: body.start_time,
       end_time: body.end_time,

@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireApiRole } from "@/lib/api/auth";
 import { createServiceClient } from "@/lib/supabase/server";
+import {
+  buttonLabel,
+  DEFAULT_ATTENDING_BUTTON_LABEL,
+  DEFAULT_DECLINE_BUTTON_LABEL,
+  shiftRsvpButtons,
+} from "@/lib/shifts/eligibility";
 import type { ShiftRequiredRole, ShiftRsvpButtons, ShiftSignupMode, ShiftType } from "@/lib/types";
 
 interface ShiftCreateInput {
@@ -10,6 +16,9 @@ interface ShiftCreateInput {
   required_roles?: ShiftRequiredRole;
   signup_mode?: ShiftSignupMode;
   rsvp_buttons?: ShiftRsvpButtons;
+  attending_label?: string | null;
+  decline_label?: string | null;
+  event_group?: string | null;
   date?: string;
   start_time?: string;
   end_time?: string;
@@ -23,9 +32,10 @@ function normalizeSignupMode(value: unknown): ShiftSignupMode {
   return value === "attendance" ? "attendance" : "coverage";
 }
 
-function normalizeRsvpButtons(value: unknown): ShiftRsvpButtons {
-  if (value === "attending" || value === "decline") return value;
-  return "both";
+function normalizeEventGroup(value: unknown): string | null {
+  const text = String(value ?? "").trim();
+  if (!text) return null;
+  return text.slice(0, 300);
 }
 
 function normalizeShiftRow(entry: ShiftCreateInput, fallbackEventName?: string) {
@@ -55,7 +65,10 @@ function normalizeShiftRow(entry: ShiftCreateInput, fallbackEventName?: string) 
       shift_type: entry.shift_type ?? "event",
       required_roles: entry.required_roles ?? "any",
       signup_mode: signupMode,
-      rsvp_buttons: normalizeRsvpButtons(entry.rsvp_buttons),
+      rsvp_buttons: shiftRsvpButtons({ rsvp_buttons: entry.rsvp_buttons }),
+      attending_label: buttonLabel(entry.attending_label, DEFAULT_ATTENDING_BUTTON_LABEL),
+      decline_label: buttonLabel(entry.decline_label, DEFAULT_DECLINE_BUTTON_LABEL),
+      event_group: normalizeEventGroup(entry.event_group),
       date,
       start_time: startTime,
       end_time: endTime,
