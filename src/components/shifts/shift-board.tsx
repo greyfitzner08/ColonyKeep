@@ -422,13 +422,11 @@ export function ShiftBoard({
   const [openEvents, setOpenEvents] = useState<Set<string>>(() => new Set());
   const [shiftRows, setShiftRows] = useState(initial);
   const shiftRowsRef = useRef(initial);
-  const savedRowsRef = useRef(initial);
   const pendingSignupRef = useRef<string | null>(null);
   const [pendingShiftId, setPendingShiftId] = useState<string | null>(null);
 
   useEffect(() => {
     shiftRowsRef.current = initial;
-    savedRowsRef.current = initial;
     setShiftRows(initial);
   }, [initial]);
 
@@ -518,46 +516,6 @@ export function ShiftBoard({
       })
       .sort((a, b) => a.startDate.localeCompare(b.startDate));
   }, [filtered]);
-
-  async function setEventResponseButtons(eventShifts: Shift[], choice: ResponseButtonChoice) {
-    const ids = eventShifts.filter((shift) => isAttendanceShift(shift)).map((shift) => shift.id);
-    if (ids.length === 0) return;
-    const rsvpButtons = responseButtonsFromChoice(choice);
-    const attendingLabel = buttonLabel(choice.attendingLabel, DEFAULT_ATTENDING_BUTTON_LABEL);
-    const declineLabel = buttonLabel(choice.declineLabel, DEFAULT_DECLINE_BUTTON_LABEL);
-    const previous = savedRowsRef.current;
-    const next = shiftRowsRef.current.map((shift) =>
-      ids.includes(shift.id)
-        ? {
-            ...shift,
-            rsvp_buttons: rsvpButtons,
-            attending_label: attendingLabel,
-            decline_label: declineLabel,
-          }
-        : shift
-    );
-    shiftRowsRef.current = next;
-    setShiftRows(next);
-    setFormError(null);
-    const response = await fetch("/api/shifts/update", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        ids,
-        rsvp_buttons: rsvpButtons,
-        attending_label: attendingLabel,
-        decline_label: declineLabel,
-      }),
-    });
-    const result = await response.json().catch(() => null);
-    if (!response.ok) {
-      shiftRowsRef.current = previous;
-      setShiftRows(previous);
-      setFormError(result?.error ?? "Unable to update response buttons");
-      return;
-    }
-    savedRowsRef.current = next;
-  }
 
   function toggleEvent(name: string) {
     setOpenEvents((current) => {
@@ -1492,7 +1450,6 @@ export function ShiftBoard({
         <div className="space-y-4 sm:space-y-5">
           {groupedEvents.map((event) => {
             const isOpen = openEvents.has(event.key);
-            const attendanceSample = event.shifts.find((shift) => isAttendanceShift(shift));
             return (
               <article
                 key={event.key}
@@ -1545,31 +1502,6 @@ export function ShiftBoard({
 
                   {isAdmin && (
                     <div className="flex shrink-0 flex-wrap items-center gap-2 sm:pt-0.5">
-                      {attendanceSample ? (
-                        <ResponseButtonEditor
-                          value={formToChoice({
-                            rsvp_buttons: shiftRsvpButtons(attendanceSample),
-                            attending_label:
-                              attendanceSample.attending_label ?? DEFAULT_ATTENDING_BUTTON_LABEL,
-                            decline_label:
-                              attendanceSample.decline_label ?? DEFAULT_DECLINE_BUTTON_LABEL,
-                          })}
-                          onChange={(value) => {
-                            const ids = event.shifts
-                              .filter((shift) => isAttendanceShift(shift))
-                              .map((shift) => shift.id);
-                            const patch = choicePatch(value);
-                            const next = shiftRowsRef.current.map((shift) =>
-                              ids.includes(shift.id) ? { ...shift, ...patch } : shift
-                            );
-                            shiftRowsRef.current = next;
-                            setShiftRows(next);
-                          }}
-                          onCommit={(value) => {
-                            void setEventResponseButtons(event.shifts, value);
-                          }}
-                        />
-                      ) : null}
                       <Button
                         type="button"
                         variant="outline"
