@@ -822,7 +822,7 @@ export function AdoptableCatsManager({
               ) : null}
 
               <div className="space-y-4">
-                {entranceFieldGroups(section.fields, answers).map((group) => (
+                {entranceFieldGroups(section.fields, answers, { staffEditor: true }).map((group) => (
                   <div key={group.heading || group.fields[0]?.key} className={entranceFieldGroupClass(group.heading)}>
                     {group.heading ? <h3 className="text-base font-semibold">{group.heading}</h3> : null}
                     <div className="grid gap-4 sm:grid-cols-2">

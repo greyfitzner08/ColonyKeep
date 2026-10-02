@@ -28,6 +28,8 @@ export interface EntranceField {
   group?: string;
   /** Kept in saved answers, omitted from every form. */
   hidden?: boolean;
+  /** Omitted from staff cat/application editors; still shown on the public form. */
+  staffHidden?: boolean;
 }
 
 export interface EntranceSection {
@@ -84,7 +86,7 @@ const ENTRANCE_SECTION_SOURCE: EntranceSection[] = [
     title: "Cat Profile",
     fields: [
       { key: "cat_name", label: "Cat’s Name", kind: "text", required: true },
-      { key: "current_status", label: "Current Status", kind: "text", staff: true },
+      { key: "current_status", label: "Current Status", kind: "text", staff: true, hidden: true },
       { key: "adopted", label: "Adopted?", kind: "yesno", staff: true },
       { key: "petfinder_only", label: "Petfinder Only?", kind: "yesno", staff: true },
       { key: "order_to_place", label: "Order to Place / Points", kind: "text", staff: true },
@@ -172,7 +174,7 @@ const ENTRANCE_SECTION_SOURCE: EntranceSection[] = [
       { key: "trapper_provider", label: "Who told you?", kind: "text" },
       { key: "location_before_entry", label: "Location Before Entry", kind: "text" },
       { key: "where_found", label: "Where Found / Situation", kind: "textarea" },
-      { key: "estimated_age", label: "Estimated Age at Referral", kind: "text" },
+      { key: "estimated_age", label: "Estimated Age at Referral", kind: "text", staffHidden: true },
     ],
   },
   {
@@ -202,7 +204,7 @@ const ENTRANCE_SECTION_SOURCE: EntranceSection[] = [
       { key: "fff_receipt_acknowledged", label: "FFF Receipt Acknowledged?", kind: "yesno" },
       {
         key: "adopter_application_status",
-        label: "Application Status: Approved / Declined / Pending",
+        label: "Application Status",
         kind: "select",
         options: ADOPTER_APPLICATION_STATUSES,
       },
@@ -211,7 +213,7 @@ const ENTRANCE_SECTION_SOURCE: EntranceSection[] = [
       { key: "adopter_phone", label: "Adopter Phone", kind: "text" },
       { key: "adopter_email", label: "Adopter Email", kind: "text" },
       { key: "adopter_address", label: "Adopter Address", kind: "textarea" },
-      { key: "verified_owner", label: "Verified Owner?", kind: "yesno" },
+      { key: "verified_owner", label: "Verified Owner?", kind: "yesno", hidden: true },
     ],
   },
   {
@@ -426,10 +428,12 @@ export function applyEntranceAnswer(
 }
 
 export function showEntranceField(
-  field: Pick<EntranceField, "key" | "hidden">,
-  answers: EntranceAnswers
+  field: Pick<EntranceField, "key" | "hidden" | "staffHidden">,
+  answers: EntranceAnswers,
+  options: { staffEditor?: boolean } = {}
 ): boolean {
   if (field.hidden) return false;
+  if (options.staffEditor && field.staffHidden) return false;
   if (field.key === "linked_adoption_application_id") return false;
   if (field.key === "fff_volunteer_name") return answers.how_referred === "fff_volunteer";
   if (field.key === "trapper_provider") return answers.how_referred !== "fff_volunteer";
@@ -453,11 +457,12 @@ export function missingVolunteerName(answers: EntranceAnswers): boolean {
 
 export function entranceFieldGroups(
   fields: EntranceField[],
-  answers: EntranceAnswers
+  answers: EntranceAnswers,
+  options: { staffEditor?: boolean } = {}
 ): { heading: string; fields: EntranceField[] }[] {
   const groups: { heading: string; fields: EntranceField[] }[] = [];
   for (const field of fields) {
-    if (!showEntranceField(field, answers)) continue;
+    if (!showEntranceField(field, answers, options)) continue;
     const heading = field.group ?? "";
     const last = groups[groups.length - 1];
     if (!last || last.heading !== heading) groups.push({ heading, fields: [field] });
@@ -680,6 +685,121 @@ export function vetCareDueTimingLabel(date: string, asOf = new Date()): string {
   if (days === 0) return "today";
   if (days === 1) return "tomorrow";
   return formatIsoDate(date);
+}
+
+export type AdoptionFollowUpKind = "1_week" | "1_month";
+
+export interface AdoptionFollowUpAlert {
+  applicationId: string;
+  catName: string;
+  kind: AdoptionFollowUpKind;
+  label: string;
+  date: string;
+  completedKey: "first_week_check_completed" | "one_month_follow_up_completed";
+  dateKey: "first_week_check_date" | "one_month_follow_up_date";
+}
+
+function parseIsoLocalDate(iso: string): Date | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return null;
+  const [year, month, day] = iso.split("-").map(Number);
+  return new Date(year, month - 1, day);
+}
+
+function formatIsoLocalDate(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+export function addCalendarDays(iso: string, days: number): string {
+  const date = parseIsoLocalDate(iso);
+  if (!date) return "";
+  date.setDate(date.getDate() + days);
+  return formatIsoLocalDate(date);
+}
+
+export function addCalendarMonths(iso: string, months: number): string {
+  const date = parseIsoLocalDate(iso);
+  if (!date) return "";
+  const day = date.getDate();
+  date.setMonth(date.getMonth() + months);
+  if (date.getDate() < day) date.setDate(0);
+  return formatIsoLocalDate(date);
+}
+
+const ADOPTION_FOLLOW_UP_DEFS: {
+  kind: AdoptionFollowUpKind;
+  label: string;
+  completedKey: AdoptionFollowUpAlert["completedKey"];
+  dateKey: AdoptionFollowUpAlert["dateKey"];
+  dueFromNotified: (notified: string) => string;
+}[] = [
+  {
+    kind: "1_week",
+    label: "1-week follow-up",
+    completedKey: "first_week_check_completed",
+    dateKey: "first_week_check_date",
+    dueFromNotified: (notified) => addCalendarDays(notified, 7),
+  },
+  {
+    kind: "1_month",
+    label: "1-month follow-up",
+    completedKey: "one_month_follow_up_completed",
+    dateKey: "one_month_follow_up_date",
+    dueFromNotified: (notified) => addCalendarMonths(notified, 1),
+  },
+];
+
+/** Reminders after Date Adopter Notified — 1 week and 1 month, until marked complete. */
+export function collectAdoptionFollowUpAlerts(
+  applications: {
+    id: string;
+    cat_name: string;
+    status: string;
+    answers: Record<string, string | undefined>;
+  }[]
+): AdoptionFollowUpAlert[] {
+  const alerts: AdoptionFollowUpAlert[] = [];
+  for (const application of applications) {
+    if (application.status === "denied") continue;
+    const notified = application.answers.date_adopter_notified?.trim() ?? "";
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(notified)) continue;
+    const renamed =
+      application.answers.name_changed === "yes" ? application.answers.new_name?.trim() : "";
+    const catName = renamed || application.cat_name.trim() || "Cat";
+    for (const def of ADOPTION_FOLLOW_UP_DEFS) {
+      if (application.answers[def.completedKey] === "yes") continue;
+      const scheduled = application.answers[def.dateKey]?.trim() ?? "";
+      const date = /^\d{4}-\d{2}-\d{2}$/.test(scheduled)
+        ? scheduled
+        : def.dueFromNotified(notified);
+      if (!date) continue;
+      alerts.push({
+        applicationId: application.id,
+        catName,
+        kind: def.kind,
+        label: def.label,
+        date,
+        completedKey: def.completedKey,
+        dateKey: def.dateKey,
+      });
+    }
+  }
+  return alerts.sort((a, b) => a.date.localeCompare(b.date) || a.catName.localeCompare(b.catName));
+}
+
+export function upcomingAdoptionFollowUpAlerts(
+  alerts: AdoptionFollowUpAlert[],
+  asOf = new Date(),
+  withinDays = 7
+): AdoptionFollowUpAlert[] {
+  return alerts
+    .filter((alert) => {
+      const days = daysUntilVetCare(alert.date, asOf);
+      return days != null && days <= withinDays;
+    })
+    .sort((a, b) => a.date.localeCompare(b.date) || a.catName.localeCompare(b.catName));
 }
 
 /** Map a due-service label to a vaccination row for the “care given” flow. */

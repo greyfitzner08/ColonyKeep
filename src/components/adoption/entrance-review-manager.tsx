@@ -266,7 +266,7 @@ export function EntranceReviewManager({
               return (
                 <section key={section.id} className="space-y-4">
                   <div className="space-y-4">
-                    {entranceFieldGroups(section.fields, answers).map((group) => (
+                    {entranceFieldGroups(section.fields, answers, { staffEditor: true }).map((group) => (
                       <div
                         key={group.heading || group.fields[0]?.key}
                         className={entranceFieldGroupClass(group.heading)}
