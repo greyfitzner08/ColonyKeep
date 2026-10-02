@@ -800,9 +800,6 @@ export function sanitizeEntranceAnswers(
     return { answers, error: "Enter the cat’s date of birth." };
   }
   if (answers.approved_pet_store !== "yes") clearPetStoreQuestions(answers);
-  if (answers.approved_pet_store === "yes" && !answers.pet_store_name.trim()) {
-    return { answers, error: "Choose the pet store." };
-  }
   if (answers.pet_store_name !== "other") answers.pet_store_other_name = "";
   if (answers.approved_pet_store === "yes" && answers.pet_store_name === "other" && !answers.pet_store_other_name.trim()) {
     return { answers, error: "Enter the pet store name." };
