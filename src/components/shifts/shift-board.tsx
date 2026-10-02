@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -216,6 +216,60 @@ function shownLocation(value: string | null | undefined) {
   return text;
 }
 
+function withoutEmail(list: string[], emailLower: string) {
+  return list.filter((entry) => entry.toLowerCase() !== emailLower);
+}
+
+function hasEmail(list: string[], emailLower: string) {
+  return list.some((entry) => entry.toLowerCase() === emailLower);
+}
+
+/** Local signup lists so the button updates before the server round trip finishes. */
+function applySignupLocally(
+  shift: Shift,
+  action: "claim" | "unclaim" | "waitlist" | "leave_waitlist" | "decline" | "leave_decline",
+  email: string
+): Shift {
+  const emailLower = email.trim().toLowerCase();
+  let signedUp = [...(shift.signed_up_emails ?? [])];
+  let waitlist = [...(shift.waitlist_emails ?? [])];
+  let declined = [...(shift.declined_emails ?? [])];
+  const attendance = isAttendanceShift(shift);
+
+  if (action === "claim") {
+    if (!hasEmail(signedUp, emailLower)) signedUp.push(email.trim());
+    waitlist = withoutEmail(waitlist, emailLower);
+    declined = withoutEmail(declined, emailLower);
+  } else if (action === "unclaim") {
+    signedUp = withoutEmail(signedUp, emailLower);
+    if (!attendance) {
+      while (signedUp.length < shift.volunteers_needed && waitlist.length > 0) {
+        const next = waitlist.shift();
+        if (next && !hasEmail(signedUp, next.toLowerCase())) signedUp.push(next);
+      }
+    }
+  } else if (action === "waitlist") {
+    signedUp = withoutEmail(signedUp, emailLower);
+    declined = withoutEmail(declined, emailLower);
+    if (!hasEmail(waitlist, emailLower)) waitlist.push(email.trim());
+  } else if (action === "leave_waitlist") {
+    waitlist = withoutEmail(waitlist, emailLower);
+  } else if (action === "decline") {
+    signedUp = withoutEmail(signedUp, emailLower);
+    waitlist = withoutEmail(waitlist, emailLower);
+    if (!hasEmail(declined, emailLower)) declined.push(email.trim());
+  } else if (action === "leave_decline") {
+    declined = withoutEmail(declined, emailLower);
+  }
+
+  return {
+    ...shift,
+    signed_up_emails: signedUp,
+    waitlist_emails: waitlist,
+    declined_emails: declined,
+  };
+}
+
 function formFromShift(shift: Shift): EditFormState {
   return {
     event_name: shift.event_name,
@@ -257,10 +311,19 @@ export function ShiftBoard({
   const [deleteTarget, setDeleteTarget] = useState<PendingDestructiveAction | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [openEvents, setOpenEvents] = useState<Set<string>>(() => new Set());
+  const [shiftRows, setShiftRows] = useState(initial);
+  const shiftRowsRef = useRef(initial);
+  const pendingSignupRef = useRef<string | null>(null);
+  const [pendingShiftId, setPendingShiftId] = useState<string | null>(null);
+
+  useEffect(() => {
+    shiftRowsRef.current = initial;
+    setShiftRows(initial);
+  }, [initial]);
 
   const filtered = typeFilter === "all"
-    ? initial
-    : initial.filter((shift) => shift.shift_type === typeFilter);
+    ? shiftRows
+    : shiftRows.filter((shift) => shift.shift_type === typeFilter);
 
   const groupedEvents = useMemo(() => {
     const groups = new Map<string, Shift[]>();
@@ -506,22 +569,51 @@ export function ShiftBoard({
       | "decline"
       | "leave_decline"
   ) {
+    if (pendingSignupRef.current === shiftId) return;
     if (action === "claim" || action === "waitlist" || action === "decline") {
-      const shift = initial.find((row) => row.id === shiftId);
+      const shift = shiftRowsRef.current.find((row) => row.id === shiftId);
       if (shift && isAppointmentDatePast(shift.date)) return;
     }
-    const response = await fetch("/api/shifts/claim", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ shiftId, action }),
-    });
-    const result = await response.json().catch(() => null);
-    if (!response.ok) {
-      setFormError(result?.error ?? "Unable to update signup");
-      return;
-    }
+
+    const previous = shiftRowsRef.current;
+    const optimistic = previous.map((shift) =>
+      shift.id === shiftId ? applySignupLocally(shift, action, userEmail) : shift
+    );
+    shiftRowsRef.current = optimistic;
+    setShiftRows(optimistic);
+    pendingSignupRef.current = shiftId;
+    setPendingShiftId(shiftId);
     setFormError(null);
-    router.refresh();
+
+    try {
+      const response = await fetch("/api/shifts/claim", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ shiftId, action }),
+      });
+      const result = await response.json().catch(() => null);
+      if (!response.ok) {
+        shiftRowsRef.current = previous;
+        setShiftRows(previous);
+        setFormError(result?.error ?? "Unable to update signup");
+        return;
+      }
+      const confirmed = shiftRowsRef.current.map((shift) =>
+        shift.id === shiftId
+          ? {
+              ...shift,
+              signed_up_emails: result?.signed_up_emails ?? shift.signed_up_emails,
+              waitlist_emails: result?.waitlist_emails ?? shift.waitlist_emails,
+              declined_emails: result?.declined_emails ?? shift.declined_emails,
+            }
+          : shift
+      );
+      shiftRowsRef.current = confirmed;
+      setShiftRows(confirmed);
+    } finally {
+      pendingSignupRef.current = null;
+      setPendingShiftId(null);
+    }
   }
 
   function openDestructiveConfirm(target: PendingDestructiveAction) {
@@ -977,6 +1069,7 @@ export function ShiftBoard({
     const { signedUp, waitlist, declined, attendance, spotsLeft, pastDate, blockedReason } =
       shiftSignupSummary(shift);
     const emailLower = userEmail.trim().toLowerCase();
+    const busy = pendingShiftId === shift.id;
     const isSignedUp = signedUp.some((email) => email.toLowerCase() === emailLower);
     const waitlistIndex = waitlist.findIndex((email) => email.toLowerCase() === emailLower);
     const isWaitlisted = waitlistIndex >= 0;

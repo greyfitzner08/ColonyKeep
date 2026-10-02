@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireShiftAccess } from "@/lib/api/auth";
 import { isAppointmentDatePast } from "@/lib/appointments/slot-date";
-import { createClient, createServiceClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/server";
 import {
   isAttendanceShift,
   shiftSignupBlockedReason,
@@ -45,22 +45,24 @@ export async function POST(request: NextRequest) {
   const { profile, response } = await requireShiftAccess();
   if (response) return response;
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user?.email) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const email = profile?.email?.trim();
+  if (!email) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await request.json();
   const shiftId = body.shiftId as string | undefined;
   const action = body.action as ClaimAction | undefined;
-  const email = user.email;
   const emailLower = email.toLowerCase();
   const isAdmin = profile?.role === "admin";
 
   // Service role after auth: volunteers can no longer UPDATE shifts directly via RLS.
   const service = await createServiceClient();
-  const { data: shift } = await service.from("shifts").select("*").eq("id", shiftId).single();
+  const { data: shift } = await service
+    .from("shifts")
+    .select(
+      "id, date, signup_mode, required_roles, volunteers_needed, signed_up_emails, waitlist_emails, declined_emails"
+    )
+    .eq("id", shiftId)
+    .single();
   if (!shift) return NextResponse.json({ error: "Shift not found" }, { status: 404 });
 
   const attendance = isAttendanceShift(shift);
