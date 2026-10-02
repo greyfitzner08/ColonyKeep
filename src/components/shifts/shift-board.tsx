@@ -180,7 +180,8 @@ function eventSummary(event: {
     if (event.shifts.length === 1) return counts;
     return `${event.shifts.length} dates · ${counts}`;
   }
-  return `${event.positions.length} position${event.positions.length === 1 ? "" : "s"} · ${event.shifts.length} shift${event.shifts.length === 1 ? "" : "s"}${counts ? ` · ${counts}` : ""}`;
+  const names = event.positions.map((position) => position.name).join(" · ");
+  return counts ? `${names} · ${counts}` : names;
 }
 
 function ShiftNotes({ notes }: { notes: string }) {
@@ -320,10 +321,17 @@ export function ShiftBoard({
           needed,
           hasAttendance,
           hasCoverage,
-          positions: Array.from(byPosition.entries()).map(([positionName, positionShifts]) => ({
-            name: positionName,
-            shifts: positionShifts,
-          })),
+          positions: Array.from(byPosition.entries())
+            .map(([positionName, positionShifts]) => ({
+              name: positionName,
+              shifts: positionShifts,
+            }))
+            .sort((a, b) => {
+              const aGeneric = isGenericPosition(a.name);
+              const bGeneric = isGenericPosition(b.name);
+              if (aGeneric !== bGeneric) return aGeneric ? 1 : -1;
+              return a.name.localeCompare(b.name);
+            }),
         };
       })
       .sort((a, b) => a.startDate.localeCompare(b.startDate));
@@ -1279,31 +1287,61 @@ export function ShiftBoard({
                 {isOpen && (
                   <div
                     className={cn(
-                      "border-t border-primary/15 bg-background",
-                      !isFlatEvent(event.positions) && "divide-y"
+                      "border-t border-primary/15",
+                      isFlatEvent(event.positions)
+                        ? "bg-background"
+                        : "space-y-3 bg-muted/40 p-3 sm:p-4"
                     )}
                   >
                     {event.positions.map((position) => {
                       const flat = isFlatEvent(event.positions);
                       const single = flat && position.shifts.length === 1;
+                      const sharedDate = position.shifts.every(
+                        (shift) => shift.date === position.shifts[0]?.date
+                      );
+                      const sharedLocation = position.shifts.every(
+                        (shift) => shift.location.trim() === position.shifts[0]?.location.trim()
+                      )
+                        ? position.shifts[0]?.location.trim() ?? ""
+                        : "";
+                      const showSharedLocation =
+                        Boolean(sharedLocation) && sharedLocation !== "See calendar";
                       return (
                       <section
                         key={`${event.name}-${position.name}`}
                         className={
                           flat
                             ? "px-4 py-4 sm:px-5"
-                            : "border-l-4 border-l-secondary-foreground/25 bg-secondary/30 px-4 py-4 sm:px-5"
+                            : "rounded-xl border bg-background px-4 py-4 shadow-sm sm:px-5"
                         }
                       >
                         {!flat && (
-                          <div className="mb-3 flex items-center justify-between gap-2">
-                            <h3 className="text-base font-semibold text-secondary-foreground">
-                              {position.name}
-                            </h3>
+                          <div className="mb-3 flex items-start justify-between gap-3">
+                            <div className="min-w-0 space-y-0.5">
+                              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                                Position
+                              </p>
+                              <h3 className="text-lg font-bold leading-tight">{position.name}</h3>
+                              {position.shifts.length === 1 ? (
+                                <p className="text-sm font-medium text-primary">
+                                  {formatTimeRange(
+                                    position.shifts[0].start_time,
+                                    position.shifts[0].end_time
+                                  )}
+                                </p>
+                              ) : (
+                                <p className="text-sm text-muted-foreground">
+                                  {position.shifts.length} time slots
+                                </p>
+                              )}
+                              {showSharedLocation ? (
+                                <p className="text-sm text-muted-foreground">{sharedLocation}</p>
+                              ) : null}
+                            </div>
                             {isAdmin && (
                               <button
                                 type="button"
-                                className="text-xs text-destructive hover:underline"
+                                className="shrink-0 text-xs text-destructive hover:underline"
                                 onClick={() =>
                                   requestDeletePosition(
                                     event.name,
@@ -1327,36 +1365,41 @@ export function ShiftBoard({
                               <li
                                 key={shift.id}
                                 className={
-                                  single
+                                  single || (!flat && position.shifts.length === 1)
                                     ? undefined
                                     : cn(
-                                        "rounded-xl border border-border bg-background p-3 shadow-sm sm:p-4",
-                                        "border-l-4 border-l-accent-foreground/30",
-                                        (attendance || openSpots > 0) && "bg-primary/[0.03]"
+                                        "rounded-lg border bg-background p-3",
+                                        flat &&
+                                          "rounded-xl border-border shadow-sm sm:p-4 border-l-4 border-l-accent-foreground/30",
+                                        flat && (attendance || openSpots > 0) && "bg-primary/[0.03]"
                                       )
                                 }
                               >
                                 <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between md:gap-4">
                                   <div className="min-w-0 flex-1 space-y-1">
-                                    {!single ? (
-                                      <>
-                                        <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                                    {flat || !sharedDate || position.shifts.length > 1 ? (
+                                      <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                                        {flat || !sharedDate ? (
                                           <span className="font-semibold">
                                             {formatDate(shift.date)}
                                           </span>
-                                          <span className="tabular-nums text-muted-foreground">
-                                            {formatTimeRange(shift.start_time, shift.end_time)}
-                                          </span>
+                                        ) : null}
+                                        <span className={flat ? "tabular-nums text-muted-foreground" : "font-semibold tabular-nums"}>
+                                          {formatTimeRange(shift.start_time, shift.end_time)}
+                                        </span>
+                                        {flat ? (
                                           <span className="rounded-full border px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
                                             {attendance ? "Attendance" : "Coverage"}
                                           </span>
-                                        </div>
-                                        <p className="text-sm text-muted-foreground">
-                                          {shift.location}
-                                        </p>
-                                      </>
+                                        ) : null}
+                                      </div>
                                     ) : null}
-                                    {typeFilter === "all" && !(single && shift.shift_type === "event") ? (
+                                    {flat || !showSharedLocation ? (
+                                      <p className="text-sm text-muted-foreground">
+                                        {shift.location}
+                                      </p>
+                                    ) : null}
+                                    {typeFilter === "all" && shift.shift_type !== "event" ? (
                                       <p className="text-xs text-muted-foreground">
                                         {shiftTypeLabel(shift.shift_type)}
                                       </p>
