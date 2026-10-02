@@ -3,6 +3,7 @@ import { getAppProfile } from "@/lib/auth";
 import { getPlatformBranding } from "@/lib/branding-server";
 import { PageHeader } from "@/components/layout/page-header";
 import { ShiftBoard } from "@/components/shifts/shift-board";
+import { ShiftBoardTitle } from "@/components/shifts/shift-board-title";
 import { GoogleCalendarEmbed } from "@/components/shifts/google-calendar-embed";
 import { isGoogleCalendarSyncConfigured } from "@/lib/shifts/google-calendar-ical";
 import { syncGoogleCalendarShifts } from "@/lib/shifts/sync-google-calendar";
@@ -61,10 +62,7 @@ export default async function ShiftBoardPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Shift Board"
-        description="Coverage shifts fill a set number of spots (with role requirements and waitlists). Attendance slots collect who’s coming or can’t make it — no spot limit."
-      />
+      <PageHeader title={<ShiftBoardTitle />} />
       {branding.google_calendar_embed_url && (
         <GoogleCalendarEmbed embedUrl={branding.google_calendar_embed_url} />
       )}
