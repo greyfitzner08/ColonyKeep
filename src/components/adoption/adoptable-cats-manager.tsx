@@ -35,15 +35,17 @@ import {
   type AdoptableCat,
 } from "@/lib/adoption/constants";
 import {
+  ENTRANCE_FIELDS,
   ENTRANCE_SECTIONS,
   emptyEntranceAnswers,
   applyEntranceAddress,
   applyEntranceAnswer,
   entranceFieldGroupClass,
   entranceFieldGroups,
-  petStoreDisplayName,
   entranceFieldLabel,
   entranceFieldSpansRow,
+  entranceOptionLabel,
+  petStoreDisplayName,
   type AdoptionEntranceApplication,
   type EntranceAnswers,
 } from "@/lib/adoption/entrance";
@@ -133,11 +135,15 @@ export function AdoptableCatsManager({
 
   const editingRecord = editing ? recordByCatId.get(editing.id) ?? null : null;
 
-  const columns = useMemo<DataTableColumn<AdoptableCat>[]>(
-    () => [
+  const columns = useMemo<DataTableColumn<AdoptableCat>[]>(() => {
+    const answerValue = (row: AdoptableCat, key: string) =>
+      recordByCatId.get(row.id)?.answers?.[key]?.trim() ?? "";
+
+    const core: DataTableColumn<AdoptableCat>[] = [
       {
         id: "name",
         label: "Cat",
+        hideable: false,
         sortValue: (row) => row.name,
         render: (row) => {
           const record = recordByCatId.get(row.id);
@@ -174,13 +180,18 @@ export function AdoptableCatsManager({
         label: "Status",
         sortValue: (row) => row.status,
         render: (row) => {
-          const label = recordByCatId.get(row.id)?.answers.current_status || adoptableCatStatusLabel(row.status);
+          const label =
+            recordByCatId.get(row.id)?.answers.current_status || adoptableCatStatusLabel(row.status);
           return <Badge variant="secondary">{label}</Badge>;
         },
       },
       {
         id: "location",
         label: "Location",
+        sortValue: (row) => {
+          const { foster, store } = locationSummary(recordByCatId.get(row.id)?.answers);
+          return [foster, store].filter(Boolean).join(" ");
+        },
         render: (row) => {
           const answers = recordByCatId.get(row.id)?.answers;
           const { foster, store } = locationSummary(answers);
@@ -196,8 +207,28 @@ export function AdoptableCatsManager({
         },
       },
       {
+        id: "pet_store_rank",
+        label: "Pet store rank",
+        defaultWidth: 120,
+        sortValue: (row) => {
+          const raw = answerValue(row, "pet_store_rank");
+          if (!raw) return Number.POSITIVE_INFINITY;
+          const parsed = Number(raw);
+          return Number.isFinite(parsed) ? parsed : raw.toLowerCase();
+        },
+        render: (row) => {
+          const answers = recordByCatId.get(row.id)?.answers;
+          if (answers?.approved_pet_store !== "yes") {
+            return <span className="text-muted-foreground">—</span>;
+          }
+          const rank = answers.pet_store_rank?.trim() || "";
+          return <span className="font-medium tabular-nums">{rank || "—"}</span>;
+        },
+      },
+      {
         id: "profile",
         label: "Profile",
+        defaultHidden: true,
         render: (row) => {
           const personality = recordByCatId.get(row.id)?.answers.personality || row.personality_notes;
           return (
@@ -207,29 +238,62 @@ export function AdoptableCatsManager({
           );
         },
       },
-      {
-        id: "actions",
-        label: "Actions",
-        render: (row) => (
-          <div className="flex justify-end gap-1">
-            <Button type="button" size="icon" variant="ghost" onClick={() => openRecord(row)}>
-              <Pencil className="h-4 w-4" />
-            </Button>
-            <Button
-              type="button"
-              size="icon"
-              variant="ghost"
-              disabled={deletingId === row.id}
-              onClick={() => void remove(row)}
-            >
-              <Trash2 className="h-4 w-4 text-destructive" />
-            </Button>
-          </div>
-        ),
+    ];
+
+    const skipKeys = new Set([
+      "linked_adoption_application_id",
+      "cat_name",
+      "current_status",
+      "personality",
+      "pet_store_rank",
+    ]);
+
+    const fieldColumns: DataTableColumn<AdoptableCat>[] = ENTRANCE_FIELDS.filter(
+      (field) => !field.hidden && !field.submittedStamp && !skipKeys.has(field.key)
+    ).map((field) => ({
+      id: `field_${field.key}`,
+      label: field.label,
+      labelText: field.label,
+      defaultHidden: true,
+      defaultWidth: field.kind === "textarea" || field.kind === "vaccinations" || field.kind === "vet_care" ? 220 : 140,
+      wrap: field.kind === "textarea",
+      sortValue: (row) => answerValue(row, field.key).toLowerCase(),
+      render: (row) => {
+        const value = answerValue(row, field.key);
+        if (!value) return <span className="text-muted-foreground">—</span>;
+        return (
+          <span className={field.kind === "textarea" ? "whitespace-pre-wrap text-sm" : "text-sm"}>
+            {entranceOptionLabel(field.key, value)}
+          </span>
+        );
       },
-    ],
-    [deletingId, recordByCatId]
-  );
+    }));
+
+    const actions: DataTableColumn<AdoptableCat> = {
+      id: "actions",
+      label: "Actions",
+      hideable: false,
+      defaultWidth: 100,
+      render: (row) => (
+        <div className="flex justify-end gap-1">
+          <Button type="button" size="icon" variant="ghost" onClick={() => openRecord(row)}>
+            <Pencil className="h-4 w-4" />
+          </Button>
+          <Button
+            type="button"
+            size="icon"
+            variant="ghost"
+            disabled={deletingId === row.id}
+            onClick={() => void remove(row)}
+          >
+            <Trash2 className="h-4 w-4 text-destructive" />
+          </Button>
+        </div>
+      ),
+    };
+
+    return [...core, ...fieldColumns, actions];
+  }, [deletingId, recordByCatId]);
 
   function openRecord(cat: AdoptableCat) {
     setEditing(cat);
@@ -461,10 +525,11 @@ export function AdoptableCatsManager({
 
       {viewMode === "table" ? (
         <DataTable
-          tableId="adoptable-cats"
+          tableId="adoptable-cats-profile"
           columns={columns}
           rows={rows}
           getRowKey={(row) => row.id}
+          defaultSort={{ columnId: "pet_store_rank", direction: "asc" }}
           emptyMessage="No cats yet. Approve a rescue application or import a CSV."
         />
       ) : rows.length === 0 ? (
@@ -512,6 +577,11 @@ export function AdoptableCatsManager({
                     <p className="font-medium">{foster || store ? foster || "Foster home" : "Unassigned"}</p>
                     {store ? (
                       <p className="text-xs text-muted-foreground">Pet store · {store}</p>
+                    ) : null}
+                    {record?.answers.approved_pet_store === "yes" ? (
+                      <p className="text-xs text-muted-foreground">
+                        Rank {record.answers.pet_store_rank?.trim() || "—"}
+                      </p>
                     ) : null}
                   </div>
                   <p className="line-clamp-2 text-xs text-muted-foreground">

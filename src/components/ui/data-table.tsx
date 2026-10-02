@@ -18,6 +18,8 @@ export interface DataTableColumn<T> {
   header?: ReactNode;
   defaultWidth?: number;
   minWidth?: number;
+  /** When true, the column starts hidden until the admin enables it. */
+  defaultHidden?: boolean;
   headerClassName?: string;
   cellClassName?: string;
   /** Allow cell text to wrap. */
@@ -100,6 +102,7 @@ export function DataTable<T>({
         id: column.id,
         defaultWidth: column.defaultWidth,
         minWidth: column.minWidth,
+        defaultHidden: column.defaultHidden,
       })),
     [columns]
   );
@@ -353,7 +356,7 @@ export function DataTable<T>({
                 {columnsMenuOpen && (
                   <div
                     role="menu"
-                    className="absolute left-0 z-20 mt-2 w-56 rounded-md border bg-popover p-3 text-popover-foreground shadow-md"
+                    className="absolute left-0 z-20 mt-2 w-72 max-h-80 overflow-y-auto rounded-md border bg-popover p-3 text-popover-foreground shadow-md"
                   >
                     <div className="mb-2 flex items-center justify-between gap-2">
                       <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">

@@ -44,7 +44,13 @@ export function useColumnLayout(tableId: string, definitions: ColumnLayoutDefini
   definitionsRef.current = definitions;
 
   const definitionKey = useMemo(
-    () => definitions.map((definition) => `${definition.id}:${definition.defaultWidth ?? ""}`).join("|"),
+    () =>
+      definitions
+        .map(
+          (definition) =>
+            `${definition.id}:${definition.defaultWidth ?? ""}:${definition.defaultHidden ? "1" : "0"}`
+        )
+        .join("|"),
     [definitions]
   );
 

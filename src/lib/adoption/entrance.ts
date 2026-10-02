@@ -128,6 +128,13 @@ const ENTRANCE_SECTION_SOURCE: EntranceSection[] = [
         staff: true,
         group: "Pet store",
       },
+      {
+        key: "pet_store_rank",
+        label: "Placement rank (1 = next into the store)",
+        kind: "text",
+        staff: true,
+        group: "Pet store",
+      },
       { key: "pet_store_other_name", label: "Pet store name", kind: "text", staff: true, group: "Pet store" },
       { key: "pet_store_phone", label: "Phone", kind: "text", staff: true, group: "Pet store" },
       { key: "pet_store_email", label: "Email", kind: "text", staff: true, group: "Pet store" },
@@ -345,6 +352,7 @@ export function entranceFieldSpansRow(field: Pick<EntranceField, "kind" | "key">
 
 const PET_STORE_QUESTION_KEYS = [
   "pet_store_name",
+  "pet_store_rank",
   "pet_store_other_name",
   "pet_store_phone",
   "pet_store_email",

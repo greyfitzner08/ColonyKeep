@@ -9,6 +9,8 @@ export interface ColumnLayoutDefinition {
   id: string;
   defaultWidth?: number;
   minWidth?: number;
+  /** When true and no saved preference exists, start hidden. */
+  defaultHidden?: boolean;
 }
 
 const STORAGE_PREFIX = "tnvr-table-layout:";
@@ -33,14 +35,17 @@ export function loadColumnLayout(
   const defaultWidths = Object.fromEntries(
     definitions.map((definition) => [definition.id, defaultColumnWidth(definition)])
   );
+  const defaultHidden = definitions
+    .filter((definition) => definition.defaultHidden)
+    .map((definition) => definition.id);
 
   if (typeof window === "undefined") {
-    return { order: defaultOrder, widths: defaultWidths, hidden: [] };
+    return { order: defaultOrder, widths: defaultWidths, hidden: defaultHidden };
   }
 
   try {
     const raw = window.localStorage.getItem(`${STORAGE_PREFIX}${tableId}`);
-    if (!raw) return { order: defaultOrder, widths: defaultWidths, hidden: [] };
+    if (!raw) return { order: defaultOrder, widths: defaultWidths, hidden: defaultHidden };
 
     const parsed = JSON.parse(raw) as Partial<ColumnLayoutState>;
     const savedOrder = Array.isArray(parsed.order)
@@ -57,9 +62,18 @@ export function loadColumnLayout(
       }
     }
 
-    const hidden = Array.isArray(parsed.hidden)
+    const savedHidden = Array.isArray(parsed.hidden)
       ? parsed.hidden.filter((id) => definitionById.has(id))
       : [];
+    const newlyHidden = definitions
+      .filter(
+        (definition) =>
+          definition.defaultHidden &&
+          !savedOrder.includes(definition.id) &&
+          !savedHidden.includes(definition.id)
+      )
+      .map((definition) => definition.id);
+    const hidden = [...savedHidden, ...newlyHidden];
 
     // Keep at least one column visible.
     if (hidden.length >= definitions.length && definitions.length > 0) {
@@ -68,7 +82,7 @@ export function loadColumnLayout(
 
     return { order, widths, hidden };
   } catch {
-    return { order: defaultOrder, widths: defaultWidths, hidden: [] };
+    return { order: defaultOrder, widths: defaultWidths, hidden: defaultHidden };
   }
 }
 
