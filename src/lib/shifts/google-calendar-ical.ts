@@ -311,7 +311,7 @@ function toSignupEvent(
   }
 
   const summary = (firstValue(source.props, "SUMMARY") ?? "Untitled event").trim() || "Untitled event";
-  const location = (firstValue(source.props, "LOCATION") ?? "").trim() || "See calendar";
+  const location = (firstValue(source.props, "LOCATION") ?? "").trim();
   const description = calendarDescription(source.props);
   const noteBody = endsNote
     ? description

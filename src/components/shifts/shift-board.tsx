@@ -210,6 +210,12 @@ function isFlatEvent(positions: { name: string }[]) {
   return positions.length === 1 && isGenericPosition(positions[0].name);
 }
 
+function shownLocation(value: string | null | undefined) {
+  const text = value?.trim() ?? "";
+  if (!text || text.toLowerCase() === "see calendar") return null;
+  return text;
+}
+
 function formFromShift(shift: Shift): EditFormState {
   return {
     event_name: shift.event_name,
@@ -1223,9 +1229,6 @@ export function ShiftBoard({
                     aria-expanded={isOpen}
                   >
                     <div className="min-w-0 flex-1 space-y-1">
-                      <p className="text-[11px] font-semibold uppercase tracking-wider text-primary">
-                        Event
-                      </p>
                       <h2 className="text-xl font-bold leading-tight tracking-tight sm:text-2xl">
                         {event.name}
                       </h2>
@@ -1235,11 +1238,8 @@ export function ShiftBoard({
                           ? ` · ${formatTimeRange(event.shifts[0].start_time, event.shifts[0].end_time)}`
                           : ""}
                       </p>
-                      {isFlatEvent(event.positions) &&
-                      event.shifts.length === 1 &&
-                      event.shifts[0].location.trim() &&
-                      event.shifts[0].location.trim() !== "See calendar" ? (
-                        <p className="text-sm text-foreground/80">{event.shifts[0].location}</p>
+                      {isFlatEvent(event.positions) && event.shifts.length === 1 && shownLocation(event.shifts[0].location) ? (
+                        <p className="text-sm text-foreground/80">{shownLocation(event.shifts[0].location)}</p>
                       ) : null}
                       <p className="text-sm text-muted-foreground">
                         {eventSummary(event)}
@@ -1304,8 +1304,7 @@ export function ShiftBoard({
                       )
                         ? position.shifts[0]?.location.trim() ?? ""
                         : "";
-                      const showSharedLocation =
-                        Boolean(sharedLocation) && sharedLocation !== "See calendar";
+                      const showSharedLocation = Boolean(shownLocation(sharedLocation));
                       return (
                       <section
                         key={`${event.name}-${position.name}`}
@@ -1335,7 +1334,7 @@ export function ShiftBoard({
                                 </p>
                               )}
                               {showSharedLocation ? (
-                                <p className="text-sm text-muted-foreground">{sharedLocation}</p>
+                                <p className="text-sm text-muted-foreground">{shownLocation(sharedLocation)}</p>
                               ) : null}
                             </div>
                             {isAdmin && (
@@ -1394,9 +1393,9 @@ export function ShiftBoard({
                                         ) : null}
                                       </div>
                                     ) : null}
-                                    {flat || !showSharedLocation ? (
+                                    {!single && !showSharedLocation && shownLocation(shift.location) ? (
                                       <p className="text-sm text-muted-foreground">
-                                        {shift.location}
+                                        {shownLocation(shift.location)}
                                       </p>
                                     ) : null}
                                     {typeFilter === "all" && shift.shift_type !== "event" ? (
@@ -1907,10 +1906,12 @@ export function ShiftBoard({
               </div>
             </div>
             {editingShift?.google_calendar_uid ? (
-              <div className="space-y-1">
-                <Label>Location</Label>
-                <Input value={editForm.location} disabled />
-              </div>
+              shownLocation(editForm.location) ? (
+                <div className="space-y-1">
+                  <Label>Location</Label>
+                  <Input value={shownLocation(editForm.location) ?? ""} disabled />
+                </div>
+              ) : null
             ) : (
               <AddressAutocomplete
                 label="Location"
