@@ -1692,7 +1692,9 @@ export function ShiftBoard({
           <DialogHeader>
             <DialogTitle>Edit Shift</DialogTitle>
             <DialogDescription>
-              Update this shift, or add more dated shifts for the same event and position.
+              {editingShift?.google_calendar_uid
+                ? "This row follows a Google event. Title, date, time, and location refresh from the calendar. Spot limits, roles, and the signup list stay here."
+                : "Update this shift, or add more dated shifts for the same event and position."}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
@@ -1701,6 +1703,7 @@ export function ShiftBoard({
               <Input
                 value={editForm.event_name}
                 onChange={(e) => setEditForm({ ...editForm, event_name: e.target.value })}
+                disabled={Boolean(editingShift?.google_calendar_uid)}
               />
             </div>
             <div className="space-y-1">
@@ -1769,6 +1772,7 @@ export function ShiftBoard({
                 type="date"
                 value={editForm.date}
                 onChange={(e) => setEditForm({ ...editForm, date: e.target.value })}
+                disabled={Boolean(editingShift?.google_calendar_uid)}
               />
             </div>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -1778,6 +1782,7 @@ export function ShiftBoard({
                   type="time"
                   value={editForm.start_time}
                   onChange={(e) => setEditForm({ ...editForm, start_time: e.target.value })}
+                  disabled={Boolean(editingShift?.google_calendar_uid)}
                 />
               </div>
               <div className="space-y-1">
@@ -1786,17 +1791,25 @@ export function ShiftBoard({
                   type="time"
                   value={editForm.end_time}
                   onChange={(e) => setEditForm({ ...editForm, end_time: e.target.value })}
+                  disabled={Boolean(editingShift?.google_calendar_uid)}
                 />
               </div>
             </div>
-            <AddressAutocomplete
-              label="Location"
-              defaultValue={editForm.location}
-              onAddressChange={(location) => setEditForm({ ...editForm, location })}
-              onSelect={(parts) =>
-                setEditForm({ ...editForm, location: formatAddressPartsLine(parts) })
-              }
-            />
+            {editingShift?.google_calendar_uid ? (
+              <div className="space-y-1">
+                <Label>Location</Label>
+                <Input value={editForm.location} disabled />
+              </div>
+            ) : (
+              <AddressAutocomplete
+                label="Location"
+                defaultValue={editForm.location}
+                onAddressChange={(location) => setEditForm({ ...editForm, location })}
+                onSelect={(parts) =>
+                  setEditForm({ ...editForm, location: formatAddressPartsLine(parts) })
+                }
+              />
+            )}
             {editForm.signup_mode === "coverage" ? (
               <div className="space-y-1">
                 <Label>Volunteers Needed</Label>

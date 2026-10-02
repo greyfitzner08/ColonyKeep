@@ -468,6 +468,8 @@ export interface Shift {
   /** Attendance-mode RSVP no. Empty for coverage shifts. */
   declined_emails: string[];
   notes: string | null;
+  /** Set when this row follows a Google Calendar event. */
+  google_calendar_uid?: string | null;
   created_at: string;
   updated_at: string;
 }

@@ -1,9 +1,11 @@
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { getAppProfile } from "@/lib/auth";
 import { getPlatformBranding } from "@/lib/branding-server";
 import { PageHeader } from "@/components/layout/page-header";
 import { ShiftBoard } from "@/components/shifts/shift-board";
 import { GoogleCalendarEmbed } from "@/components/shifts/google-calendar-embed";
+import { isGoogleCalendarSyncConfigured } from "@/lib/shifts/google-calendar-ical";
+import { syncGoogleCalendarShifts } from "@/lib/shifts/sync-google-calendar";
 import type { Shift } from "@/lib/types";
 
 export default async function ShiftBoardPage() {
@@ -11,6 +13,20 @@ export default async function ShiftBoardPage() {
   const profile = await getAppProfile();
   const isAdmin = profile?.role === "admin";
   const branding = await getPlatformBranding();
+  const calendarConnected = isGoogleCalendarSyncConfigured();
+
+  if (calendarConnected) {
+    try {
+      const service = await createServiceClient();
+      await syncGoogleCalendarShifts(service);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "";
+      console.error(
+        "[shifts] calendar sync failed",
+        /calendar\.google\.com|private-/i.test(message) ? "" : message
+      );
+    }
+  }
 
   const { data: shifts } = await supabase
     .from("shifts")
@@ -51,6 +67,11 @@ export default async function ShiftBoardPage() {
       />
       {branding.google_calendar_embed_url && (
         <GoogleCalendarEmbed embedUrl={branding.google_calendar_embed_url} />
+      )}
+      {calendarConnected && (
+        <p className="text-sm text-muted-foreground">
+          Signup rows follow events added on the team Google calendar. Join them here. Admins can set spot limits and roles on each row.
+        </p>
       )}
       <ShiftBoard
         shifts={typedShifts}
