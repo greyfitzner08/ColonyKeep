@@ -170,7 +170,7 @@ function eventSummary(event: {
   filled: number;
 }) {
   const roster = event.hasCoverage
-    ? `${event.coverageFilled}/${event.needed} coverage filled`
+    ? `${event.coverageFilled}/${event.needed} spots filled`
     : "";
   const attending = event.hasAttendance ? `${event.attendanceFilled} attending` : "";
   const signedUp =
