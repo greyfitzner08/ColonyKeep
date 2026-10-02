@@ -536,17 +536,6 @@ export function ShiftBoard({
     });
   }
 
-  function openCreateDialog() {
-    setEventName("");
-    setDefaultLocation("");
-    setPositions([emptyPosition()]);
-    setFormError(null);
-    setCreateTitle("Create Event");
-    setLockingEventName(false);
-    setCreateEventGroup(null);
-    setCreateOpen(true);
-  }
-
   function openAddShiftsToEvent(eventGroupName: string, eventShifts: Shift[]) {
     const sample = eventShifts[0];
     // Start blank so "Add shifts" never clones an existing slot by accident.
@@ -1446,12 +1435,6 @@ export function ShiftBoard({
             ))}
           </SelectContent>
         </Select>
-        {isAdmin && (
-          <Button onClick={openCreateDialog} size="sm" className="w-full sm:w-auto">
-            <Plus className="mr-2 h-4 w-4" />
-            Create Event
-          </Button>
-        )}
       </div>
 
       {groupedEvents.length === 0 ? (
@@ -2076,16 +2059,10 @@ export function ShiftBoard({
             {formError && <p className="text-sm text-destructive">{formError}</p>}
             <Button onClick={saveEventShifts} className="w-full" disabled={saving}>
               {saving
-                ? lockingEventName
-                  ? "Adding..."
-                  : "Creating..."
-                : lockingEventName
-                  ? totalShiftCount === 1
-                    ? "Add shift to event"
-                    : `Add ${totalShiftCount} shifts to event`
-                  : totalShiftCount === 1
-                    ? "Create Event"
-                    : `Create Event (${totalShiftCount} shifts)`}
+                ? "Adding..."
+                : totalShiftCount === 1
+                  ? "Add shift to event"
+                  : `Add ${totalShiftCount} shifts to event`}
             </Button>
           </div>
         </DialogContent>

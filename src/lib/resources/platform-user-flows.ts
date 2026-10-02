@@ -63,7 +63,7 @@ Dashboard shows org-wide work; sidebar includes everything (queues, clinics, vol
 1. **Volunteers** — approve applicants, assign interests/teams, set platform role, merge duplicates, reopen inactive.
 2. **Trap Queue / Hotspots / Equipment** — support field ops; share the public request form from Trap Queue.
 3. **Clinics → Appointments / Clinic Events** — partners, slots, public events.
-4. **Shift Board** — create events/positions/shifts for volunteers.
+4. **Shift Board** — events come from the Google calendar; add positions and shifts under those events.
 5. **Team Feed / Reports / Admin** — communicate, measure, brand/settings/teams.
 
 ### Caseload
