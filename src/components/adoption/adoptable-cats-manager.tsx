@@ -115,6 +115,7 @@ export function AdoptableCatsManager({
   const [saved, setSaved] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [adoptedFilter, setAdoptedFilter] = useState<"all" | "yes" | "no">("no");
   const [viewMode, setViewMode] = useState<CardsTableViewMode>("table");
   const [relinkApplicationId, setRelinkApplicationId] = useState<string | null>(null);
 
@@ -129,9 +130,17 @@ export function AdoptableCatsManager({
   }, [applications]);
 
   const rows = useMemo(() => {
-    if (statusFilter === "all") return initial;
-    return initial.filter((cat) => cat.status === statusFilter);
-  }, [initial, statusFilter]);
+    return initial.filter((cat) => {
+      if (statusFilter !== "all" && cat.status !== statusFilter) return false;
+      if (adoptedFilter !== "all") {
+        const answers = recordByCatId.get(cat.id)?.answers;
+        const isAdopted = cat.status === "adopted" || answers?.adopted === "yes";
+        if (adoptedFilter === "no" && isAdopted) return false;
+        if (adoptedFilter === "yes" && !isAdopted) return false;
+      }
+      return true;
+    });
+  }, [initial, statusFilter, adoptedFilter, recordByCatId]);
 
   const editingRecord = editing ? recordByCatId.get(editing.id) ?? null : null;
 
@@ -489,6 +498,19 @@ export function AdoptableCatsManager({
                   {entry.label}
                 </SelectItem>
               ))}
+            </SelectContent>
+          </Select>
+          <Select
+            value={adoptedFilter}
+            onValueChange={(value) => setAdoptedFilter(value as "all" | "yes" | "no")}
+          >
+            <SelectTrigger className="h-8 w-[9.5rem]" aria-label="Adopted">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="no">Adopted: No</SelectItem>
+              <SelectItem value="yes">Adopted: Yes</SelectItem>
+              <SelectItem value="all">Adopted: All</SelectItem>
             </SelectContent>
           </Select>
           <CardsTableToggle value={viewMode} onChange={setViewMode} />
