@@ -1,10 +1,10 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
-import { ExternalLink, Pencil, Trash2, Upload } from "lucide-react";
+import { ChevronDown, ExternalLink, Pencil, Trash2, Upload } from "lucide-react";
 import { AdoptableCatImporter } from "@/components/adoption/adoptable-cat-importer";
 import { FieldControl } from "@/components/adoption/entrance-application-form";
 import { Badge } from "@/components/ui/badge";
@@ -75,6 +75,87 @@ function genderLabel(value: string | null | undefined): string {
 const DEFAULT_STATUS_FILTERS = new Set(
   ADOPTABLE_CAT_STATUSES.filter((entry) => entry.value !== "adopted").map((entry) => entry.value)
 );
+
+function StatusFilterDropdown({
+  selected,
+  onToggle,
+}: {
+  selected: Set<AdoptableCatStatus>;
+  onToggle: (status: AdoptableCatStatus, checked: boolean) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function onPointerDown(event: MouseEvent) {
+      if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
+    }
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") setOpen(false);
+    }
+    document.addEventListener("mousedown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [open]);
+
+  const summary =
+    selected.size === 0
+      ? "No statuses"
+      : selected.size === ADOPTABLE_CAT_STATUSES.length
+        ? "All statuses"
+        : selected.size === 1
+          ? (ADOPTABLE_CAT_STATUSES.find((entry) => selected.has(entry.value))?.label ?? "1 status")
+          : `${selected.size} statuses`;
+
+  return (
+    <div ref={rootRef} className="relative">
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        className="h-8 min-w-[9.5rem] justify-between gap-2 px-3 font-normal"
+        aria-label="Status"
+        aria-expanded={open}
+        aria-haspopup="listbox"
+        onClick={() => setOpen((current) => !current)}
+      >
+        <span className="truncate">{summary}</span>
+        <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
+      </Button>
+      {open ? (
+        <div
+          role="listbox"
+          aria-multiselectable="true"
+          aria-label="Statuses"
+          className="absolute left-0 z-50 mt-1 min-w-[14rem] rounded-md border bg-popover p-1 text-popover-foreground shadow-md"
+        >
+          {ADOPTABLE_CAT_STATUSES.map((entry) => {
+            const id = `adoptable-status-${entry.value}`;
+            const checked = selected.has(entry.value);
+            return (
+              <label
+                key={entry.value}
+                htmlFor={id}
+                className="flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-accent hover:text-accent-foreground"
+              >
+                <Checkbox
+                  id={id}
+                  checked={checked}
+                  onCheckedChange={(value) => onToggle(entry.value, value === true)}
+                />
+                <span>{entry.label}</span>
+              </label>
+            );
+          })}
+        </div>
+      ) : null}
+    </div>
+  );
+}
 
 function catAgeLabel(answers: EntranceAnswers | undefined, row: AdoptableCat): string {
   const dob = answers?.date_of_birth?.trim() ?? "";
@@ -494,27 +575,8 @@ export function AdoptableCatsManager({
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-2">
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5" role="group" aria-label="Status filters">
-            {ADOPTABLE_CAT_STATUSES.map((entry) => {
-              const id = `adoptable-status-${entry.value}`;
-              const checked = statusFilters.has(entry.value);
-              return (
-                <label
-                  key={entry.value}
-                  htmlFor={id}
-                  className="inline-flex cursor-pointer items-center gap-1.5 text-sm"
-                >
-                  <Checkbox
-                    id={id}
-                    checked={checked}
-                    onCheckedChange={(value) => toggleStatusFilter(entry.value, value === true)}
-                  />
-                  <span>{entry.label}</span>
-                </label>
-              );
-            })}
-          </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <StatusFilterDropdown selected={statusFilters} onToggle={toggleStatusFilter} />
           <CardsTableToggle value={viewMode} onChange={setViewMode} />
         </div>
         <AdoptableCatImporter>
