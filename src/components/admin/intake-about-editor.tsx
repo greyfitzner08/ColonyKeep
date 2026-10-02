@@ -10,6 +10,7 @@ import {
   LINE_SPACINGS,
   normalizeLineHeight,
   sanitizeIntakeAboutHtml,
+  sanitizeLinkHref,
   type LineSpacing,
 } from "@/lib/intake-about-html";
 import { cn } from "@/lib/utils";
@@ -199,6 +200,8 @@ export const IntakeAboutEditor = forwardRef<
 }, ref) {
   const editorRef = useRef<HTMLDivElement>(null);
   const savedRange = useRef<Range | null>(null);
+  /** Anchor being edited — kept because focusing the URL field clears the selection. */
+  const savedLink = useRef<HTMLAnchorElement | null>(null);
   const lastPublished = useRef<string | null>(null);
   const handlersRef = useRef<EditorHandlers>({
     onInput: () => undefined,
@@ -209,7 +212,9 @@ export const IntakeAboutEditor = forwardRef<
     onKeyDown: () => undefined,
   });
   const [linkUrl, setLinkUrl] = useState("");
+  const [linkError, setLinkError] = useState<string | null>(null);
   const [linkOpen, setLinkOpen] = useState(false);
+  const [editingExistingLink, setEditingExistingLink] = useState(false);
   const [colorsOpen, setColorsOpen] = useState(false);
   const [spacingOpen, setSpacingOpen] = useState(false);
   const [lineSpacing, setLineSpacing] = useState<LineSpacing>(
@@ -327,6 +332,16 @@ export const IntakeAboutEditor = forwardRef<
     onChange(editor.innerHTML);
   }
 
+  function rangeStillInEditor(range: Range | null): boolean {
+    const editor = editorRef.current;
+    if (!editor || !range) return false;
+    try {
+      return editor.contains(range.commonAncestorContainer);
+    } catch {
+      return false;
+    }
+  }
+
   function chooseLineSpacing(spacing: LineSpacing) {
     lineSpacingRef.current = spacing;
     setLineSpacing(spacing);
@@ -385,28 +400,46 @@ export const IntakeAboutEditor = forwardRef<
   }
 
   function insertLink() {
-    const href = linkUrl.trim();
+    const normalized = sanitizeLinkHref(linkUrl);
     const editor = editorRef.current;
-    if (!editor || disabled || !href) return;
-    const range = savedRange.current?.cloneRange() ?? null;
-    const rangeInEditor = Boolean(
-      range && !range.collapsed && editor.contains(range.commonAncestorContainer)
-    );
+    if (!editor || disabled) return;
+    if (!normalized) {
+      setLinkError("Enter a web address like example.com or https://…");
+      return;
+    }
+    setLinkError(null);
+
+    // Prefer the link captured when the panel opened — focusing the URL field
+    // clears the text selection, which previously made edits look like they vanished.
+    const remembered =
+      savedLink.current && editor.contains(savedLink.current) ? savedLink.current : null;
+
     editor.focus();
+    const range = savedRange.current?.cloneRange() ?? null;
+    const rangeInEditor = Boolean(range && !range.collapsed && rangeStillInEditor(range));
     if (rangeInEditor && range) {
       const selection = window.getSelection();
       selection?.removeAllRanges();
-      selection?.addRange(range);
+      try {
+        selection?.addRange(range);
+      } catch {
+        savedRange.current = null;
+      }
     } else {
       restoreSelection();
     }
-    const existing = selectionLink();
+
+    const existing = remembered ?? selectionLink();
     if (existing) {
-      existing.setAttribute("href", href);
+      existing.setAttribute("href", normalized);
+      existing.setAttribute("target", "_blank");
+      existing.setAttribute("rel", "noopener noreferrer");
       placeCaret(existing, true);
-    } else if (rangeInEditor && range) {
+    } else if (rangeInEditor && range && rangeStillInEditor(range)) {
       const anchor = document.createElement("a");
-      anchor.setAttribute("href", href);
+      anchor.setAttribute("href", normalized);
+      anchor.setAttribute("target", "_blank");
+      anchor.setAttribute("rel", "noopener noreferrer");
       try {
         range.surroundContents(anchor);
       } catch {
@@ -416,11 +449,20 @@ export const IntakeAboutEditor = forwardRef<
       }
       placeCaret(anchor, true);
     } else {
-      const safeHref = href.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
-      document.execCommand("insertHTML", false, `<a href="${safeHref}">${safeHref}</a>`);
+      const safeHref = normalized
+        .replace(/&/g, "&amp;")
+        .replace(/"/g, "&quot;")
+        .replace(/</g, "&lt;");
+      document.execCommand(
+        "insertHTML",
+        false,
+        `<a href="${safeHref}" target="_blank" rel="noopener noreferrer">${safeHref}</a>`
+      );
     }
+    savedLink.current = null;
     setLinkUrl("");
     setLinkOpen(false);
+    setEditingExistingLink(false);
     publish();
   }
 
@@ -429,17 +471,24 @@ export const IntakeAboutEditor = forwardRef<
     if (!editor || disabled) return;
     editor.focus();
     restoreSelection();
+    const remembered =
+      savedLink.current && editor.contains(savedLink.current) ? savedLink.current : null;
     const range = activeRange();
-    if (!range) return;
-    const anchors = [...editor.querySelectorAll("a")].filter(
-      (anchor): anchor is HTMLAnchorElement => anchor instanceof HTMLAnchorElement && rangeHits(range, anchor)
-    );
-    const target = anchors[0] ?? selectionLink();
+    const anchors = range
+      ? [...editor.querySelectorAll("a")].filter(
+          (anchor): anchor is HTMLAnchorElement =>
+            anchor instanceof HTMLAnchorElement && rangeHits(range, anchor)
+        )
+      : [];
+    const target = remembered ?? anchors[0] ?? selectionLink();
     if (!target) return;
     const parent = target.parentNode;
     while (target.firstChild) parent?.insertBefore(target.firstChild, target);
     target.remove();
+    savedLink.current = null;
     setLinkOpen(false);
+    setEditingExistingLink(false);
+    setLinkError(null);
     publish();
   }
 
@@ -704,7 +753,11 @@ export const IntakeAboutEditor = forwardRef<
               event.preventDefault();
               rememberSelection();
               const existing = selectionLink();
+              savedLink.current = existing;
+              setLinkError(null);
+              setEditingExistingLink(Boolean(existing));
               if (existing) setLinkUrl(existing.getAttribute("href") ?? "");
+              else setLinkUrl("");
               setColorsOpen(false);
               setSpacingOpen(false);
               setLinkOpen((open) => !open);
@@ -827,7 +880,9 @@ export const IntakeAboutEditor = forwardRef<
           }}
         >
           <p className="w-full text-xs text-muted-foreground">
-            Highlight the words you want to link, paste the address, then insert it.
+            {editingExistingLink
+              ? "Update the address for this link, then apply it. Click Save below when you’re done."
+              : "Highlight the words you want to link, paste the address, then apply it. Click Save below when you’re done."}
           </p>
           <Input
             value={linkUrl}
@@ -836,14 +891,18 @@ export const IntakeAboutEditor = forwardRef<
             aria-label="Link address"
             autoFocus
             className="h-8 min-w-48 flex-1 font-mono text-xs"
-            onChange={(event) => setLinkUrl(event.target.value)}
+            onChange={(event) => {
+              setLinkUrl(event.target.value);
+              setLinkError(null);
+            }}
           />
           <Button type="submit" size="sm" disabled={disabled || !linkUrl.trim()}>
-            Insert link
+            {editingExistingLink ? "Update link" : "Insert link"}
           </Button>
           <Button type="button" size="sm" variant="ghost" disabled={disabled} onClick={removeLink}>
             Remove link
           </Button>
+          {linkError ? <p className="w-full text-xs text-destructive">{linkError}</p> : null}
         </form>
       )}
       <FrozenEditor

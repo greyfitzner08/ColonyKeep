@@ -125,7 +125,8 @@ function escapeAttribute(value: string): string {
   return value.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
 }
 
-function sanitizeLinkHref(raw: string): string | null {
+/** Normalize a pasted about-us link to https/mailto, or null when invalid. */
+export function sanitizeLinkHref(raw: string): string | null {
   let value = raw.trim();
   if (!value || /javascript:|data:/i.test(value)) return null;
   if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
