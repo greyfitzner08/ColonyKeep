@@ -354,6 +354,23 @@ export function entranceFieldLabel(field: EntranceField, answers?: EntranceAnswe
   return "Who told you?";
 }
 
+/** Column / Columns-menu label — prefixes with group or section when the bare name is shared. */
+export function entranceFieldColumnLabel(field: EntranceField): string {
+  const section = ENTRANCE_SECTIONS.find((entry) =>
+    entry.fields.some((item) => item.key === field.key)
+  );
+  const prefix = field.group?.trim() || section?.title?.trim() || "";
+  if (!prefix) return field.label;
+
+  const sameLabelCount = ENTRANCE_FIELDS.filter(
+    (entry) => !entry.hidden && !entry.submittedStamp && entry.label === field.label
+  ).length;
+  if (sameLabelCount > 1 || field.group) {
+    return `${prefix} · ${field.label}`;
+  }
+  return field.label;
+}
+
 export function entranceFieldSpansRow(field: Pick<EntranceField, "kind" | "key">): boolean {
   return (
     field.kind === "textarea" ||

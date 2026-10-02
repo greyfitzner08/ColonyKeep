@@ -42,6 +42,7 @@ import {
   emptyEntranceAnswers,
   applyEntranceAddress,
   applyEntranceAnswer,
+  entranceFieldColumnLabel,
   entranceFieldGroupClass,
   entranceFieldGroups,
   entranceFieldLabel,
@@ -349,24 +350,30 @@ export function AdoptableCatsManager({
 
     const fieldColumns: DataTableColumn<AdoptableCat>[] = ENTRANCE_FIELDS.filter(
       (field) => !field.hidden && !field.submittedStamp && !skipKeys.has(field.key)
-    ).map((field) => ({
-      id: `field_${field.key}`,
-      label: field.label,
-      labelText: field.label,
-      defaultHidden: true,
-      defaultWidth: field.kind === "textarea" || field.kind === "vaccinations" || field.kind === "vet_care" ? 220 : 140,
-      wrap: field.kind === "textarea",
-      sortValue: (row) => answerValue(row, field.key).toLowerCase(),
-      render: (row) => {
-        const value = answerValue(row, field.key);
-        if (!value) return <span className="text-muted-foreground">—</span>;
-        return (
-          <span className={field.kind === "textarea" ? "whitespace-pre-wrap text-sm" : "text-sm"}>
-            {entranceOptionLabel(field.key, value)}
-          </span>
-        );
-      },
-    }));
+    ).map((field) => {
+      const columnLabel = entranceFieldColumnLabel(field);
+      return {
+        id: `field_${field.key}`,
+        label: columnLabel,
+        labelText: columnLabel,
+        defaultHidden: true,
+        defaultWidth:
+          field.kind === "textarea" || field.kind === "vaccinations" || field.kind === "vet_care"
+            ? 220
+            : 140,
+        wrap: field.kind === "textarea",
+        sortValue: (row) => answerValue(row, field.key).toLowerCase(),
+        render: (row) => {
+          const value = answerValue(row, field.key);
+          if (!value) return <span className="text-muted-foreground">—</span>;
+          return (
+            <span className={field.kind === "textarea" ? "whitespace-pre-wrap text-sm" : "text-sm"}>
+              {entranceOptionLabel(field.key, value)}
+            </span>
+          );
+        },
+      };
+    });
 
     const actions: DataTableColumn<AdoptableCat> = {
       id: "actions",
