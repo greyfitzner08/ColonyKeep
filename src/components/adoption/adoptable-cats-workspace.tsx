@@ -44,7 +44,7 @@ export function AdoptableCatsWorkspace({
 
   return (
     <div className="space-y-6">
-      <VetCareDueBanner alerts={vetCareDue} />
+      <VetCareDueBanner alerts={vetCareDue} applications={applications} />
       <div className="flex flex-wrap gap-2" role="tablist" aria-label="Adoptable cats">
         {tabs.map((tab) => (
           <Button

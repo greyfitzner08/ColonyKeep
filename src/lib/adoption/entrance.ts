@@ -682,6 +682,55 @@ export function vetCareDueTimingLabel(date: string, asOf = new Date()): string {
   return formatIsoDate(date);
 }
 
+/** Map a due-service label to a vaccination row for the “care given” flow. */
+export function vaccinationFromVetCareService(service: string): VaccinationEntry {
+  const name = service.trim();
+  const lower = name.toLowerCase();
+  if (/rabies/.test(lower)) return { type: "rabies", other: "", date: "" };
+  if (/fvrcp|distemper|fcrp|fvr /.test(lower) || lower === "fvr") {
+    return { type: "fvrcp", other: "", date: "" };
+  }
+  return { type: "other", other: name.slice(0, 200), date: "" };
+}
+
+/** Remove one due row (by service + date) and optionally schedule the same service again. */
+export function applyVetCareDueUpdate(
+  currentValue: string,
+  match: VetCareDueEntry,
+  nextDueDate: string | null
+): string {
+  const remaining = parseVetCareDueList(currentValue).filter(
+    (row) =>
+      !(
+        row.service.trim().toLowerCase() === match.service.trim().toLowerCase() &&
+        row.date === match.date
+      )
+  );
+  if (nextDueDate && /^\d{4}-\d{2}-\d{2}$/.test(nextDueDate)) {
+    remaining.push({ service: match.service.trim().slice(0, 200), date: nextDueDate });
+  }
+  const cleaned = cleanVetCareDue(JSON.stringify(remaining));
+  return cleaned.error ? currentValue : cleaned.value;
+}
+
+/** Append a completed vaccination to the stored list. */
+export function appendVaccination(
+  currentValue: string,
+  entry: VaccinationEntry
+): { value: string; error?: string } {
+  const rows = [
+    ...parseVaccinationList(currentValue),
+    {
+      type: entry.type,
+      other: entry.type === "other" ? entry.other.trim().slice(0, 200) : "",
+      date: entry.date,
+    },
+  ];
+  const cleaned = cleanVaccinations(JSON.stringify(rows));
+  if (cleaned.error) return { value: currentValue, error: cleaned.error };
+  return { value: cleaned.value };
+}
+
 function allowedValue(field: EntranceField, value: string): string | null {
   const trimmed = value.trim();
   if (!trimmed) return "";
