@@ -24,6 +24,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { PageControlBar } from "@/components/layout/page-control-bar";
 import {
+  ADOPTION_APPLICATION_ANSWER_COLUMNS,
   ADOPTION_APPLICATION_STATUSES,
   CAT_LIVING_PLANS,
   EMPLOYMENT_STATUSES,
@@ -33,6 +34,7 @@ import {
   REHOME_CIRCUMSTANCES,
   RESIDENCE_TYPES,
   adoptionApplicationStatusLabel,
+  formatAdoptionAnswerColumn,
   isDogPetType,
   petGenderLabel,
   petTypeLabel,
@@ -682,11 +684,12 @@ export function AdoptionApplicationsManager({
 
   const focused = focusedId ? rows.find((row) => row.id === focusedId) ?? null : null;
 
-  const columns = useMemo<DataTableColumn<AdoptionApplication>[]>(
-    () => [
+  const columns = useMemo<DataTableColumn<AdoptionApplication>[]>(() => {
+    const core: DataTableColumn<AdoptionApplication>[] = [
       {
         id: "applicant",
         label: "Applicant",
+        hideable: false,
         sortValue: (row) =>
           `${row.applicant_last_name} ${row.applicant_first_name}`.trim().toLowerCase(),
         render: (row) => (
@@ -748,23 +751,128 @@ export function AdoptionApplicationsManager({
         render: (row) => <span className="text-sm">{row.applicant_phone || "—"}</span>,
       },
       {
-        id: "actions",
-        label: "Actions",
-        hideable: false,
+        id: "email",
+        label: "Email",
+        defaultHidden: true,
+        sortValue: (row) => row.applicant_email,
+        render: (row) => <span className="text-sm">{row.applicant_email || "—"}</span>,
+      },
+      {
+        id: "first_name",
+        label: "First name",
+        defaultHidden: true,
+        sortValue: (row) => row.applicant_first_name,
+        render: (row) => <span className="text-sm">{row.applicant_first_name || "—"}</span>,
+      },
+      {
+        id: "last_name",
+        label: "Last name",
+        defaultHidden: true,
+        sortValue: (row) => row.applicant_last_name,
+        render: (row) => <span className="text-sm">{row.applicant_last_name || "—"}</span>,
+      },
+      {
+        id: "linked_cat",
+        label: "Linked cat",
+        defaultHidden: true,
+        sortValue: (row) => cats.find((cat) => cat.id === row.cat_id)?.name ?? "",
+        render: (row) => {
+          const linked = cats.find((cat) => cat.id === row.cat_id);
+          return <span className="text-sm">{linked?.name || "—"}</span>;
+        },
+      },
+      {
+        id: "staff_notes",
+        label: "Staff notes",
+        defaultHidden: true,
+        defaultWidth: 220,
+        wrap: true,
+        sortValue: (row) => row.staff_notes ?? "",
         render: (row) => (
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            onClick={() => setFocusedId((current) => (current === row.id ? null : row.id))}
-          >
-            {focusedId === row.id ? "Hide" : "Open"}
-          </Button>
+          <span className="whitespace-pre-wrap text-sm">{row.staff_notes?.trim() || "—"}</span>
         ),
       },
-    ],
-    [cats, focusedId]
-  );
+      {
+        id: "additional_notes",
+        label: "Additional notes",
+        defaultHidden: true,
+        defaultWidth: 220,
+        wrap: true,
+        sortValue: (row) => row.additional_notes ?? "",
+        render: (row) => (
+          <span className="whitespace-pre-wrap text-sm">{row.additional_notes?.trim() || "—"}</span>
+        ),
+      },
+      {
+        id: "reviewed_at",
+        label: "Reviewed",
+        defaultHidden: true,
+        sortValue: (row) => row.reviewed_at ?? "",
+        render: (row) => (
+          <span className="text-sm text-muted-foreground">
+            {row.reviewed_at ? new Date(row.reviewed_at).toLocaleDateString() : "—"}
+          </span>
+        ),
+      },
+      {
+        id: "updated",
+        label: "Updated",
+        defaultHidden: true,
+        sortValue: (row) => row.updated_at,
+        render: (row) => (
+          <span className="text-sm text-muted-foreground">
+            {new Date(row.updated_at).toLocaleDateString()}
+          </span>
+        ),
+      },
+    ];
+
+    const answerColumns: DataTableColumn<AdoptionApplication>[] =
+      ADOPTION_APPLICATION_ANSWER_COLUMNS.map((field) => ({
+        id: `answer_${field.key}`,
+        label: field.label,
+        labelText: field.label,
+        defaultHidden: true,
+        defaultWidth:
+          field.key === "pets" ||
+          field.key === "final_comments" ||
+          field.key === "allergic_explanation" ||
+          field.key === "never_had_pet_vet_plan"
+            ? 220
+            : 140,
+        wrap:
+          field.key === "pets" ||
+          field.key === "final_comments" ||
+          field.key === "allergic_explanation" ||
+          field.key === "never_had_pet_vet_plan" ||
+          field.key === "rehome_circumstances" ||
+          field.key === "activity_levels",
+        sortValue: (row) => formatAdoptionAnswerColumn(row.answers, field.key).toLowerCase(),
+        render: (row) => {
+          const value = formatAdoptionAnswerColumn(row.answers, field.key);
+          if (!value) return <span className="text-muted-foreground">—</span>;
+          return <span className="text-sm whitespace-pre-wrap">{value}</span>;
+        },
+      }));
+
+    const actions: DataTableColumn<AdoptionApplication> = {
+      id: "actions",
+      label: "Actions",
+      hideable: false,
+      render: (row) => (
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          onClick={() => setFocusedId((current) => (current === row.id ? null : row.id))}
+        >
+          {focusedId === row.id ? "Hide" : "Open"}
+        </Button>
+      ),
+    };
+
+    return [...core, ...answerColumns, actions];
+  }, [cats, focusedId]);
 
   return (
     <div className="space-y-4">

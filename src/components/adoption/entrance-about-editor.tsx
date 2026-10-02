@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { RotateCcw } from "lucide-react";
 import { IntakeAboutEditor, type IntakeAboutEditorHandle } from "@/components/admin/intake-about-editor";
 import { Button } from "@/components/ui/button";
@@ -17,12 +18,14 @@ export function RescueAboutEditor({
   initialButtonText: string;
   initialButtonUrl: string | null;
 }) {
+  const router = useRouter();
   const editorRef = useRef<IntakeAboutEditorHandle>(null);
   const [message, setMessage] = useState(initialMessage);
   const [buttonText, setButtonText] = useState(initialButtonText);
   const [buttonUrl, setButtonUrl] = useState(initialButtonUrl ?? "");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [warning, setWarning] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
 
   async function save() {
@@ -30,6 +33,7 @@ export function RescueAboutEditor({
     setMessage(html);
     setSaving(true);
     setError(null);
+    setWarning(null);
     setSaved(false);
     try {
       const response = await fetch("/api/adoption/entrance/about", {
@@ -39,7 +43,6 @@ export function RescueAboutEditor({
           message: html,
           buttonText,
           buttonUrl: buttonUrl.trim() || null,
-          links: [],
         }),
       });
       const result = await response.json().catch(() => null);
@@ -51,9 +54,10 @@ export function RescueAboutEditor({
       if (typeof result?.buttonText === "string") setButtonText(result.buttonText);
       setButtonUrl(typeof result?.buttonUrl === "string" ? result.buttonUrl : "");
       if (typeof result?.warning === "string" && result.warning) {
-        setError(result.warning);
+        setWarning(result.warning);
       }
       setSaved(true);
+      router.refresh();
     } catch {
       setError("Network error — check your connection and try again.");
     } finally {
@@ -151,6 +155,7 @@ export function RescueAboutEditor({
         </Button>
         <div className="flex items-center gap-3">
           {saved && <p className="text-sm text-muted-foreground">Saved</p>}
+          {warning && <p className="text-sm text-muted-foreground">{warning}</p>}
           {error && <p className="text-sm text-destructive">{error}</p>}
           <Button type="button" disabled={saving} onClick={() => void save()}>
             {saving ? "Saving..." : "Save"}

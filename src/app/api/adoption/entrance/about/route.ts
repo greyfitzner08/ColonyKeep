@@ -47,22 +47,29 @@ export async function POST(request: NextRequest) {
         ? "Add a link for the button, or clear the button label. Your text was saved."
         : null;
 
-  const links = normalizeRescueAboutLinks("links" in body ? (body as { links: unknown }).links : []);
+  const patch: Record<string, unknown> = {
+    adoption_entrance_about_message: message,
+    adoption_entrance_button_text: buttonText,
+    updated_by: profile?.id ?? null,
+  };
+
+  // Keep the previous URL when the submitted value is invalid; otherwise persist
+  // the normalized URL (including null when the field was cleared).
+  if (buttonUrl !== undefined) {
+    patch.adoption_entrance_button_url = buttonUrl;
+  }
+
+  // Only overwrite links when the client explicitly sends them.
+  if ("links" in body) {
+    patch.adoption_entrance_links = normalizeRescueAboutLinks(
+      (body as { links: unknown }).links
+    );
+  }
 
   const service = await createServiceClient();
   const { data, error } = await service
     .from("platform_branding")
-    .update({
-      adoption_entrance_about_message: message,
-      adoption_entrance_links: links,
-      ...(buttonWarning
-        ? {}
-        : {
-            adoption_entrance_button_text: buttonText,
-            adoption_entrance_button_url: buttonUrl,
-          }),
-      updated_by: profile?.id ?? null,
-    })
+    .update(patch)
     .eq("id", 1)
     .select(
       "adoption_entrance_about_message, adoption_entrance_button_text, adoption_entrance_button_url, adoption_entrance_links"
@@ -70,7 +77,11 @@ export async function POST(request: NextRequest) {
     .maybeSingle();
 
   if (error) {
-    return NextResponse.json({ error: "Unable to save the about us text." }, { status: 500 });
+    console.error("[adoption/entrance/about] save failed:", error.message);
+    return NextResponse.json(
+      { error: error.message || "Unable to save the about us text." },
+      { status: 500 }
+    );
   }
   if (!data) {
     return NextResponse.json({ error: "Branding settings were not found." }, { status: 404 });

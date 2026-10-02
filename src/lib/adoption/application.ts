@@ -312,6 +312,157 @@ export const PET_CURRENT_STATUSES: { value: PetCurrentStatus; label: string }[] 
   { value: "other", label: "Other" },
 ];
 
+/** Answer fields available as optional DataTable columns. */
+export const ADOPTION_APPLICATION_ANSWER_COLUMNS: {
+  key: keyof AdoptionApplicationAnswers;
+  label: string;
+}[] = [
+  { key: "how_heard", label: "How heard" },
+  { key: "how_heard_other", label: "How heard (other)" },
+  { key: "lifelong_commitment", label: "Lifelong commitment" },
+  { key: "housemate_name", label: "Housemate" },
+  { key: "address_line_1", label: "Address line 1" },
+  { key: "address_line_2", label: "Address line 2" },
+  { key: "city", label: "City" },
+  { key: "state", label: "State" },
+  { key: "residence_type", label: "Residence type" },
+  { key: "residence_type_other", label: "Residence type (other)" },
+  { key: "rents", label: "Rents" },
+  { key: "rent_cats_approved", label: "Cats approved (if renting)" },
+  { key: "landlord_name", label: "Landlord name" },
+  { key: "landlord_email", label: "Landlord email" },
+  { key: "landlord_phone", label: "Landlord phone" },
+  { key: "employment_status", label: "Employment" },
+  { key: "employment_status_other", label: "Employment (other)" },
+  { key: "employer", label: "Employer" },
+  { key: "age_range", label: "Age range" },
+  { key: "adults_in_home", label: "Adults in home" },
+  { key: "adults_work_outside", label: "Adults work outside home" },
+  { key: "children_in_home", label: "Children in home" },
+  { key: "activity_levels", label: "Activity level" },
+  { key: "activity_other", label: "Activity level (other)" },
+  { key: "allergic_to_cats", label: "Allergic to cats" },
+  { key: "allergic_explanation", label: "Allergy explanation" },
+  { key: "living_plan", label: "Living plan" },
+  { key: "plan_to_declaw", label: "Plan to declaw" },
+  { key: "hours_alone", label: "Hours alone / day" },
+  { key: "backup_caregiver", label: "Backup caregiver" },
+  { key: "rehome_circumstances", label: "Rehome circumstances" },
+  { key: "rehome_other", label: "Rehome circumstances (other)" },
+  { key: "can_pay_vet_costs", label: "Can pay vet costs" },
+  { key: "cat_is_family", label: "Cat is family" },
+  { key: "had_pets_last_five_years", label: "Pets in last 5 years" },
+  { key: "vet_practice_name", label: "Vet practice" },
+  { key: "vet_name", label: "Vet name" },
+  { key: "vet_phone", label: "Vet phone" },
+  { key: "never_had_pet_vet_plan", label: "Never had pet — vet plan" },
+  { key: "has_pet_2", label: "Has pet 2" },
+  { key: "has_pet_3", label: "Has pet 3" },
+  { key: "pets", label: "Pets listed" },
+  { key: "reference_1_name", label: "Reference 1 name" },
+  { key: "reference_1_relationship", label: "Reference 1 relationship" },
+  { key: "reference_1_email", label: "Reference 1 email" },
+  { key: "reference_1_phone", label: "Reference 1 phone" },
+  { key: "reference_2_name", label: "Reference 2 name" },
+  { key: "reference_2_relationship", label: "Reference 2 relationship" },
+  { key: "reference_2_email", label: "Reference 2 email" },
+  { key: "reference_2_phone", label: "Reference 2 phone" },
+  { key: "final_comments", label: "Final comments" },
+];
+
+function optionLabel(
+  options: { value: string; label: string }[],
+  value: string | null | undefined
+): string {
+  if (!value) return "";
+  return options.find((entry) => entry.value === value)?.label ?? value;
+}
+
+function yesNoLabel(value: string | null | undefined): string {
+  if (value === "yes") return "Yes";
+  if (value === "no") return "No";
+  if (value === "unsure") return "Unsure";
+  if (value === "not_applicable") return "Not applicable";
+  return value?.trim() ?? "";
+}
+
+/** Plain-text display value for an adoption application answer field. */
+export function formatAdoptionAnswerColumn(
+  answers: AdoptionApplicationAnswers | null | undefined,
+  key: keyof AdoptionApplicationAnswers
+): string {
+  if (!answers) return "";
+  const raw = answers[key];
+
+  if (key === "how_heard") {
+    if (answers.how_heard === "other") {
+      return answers.how_heard_other.trim() || "Other";
+    }
+    return optionLabel(HOW_HEARD_SOURCES, answers.how_heard);
+  }
+  if (key === "residence_type") {
+    if (answers.residence_type === "other") {
+      return answers.residence_type_other.trim() || "Other";
+    }
+    return optionLabel(RESIDENCE_TYPES, answers.residence_type);
+  }
+  if (key === "employment_status") {
+    if (answers.employment_status === "other") {
+      return answers.employment_status_other.trim() || "Other";
+    }
+    return optionLabel(EMPLOYMENT_STATUSES, answers.employment_status);
+  }
+  if (key === "living_plan") return optionLabel(CAT_LIVING_PLANS, answers.living_plan);
+  if (
+    key === "lifelong_commitment" ||
+    key === "rents" ||
+    key === "rent_cats_approved" ||
+    key === "adults_work_outside" ||
+    key === "allergic_to_cats" ||
+    key === "plan_to_declaw" ||
+    key === "can_pay_vet_costs" ||
+    key === "cat_is_family" ||
+    key === "had_pets_last_five_years" ||
+    key === "has_pet_2" ||
+    key === "has_pet_3"
+  ) {
+    return yesNoLabel(typeof raw === "string" ? raw : "");
+  }
+  if (key === "activity_levels") {
+    const parts = [
+      ...(answers.activity_levels ?? []).map((v) => optionLabel(HOME_ACTIVITY_OPTIONS, v)),
+      answers.activity_other,
+    ].filter(Boolean);
+    return parts.join(", ");
+  }
+  if (key === "rehome_circumstances") {
+    const parts = [
+      ...(answers.rehome_circumstances ?? []).map((v) => optionLabel(REHOME_CIRCUMSTANCES, v)),
+      answers.rehome_other,
+    ].filter(Boolean);
+    return parts.join(", ");
+  }
+  if (key === "pets") {
+    return (answers.pets ?? [])
+      .filter((pet) => pet.name || pet.animal_type)
+      .map((pet) => {
+        const type =
+          pet.animal_type === "other"
+            ? pet.animal_type_other.trim() || "Other"
+            : optionLabel(PET_TYPES, pet.animal_type) || pet.animal_type;
+        const status =
+          pet.current_status === "other"
+            ? pet.current_status_other.trim() || "Other"
+            : optionLabel(PET_CURRENT_STATUSES, pet.current_status);
+        return [pet.name, type, pet.age, status].filter(Boolean).join(" · ");
+      })
+      .join("; ");
+  }
+  if (Array.isArray(raw)) return raw.filter(Boolean).join(", ");
+  if (typeof raw === "string") return raw.trim();
+  return "";
+}
+
 export function emptyAdoptionPet(): AdoptionApplicationPet {
   return {
     name: "",
