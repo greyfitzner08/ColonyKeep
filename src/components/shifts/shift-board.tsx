@@ -32,6 +32,7 @@ import {
   type ShiftEligibilityProfile,
 } from "@/lib/shifts/eligibility";
 import { formatDate, formatTimeRange, cn } from "@/lib/utils";
+import { looksLikeHtml, sanitizeCalendarHtml } from "@/lib/shifts/calendar-html";
 import type { Shift, ShiftRequiredRole, ShiftSignupMode, ShiftType } from "@/lib/types";
 import { ChevronDown, Plus, Pencil, Trash2 } from "lucide-react";
 
@@ -156,6 +157,18 @@ const EMPTY_EDIT: EditFormState = {
 
 function shiftTypeLabel(type: ShiftType) {
   return SHIFT_TYPES.find((entry) => entry.value === type)?.label ?? type;
+}
+
+function ShiftNotes({ notes }: { notes: string }) {
+  if (!looksLikeHtml(notes)) {
+    return <p className="whitespace-pre-wrap text-sm text-muted-foreground">{notes}</p>;
+  }
+  return (
+    <div
+      className="text-sm text-muted-foreground [&_a]:underline [&_ol]:my-1 [&_ol]:list-decimal [&_ol]:pl-5 [&_p+p]:mt-2 [&_ul]:my-1 [&_ul]:list-disc [&_ul]:pl-5"
+      dangerouslySetInnerHTML={{ __html: sanitizeCalendarHtml(notes) }}
+    />
+  );
 }
 
 function positionLabel(shift: Shift) {
@@ -1295,11 +1308,7 @@ export function ShiftBoard({
                                         Requires {shiftRequiredRoleLabel(shift.required_roles)}
                                       </p>
                                     ) : null}
-                                    {shift.notes ? (
-                                      <p className="text-sm text-muted-foreground">
-                                        {shift.notes}
-                                      </p>
-                                    ) : null}
+                                    {shift.notes ? <ShiftNotes notes={shift.notes} /> : null}
                                     <AdminPeopleLists shift={shift} />
                                   </div>
 
@@ -1693,7 +1702,7 @@ export function ShiftBoard({
             <DialogTitle>Edit Shift</DialogTitle>
             <DialogDescription>
               {editingShift?.google_calendar_uid
-                ? "This row follows a Google event. Title, date, time, and location refresh from the calendar. Spot limits, roles, and the signup list stay here."
+                ? "This row follows a Google event. Title, date, time, location, and description refresh from the calendar. Spot limits, roles, and the signup list stay here."
                 : "Update this shift, or add more dated shifts for the same event and position."}
             </DialogDescription>
           </DialogHeader>
@@ -1830,14 +1839,21 @@ export function ShiftBoard({
                 can&apos;t make it.
               </div>
             )}
-            <div className="space-y-1">
-              <Label>Notes</Label>
-              <Textarea
-                value={editForm.notes}
-                onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })}
-                rows={3}
-              />
-            </div>
+            {editingShift?.google_calendar_uid && looksLikeHtml(editForm.notes) ? (
+              <div className="space-y-1">
+                <Label>Description</Label>
+                <ShiftNotes notes={editForm.notes} />
+              </div>
+            ) : (
+              <div className="space-y-1">
+                <Label>Notes</Label>
+                <Textarea
+                  value={editForm.notes}
+                  onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })}
+                  rows={3}
+                />
+              </div>
+            )}
 
             <div className="space-y-3 rounded-lg border p-3">
               <div className="flex items-center justify-between gap-2">

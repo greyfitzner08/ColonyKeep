@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { sanitizeCalendarHtml } from "@/lib/shifts/calendar-html";
 import {
   fetchGoogleCalendarEvents,
   googleCalendarIcalUrl,
@@ -23,6 +24,7 @@ interface ExistingShift {
   start_time: string;
   end_time: string;
   location: string;
+  notes: string | null;
   signed_up_emails: string[] | null;
   waitlist_emails: string[] | null;
   declined_emails: string[] | null;
@@ -43,7 +45,7 @@ export async function syncGoogleCalendarShifts(service: SupabaseClient): Promise
   const { data, error } = await service
     .from("shifts")
     .select(
-      "id, google_calendar_uid, event_name, date, start_time, end_time, location, signed_up_emails, waitlist_emails, declined_emails"
+      "id, google_calendar_uid, event_name, date, start_time, end_time, location, notes, signed_up_emails, waitlist_emails, declined_emails"
     )
     .not("google_calendar_uid", "is", null)
     .gte("date", fromDate)
@@ -85,12 +87,14 @@ export async function syncGoogleCalendarShifts(service: SupabaseClient): Promise
       continue;
     }
 
+    const notesLookRaw = notesNeedCleanup(row.notes);
     const changed =
       row.event_name !== event.eventName ||
       row.date !== event.date ||
       normalizeTime(row.start_time) !== event.startTime ||
       normalizeTime(row.end_time) !== event.endTime ||
-      row.location !== event.location;
+      row.location !== event.location ||
+      notesLookRaw;
     if (!changed) continue;
 
     const { error: updateError } = await service
@@ -101,6 +105,7 @@ export async function syncGoogleCalendarShifts(service: SupabaseClient): Promise
         start_time: event.startTime,
         end_time: event.endTime,
         location: event.location,
+        ...(notesLookRaw ? { notes: event.notes } : {}),
       })
       .eq("id", row.id);
     if (updateError) throw new Error(updateError.message);
@@ -142,6 +147,11 @@ async function loadEvents(url: string, from: Date, to: Date): Promise<GoogleCale
     cache = { url, at: now, events: null, error: safe };
     throw new Error(safe);
   }
+}
+
+function notesNeedCleanup(notes: string | null): boolean {
+  if (!notes || !/<\/?[a-z][a-z0-9]*\b/i.test(notes)) return false;
+  return sanitizeCalendarHtml(notes) !== notes.trim();
 }
 
 function emptyRoster(row: ExistingShift): boolean {

@@ -3,6 +3,8 @@
  * The feed URL stays on the server. Event times are stored in America/New_York.
  */
 
+import { sanitizeCalendarHtml } from "@/lib/shifts/calendar-html";
+
 const DISPLAY_ZONE = "America/New_York";
 const WEEKDAYS = ["SU", "MO", "TU", "WE", "TH", "FR", "SA"] as const;
 
@@ -310,8 +312,13 @@ function toSignupEvent(
 
   const summary = (firstValue(source.props, "SUMMARY") ?? "Untitled event").trim() || "Untitled event";
   const location = (firstValue(source.props, "LOCATION") ?? "").trim() || "See calendar";
-  const description = cleanText(firstValue(source.props, "DESCRIPTION") ?? "");
-  const notes = [description, endsNote].filter(Boolean).join("\n") || null;
+  const description = calendarDescription(source.props);
+  const noteBody = endsNote
+    ? description
+      ? `${description}${looksLikeMarkup(description) ? `<p>${escapeNote(endsNote)}</p>` : `\n${endsNote}`}`
+      : endsNote
+    : description;
+  const notes = noteBody ? limitNotes(noteBody) : null;
   const recurrenceKey = occurrenceKey(recurrenceStamp, seriesStart);
   const key = recurring ? `${source.uid}|${recurrenceKey}` : source.uid;
 
@@ -682,8 +689,31 @@ function addHoursTime(time: string, hours: number): string {
   return `${pad(next)}:${pad(min)}:${pad(s || 0)}`;
 }
 
-function cleanText(value: string): string {
-  return value.replace(/\s+/g, " ").trim();
+function calendarDescription(props: Prop[]): string {
+  const alt = props.find(
+    (item) => item.name === "X-ALT-DESC" && /html/i.test(item.params.FMTTYPE ?? "")
+  );
+  const altAny = props.find((item) => item.name === "X-ALT-DESC");
+  const raw = (alt ?? altAny)?.value || firstValue(props, "DESCRIPTION") || "";
+  return sanitizeCalendarHtml(raw);
+}
+
+function looksLikeMarkup(value: string): boolean {
+  return /<\/?[a-z][a-z0-9]*\b/i.test(value);
+}
+
+function escapeNote(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+function limitNotes(value: string): string {
+  if (value.length <= 4000) return value;
+  const cut = value.slice(0, 4000);
+  const lastTag = cut.lastIndexOf(">");
+  return (lastTag > 0 ? cut.slice(0, lastTag + 1) : cut).trim();
 }
 
 function cancelled(props: Prop[]): boolean {
