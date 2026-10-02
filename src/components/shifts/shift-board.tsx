@@ -1579,7 +1579,7 @@ export function ShiftBoard({
                                 <p className="text-sm text-muted-foreground">{shownLocation(sharedLocation)}</p>
                               ) : null}
                             </div>
-                            {isAdmin && (
+                            {isAdmin && event.shifts.length > 1 ? (
                               <button
                                 type="button"
                                 className="shrink-0 text-xs text-destructive hover:underline"
@@ -1593,7 +1593,7 @@ export function ShiftBoard({
                               >
                                 Remove
                               </button>
-                            )}
+                            ) : null}
                           </div>
                         )}
 
@@ -1708,15 +1708,17 @@ export function ShiftBoard({
                                           >
                                             <Pencil className="h-3.5 w-3.5" />
                                           </Button>
-                                          <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            className="h-9 w-9 shrink-0 text-destructive hover:text-destructive"
-                                            title="Delete shift"
-                                            onClick={() => requestDeleteShift(shift)}
-                                          >
-                                            <Trash2 className="h-3.5 w-3.5" />
-                                          </Button>
+                                          {position.shifts.length > 1 ? (
+                                            <Button
+                                              variant="ghost"
+                                              size="icon"
+                                              className="h-9 w-9 shrink-0 text-destructive hover:text-destructive"
+                                              title="Delete shift"
+                                              onClick={() => requestDeleteShift(shift)}
+                                            >
+                                              <Trash2 className="h-3.5 w-3.5" />
+                                            </Button>
+                                          ) : null}
                                         </>
                                       )}
                                       <ShiftClaimButton
@@ -2350,18 +2352,6 @@ export function ShiftBoard({
 
             {formError && <p className="text-sm text-destructive">{formError}</p>}
             <div className="flex flex-col gap-2 sm:flex-row">
-              {editingShift && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full text-destructive hover:text-destructive sm:w-auto"
-                  disabled={saving || deleting}
-                  onClick={() => requestDeleteShift(editingShift)}
-                >
-                  <Trash2 className="mr-2 h-4 w-4" />
-                  Delete shift
-                </Button>
-              )}
               <Button onClick={saveEditedShift} className="w-full flex-1" disabled={saving || deleting}>
                 {saving
                   ? "Saving..."
