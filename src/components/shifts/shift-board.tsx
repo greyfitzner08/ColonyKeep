@@ -317,6 +317,11 @@ function isGenericPosition(name: string) {
   return name.trim().toLowerCase() === "volunteer";
 }
 
+/** The row the calendar sync creates to stand in for the whole Google event. */
+function isCalendarShell(shift: Shift) {
+  return Boolean(shift.google_calendar_uid) && isGenericPosition(positionLabel(shift));
+}
+
 function isFlatEvent(positions: { name: string }[]) {
   return positions.length === 1 && isGenericPosition(positions[0].name);
 }
@@ -460,15 +465,25 @@ export function ShiftBoard({
           return a.start_time.localeCompare(b.start_time);
         });
 
+        const realShifts = sorted.filter((shift) => !isCalendarShell(shift));
+        const signupShifts = realShifts.length > 0 ? realShifts : sorted;
+        const calendarNotes =
+          realShifts.length > 0
+            ? sorted
+                .filter((shift) => isCalendarShell(shift))
+                .map((shift) => shift.notes?.trim() || "")
+                .find(Boolean) ?? null
+            : null;
+
         const byPosition = new Map<string, Shift[]>();
-        for (const shift of sorted) {
+        for (const shift of signupShifts) {
           const key = positionLabel(shift);
           const list = byPosition.get(key) ?? [];
           list.push(shift);
           byPosition.set(key, list);
         }
 
-        const dates = sorted.map((shift) => shift.date).sort();
+        const dates = signupShifts.map((shift) => shift.date).sort();
         const startDate = dates[0];
         const endDate = dates[dates.length - 1];
         const whenLabel =
@@ -476,32 +491,33 @@ export function ShiftBoard({
             ? formatDate(startDate)
             : `${formatDate(startDate)} – ${formatDate(endDate)}`;
 
-        const filled = sorted.reduce(
+        const filled = signupShifts.reduce(
           (sum, shift) => sum + (shift.signed_up_emails?.length ?? 0),
           0
         );
-        const coverageFilled = sorted.reduce((sum, shift) => {
+        const coverageFilled = signupShifts.reduce((sum, shift) => {
           if (isAttendanceShift(shift)) return sum;
           return sum + (shift.signed_up_emails?.length ?? 0);
         }, 0);
-        const attendanceFilled = sorted.reduce((sum, shift) => {
+        const attendanceFilled = signupShifts.reduce((sum, shift) => {
           if (!isAttendanceShift(shift) || !collectsAttending(shift)) return sum;
           return sum + (shift.signed_up_emails?.length ?? 0);
         }, 0);
-        const needed = sorted.reduce((sum, shift) => {
+        const needed = signupShifts.reduce((sum, shift) => {
           if (isAttendanceShift(shift)) return sum;
           return sum + Math.max(0, shift.volunteers_needed);
         }, 0);
-        const hasAttendance = sorted.some((shift) => isAttendanceShift(shift));
-        const showAttendingCount = sorted.some(
+        const hasAttendance = signupShifts.some((shift) => isAttendanceShift(shift));
+        const showAttendingCount = signupShifts.some(
           (shift) => isAttendanceShift(shift) && collectsAttending(shift)
         );
-        const hasCoverage = sorted.some((shift) => !isAttendanceShift(shift));
+        const hasCoverage = signupShifts.some((shift) => !isAttendanceShift(shift));
 
         return {
           key,
           name,
-          shifts: sorted,
+          calendarNotes,
+          shifts: signupShifts,
           whenLabel,
           startDate,
           filled,
@@ -1501,6 +1517,11 @@ export function ShiftBoard({
                         : "space-y-3 bg-muted/40 p-3 sm:p-4"
                     )}
                   >
+                    {event.calendarNotes ? (
+                      <div className={isFlatEvent(event.positions) ? "px-4 pt-4 sm:px-5" : undefined}>
+                        <ShiftNotes notes={event.calendarNotes} />
+                      </div>
+                    ) : null}
                     {event.positions.map((position) => {
                       const flat = isFlatEvent(event.positions);
                       const single = flat && position.shifts.length === 1;
