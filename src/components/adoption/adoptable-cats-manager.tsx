@@ -9,6 +9,11 @@ import { AdoptableCatImporter } from "@/components/adoption/adoptable-cat-import
 import { FieldControl } from "@/components/adoption/entrance-application-form";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  CardsTableToggle,
+  type CardsTableViewMode,
+} from "@/components/ui/cards-table-toggle";
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
@@ -108,6 +113,7 @@ export function AdoptableCatsManager({
   const [saved, setSaved] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [viewMode, setViewMode] = useState<CardsTableViewMode>("table");
   const [relinkApplicationId, setRelinkApplicationId] = useState<string | null>(null);
 
   const recordByCatId = useMemo(() => {
@@ -407,19 +413,22 @@ export function AdoptableCatsManager({
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-2">
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="h-8 w-[9.5rem]" aria-label="Status">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All statuses</SelectItem>
-            {ADOPTABLE_CAT_STATUSES.map((entry) => (
-              <SelectItem key={entry.value} value={entry.value}>
-                {entry.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <div className="flex flex-wrap items-center gap-2">
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="h-8 w-[9.5rem]" aria-label="Status">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All statuses</SelectItem>
+              {ADOPTABLE_CAT_STATUSES.map((entry) => (
+                <SelectItem key={entry.value} value={entry.value}>
+                  {entry.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <CardsTableToggle value={viewMode} onChange={setViewMode} />
+        </div>
         <AdoptableCatImporter>
           <Button
             type="button"
@@ -450,13 +459,84 @@ export function AdoptableCatsManager({
         </AdoptableCatImporter>
       </div>
 
-      <DataTable
-        tableId="adoptable-cats"
-        columns={columns}
-        rows={rows}
-        getRowKey={(row) => row.id}
-        emptyMessage="No cats yet. Approve a rescue application or import a CSV."
-      />
+      {viewMode === "table" ? (
+        <DataTable
+          tableId="adoptable-cats"
+          columns={columns}
+          rows={rows}
+          getRowKey={(row) => row.id}
+          emptyMessage="No cats yet. Approve a rescue application or import a CSV."
+        />
+      ) : rows.length === 0 ? (
+        <p className="rounded-lg border bg-card px-4 py-10 text-center text-sm text-muted-foreground">
+          No cats yet. Approve a rescue application or import a CSV.
+        </p>
+      ) : (
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          {rows.map((row) => {
+            const record = recordByCatId.get(row.id);
+            const age = catAgeLabel(record?.answers, row);
+            const gender = genderLabel(record?.answers.gender || row.sex);
+            const details = [age, gender].filter(Boolean).join(" · ");
+            const statusLabel =
+              record?.answers.current_status || adoptableCatStatusLabel(row.status);
+            const { foster, store } = locationSummary(record?.answers);
+            return (
+              <Card key={row.id} className="overflow-hidden">
+                <CardHeader className="flex flex-row items-start gap-3 space-y-0 pb-3">
+                  {row.profile_photo_url ? (
+                    <Image
+                      src={row.profile_photo_url}
+                      alt={row.name}
+                      width={56}
+                      height={56}
+                      className="h-14 w-14 shrink-0 rounded-full object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-muted text-xs text-muted-foreground">
+                      —
+                    </div>
+                  )}
+                  <div className="min-w-0 flex-1 space-y-1">
+                    <CardTitle className="text-base leading-tight">
+                      {record?.answers.new_name || row.name}
+                    </CardTitle>
+                    <p className="text-xs text-muted-foreground">
+                      {details || "Age and gender not listed"}
+                    </p>
+                    <Badge variant="secondary">{statusLabel}</Badge>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-3 pt-0">
+                  <div className="text-sm">
+                    <p className="font-medium">{foster || store ? foster || "Foster home" : "Unassigned"}</p>
+                    {store ? (
+                      <p className="text-xs text-muted-foreground">Pet store · {store}</p>
+                    ) : null}
+                  </div>
+                  <p className="line-clamp-2 text-xs text-muted-foreground">
+                    {record?.answers.personality || row.personality_notes || "No personality notes yet"}
+                  </p>
+                  <div className="flex justify-end gap-1">
+                    <Button type="button" size="icon" variant="ghost" onClick={() => openRecord(row)}>
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      type="button"
+                      size="icon"
+                      variant="ghost"
+                      disabled={deletingId === row.id}
+                      onClick={() => void remove(row)}
+                    >
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      )}
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto">

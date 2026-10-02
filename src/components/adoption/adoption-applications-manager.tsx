@@ -7,6 +7,11 @@ import { Check, ChevronDown, Copy } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  CardsTableToggle,
+  type CardsTableViewMode,
+} from "@/components/ui/cards-table-toggle";
+import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -637,6 +642,8 @@ export function AdoptionApplicationsManager({
 }: AdoptionApplicationsManagerProps) {
   const [statusFilter, setStatusFilter] = useState("open");
   const [rankFilter, setRankFilter] = useState("all");
+  const [viewMode, setViewMode] = useState<CardsTableViewMode>("cards");
+  const [focusedId, setFocusedId] = useState<string | null>(null);
 
   const rows = useMemo(() => {
     const filtered = initial.filter((row) => {
@@ -672,6 +679,92 @@ export function AdoptionApplicationsManager({
     }
     return next;
   }, [initial]);
+
+  const focused = focusedId ? rows.find((row) => row.id === focusedId) ?? null : null;
+
+  const columns = useMemo<DataTableColumn<AdoptionApplication>[]>(
+    () => [
+      {
+        id: "applicant",
+        label: "Applicant",
+        sortValue: (row) =>
+          `${row.applicant_last_name} ${row.applicant_first_name}`.trim().toLowerCase(),
+        render: (row) => (
+          <div>
+            <p className="font-medium">
+              {`${row.applicant_first_name} ${row.applicant_last_name}`.trim()}
+            </p>
+            <p className="text-xs text-muted-foreground">{row.applicant_email}</p>
+          </div>
+        ),
+      },
+      {
+        id: "cat",
+        label: "Cat interest",
+        sortValue: (row) => row.cat_interest_name,
+        render: (row) => {
+          const linked = cats.find((cat) => cat.id === row.cat_id);
+          return (
+            <div>
+              <p className="font-medium">{row.cat_interest_name}</p>
+              <p className="text-xs text-muted-foreground">
+                {linked ? `Linked · ${linked.name}` : "Not linked"}
+              </p>
+            </div>
+          );
+        },
+      },
+      {
+        id: "rank",
+        label: "Screening",
+        sortValue: (row) => adoptionApplicationRankSortValue(rankAdoptionApplication(row.answers).rank),
+        render: (row) => {
+          const ranking = rankAdoptionApplication(row.answers);
+          return <RankBadge rank={ranking.rank} badCount={ranking.badCount} />;
+        },
+      },
+      {
+        id: "status",
+        label: "Status",
+        sortValue: (row) => row.status,
+        render: (row) => (
+          <Badge variant="secondary">{adoptionApplicationStatusLabel(row.status)}</Badge>
+        ),
+      },
+      {
+        id: "submitted",
+        label: "Submitted",
+        sortValue: (row) => row.created_at,
+        render: (row) => (
+          <span className="text-sm text-muted-foreground">
+            {new Date(row.created_at).toLocaleDateString()}
+          </span>
+        ),
+      },
+      {
+        id: "phone",
+        label: "Phone",
+        sortValue: (row) => row.applicant_phone,
+        render: (row) => <span className="text-sm">{row.applicant_phone || "—"}</span>,
+      },
+      {
+        id: "actions",
+        label: "Actions",
+        hideable: false,
+        render: (row) => (
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={() => setFocusedId((current) => (current === row.id ? null : row.id))}
+          >
+            {focusedId === row.id ? "Hide" : "Open"}
+          </Button>
+        ),
+      },
+    ],
+    [cats, focusedId]
+  );
 
   return (
     <div className="space-y-4">
@@ -740,6 +833,7 @@ export function AdoptionApplicationsManager({
             </div>
           </>
         }
+        actions={<CardsTableToggle value={viewMode} onChange={setViewMode} />}
         meta={
           <>
             {rows.length} application{rows.length === 1 ? "" : "s"} · screening colors are flags, not
@@ -754,11 +848,29 @@ export function AdoptionApplicationsManager({
             No adoption applications match these filters.
           </CardContent>
         </Card>
-      ) : (
+      ) : viewMode === "cards" ? (
         <div className="space-y-3">
           {rows.map((application) => (
             <ApplicationCard key={application.id} application={application} cats={cats} />
           ))}
+        </div>
+      ) : (
+        <div className="space-y-4">
+          <DataTable
+            tableId="adoption-applications"
+            columns={columns}
+            rows={rows}
+            getRowKey={(row) => row.id}
+            getRowClassName={(row) =>
+              focusedId === row.id ? "bg-primary/5" : undefined
+            }
+            emptyMessage="No adoption applications match these filters."
+          />
+          {focused ? (
+            <ApplicationCard key={focused.id} application={focused} cats={cats} defaultOpen />
+          ) : (
+            <p className="text-sm text-muted-foreground">Open a row to review the full application.</p>
+          )}
         </div>
       )}
     </div>
