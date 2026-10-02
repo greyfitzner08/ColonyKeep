@@ -14,6 +14,7 @@ import {
   CardsTableToggle,
   type CardsTableViewMode,
 } from "@/components/ui/cards-table-toggle";
+import { Checkbox } from "@/components/ui/checkbox";
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
@@ -33,6 +34,7 @@ import {
   ADOPTABLE_CAT_STATUSES,
   adoptableCatStatusLabel,
   type AdoptableCat,
+  type AdoptableCatStatus,
 } from "@/lib/adoption/constants";
 import {
   ENTRANCE_FIELDS,
@@ -69,6 +71,10 @@ function genderLabel(value: string | null | undefined): string {
   if (value === "unknown") return "Unknown";
   return "";
 }
+
+const DEFAULT_STATUS_FILTERS = new Set(
+  ADOPTABLE_CAT_STATUSES.filter((entry) => entry.value !== "adopted").map((entry) => entry.value)
+);
 
 function catAgeLabel(answers: EntranceAnswers | undefined, row: AdoptableCat): string {
   const dob = answers?.date_of_birth?.trim() ?? "";
@@ -114,8 +120,9 @@ export function AdoptableCatsManager({
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [adoptedFilter, setAdoptedFilter] = useState<"all" | "yes" | "no">("no");
+  const [statusFilters, setStatusFilters] = useState<Set<AdoptableCatStatus>>(
+    () => new Set(DEFAULT_STATUS_FILTERS)
+  );
   const [viewMode, setViewMode] = useState<CardsTableViewMode>("table");
   const [relinkApplicationId, setRelinkApplicationId] = useState<string | null>(null);
 
@@ -130,17 +137,18 @@ export function AdoptableCatsManager({
   }, [applications]);
 
   const rows = useMemo(() => {
-    return initial.filter((cat) => {
-      if (statusFilter !== "all" && cat.status !== statusFilter) return false;
-      if (adoptedFilter !== "all") {
-        const answers = recordByCatId.get(cat.id)?.answers;
-        const isAdopted = cat.status === "adopted" || answers?.adopted === "yes";
-        if (adoptedFilter === "no" && isAdopted) return false;
-        if (adoptedFilter === "yes" && !isAdopted) return false;
-      }
-      return true;
+    if (statusFilters.size === 0) return [];
+    return initial.filter((cat) => statusFilters.has(cat.status));
+  }, [initial, statusFilters]);
+
+  function toggleStatusFilter(status: AdoptableCatStatus, checked: boolean) {
+    setStatusFilters((current) => {
+      const next = new Set(current);
+      if (checked) next.add(status);
+      else next.delete(status);
+      return next;
     });
-  }, [initial, statusFilter, adoptedFilter, recordByCatId]);
+  }
 
   const editingRecord = editing ? recordByCatId.get(editing.id) ?? null : null;
 
@@ -486,33 +494,27 @@ export function AdoptableCatsManager({
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-2">
-        <div className="flex flex-wrap items-center gap-2">
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="h-8 w-[9.5rem]" aria-label="Status">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All statuses</SelectItem>
-              {ADOPTABLE_CAT_STATUSES.map((entry) => (
-                <SelectItem key={entry.value} value={entry.value}>
-                  {entry.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select
-            value={adoptedFilter}
-            onValueChange={(value) => setAdoptedFilter(value as "all" | "yes" | "no")}
-          >
-            <SelectTrigger className="h-8 w-[9.5rem]" aria-label="Adopted">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="no">Adopted: No</SelectItem>
-              <SelectItem value="yes">Adopted: Yes</SelectItem>
-              <SelectItem value="all">Adopted: All</SelectItem>
-            </SelectContent>
-          </Select>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5" role="group" aria-label="Status filters">
+            {ADOPTABLE_CAT_STATUSES.map((entry) => {
+              const id = `adoptable-status-${entry.value}`;
+              const checked = statusFilters.has(entry.value);
+              return (
+                <label
+                  key={entry.value}
+                  htmlFor={id}
+                  className="inline-flex cursor-pointer items-center gap-1.5 text-sm"
+                >
+                  <Checkbox
+                    id={id}
+                    checked={checked}
+                    onCheckedChange={(value) => toggleStatusFilter(entry.value, value === true)}
+                  />
+                  <span>{entry.label}</span>
+                </label>
+              );
+            })}
+          </div>
           <CardsTableToggle value={viewMode} onChange={setViewMode} />
         </div>
         <AdoptableCatImporter>
@@ -552,11 +554,17 @@ export function AdoptableCatsManager({
           rows={rows}
           getRowKey={(row) => row.id}
           defaultSort={{ columnId: "pet_store_rank", direction: "asc" }}
-          emptyMessage="No cats yet. Approve a rescue application or import a CSV."
+          emptyMessage={
+            statusFilters.size === 0
+              ? "Select at least one status to show cats."
+              : "No cats match these status filters."
+          }
         />
       ) : rows.length === 0 ? (
         <p className="rounded-lg border bg-card px-4 py-10 text-center text-sm text-muted-foreground">
-          No cats yet. Approve a rescue application or import a CSV.
+          {statusFilters.size === 0
+            ? "Select at least one status to show cats."
+            : "No cats match these status filters."}
         </p>
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
