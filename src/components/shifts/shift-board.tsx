@@ -836,23 +836,6 @@ export function ShiftBoard({
     });
   }
 
-  function requestDeleteEvent(eventName: string, shifts: Shift[]) {
-    const signupCount = shifts.reduce(
-      (sum, shift) => sum + (shift.signed_up_emails?.length ?? 0),
-      0
-    );
-    openDestructiveConfirm({
-      type: "delete_shifts",
-      ids: shifts.map((shift) => shift.id),
-      title: `Are you sure you would like to delete the event "${eventName}"?`,
-      description:
-        signupCount > 0
-          ? `This permanently deletes the whole event (${shifts.length} shift${shifts.length === 1 ? "" : "s"}) and clears ${signupCount} signup${signupCount === 1 ? "" : "s"}. This cannot be undone.`
-          : `This permanently deletes the whole event (${shifts.length} shift${shifts.length === 1 ? "" : "s"}). This cannot be undone.`,
-      confirmLabel: "Yes, delete event",
-    });
-  }
-
   function requestRemoveSignup(shiftId: string, email: string) {
     const name = signupLabel(email);
     openDestructiveConfirm({
@@ -1504,16 +1487,6 @@ export function ShiftBoard({
                       >
                         <Plus className="mr-1 h-4 w-4" />
                         Add shifts
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="text-destructive hover:text-destructive"
-                        onClick={() => requestDeleteEvent(event.name, event.shifts)}
-                      >
-                        <Trash2 className="mr-1 h-4 w-4" />
-                        Delete
                       </Button>
                     </div>
                   )}

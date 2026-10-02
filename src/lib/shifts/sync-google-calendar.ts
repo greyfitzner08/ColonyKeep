@@ -25,9 +25,6 @@ interface ExistingShift {
   end_time: string;
   location: string;
   notes: string | null;
-  signed_up_emails: string[] | null;
-  waitlist_emails: string[] | null;
-  declined_emails: string[] | null;
 }
 
 /** Pull Google events into shift rows. Signup lists already on a row are left in place. */
@@ -45,7 +42,7 @@ export async function syncGoogleCalendarShifts(service: SupabaseClient): Promise
   const { data, error } = await service
     .from("shifts")
     .select(
-      "id, google_calendar_uid, event_name, date, start_time, end_time, location, notes, signed_up_emails, waitlist_emails, declined_emails"
+      "id, google_calendar_uid, event_name, date, start_time, end_time, location, notes"
     )
     .not("google_calendar_uid", "is", null)
     .gte("date", fromDate)
@@ -119,13 +116,34 @@ export async function syncGoogleCalendarShifts(service: SupabaseClient): Promise
     }
   }
 
-  const staleIds = existing
-    .filter((row) => row.google_calendar_uid && !seen.has(row.google_calendar_uid))
-    .filter((row) => emptyRoster(row))
-    .map((row) => row.id);
+  const liveSeries = new Set(
+    events
+      .map((event) => googleCalendarSeriesId(event.key))
+      .filter((id): id is string => Boolean(id))
+  );
+  const staleIds = new Set(
+    existing
+      .filter((row) => row.google_calendar_uid && !seen.has(row.google_calendar_uid))
+      .map((row) => row.id)
+  );
 
-  if (staleIds.length > 0) {
-    const { error: deleteError } = await service.from("shifts").delete().in("id", staleIds);
+  const { data: groupedRows, error: groupedError } = await service
+    .from("shifts")
+    .select("id, event_group")
+    .not("event_group", "is", null)
+    .gte("date", fromDate)
+    .lte("date", toDate);
+  if (groupedError) throw new Error(groupedError.message);
+
+  for (const row of groupedRows ?? []) {
+    const group = typeof row.event_group === "string" ? row.event_group : "";
+    if (group && !liveSeries.has(group) && typeof row.id === "string") {
+      staleIds.add(row.id);
+    }
+  }
+
+  if (staleIds.size > 0) {
+    const { error: deleteError } = await service.from("shifts").delete().in("id", Array.from(staleIds));
     if (deleteError) throw new Error(deleteError.message);
   }
 }
@@ -154,14 +172,6 @@ function normalizeLocation(value: string | null): string {
   const text = (value ?? "").trim();
   if (text.toLowerCase() === "see calendar") return "";
   return text;
-}
-
-function emptyRoster(row: ExistingShift): boolean {
-  return (
-    (row.signed_up_emails ?? []).length === 0 &&
-    (row.waitlist_emails ?? []).length === 0 &&
-    (row.declined_emails ?? []).length === 0
-  );
 }
 
 function normalizeTime(value: string): string {
