@@ -24,7 +24,7 @@ import {
   formatAddressPartsLine,
 } from "@/components/forms/address-autocomplete";
 import { isAppointmentDatePast } from "@/lib/appointments/slot-date";
-import { SHIFT_REQUIRED_ROLES, SHIFT_RSVP_BUTTONS, SHIFT_SIGNUP_MODES, SHIFT_TYPES } from "@/lib/constants";
+import { SHIFT_REQUIRED_ROLES, SHIFT_SIGNUP_MODES, SHIFT_TYPES } from "@/lib/constants";
 import {
   isAttendanceShift,
   shiftRequiredRoleLabel,
@@ -114,6 +114,74 @@ type PendingDestructiveAction =
       description: string;
       confirmLabel: string;
     };
+
+function nextRsvpButtons(
+  current: ShiftRsvpButtons | "mixed",
+  which: "attending" | "decline"
+): ShiftRsvpButtons {
+  if (current === "mixed") return which;
+  const attendingOn = current !== "decline";
+  const declineOn = current !== "attending";
+  if (which === "attending") {
+    if (attendingOn && declineOn) return "decline";
+    if (!attendingOn) return "both";
+    return "attending";
+  }
+  if (attendingOn && declineOn) return "attending";
+  if (!declineOn) return "both";
+  return "decline";
+}
+
+function ResponseButtonToggles({
+  value,
+  onChange,
+}: {
+  value: ShiftRsvpButtons | "mixed";
+  onChange: (value: ShiftRsvpButtons) => void;
+}) {
+  const attendingOn = value === "both" || value === "attending";
+  const declineOn = value === "both" || value === "decline";
+  return (
+    <div className="flex flex-wrap gap-1" role="group" aria-label="Response buttons volunteers can use">
+      <Button
+        type="button"
+        size="sm"
+        variant={attendingOn ? "default" : "outline"}
+        aria-pressed={attendingOn}
+        title={
+          attendingOn
+            ? "Volunteers can mark attending. Click to hide this button."
+            : "Hidden from volunteers. Click to show I'm attending."
+        }
+        className={cn(!attendingOn && "text-muted-foreground")}
+        onClick={() => {
+          const next = nextRsvpButtons(value, "attending");
+          if (next !== value) onChange(next);
+        }}
+      >
+        I&apos;m attending
+      </Button>
+      <Button
+        type="button"
+        size="sm"
+        variant={declineOn ? "secondary" : "outline"}
+        aria-pressed={declineOn}
+        title={
+          declineOn
+            ? "Volunteers can mark can't make it. Click to hide this button."
+            : "Hidden from volunteers. Click to show Can't make it."
+        }
+        className={cn(!declineOn && "text-muted-foreground")}
+        onClick={() => {
+          const next = nextRsvpButtons(value, "decline");
+          if (next !== value) onChange(next);
+        }}
+      >
+        Can&apos;t make it
+      </Button>
+    </div>
+  );
+}
 
 function newKey(prefix: string) {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -1398,33 +1466,21 @@ export function ShiftBoard({
                   {isAdmin && (
                     <div className="flex shrink-0 flex-wrap items-center gap-2 sm:pt-0.5">
                       {event.shifts.some((shift) => isAttendanceShift(shift)) ? (
-                        <Select
-                          value={(() => {
-                            const attendance = event.shifts.filter((shift) => isAttendanceShift(shift));
-                            const first = shiftRsvpButtons(attendance[0]);
-                            return attendance.every((shift) => shiftRsvpButtons(shift) === first)
-                              ? first
-                              : "mixed";
-                          })()}
-                          onValueChange={(value) => {
-                            if (value === "mixed") return;
-                            void setEventResponseButtons(event.shifts, value as ShiftRsvpButtons);
-                          }}
-                        >
-                          <SelectTrigger className="h-9 w-[220px] bg-background text-xs">
-                            <SelectValue placeholder="Response buttons" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="mixed" disabled>
-                              Mixed responses
-                            </SelectItem>
-                            {SHIFT_RSVP_BUTTONS.map((option) => (
-                              <SelectItem key={option.value} value={option.value}>
-                                {option.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <div className="flex items-center gap-1">
+                          <span className="text-xs text-muted-foreground">Show</span>
+                          <ResponseButtonToggles
+                            value={(() => {
+                              const attendance = event.shifts.filter((shift) => isAttendanceShift(shift));
+                              const first = shiftRsvpButtons(attendance[0]);
+                              return attendance.every((shift) => shiftRsvpButtons(shift) === first)
+                                ? first
+                                : "mixed";
+                            })()}
+                            onChange={(value) => {
+                              void setEventResponseButtons(event.shifts, value);
+                            }}
+                          />
+                        </div>
                       ) : null}
                       <Button
                         type="button"
@@ -1792,23 +1848,13 @@ export function ShiftBoard({
                   {position.signup_mode === "attendance" ? (
                     <div className="space-y-1">
                       <Label>Response buttons</Label>
-                      <Select
+                      <ResponseButtonToggles
                         value={position.rsvp_buttons}
-                        onValueChange={(value) =>
-                          updatePosition(position.key, { rsvp_buttons: value as ShiftRsvpButtons })
-                        }
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Which buttons volunteers see" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {SHIFT_RSVP_BUTTONS.map((option) => (
-                            <SelectItem key={option.value} value={option.value}>
-                              {option.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                        onChange={(value) => updatePosition(position.key, { rsvp_buttons: value })}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Highlighted buttons are shown to volunteers. At least one stays on.
+                      </p>
                     </div>
                   ) : null}
 
@@ -2051,23 +2097,13 @@ export function ShiftBoard({
             {editForm.signup_mode === "attendance" ? (
               <div className="space-y-1">
                 <Label>Response buttons</Label>
-                <Select
+                <ResponseButtonToggles
                   value={editForm.rsvp_buttons}
-                  onValueChange={(value) =>
-                    setEditForm({ ...editForm, rsvp_buttons: value as ShiftRsvpButtons })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Which buttons volunteers see" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {SHIFT_RSVP_BUTTONS.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  onChange={(value) => setEditForm({ ...editForm, rsvp_buttons: value })}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Highlighted buttons are shown to volunteers. At least one stays on.
+                </p>
               </div>
             ) : null}
             <div className="space-y-1">
