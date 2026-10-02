@@ -37,7 +37,7 @@ export const ADOPTABLE_CAT_STATUSES: { value: AdoptableCatStatus; label: string 
   { value: "pending", label: "Pending adoption" },
   { value: "hold", label: "On hold" },
   { value: "adopted", label: "Adopted" },
-  { value: "unavailable", label: "Unavailable" },
+  { value: "unavailable", label: "Not adoptable" },
 ];
 
 export const ADOPTABLE_CAT_SEXES: { value: AdoptableCatSex; label: string }[] = [

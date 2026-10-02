@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireApiRole } from "@/lib/api/auth";
-import { ADOPTABLE_CAT_STATUSES, type AdoptableCatSex, type AdoptableCatStatus } from "@/lib/adoption/constants";
-import { formatVaccinationList, submissionDateStamp, type EntranceAnswers } from "@/lib/adoption/entrance";
+import { type AdoptableCatSex } from "@/lib/adoption/constants";
+import { formatVaccinationList, rosterStatusFromAnswers, submissionDateStamp, type EntranceAnswers } from "@/lib/adoption/entrance";
 import { parseCatImportCsv } from "@/lib/adoption/import-cats";
 import { canAccessAdoptions } from "@/lib/permissions";
 import { createServiceClient } from "@/lib/supabase/server";
@@ -9,15 +9,6 @@ import { createServiceClient } from "@/lib/supabase/server";
 function sexFromGender(gender: string | undefined): AdoptableCatSex | null {
   if (gender === "female" || gender === "male" || gender === "unknown") return gender;
   return null;
-}
-
-function rosterStatus(answers: EntranceAnswers): AdoptableCatStatus {
-  if (answers.adopted === "yes") return "adopted";
-  const raw = answers.current_status?.trim().toLowerCase() ?? "";
-  const match = ADOPTABLE_CAT_STATUSES.find(
-    (entry) => entry.value === raw || entry.label.toLowerCase() === raw
-  );
-  return match?.value ?? "available";
 }
 
 export async function POST(request: NextRequest) {
@@ -77,7 +68,7 @@ export async function POST(request: NextRequest) {
         name: answers.cat_name,
         age_description: answers.estimated_age || null,
         sex: sexFromGender(answers.gender),
-        status: rosterStatus(answers),
+        status: rosterStatusFromAnswers(answers),
         personality_notes: answers.personality || null,
         notes: answers.notes || null,
         medical_notes: answers.tests_treatments || null,

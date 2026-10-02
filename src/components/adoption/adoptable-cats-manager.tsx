@@ -342,6 +342,7 @@ export function AdoptableCatsManager({
       "linked_adoption_application_id",
       "cat_name",
       "current_status",
+      "adopted",
       "personality",
       "pet_store_rank",
     ]);
@@ -400,6 +401,17 @@ export function AdoptableCatsManager({
     setSaveError(null);
     setSaved(false);
     setRelinkApplicationId(null);
+    const record = recordByCatId.get(cat.id);
+    if (record && !(record.answers.current_status ?? "").trim()) {
+      setDrafts((current) => ({
+        ...current,
+        [record.id]: applyEntranceAnswer(
+          current[record.id] ?? { ...emptyEntranceAnswers(), ...record.answers },
+          "current_status",
+          cat.status
+        ),
+      }));
+    }
     setDialogOpen(true);
   }
 

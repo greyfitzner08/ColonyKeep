@@ -3,7 +3,7 @@ import { requireApiRole } from "@/lib/api/auth";
 import { canAccessAdoptions } from "@/lib/permissions";
 import { createServiceClient } from "@/lib/supabase/server";
 import type { AdoptableCatSex, AdoptableCatStatus } from "@/lib/adoption/constants";
-import { formatVaccinationList, type EntranceAnswers, type EntranceReviewStatus } from "@/lib/adoption/entrance";
+import { formatVaccinationList, rosterStatusFromAnswers, type EntranceAnswers, type EntranceReviewStatus } from "@/lib/adoption/entrance";
 
 function text(value: string | undefined): string | null {
   const trimmed = value?.trim() ?? "";
@@ -13,11 +13,6 @@ function text(value: string | undefined): string | null {
 function sexFromGender(gender: string | undefined): AdoptableCatSex | null {
   if (gender === "female" || gender === "male" || gender === "unknown") return gender;
   return null;
-}
-
-function rosterStatus(answers: EntranceAnswers): AdoptableCatStatus {
-  if (answers.adopted === "yes") return "adopted";
-  return "available";
 }
 
 export async function POST(request: NextRequest) {
@@ -95,7 +90,7 @@ export async function POST(request: NextRequest) {
         name: existing.cat_name,
         age_description: text(answers.estimated_age),
         sex: sexFromGender(answers.gender),
-        status: rosterStatus(answers),
+        status: rosterStatusFromAnswers(answers),
         personality_notes: text(answers.personality),
         notes: notes || null,
         medical_notes: medicalNotes || null,

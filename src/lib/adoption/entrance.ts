@@ -1,3 +1,5 @@
+import { ADOPTABLE_CAT_STATUSES } from "@/lib/adoption/constants";
+
 export type EntranceReviewStatus = "pending" | "approved" | "denied";
 
 export type EntranceFieldKind =
@@ -54,6 +56,11 @@ const GENDERS: EntranceFieldOption[] = [
   { value: "unknown", label: "Unknown" },
 ];
 
+const LISTING_STATUSES: EntranceFieldOption[] = ADOPTABLE_CAT_STATUSES.map((entry) => ({
+  value: entry.value,
+  label: entry.label,
+}));
+
 const ADOPTER_APPLICATION_STATUSES: EntranceFieldOption[] = [
   { value: "pending", label: "Pending" },
   { value: "approved", label: "Approved" },
@@ -86,8 +93,14 @@ const ENTRANCE_SECTION_SOURCE: EntranceSection[] = [
     title: "Cat Profile",
     fields: [
       { key: "cat_name", label: "Cat’s Name", kind: "text", required: true },
-      { key: "current_status", label: "Current Status", kind: "text", staff: true, hidden: true },
-      { key: "adopted", label: "Adopted?", kind: "yesno", staff: true },
+      {
+        key: "current_status",
+        label: "Status",
+        kind: "select",
+        options: LISTING_STATUSES,
+        staff: true,
+      },
+      { key: "adopted", label: "Adopted?", kind: "yesno", staff: true, hidden: true },
       { key: "petfinder_only", label: "Petfinder Only?", kind: "yesno", staff: true },
       { key: "order_to_place", label: "Order to Place / Points", kind: "text", staff: true },
       { key: "gender", label: "Gender", kind: "select", options: GENDERS, required: true },
@@ -424,6 +437,13 @@ export function applyEntranceAnswer(
   if (key === "how_referred" && value !== "fff_volunteer") next.fff_volunteer_name = "";
   if (key === "approved_pet_store" && value !== "yes") clearPetStoreQuestions(next);
   if (key === "pet_store_name" && value !== "other") next.pet_store_other_name = "";
+  if (key === "current_status") {
+    next.adopted = value === "adopted" ? "yes" : "no";
+  }
+  if (key === "adopted") {
+    if (value === "yes") next.current_status = "adopted";
+    else if (next.current_status === "adopted") next.current_status = "available";
+  }
   return next;
 }
 
@@ -924,7 +944,23 @@ export function sanitizeEntranceAnswers(
   if (answers.approved_pet_store === "yes" && answers.pet_store_name === "other" && !answers.pet_store_other_name.trim()) {
     return { answers, error: "Enter the pet store name." };
   }
+  if (answers.adopted === "yes") answers.current_status = "adopted";
+  else if (answers.current_status === "adopted") answers.adopted = "yes";
+  else if (!answers.current_status.trim()) answers.current_status = "available";
   return { answers };
+}
+
+/** Roster status for adoptable_cats, driven by Status / Adopted answers. */
+export function rosterStatusFromAnswers(
+  answers: EntranceAnswers,
+  fallback: (typeof ADOPTABLE_CAT_STATUSES)[number]["value"] = "available"
+): (typeof ADOPTABLE_CAT_STATUSES)[number]["value"] {
+  if (answers.adopted === "yes") return "adopted";
+  const raw = answers.current_status?.trim().toLowerCase() ?? "";
+  const match = ADOPTABLE_CAT_STATUSES.find(
+    (entry) => entry.value === raw || entry.label.toLowerCase() === raw
+  );
+  return match?.value ?? fallback;
 }
 
 function normalizePetStoreSource(source: Record<string, unknown>) {

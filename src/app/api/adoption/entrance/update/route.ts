@@ -1,22 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireApiRole } from "@/lib/api/auth";
-import { ADOPTABLE_CAT_STATUSES, type AdoptableCatSex, type AdoptableCatStatus } from "@/lib/adoption/constants";
-import { formatVaccinationList, sanitizeEntranceAnswers, submissionDateStamp, type EntranceAnswers } from "@/lib/adoption/entrance";
+import { type AdoptableCatSex, type AdoptableCatStatus } from "@/lib/adoption/constants";
+import { formatVaccinationList, rosterStatusFromAnswers, sanitizeEntranceAnswers, submissionDateStamp, type EntranceAnswers } from "@/lib/adoption/entrance";
 import { canAccessAdoptions } from "@/lib/permissions";
 import { createServiceClient } from "@/lib/supabase/server";
 
 function sexFromGender(gender: string | undefined): AdoptableCatSex | null {
   if (gender === "female" || gender === "male" || gender === "unknown") return gender;
   return null;
-}
-
-function rosterStatus(answers: EntranceAnswers, current: AdoptableCatStatus): AdoptableCatStatus {
-  if (answers.adopted === "yes") return "adopted";
-  const raw = answers.current_status?.trim().toLowerCase() ?? "";
-  const match = ADOPTABLE_CAT_STATUSES.find(
-    (entry) => entry.value === raw || entry.label.toLowerCase() === raw
-  );
-  return match?.value ?? current;
 }
 
 export async function POST(request: NextRequest) {
@@ -94,7 +85,7 @@ export async function POST(request: NextRequest) {
         notes: parsed.answers.notes || null,
         vaccination_notes: formatVaccinationList(parsed.answers.vaccinations) || null,
         medical_notes: parsed.answers.tests_treatments || null,
-        status: rosterStatus(parsed.answers, cat.status as AdoptableCatStatus),
+        status: rosterStatusFromAnswers(parsed.answers, cat.status as AdoptableCatStatus),
       };
       if (parsed.answers.date_spayed_neutered) patch.spayed_neutered = true;
       await service.from("adoptable_cats").update(patch).eq("id", existing.adoptable_cat_id);
