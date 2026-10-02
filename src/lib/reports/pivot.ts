@@ -333,16 +333,18 @@ export function runPivot(options: {
           filters: config.filters,
         });
 
+  const measureLabel = PIVOT_MEASURES.find((entry) => entry.value === measure)?.label ?? measure;
   const cellMap = new Map<string, number>();
   const rowKeySet = new Set<string>();
   const columnKeySet = new Set<string>();
+  /** When no column dimension is chosen, use one value column labeled as the measure — not "Total". */
+  const hasColumnDimensions = columnFields.length > 0;
 
   for (const record of records) {
     const rowParts = rowFields.map((field) => record.values[field] ?? "—");
-    const colParts =
-      columnFields.length > 0
-        ? columnFields.map((field) => record.values[field] ?? "—")
-        : ["Total"];
+    const colParts = hasColumnDimensions
+      ? columnFields.map((field) => record.values[field] ?? "—")
+      : [measureLabel];
     const rowKey = compositeKey(rowParts);
     const colKey = compositeKey(colParts);
     rowKeySet.add(rowKey);
@@ -352,7 +354,9 @@ export function runPivot(options: {
   }
 
   const rowKeys = Array.from(rowKeySet).sort((a, b) => a.localeCompare(b));
-  const columnKeys = Array.from(columnKeySet).sort((a, b) => a.localeCompare(b));
+  const columnKeys = hasColumnDimensions
+    ? Array.from(columnKeySet).sort((a, b) => a.localeCompare(b))
+    : [measureLabel];
 
   const matrix = rowKeys.map((rowKey) =>
     columnKeys.map((colKey) => cellMap.get(`${rowKey}::${colKey}`) ?? 0)
@@ -368,7 +372,7 @@ export function runPivot(options: {
     rowFields,
     columnFields,
     measure,
-    measureLabel: PIVOT_MEASURES.find((entry) => entry.value === measure)?.label ?? measure,
+    measureLabel,
     rowKeys,
     columnKeys,
     matrix,
@@ -384,10 +388,11 @@ export function formatPivotKey(key: string): string {
 }
 
 export function pivotToCsv(result: PivotTableResult): string {
+  const includeRowTotals = result.columnFields.length > 0;
   const header = [
     ...result.rowFields.map(dimensionLabel),
     ...result.columnKeys.map(formatPivotKey),
-    "Row total",
+    ...(includeRowTotals ? ["Row total"] : []),
   ];
   const lines = [
     header.map((cell) => `"${cell.replace(/"/g, '""')}"`).join(","),
@@ -396,14 +401,14 @@ export function pivotToCsv(result: PivotTableResult): string {
       const cells = [
         ...rowParts,
         ...(result.matrix[rowIndex] ?? []).map(String),
-        String(result.rowTotals[rowIndex] ?? 0),
+        ...(includeRowTotals ? [String(result.rowTotals[rowIndex] ?? 0)] : []),
       ];
       return cells.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(",");
     }),
     [
       ...result.rowFields.map((_, index) => (index === 0 ? "Column total" : "")),
       ...result.columnTotals.map(String),
-      String(result.grandTotal),
+      ...(includeRowTotals ? [String(result.grandTotal)] : []),
     ]
       .map((cell) => `"${String(cell).replace(/"/g, '""')}"`)
       .join(","),

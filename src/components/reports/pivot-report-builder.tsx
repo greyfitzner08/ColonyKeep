@@ -679,9 +679,11 @@ export function PivotReportBuilder({
                         {formatPivotKey(columnKey)}
                       </th>
                     ))}
-                    <th className="border-b px-3 py-2 text-right font-semibold whitespace-nowrap">
-                      Total
-                    </th>
+                    {result.columnFields.length > 0 ? (
+                      <th className="border-b px-3 py-2 text-right font-semibold whitespace-nowrap">
+                        Total
+                      </th>
+                    ) : null}
                   </tr>
                 </thead>
                 <tbody>
@@ -705,9 +707,11 @@ export function PivotReportBuilder({
                             {value ? value.toLocaleString() : "—"}
                           </td>
                         ))}
-                        <td className="border-b px-3 py-2 text-right font-medium tabular-nums">
-                          {(result.rowTotals[rowIndex] ?? 0).toLocaleString()}
-                        </td>
+                        {result.columnFields.length > 0 ? (
+                          <td className="border-b px-3 py-2 text-right font-medium tabular-nums">
+                            {(result.rowTotals[rowIndex] ?? 0).toLocaleString()}
+                          </td>
+                        ) : null}
                       </tr>
                     );
                   })}
@@ -728,9 +732,11 @@ export function PivotReportBuilder({
                         {value.toLocaleString()}
                       </td>
                     ))}
-                    <td className="px-3 py-2 text-right font-semibold tabular-nums">
-                      {result.grandTotal.toLocaleString()}
-                    </td>
+                    {result.columnFields.length > 0 ? (
+                      <td className="px-3 py-2 text-right font-semibold tabular-nums">
+                        {result.grandTotal.toLocaleString()}
+                      </td>
+                    ) : null}
                   </tr>
                 </tfoot>
               </table>
