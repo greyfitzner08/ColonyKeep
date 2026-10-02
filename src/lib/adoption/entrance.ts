@@ -102,7 +102,7 @@ const ENTRANCE_SECTION_SOURCE: EntranceSection[] = [
       },
       { key: "adopted", label: "Adopted?", kind: "yesno", staff: true, hidden: true },
       { key: "petfinder_only", label: "Petfinder Only?", kind: "yesno", staff: true },
-      { key: "order_to_place", label: "Order to Place / Points", kind: "text", staff: true },
+      { key: "order_to_place", label: "Order to Place / Points", kind: "text", staff: true, hidden: true },
       { key: "gender", label: "Gender", kind: "select", options: GENDERS, required: true },
       { key: "breed", label: "Breed", kind: "text" },
       { key: "colors", label: "Color(s)", kind: "text" },
