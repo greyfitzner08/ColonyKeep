@@ -208,7 +208,7 @@ export function AdoptableCatsManager({
       },
       {
         id: "pet_store_rank",
-        label: "Pet store rank",
+        label: "Rank",
         defaultWidth: 120,
         sortValue: (row) => {
           const raw = answerValue(row, "pet_store_rank");
