@@ -1,5 +1,12 @@
 import { TNVR_ROLES } from "@/lib/constants";
-import type { Profile, Shift, ShiftRequiredRole, ShiftSignupMode, VolunteerRole } from "@/lib/types";
+import type {
+  Profile,
+  Shift,
+  ShiftRequiredRole,
+  ShiftRsvpButtons,
+  ShiftSignupMode,
+  VolunteerRole,
+} from "@/lib/types";
 
 export type ShiftEligibilityProfile = Pick<
   Profile,
@@ -8,6 +15,15 @@ export type ShiftEligibilityProfile = Pick<
 
 export function isAttendanceShift(shift: Pick<Shift, "signup_mode"> | { signup_mode?: ShiftSignupMode | null }) {
   return (shift.signup_mode ?? "coverage") === "attendance";
+}
+
+export function shiftRsvpButtons(
+  shift: { rsvp_buttons?: ShiftRsvpButtons | string | null }
+): ShiftRsvpButtons {
+  if (shift.rsvp_buttons === "attending" || shift.rsvp_buttons === "decline") {
+    return shift.rsvp_buttons;
+  }
+  return "both";
 }
 
 export function shiftRequiredRoleLabel(required: ShiftRequiredRole): string {

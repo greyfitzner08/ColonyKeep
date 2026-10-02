@@ -24,16 +24,17 @@ import {
   formatAddressPartsLine,
 } from "@/components/forms/address-autocomplete";
 import { isAppointmentDatePast } from "@/lib/appointments/slot-date";
-import { SHIFT_REQUIRED_ROLES, SHIFT_SIGNUP_MODES, SHIFT_TYPES } from "@/lib/constants";
+import { SHIFT_REQUIRED_ROLES, SHIFT_RSVP_BUTTONS, SHIFT_SIGNUP_MODES, SHIFT_TYPES } from "@/lib/constants";
 import {
   isAttendanceShift,
   shiftRequiredRoleLabel,
+  shiftRsvpButtons,
   shiftSignupBlockedReason,
   type ShiftEligibilityProfile,
 } from "@/lib/shifts/eligibility";
 import { formatDate, formatTimeRange, cn } from "@/lib/utils";
 import { looksLikeHtml, sanitizeCalendarHtml } from "@/lib/shifts/calendar-html";
-import type { Shift, ShiftRequiredRole, ShiftSignupMode, ShiftType } from "@/lib/types";
+import type { Shift, ShiftRequiredRole, ShiftRsvpButtons, ShiftSignupMode, ShiftType } from "@/lib/types";
 import { ChevronDown, Plus, Pencil, Trash2 } from "lucide-react";
 
 function shiftIdentityKey(input: {
@@ -78,6 +79,7 @@ interface PositionForm {
   shift_type: ShiftType;
   required_roles: ShiftRequiredRole;
   signup_mode: ShiftSignupMode;
+  rsvp_buttons: ShiftRsvpButtons;
   slots: TimeSlotForm[];
 }
 
@@ -87,6 +89,7 @@ interface EditFormState {
   shift_type: ShiftType;
   required_roles: ShiftRequiredRole;
   signup_mode: ShiftSignupMode;
+  rsvp_buttons: ShiftRsvpButtons;
   date: string;
   start_time: string;
   end_time: string;
@@ -136,6 +139,7 @@ function emptyPosition(defaults?: Partial<Omit<PositionForm, "slots">> & { slots
     shift_type: "event",
     required_roles: "any",
     signup_mode: "coverage",
+    rsvp_buttons: "both",
     slots: [emptySlot()],
     ...defaults,
   };
@@ -147,6 +151,7 @@ const EMPTY_EDIT: EditFormState = {
   shift_type: "event",
   required_roles: "any",
   signup_mode: "coverage",
+  rsvp_buttons: "both",
   date: "",
   start_time: "",
   end_time: "",
@@ -277,6 +282,7 @@ function formFromShift(shift: Shift): EditFormState {
     shift_type: shift.shift_type,
     required_roles: shift.required_roles,
     signup_mode: shift.signup_mode === "attendance" ? "attendance" : "coverage",
+    rsvp_buttons: shiftRsvpButtons(shift),
     date: shift.date,
     start_time: shift.start_time.slice(0, 5),
     end_time: shift.end_time.slice(0, 5),
@@ -406,6 +412,29 @@ export function ShiftBoard({
       .sort((a, b) => a.startDate.localeCompare(b.startDate));
   }, [filtered]);
 
+  async function setEventResponseButtons(eventShifts: Shift[], value: ShiftRsvpButtons) {
+    const ids = eventShifts.filter((shift) => isAttendanceShift(shift)).map((shift) => shift.id);
+    if (ids.length === 0) return;
+    const previous = shiftRowsRef.current;
+    const next = previous.map((shift) =>
+      ids.includes(shift.id) ? { ...shift, rsvp_buttons: value } : shift
+    );
+    shiftRowsRef.current = next;
+    setShiftRows(next);
+    setFormError(null);
+    const response = await fetch("/api/shifts/update", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ids, rsvp_buttons: value }),
+    });
+    const result = await response.json().catch(() => null);
+    if (!response.ok) {
+      shiftRowsRef.current = previous;
+      setShiftRows(previous);
+      setFormError(result?.error ?? "Unable to update response buttons");
+    }
+  }
+
   function toggleEvent(name: string) {
     setOpenEvents((current) => {
       const next = new Set(current);
@@ -436,6 +465,7 @@ export function ShiftBoard({
         shift_type: sample?.shift_type ?? "event",
         required_roles: sample?.required_roles ?? "any",
         signup_mode: sample?.signup_mode === "attendance" ? "attendance" : "coverage",
+        rsvp_buttons: sample ? shiftRsvpButtons(sample) : "both",
         slots: [emptySlot()],
       }),
     ]);
@@ -789,6 +819,7 @@ export function ShiftBoard({
       shift_type: ShiftType;
       required_roles: ShiftRequiredRole;
       signup_mode: ShiftSignupMode;
+      rsvp_buttons: ShiftRsvpButtons;
       date: string;
       start_time: string;
       end_time: string;
@@ -813,6 +844,7 @@ export function ShiftBoard({
           shift_type: position.shift_type,
           required_roles: position.required_roles,
           signup_mode: position.signup_mode,
+          rsvp_buttons: position.rsvp_buttons,
           date: slot.date,
           start_time: slot.start_time,
           end_time: slot.end_time,
@@ -1007,6 +1039,7 @@ export function ShiftBoard({
             shift_type: editForm.shift_type,
             required_roles: editForm.required_roles,
             signup_mode: editForm.signup_mode,
+            rsvp_buttons: editForm.rsvp_buttons,
             date: slot.date,
             start_time: slot.start_time,
             end_time: slot.end_time,
@@ -1097,6 +1130,9 @@ export function ShiftBoard({
     }
 
     if (attendance) {
+      const buttons = shiftRsvpButtons(shift);
+      const allowAttending = buttons !== "decline";
+      const allowDecline = buttons !== "attending";
       if (isSignedUp) {
         return (
           <div className="flex flex-wrap gap-1">
@@ -1108,22 +1144,26 @@ export function ShiftBoard({
             >
               Cancel RSVP
             </Button>
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => claimShift(shift.id, "decline")}
-            >
-              Can&apos;t make it
-            </Button>
+            {allowDecline ? (
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => claimShift(shift.id, "decline")}
+              >
+                Can&apos;t make it
+              </Button>
+            ) : null}
           </div>
         );
       }
       if (isDeclined) {
         return (
           <div className="flex flex-wrap gap-1">
-            <Button size="sm" className={className} onClick={() => claimShift(shift.id, "claim")}>
-              I&apos;m attending
-            </Button>
+            {allowAttending ? (
+              <Button size="sm" className={className} onClick={() => claimShift(shift.id, "claim")}>
+                I&apos;m attending
+              </Button>
+            ) : null}
             <Button
               variant="outline"
               size="sm"
@@ -1136,16 +1176,20 @@ export function ShiftBoard({
       }
       return (
         <div className="flex flex-wrap gap-1">
-          <Button size="sm" className={className} onClick={() => claimShift(shift.id, "claim")}>
-            I&apos;m attending
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => claimShift(shift.id, "decline")}
-          >
-            Can&apos;t make it
-          </Button>
+          {allowAttending ? (
+            <Button size="sm" className={className} onClick={() => claimShift(shift.id, "claim")}>
+              I&apos;m attending
+            </Button>
+          ) : null}
+          {allowDecline ? (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => claimShift(shift.id, "decline")}
+            >
+              Can&apos;t make it
+            </Button>
+          ) : null}
         </div>
       );
     }
@@ -1352,7 +1396,36 @@ export function ShiftBoard({
                   </button>
 
                   {isAdmin && (
-                    <div className="flex shrink-0 flex-wrap gap-2 sm:pt-0.5">
+                    <div className="flex shrink-0 flex-wrap items-center gap-2 sm:pt-0.5">
+                      {event.shifts.some((shift) => isAttendanceShift(shift)) ? (
+                        <Select
+                          value={(() => {
+                            const attendance = event.shifts.filter((shift) => isAttendanceShift(shift));
+                            const first = shiftRsvpButtons(attendance[0]);
+                            return attendance.every((shift) => shiftRsvpButtons(shift) === first)
+                              ? first
+                              : "mixed";
+                          })()}
+                          onValueChange={(value) => {
+                            if (value === "mixed") return;
+                            void setEventResponseButtons(event.shifts, value as ShiftRsvpButtons);
+                          }}
+                        >
+                          <SelectTrigger className="h-9 w-[220px] bg-background text-xs">
+                            <SelectValue placeholder="Response buttons" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="mixed" disabled>
+                              Mixed responses
+                            </SelectItem>
+                            {SHIFT_RSVP_BUTTONS.map((option) => (
+                              <SelectItem key={option.value} value={option.value}>
+                                {option.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      ) : null}
                       <Button
                         type="button"
                         variant="outline"
@@ -1716,6 +1789,28 @@ export function ShiftBoard({
                       </p>
                     </div>
                   </div>
+                  {position.signup_mode === "attendance" ? (
+                    <div className="space-y-1">
+                      <Label>Response buttons</Label>
+                      <Select
+                        value={position.rsvp_buttons}
+                        onValueChange={(value) =>
+                          updatePosition(position.key, { rsvp_buttons: value as ShiftRsvpButtons })
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Which buttons volunteers see" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {SHIFT_RSVP_BUTTONS.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>
+                              {option.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  ) : null}
 
                   <div className="space-y-1">
                     <Label>Required role</Label>
@@ -1953,6 +2048,28 @@ export function ShiftBoard({
                 </Select>
               </div>
             </div>
+            {editForm.signup_mode === "attendance" ? (
+              <div className="space-y-1">
+                <Label>Response buttons</Label>
+                <Select
+                  value={editForm.rsvp_buttons}
+                  onValueChange={(value) =>
+                    setEditForm({ ...editForm, rsvp_buttons: value as ShiftRsvpButtons })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Which buttons volunteers see" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {SHIFT_RSVP_BUTTONS.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : null}
             <div className="space-y-1">
               <Label>Required Role</Label>
               <Select

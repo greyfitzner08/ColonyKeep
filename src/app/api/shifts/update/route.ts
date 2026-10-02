@@ -7,6 +7,22 @@ export async function POST(request: NextRequest) {
   if (response) return response;
 
   const body = await request.json();
+
+  if (Array.isArray(body.ids)) {
+    const buttons =
+      body.rsvp_buttons === "attending" || body.rsvp_buttons === "decline"
+        ? body.rsvp_buttons
+        : "both";
+    const ids = body.ids.filter((id: unknown): id is string => typeof id === "string" && id.length > 0);
+    if (ids.length === 0) {
+      return NextResponse.json({ error: "Missing shift ids" }, { status: 400 });
+    }
+    const service = await createServiceClient();
+    const { error } = await service.from("shifts").update({ rsvp_buttons: buttons }).in("id", ids);
+    if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+    return NextResponse.json({ rsvp_buttons: buttons, count: ids.length });
+  }
+
   if (!body.id) {
     return NextResponse.json({ error: "Missing shift id" }, { status: 400 });
   }
@@ -17,6 +33,10 @@ export async function POST(request: NextRequest) {
   }
 
   const signupMode = body.signup_mode === "attendance" ? "attendance" : "coverage";
+  const rsvpButtons =
+    body.rsvp_buttons === "attending" || body.rsvp_buttons === "decline"
+      ? body.rsvp_buttons
+      : "both";
   const volunteersNeeded =
     signupMode === "attendance"
       ? 0
@@ -31,6 +51,7 @@ export async function POST(request: NextRequest) {
       shift_type: body.shift_type,
       required_roles: body.required_roles ?? "any",
       signup_mode: signupMode,
+      rsvp_buttons: rsvpButtons,
       date: body.date,
       start_time: body.start_time,
       end_time: body.end_time,

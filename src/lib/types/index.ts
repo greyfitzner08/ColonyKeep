@@ -71,6 +71,9 @@ export type ShiftRequiredRole =
 /** coverage = fill N spots (+ waitlist); attendance = open RSVP who is / isn’t coming. */
 export type ShiftSignupMode = "coverage" | "attendance";
 
+/** Which attendance responses volunteers can submit. */
+export type ShiftRsvpButtons = "both" | "attending" | "decline";
+
 export type PublicBookingStatus =
   | "pending"
   | "confirmed"
@@ -456,6 +459,8 @@ export interface Shift {
   required_roles: ShiftRequiredRole;
   /** coverage = limited spots; attendance = open RSVP (no capacity). */
   signup_mode: ShiftSignupMode;
+  /** Attendance events: which RSVP buttons volunteers see. */
+  rsvp_buttons?: ShiftRsvpButtons;
   date: string;
   start_time: string;
   end_time: string;

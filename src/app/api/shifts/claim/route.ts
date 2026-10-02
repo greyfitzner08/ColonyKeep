@@ -4,6 +4,7 @@ import { isAppointmentDatePast } from "@/lib/appointments/slot-date";
 import { createServiceClient } from "@/lib/supabase/server";
 import {
   isAttendanceShift,
+  shiftRsvpButtons,
   shiftSignupBlockedReason,
   type ShiftEligibilityProfile,
 } from "@/lib/shifts/eligibility";
@@ -59,7 +60,7 @@ export async function POST(request: NextRequest) {
   const { data: shift } = await service
     .from("shifts")
     .select(
-      "id, date, signup_mode, required_roles, volunteers_needed, signed_up_emails, waitlist_emails, declined_emails"
+      "id, date, signup_mode, rsvp_buttons, required_roles, volunteers_needed, signed_up_emails, waitlist_emails, declined_emails"
     )
     .eq("id", shiftId)
     .single();
@@ -87,7 +88,15 @@ export async function POST(request: NextRequest) {
     }
   }
 
+  const responseButtons = shiftRsvpButtons(shift);
+
   if (action === "claim") {
+    if (attendance && responseButtons === "decline") {
+      return NextResponse.json(
+        { error: "This event is only collecting can't make it responses." },
+        { status: 400 }
+      );
+    }
     if (isAppointmentDatePast(shift.date)) {
       return NextResponse.json(
         { error: "Cannot sign up for a shift on a past date" },
@@ -160,6 +169,12 @@ export async function POST(request: NextRequest) {
     }
     waitlist = removeEmail(waitlist, targetEmail);
   } else if (action === "decline") {
+    if (attendance && responseButtons === "attending") {
+      return NextResponse.json(
+        { error: "This event is only collecting attending responses." },
+        { status: 400 }
+      );
+    }
     if (!attendance) {
       return NextResponse.json(
         { error: "Only attendance shifts support “can’t make it” responses." },

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireApiRole } from "@/lib/api/auth";
 import { createServiceClient } from "@/lib/supabase/server";
-import type { ShiftRequiredRole, ShiftSignupMode, ShiftType } from "@/lib/types";
+import type { ShiftRequiredRole, ShiftRsvpButtons, ShiftSignupMode, ShiftType } from "@/lib/types";
 
 interface ShiftCreateInput {
   event_name?: string;
@@ -9,6 +9,7 @@ interface ShiftCreateInput {
   shift_type?: ShiftType;
   required_roles?: ShiftRequiredRole;
   signup_mode?: ShiftSignupMode;
+  rsvp_buttons?: ShiftRsvpButtons;
   date?: string;
   start_time?: string;
   end_time?: string;
@@ -20,6 +21,11 @@ interface ShiftCreateInput {
 
 function normalizeSignupMode(value: unknown): ShiftSignupMode {
   return value === "attendance" ? "attendance" : "coverage";
+}
+
+function normalizeRsvpButtons(value: unknown): ShiftRsvpButtons {
+  if (value === "attending" || value === "decline") return value;
+  return "both";
 }
 
 function normalizeShiftRow(entry: ShiftCreateInput, fallbackEventName?: string) {
@@ -49,6 +55,7 @@ function normalizeShiftRow(entry: ShiftCreateInput, fallbackEventName?: string) 
       shift_type: entry.shift_type ?? "event",
       required_roles: entry.required_roles ?? "any",
       signup_mode: signupMode,
+      rsvp_buttons: normalizeRsvpButtons(entry.rsvp_buttons),
       date,
       start_time: startTime,
       end_time: endTime,

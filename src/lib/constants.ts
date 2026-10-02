@@ -1,6 +1,7 @@
 import type {
   HelpRequestStatus,
   ShiftRequiredRole,
+  ShiftRsvpButtons,
   ShiftSignupMode,
   ShiftType,
   UserRole,
@@ -83,6 +84,12 @@ export const SHIFT_SIGNUP_MODES: {
     label: "Attendance (who’s coming)",
     hint: "Open RSVP — track who’s attending or can’t make it. No spot limit.",
   },
+];
+
+export const SHIFT_RSVP_BUTTONS: { value: ShiftRsvpButtons; label: string }[] = [
+  { value: "both", label: "I'm attending and Can't make it" },
+  { value: "attending", label: "I'm attending only" },
+  { value: "decline", label: "Can't make it only" },
 ];
 
 export const MEDICAL_KEYWORDS = [
