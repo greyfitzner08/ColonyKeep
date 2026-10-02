@@ -159,6 +159,30 @@ function shiftTypeLabel(type: ShiftType) {
   return SHIFT_TYPES.find((entry) => entry.value === type)?.label ?? type;
 }
 
+function eventSummary(event: {
+  positions: { name: string }[];
+  shifts: { length: number };
+  hasCoverage: boolean;
+  hasAttendance: boolean;
+  coverageFilled: number;
+  attendanceFilled: number;
+  needed: number;
+  filled: number;
+}) {
+  const roster = event.hasCoverage
+    ? `${event.coverageFilled}/${event.needed} coverage filled`
+    : "";
+  const attending = event.hasAttendance ? `${event.attendanceFilled} attending` : "";
+  const signedUp =
+    !event.hasCoverage && !event.hasAttendance ? `${event.filled} signed up` : "";
+  const counts = [roster, attending, signedUp].filter(Boolean).join(" · ");
+  if (isFlatEvent(event.positions)) {
+    if (event.shifts.length === 1) return counts;
+    return `${event.shifts.length} dates · ${counts}`;
+  }
+  return `${event.positions.length} position${event.positions.length === 1 ? "" : "s"} · ${event.shifts.length} shift${event.shifts.length === 1 ? "" : "s"}${counts ? ` · ${counts}` : ""}`;
+}
+
 function ShiftNotes({ notes }: { notes: string }) {
   if (!looksLikeHtml(notes)) {
     return <p className="whitespace-pre-wrap text-sm text-muted-foreground">{notes}</p>;
@@ -174,6 +198,15 @@ function ShiftNotes({ notes }: { notes: string }) {
 function positionLabel(shift: Shift) {
   const name = shift.position_name?.trim();
   return name || shiftTypeLabel(shift.shift_type);
+}
+
+/** Calendar imports use this name when the event has no real volunteer jobs. */
+function isGenericPosition(name: string) {
+  return name.trim().toLowerCase() === "volunteer";
+}
+
+function isFlatEvent(positions: { name: string }[]) {
+  return positions.length === 1 && isGenericPosition(positions[0].name);
 }
 
 function formFromShift(shift: Shift): EditFormState {
@@ -1190,20 +1223,23 @@ export function ShiftBoard({
                       </h2>
                       <p className="text-base font-semibold text-primary sm:text-lg">
                         {event.whenLabel}
+                        {isFlatEvent(event.positions) && event.shifts.length === 1
+                          ? ` · ${formatTimeRange(event.shifts[0].start_time, event.shifts[0].end_time)}`
+                          : ""}
                       </p>
+                      {isFlatEvent(event.positions) &&
+                      event.shifts.length === 1 &&
+                      event.shifts[0].location.trim() &&
+                      event.shifts[0].location.trim() !== "See calendar" ? (
+                        <p className="text-sm text-foreground/80">{event.shifts[0].location}</p>
+                      ) : null}
                       <p className="text-sm text-muted-foreground">
-                        {event.positions.length} position
-                        {event.positions.length === 1 ? "" : "s"} · {event.shifts.length}{" "}
-                        shift
-                        {event.shifts.length === 1 ? "" : "s"}
-                        {event.hasCoverage
-                          ? ` · ${event.coverageFilled}/${event.needed} coverage filled`
+                        {eventSummary(event)}
+                        {!isOpen
+                          ? isFlatEvent(event.positions)
+                            ? " · tap for details"
+                            : " · tap to view shifts"
                           : ""}
-                        {event.hasAttendance ? ` · ${event.attendanceFilled} attending` : ""}
-                        {!event.hasCoverage && !event.hasAttendance
-                          ? ` · ${event.filled} signed up`
-                          : ""}
-                        {!isOpen ? " · tap to view shifts" : ""}
                       </p>
                     </div>
                     <ChevronDown
@@ -1241,34 +1277,48 @@ export function ShiftBoard({
                 </div>
 
                 {isOpen && (
-                  <div className="divide-y border-t border-primary/15 bg-background">
-                    {event.positions.map((position) => (
+                  <div
+                    className={cn(
+                      "border-t border-primary/15 bg-background",
+                      !isFlatEvent(event.positions) && "divide-y"
+                    )}
+                  >
+                    {event.positions.map((position) => {
+                      const flat = isFlatEvent(event.positions);
+                      const single = flat && position.shifts.length === 1;
+                      return (
                       <section
                         key={`${event.name}-${position.name}`}
-                        className="border-l-4 border-l-secondary-foreground/25 bg-secondary/30 px-4 py-4 sm:px-5"
+                        className={
+                          flat
+                            ? "px-4 py-4 sm:px-5"
+                            : "border-l-4 border-l-secondary-foreground/25 bg-secondary/30 px-4 py-4 sm:px-5"
+                        }
                       >
-                        <div className="mb-3 flex items-center justify-between gap-2">
-                          <h3 className="text-base font-semibold text-secondary-foreground">
-                            {position.name}
-                          </h3>
-                          {isAdmin && (
-                            <button
-                              type="button"
-                              className="text-xs text-destructive hover:underline"
-                              onClick={() =>
-                                requestDeletePosition(
-                                  event.name,
-                                  position.name,
-                                  position.shifts
-                                )
-                              }
-                            >
-                              Remove
-                            </button>
-                          )}
-                        </div>
+                        {!flat && (
+                          <div className="mb-3 flex items-center justify-between gap-2">
+                            <h3 className="text-base font-semibold text-secondary-foreground">
+                              {position.name}
+                            </h3>
+                            {isAdmin && (
+                              <button
+                                type="button"
+                                className="text-xs text-destructive hover:underline"
+                                onClick={() =>
+                                  requestDeletePosition(
+                                    event.name,
+                                    position.name,
+                                    position.shifts
+                                  )
+                                }
+                              >
+                                Remove
+                              </button>
+                            )}
+                          </div>
+                        )}
 
-                        <ul className="space-y-3">
+                        <ul className={single ? "" : "space-y-3"}>
                           {position.shifts.map((shift) => {
                             const { signedUp, waitlist, declined, attendance, spotsLeft } =
                               shiftSignupSummary(shift);
@@ -1276,29 +1326,37 @@ export function ShiftBoard({
                             return (
                               <li
                                 key={shift.id}
-                                className={cn(
-                                  "rounded-xl border border-border bg-background p-3 shadow-sm sm:p-4",
-                                  "border-l-4 border-l-accent-foreground/30",
-                                  (attendance || openSpots > 0) && "bg-primary/[0.03]"
-                                )}
+                                className={
+                                  single
+                                    ? undefined
+                                    : cn(
+                                        "rounded-xl border border-border bg-background p-3 shadow-sm sm:p-4",
+                                        "border-l-4 border-l-accent-foreground/30",
+                                        (attendance || openSpots > 0) && "bg-primary/[0.03]"
+                                      )
+                                }
                               >
                                 <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between md:gap-4">
                                   <div className="min-w-0 flex-1 space-y-1">
-                                    <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-                                      <span className="font-semibold">
-                                        {formatDate(shift.date)}
-                                      </span>
-                                      <span className="tabular-nums text-muted-foreground">
-                                        {formatTimeRange(shift.start_time, shift.end_time)}
-                                      </span>
-                                      <span className="rounded-full border px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-                                        {attendance ? "Attendance" : "Coverage"}
-                                      </span>
-                                    </div>
-                                    <p className="text-sm text-muted-foreground">
-                                      {shift.location}
-                                    </p>
-                                    {typeFilter === "all" ? (
+                                    {!single ? (
+                                      <>
+                                        <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                                          <span className="font-semibold">
+                                            {formatDate(shift.date)}
+                                          </span>
+                                          <span className="tabular-nums text-muted-foreground">
+                                            {formatTimeRange(shift.start_time, shift.end_time)}
+                                          </span>
+                                          <span className="rounded-full border px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                                            {attendance ? "Attendance" : "Coverage"}
+                                          </span>
+                                        </div>
+                                        <p className="text-sm text-muted-foreground">
+                                          {shift.location}
+                                        </p>
+                                      </>
+                                    ) : null}
+                                    {typeFilter === "all" && !(single && shift.shift_type === "event") ? (
                                       <p className="text-xs text-muted-foreground">
                                         {shiftTypeLabel(shift.shift_type)}
                                       </p>
@@ -1389,7 +1447,8 @@ export function ShiftBoard({
                           })}
                         </ul>
                       </section>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </article>
