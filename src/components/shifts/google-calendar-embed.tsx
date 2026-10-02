@@ -26,12 +26,7 @@ export function GoogleCalendarEmbed({
         className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left"
         aria-expanded={open}
       >
-        <div>
-          <h2 className="text-base font-semibold">Team calendar</h2>
-          <p className="text-sm text-muted-foreground">
-            Shared Google Calendar for upcoming events and dates.
-          </p>
-        </div>
+        <h2 className="text-base font-semibold">Team calendar</h2>
         <ChevronDown
           className={cn(
             "h-4 w-4 shrink-0 text-muted-foreground transition-transform",
