@@ -1,12 +1,11 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { sanitizeCalendarHtml } from "@/lib/shifts/calendar-html";
 import {
   fetchGoogleCalendarEvents,
   googleCalendarIcalUrl,
   type GoogleCalendarSignupEvent,
 } from "@/lib/shifts/google-calendar-ical";
 
-const CACHE_OK_MS = 5 * 60 * 1000;
+const CACHE_OK_MS = 20 * 1000;
 const CACHE_FAIL_MS = 30 * 1000;
 
 let cache: {
@@ -87,14 +86,14 @@ export async function syncGoogleCalendarShifts(service: SupabaseClient): Promise
       continue;
     }
 
-    const notesLookRaw = notesNeedCleanup(row.notes);
+    const notesChanged = (row.notes ?? "").trim() !== (event.notes ?? "").trim();
     const changed =
       row.event_name !== event.eventName ||
       row.date !== event.date ||
       normalizeTime(row.start_time) !== event.startTime ||
       normalizeTime(row.end_time) !== event.endTime ||
-      row.location !== event.location ||
-      notesLookRaw;
+      normalizeLocation(row.location) !== normalizeLocation(event.location) ||
+      notesChanged;
     if (!changed) continue;
 
     const { error: updateError } = await service
@@ -105,7 +104,7 @@ export async function syncGoogleCalendarShifts(service: SupabaseClient): Promise
         start_time: event.startTime,
         end_time: event.endTime,
         location: event.location,
-        ...(notesLookRaw ? { notes: event.notes } : {}),
+        notes: event.notes,
       })
       .eq("id", row.id);
     if (updateError) throw new Error(updateError.message);
@@ -149,9 +148,10 @@ async function loadEvents(url: string, from: Date, to: Date): Promise<GoogleCale
   }
 }
 
-function notesNeedCleanup(notes: string | null): boolean {
-  if (!notes || !/<\/?[a-z][a-z0-9]*\b/i.test(notes)) return false;
-  return sanitizeCalendarHtml(notes) !== notes.trim();
+function normalizeLocation(value: string | null): string {
+  const text = (value ?? "").trim();
+  if (text.toLowerCase() === "see calendar") return "";
+  return text;
 }
 
 function emptyRoster(row: ExistingShift): boolean {

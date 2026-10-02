@@ -690,12 +690,28 @@ function addHoursTime(time: string, hours: number): string {
 }
 
 function calendarDescription(props: Prop[]): string {
+  const plain = sanitizeCalendarHtml(firstValue(props, "DESCRIPTION") ?? "");
   const alt = props.find(
     (item) => item.name === "X-ALT-DESC" && /html/i.test(item.params.FMTTYPE ?? "")
   );
   const altAny = props.find((item) => item.name === "X-ALT-DESC");
-  const raw = (alt ?? altAny)?.value || firstValue(props, "DESCRIPTION") || "";
-  return sanitizeCalendarHtml(raw);
+  const html = sanitizeCalendarHtml((alt ?? altAny)?.value ?? "");
+  if (!html) return plain;
+  if (!plain) return html;
+  // Google's HTML copy can lag behind the description field you edit.
+  if (comparableText(html) === comparableText(plain)) return html;
+  return plain;
+}
+
+function comparableText(value: string): string {
+  return value
+    .replace(/<br\s*\/?>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
 }
 
 function looksLikeMarkup(value: string): boolean {
