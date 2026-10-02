@@ -63,6 +63,7 @@ export function EntranceReviewManager({
   const [busyId, setBusyId] = useState<string | null>(null);
   const [savedId, setSavedId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [denialInvalidId, setDenialInvalidId] = useState<string | null>(null);
 
   function answersFor(application: AdoptionEntranceApplication): EntranceAnswers {
     return drafts[application.id] ?? { ...emptyEntranceAnswers(), ...application.answers };
@@ -120,10 +121,12 @@ export function EntranceReviewManager({
     setError(null);
     const denialReason = reasons[application.id]?.trim() ?? "";
     if (decision === "denied" && !denialReason) {
+      setDenialInvalidId(application.id);
       setError("Enter why this cat was declined so the decision is clear.");
       setOpenId(application.id);
       return;
     }
+    setDenialInvalidId(null);
     setBusyId(application.id);
     try {
       const response = await fetch("/api/adoption/entrance/review", {
@@ -345,13 +348,27 @@ export function EntranceReviewManager({
                     value={reasons[application.id] ?? ""}
                     rows={3}
                     placeholder="Required only if you decline this cat."
-                    onChange={(event) =>
+                    aria-invalid={denialInvalidId === application.id}
+                    className={
+                      denialInvalidId === application.id
+                        ? "border-destructive focus-visible:ring-destructive"
+                        : undefined
+                    }
+                    onChange={(event) => {
+                      setDenialInvalidId((current) =>
+                        current === application.id ? null : current
+                      );
                       setReasons((current) => ({
                         ...current,
                         [application.id]: event.target.value,
-                      }))
-                    }
+                      }));
+                    }}
                   />
+                  {denialInvalidId === application.id && (
+                    <p className="text-sm text-destructive">
+                      Enter why this cat was declined so the decision is clear.
+                    </p>
+                  )}
                 </div>
                 <div className="flex flex-wrap gap-2">
                   <Button
