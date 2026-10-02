@@ -129,16 +129,27 @@ function escapeAttribute(value: string): string {
 export function sanitizeLinkHref(raw: string): string | null {
   let value = raw.trim();
   if (!value || /javascript:|data:/i.test(value)) return null;
-  if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
-    value = `mailto:${value}`;
+
+  // Collapse mailto:mailto:… from re-saving (bare-email check used to match "mailto:a@b.c").
+  value = value.replace(/^(mailto:)+/i, "mailto:");
+
+  const hasScheme = /^[a-z][a-z0-9+.-]*:/i.test(value);
+  if (!hasScheme) {
+    if (/^[^\s@:]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+      value = `mailto:${value}`;
+    } else {
+      value = `https://${value.replace(/^\/+/, "")}`;
+    }
   }
-  if (!/^[a-z][a-z0-9+.-]*:/i.test(value)) {
-    value = `https://${value.replace(/^\/+/, "")}`;
-  }
+
   try {
     const url = new URL(value);
     if (url.protocol === "http:" || url.protocol === "https:") return url.toString();
-    if (url.protocol === "mailto:" && url.pathname.includes("@")) return url.toString();
+    if (url.protocol === "mailto:") {
+      const address = (url.pathname || value.replace(/^mailto:/i, "")).replace(/^\/+/, "").trim();
+      if (!/^[^\s@:]+@[^\s@]+\.[^\s@]+$/.test(address)) return null;
+      return `mailto:${address}`;
+    }
   } catch {
     return null;
   }
