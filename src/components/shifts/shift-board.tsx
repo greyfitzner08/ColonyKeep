@@ -260,6 +260,11 @@ const EMPTY_EDIT: EditFormState = {
   notes: "",
 };
 
+function collectsAttending(shift: { rsvp_buttons?: string | null }) {
+  const buttons = shiftRsvpButtons(shift);
+  return buttons === "both" || buttons === "attending";
+}
+
 function shiftTypeLabel(type: ShiftType) {
   return SHIFT_TYPES.find((entry) => entry.value === type)?.label ?? type;
 }
@@ -269,6 +274,7 @@ function eventSummary(event: {
   shifts: { length: number };
   hasCoverage: boolean;
   hasAttendance: boolean;
+  showAttendingCount: boolean;
   coverageFilled: number;
   attendanceFilled: number;
   needed: number;
@@ -277,7 +283,7 @@ function eventSummary(event: {
   const roster = event.hasCoverage
     ? `${event.coverageFilled}/${event.needed} spots filled`
     : "";
-  const attending = event.hasAttendance ? `${event.attendanceFilled} attending` : "";
+  const attending = event.showAttendingCount ? `${event.attendanceFilled} attending` : "";
   const signedUp =
     !event.hasCoverage && !event.hasAttendance ? `${event.filled} signed up` : "";
   const counts = [roster, attending, signedUp].filter(Boolean).join(" · ");
@@ -479,7 +485,7 @@ export function ShiftBoard({
           return sum + (shift.signed_up_emails?.length ?? 0);
         }, 0);
         const attendanceFilled = sorted.reduce((sum, shift) => {
-          if (!isAttendanceShift(shift)) return sum;
+          if (!isAttendanceShift(shift) || !collectsAttending(shift)) return sum;
           return sum + (shift.signed_up_emails?.length ?? 0);
         }, 0);
         const needed = sorted.reduce((sum, shift) => {
@@ -487,6 +493,9 @@ export function ShiftBoard({
           return sum + Math.max(0, shift.volunteers_needed);
         }, 0);
         const hasAttendance = sorted.some((shift) => isAttendanceShift(shift));
+        const showAttendingCount = sorted.some(
+          (shift) => isAttendanceShift(shift) && collectsAttending(shift)
+        );
         const hasCoverage = sorted.some((shift) => !isAttendanceShift(shift));
 
         return {
@@ -500,6 +509,7 @@ export function ShiftBoard({
           attendanceFilled,
           needed,
           hasAttendance,
+          showAttendingCount,
           hasCoverage,
           positions: Array.from(byPosition.entries())
             .map(([positionName, positionShifts]) => ({
@@ -1628,6 +1638,12 @@ export function ShiftBoard({
                           {position.shifts.map((shift) => {
                             const { signedUp, waitlist, declined, attendance, spotsLeft } =
                               shiftSignupSummary(shift);
+                            const showAttendingCount = !attendance || collectsAttending(shift);
+                            const showDeclineCount =
+                              attendance &&
+                              (shiftRsvpButtons(shift) === "both" ||
+                                shiftRsvpButtons(shift) === "decline") &&
+                              declined.length > 0;
                             const openSpots = Number.isFinite(spotsLeft) ? spotsLeft : 0;
                             return (
                               <li
@@ -1695,14 +1711,17 @@ export function ShiftBoard({
                                   </div>
 
                                   <div className="flex flex-col gap-2 sm:flex-row sm:items-center md:flex-col md:items-stretch lg:flex-row lg:items-center">
+                                    {showAttendingCount || showDeclineCount ? (
                                     <div className="text-sm tabular-nums sm:min-w-[5.5rem] md:text-right">
                                       {attendance ? (
                                         <>
-                                          <p>
-                                            <span className="font-semibold">{signedUp.length}</span>
-                                            <span className="text-primary"> attending</span>
-                                          </p>
-                                          {declined.length > 0 ? (
+                                          {showAttendingCount ? (
+                                            <p>
+                                              <span className="font-semibold">{signedUp.length}</span>
+                                              <span className="text-primary"> attending</span>
+                                            </p>
+                                          ) : null}
+                                          {showDeclineCount ? (
                                             <p className="text-xs text-muted-foreground">
                                               {declined.length} can&apos;t make it
                                             </p>
@@ -1736,6 +1755,7 @@ export function ShiftBoard({
                                         </>
                                       )}
                                     </div>
+                                    ) : null}
                                     <div className="flex items-center gap-1">
                                       {isAdmin && position.shifts.length > 1 ? (
                                         <Button
