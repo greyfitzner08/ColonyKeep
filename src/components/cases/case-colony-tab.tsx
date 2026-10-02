@@ -68,7 +68,7 @@ export function CaseColonyTab({
           readOnly ? undefined : (
             <Button size="sm" onClick={() => setAddCatOpen(true)}>
               <Plus className="h-4 w-4 mr-1" />
-              Add cat
+              Add cats
             </Button>
           )
         }
@@ -86,7 +86,7 @@ export function CaseColonyTab({
             {!readOnly && (
               <>
                 {" "}
-                Use <span className="font-medium">Add cat</span> to get started.
+                Use <span className="font-medium">Add cats</span> to get started.
               </>
             )}
           </p>

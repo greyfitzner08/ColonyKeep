@@ -366,10 +366,10 @@ export function TrackedCatCard({
           <div className="space-y-2 sm:col-span-2">
             <Label className="text-sm font-medium">Medical Notes</Label>
             <Textarea
-              className="text-base"
+              className="text-sm"
               value={draft.medical_notes}
               onChange={(e) => setDraft({ ...draft, medical_notes: e.target.value })}
-              rows={3}
+              rows={1}
             />
           </div>
 

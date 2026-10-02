@@ -94,11 +94,11 @@ export function TrackedCatDetailsFields({
       <div className="space-y-2 sm:col-span-2">
         <Label className="text-sm font-medium">Medical Notes</Label>
         <Textarea
-          className="text-base"
+          className="text-sm"
           placeholder="Injuries, illness, special handling..."
           value={value.medical_notes}
           onChange={(e) => onChange({ ...value, medical_notes: e.target.value })}
-          rows={3}
+          rows={1}
         />
       </div>
     </div>

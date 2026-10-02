@@ -10,6 +10,79 @@ import { createServiceClient } from "@/lib/supabase/server";
 import type { FosterFacility } from "@/lib/cases/foster-facility";
 import { resolveFemaleReproductiveStatusForSave } from "@/lib/cases/female-reproductive-status";
 
+const MAX_CATS_PER_SAVE = 30;
+
+type CatGroupInput = {
+  count?: unknown;
+  gender?: unknown;
+  clinicName?: unknown;
+  medical_notes?: unknown;
+  wentToFoster?: unknown;
+  fosterFacility?: unknown;
+  fosterFacilityOther?: unknown;
+};
+
+function parseCatGroups(
+  groups: unknown
+): { error: string } | { rows: Record<string, unknown>[]; anyFixed: boolean } {
+  if (!Array.isArray(groups) || groups.length === 0) {
+    return { error: "Add at least one group of cats." };
+  }
+
+  const rows: Record<string, unknown>[] = [];
+  let anyFixed = false;
+
+  for (const [index, raw] of groups.entries()) {
+    const group = (raw ?? {}) as CatGroupInput;
+    const label = `Group ${index + 1}`;
+    const count = Math.floor(Number(group.count));
+    if (!Number.isFinite(count) || count < 1) {
+      return { error: `${label}: enter how many cats.` };
+    }
+    const gender = typeof group.gender === "string" ? group.gender.trim().toLowerCase() : "";
+    if (gender !== "male" && gender !== "female") {
+      return { error: `${label}: select male or female.` };
+    }
+    const clinicName = typeof group.clinicName === "string" ? group.clinicName.trim() : "";
+    const fixedAtClinic = clinicName.length > 0;
+    const wentToFoster = (group.wentToFoster ?? "") as "" | "yes" | "no";
+    const { error: fosterError, fields: fosterFields } = resolveTrackedCatFosterFields({
+      wentToFoster,
+      fosterFacility: (group.fosterFacility ?? "") as FosterFacility | "",
+      fosterFacilityOther: typeof group.fosterFacilityOther === "string" ? group.fosterFacilityOther : "",
+      clinicFixed: fixedAtClinic,
+      requireFoster: fixedAtClinic,
+    });
+    if (fosterError) return { error: `${label}: ${fosterError}` };
+
+    const medicalNotes =
+      typeof group.medical_notes === "string" && group.medical_notes.trim()
+        ? group.medical_notes.trim()
+        : null;
+
+    const row = {
+      gender,
+      medical_notes: medicalNotes,
+      ...(fosterFields ?? {}),
+      ...(fixedAtClinic
+        ? {
+            clinic_name: clinicName.slice(0, 120),
+            trapped_status: "Trapped",
+            appointment_status: "Complete",
+          }
+        : {}),
+    };
+    if (fixedAtClinic) anyFixed = true;
+    for (let i = 0; i < count; i += 1) rows.push({ ...row });
+  }
+
+  if (rows.length > MAX_CATS_PER_SAVE) {
+    return { error: `Add up to ${MAX_CATS_PER_SAVE} cats at a time.` };
+  }
+
+  return { rows, anyFixed };
+}
+
 export async function POST(request: NextRequest) {
   const { profile, response } = await requireCaseWorker();
   if (response) return response;
@@ -46,6 +119,33 @@ export async function POST(request: NextRequest) {
       profile: profile!,
     });
     if (claimBlock) return claimBlock;
+
+    if (Array.isArray(body?.groups)) {
+      const parsed = parseCatGroups(body.groups);
+      if ("error" in parsed) {
+        return NextResponse.json({ error: parsed.error }, { status: 400 });
+      }
+      const { rows, anyFixed } = parsed;
+      const { data: cats, error: insertError } = await service
+        .from("cats")
+        .insert(rows.map((row) => ({ ...row, help_request_id: helpRequestId })))
+        .select("*");
+
+      if (insertError || !cats) {
+        return NextResponse.json(
+          { error: insertError?.message ?? "Unable to add cats" },
+          { status: 400 }
+        );
+      }
+
+      if (anyFixed) {
+        await syncTrackedCatFixesForCase(service, helpRequestId);
+      } else if (cats.some((cat) => cat.went_to_foster_facility)) {
+        await updateHelpRequestCatCounts(service, helpRequestId);
+      }
+
+      return NextResponse.json({ cats });
+    }
 
     const rawGender = typeof body?.gender === "string" ? body.gender.trim().toLowerCase() : "";
     if (rawGender !== "male" && rawGender !== "female") {
