@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { Check, ChevronDown, Copy, X } from "lucide-react";
+import { Check, ChevronDown, Copy, Trash2, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -399,12 +399,14 @@ function ApplicationCard({
   cats,
   mode = "list",
   onClose,
+  onDeleted,
 }: {
   application: AdoptionApplication;
   cats: { id: string; name: string }[];
   /** list = expandable card stack; panel = always-open review pane under the table */
   mode?: "list" | "panel";
   onClose?: () => void;
+  onDeleted?: () => void;
 }) {
   const router = useRouter();
   const ranking = rankAdoptionApplication(application.answers);
@@ -421,6 +423,7 @@ function ApplicationCard({
     catId: application.cat_id ?? "none",
   });
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [justSaved, setJustSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -468,6 +471,33 @@ function ApplicationCard({
       catId,
     });
     setJustSaved(true);
+    router.refresh();
+  }
+
+  async function removeApplication() {
+    const label = fullName || application.applicant_email || "this application";
+    if (
+      !confirm(
+        `Delete the adoption application from ${label}? This cannot be undone.`
+      )
+    ) {
+      return;
+    }
+
+    setDeleting(true);
+    setError(null);
+    const response = await fetch("/api/adoption/applications/delete", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: application.id }),
+    });
+    const result = await response.json().catch(() => null);
+    setDeleting(false);
+    if (!response.ok) {
+      setError(result?.error ?? "Unable to delete application");
+      return;
+    }
+    onDeleted?.();
     router.refresh();
   }
 
@@ -648,32 +678,43 @@ function ApplicationCard({
               />
             </div>
             {error ? <p className="text-sm text-destructive">{error}</p> : null}
-            <div className="flex items-center justify-end gap-3">
-              {justSaved && !dirty ? (
-                <p className="text-sm text-emerald-700">Review saved</p>
-              ) : null}
+            <div className="flex flex-wrap items-center justify-between gap-3">
               <Button
                 type="button"
-                onClick={() => void save()}
-                disabled={saving || !dirty}
-                variant={justSaved && !dirty ? "outline" : "default"}
-                className={cn(
-                  justSaved &&
-                    !dirty &&
-                    "border-emerald-300 bg-emerald-50 text-emerald-900 hover:bg-emerald-50"
-                )}
+                variant="destructive"
+                disabled={saving || deleting}
+                onClick={() => void removeApplication()}
               >
-                {saving ? (
-                  "Saving…"
-                ) : justSaved && !dirty ? (
-                  <>
-                    <Check className="mr-1.5 h-4 w-4" />
-                    Saved
-                  </>
-                ) : (
-                  "Save review"
-                )}
+                <Trash2 className="mr-1.5 h-4 w-4" />
+                {deleting ? "Deleting…" : "Delete application"}
               </Button>
+              <div className="flex items-center gap-3">
+                {justSaved && !dirty ? (
+                  <p className="text-sm text-emerald-700">Review saved</p>
+                ) : null}
+                <Button
+                  type="button"
+                  onClick={() => void save()}
+                  disabled={saving || deleting || !dirty}
+                  variant={justSaved && !dirty ? "outline" : "default"}
+                  className={cn(
+                    justSaved &&
+                      !dirty &&
+                      "border-emerald-300 bg-emerald-50 text-emerald-900 hover:bg-emerald-50"
+                  )}
+                >
+                  {saving ? (
+                    "Saving…"
+                  ) : justSaved && !dirty ? (
+                    <>
+                      <Check className="mr-1.5 h-4 w-4" />
+                      Saved
+                    </>
+                  ) : (
+                    "Save review"
+                  )}
+                </Button>
+              </div>
             </div>
           </section>
         </CardContent>
@@ -1041,6 +1082,7 @@ export function AdoptionApplicationsManager({
               cats={cats}
               mode="panel"
               onClose={() => setFocusedId(null)}
+              onDeleted={() => setFocusedId(null)}
             />
           ) : (
             <p className="rounded-lg border border-dashed px-4 py-6 text-center text-sm text-muted-foreground">
