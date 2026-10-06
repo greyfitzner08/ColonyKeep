@@ -128,10 +128,10 @@ function ReviewCollapsibleSection({
   const [open, setOpen] = useState(defaultOpen);
 
   return (
-    <div className="space-y-4 rounded-lg border bg-muted/20 p-4">
+    <div className="rounded-lg border bg-muted/20">
       <button
         type="button"
-        className="flex w-full items-start gap-3 text-left"
+        className="flex w-full items-start gap-3 px-4 py-3 text-left"
         onClick={() => setOpen((value) => !value)}
         aria-expanded={open}
       >
@@ -148,8 +148,31 @@ function ReviewCollapsibleSection({
           )}
         />
       </button>
-      {open ? children : null}
+      {open ? <div className="space-y-4 border-t px-4 py-3">{children}</div> : null}
     </div>
+  );
+}
+
+/** Non-collapsible bordered section for the review dialog. */
+function ReviewSection({
+  title,
+  description,
+  children,
+}: {
+  title: string;
+  description?: string;
+  children: ReactNode;
+}) {
+  return (
+    <section className="space-y-4 rounded-lg border bg-muted/20 p-4">
+      <div className="space-y-1">
+        <p className="text-sm font-medium">{title}</p>
+        {description ? (
+          <p className="text-xs text-muted-foreground">{description}</p>
+        ) : null}
+      </div>
+      {children}
+    </section>
   );
 }
 
@@ -1296,9 +1319,11 @@ export function VolunteersManager({
     ) : null;
 
     return (
-      <div className="space-y-4">
-        <div className="space-y-2 rounded-md border p-3">
-          <Label htmlFor={`application-status-${app.id}`}>Status</Label>
+      <div className="space-y-5">
+        <ReviewSection
+          title="Application status"
+          description="Rejected and inactive applications can be reopened. Inactive blocks login until re-approved."
+        >
           <Select
             value={app.status}
             onValueChange={(value) =>
@@ -1317,11 +1342,7 @@ export function VolunteersManager({
               ))}
             </SelectContent>
           </Select>
-          <p className="text-xs text-muted-foreground">
-            Status is not final. Rejected and inactive applications can be moved back to pending,
-            follow-up, or approved. Inactive blocks login until re-approved.
-          </p>
-        </div>
+        </ReviewSection>
 
         {app.status === "rejected" && (
           <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-950">
@@ -1336,9 +1357,7 @@ export function VolunteersManager({
         {app.status === "inactive" && (
           <div className="rounded-md border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-900">
             <p className="font-medium">Inactive volunteer</p>
-            <p className="mt-1">
-              Login is blocked until you re-approve this volunteer.
-            </p>
+            <p className="mt-1">Login is blocked until you re-approve this volunteer.</p>
           </div>
         )}
 
@@ -1346,8 +1365,8 @@ export function VolunteersManager({
           <div className="rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950">
             <p className="font-medium">Training still pending</p>
             <p className="mt-1">
-              This volunteer is approved and in the system. Check off training items below as you
-              verify them so they stay visible until complete.
+              This volunteer is approved and in the system. Check off training items in Training &
+              requirements as you verify them.
             </p>
           </div>
         )}
@@ -1355,7 +1374,7 @@ export function VolunteersManager({
         {isRoleExpansion && (
           <div className="rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-sm">
             <div className="flex items-start gap-3">
-              <AlertTriangle className="h-5 w-5 text-amber-700 mt-0.5 shrink-0" />
+              <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-700" />
               <div className="space-y-2">
                 <p className="font-semibold text-amber-950">Additional volunteer roles requested</p>
                 <p className="text-amber-900">
@@ -1371,7 +1390,9 @@ export function VolunteersManager({
                         key={role}
                         className={cn(
                           "rounded-md border px-3 py-2",
-                          missing.length === 0 ? "border-green-200 bg-green-50" : "border-amber-200 bg-white"
+                          missing.length === 0
+                            ? "border-green-200 bg-green-50"
+                            : "border-amber-200 bg-white"
                         )}
                       >
                         <p className="font-medium text-foreground">{roleLabel(role)}</p>
@@ -1389,7 +1410,7 @@ export function VolunteersManager({
                 {context.pendingRoleRequests.length > 0 ? (
                   <p className="text-xs text-amber-800">
                     Trap-specific requirements (shadow, TNVR certificate) are tracked per role
-                    request — check them off below after verification.
+                    request — check them off under Training & requirements after verification.
                   </p>
                 ) : (
                   <p className="text-xs text-amber-800">
@@ -1405,28 +1426,33 @@ export function VolunteersManager({
           </div>
         )}
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-          <div>
-            <p><strong>Experience:</strong> {app.prior_experience ?? "—"}</p>
-            <p><strong>How heard:</strong> {app.how_heard ?? "—"}</p>
+        <ReviewSection title="Application background">
+          <div className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
+            <div className="space-y-0.5">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Experience
+              </p>
+              <p className="whitespace-pre-wrap">{app.prior_experience?.trim() || "—"}</p>
+            </div>
+            <div className="space-y-0.5">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                How heard
+              </p>
+              <p>{app.how_heard?.trim() || "—"}</p>
+            </div>
           </div>
           {linkedProfile && linkedProfile.email.toLowerCase() !== app.email.toLowerCase() && (
-            <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-amber-950">
-              <p className="text-xs">
-                Linked login profile uses <strong>{linkedProfile.email}</strong>. Saving contact
-                details below updates both records when possible.
-              </p>
+            <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950">
+              Linked login profile uses <strong>{linkedProfile.email}</strong>. Saving contact
+              details below updates both records when possible.
             </div>
           )}
-        </div>
+        </ReviewSection>
 
-        <div className="space-y-3 rounded-md border p-3">
-          <div className="space-y-1">
-            <p className="text-sm font-medium">Contact & address</p>
-            <p className="text-xs text-muted-foreground">
-              Update contact info, birthday, and address here. Save changes when done.
-            </p>
-          </div>
+        <ReviewSection
+          title="Contact & address"
+          description="Update contact info, birthday, and address. Save changes when done."
+        >
           <VolunteerContactFieldsForm
             values={contactValues}
             onChange={(values) =>
@@ -1446,16 +1472,24 @@ export function VolunteersManager({
               </span>
             </p>
           )}
-        </div>
+        </ReviewSection>
 
-        <div className="space-y-2 rounded-md border p-3">
-          <Label>Trap team</Label>
+        <ReviewSection
+          title="Trap team"
+          description={
+            !trapTeamRolesSelected
+              ? "Select a trap-team role under Volunteer interests to enable team assignment."
+              : linkedProfile && !trapTeamEligible && trapTeamRolesSelected
+                ? "Team assignment unlocks after application approval and required training."
+                : "Assign a geographic trap team when this volunteer works field cases."
+          }
+        >
           <Select
             value={reviewTeamId}
             onValueChange={setReviewTeamId}
             disabled={!trapTeamRolesSelected || !trapTeamEligible}
           >
-            <SelectTrigger>
+            <SelectTrigger className="w-full sm:w-[240px]">
               <SelectValue placeholder="Trap team" />
             </SelectTrigger>
             <SelectContent>
@@ -1478,21 +1512,11 @@ export function VolunteersManager({
               Suggested from home ZIP. Save changes to assign them to this team.
             </p>
           )}
-          {linkedProfile && !trapTeamEligible && trapTeamRolesSelected && (
-            <p className="text-xs text-muted-foreground">
-              Team assignment unlocks after application approval and required training.
-            </p>
-          )}
-          {!trapTeamRolesSelected && (
-            <p className="text-xs text-muted-foreground">
-              Select a trap-team role to enable team assignment.
-            </p>
-          )}
-        </div>
+        </ReviewSection>
 
         {app.admin_notes && (
           <div className="rounded-md border bg-muted/40 p-3 text-sm">
-            <p className="font-medium">Follow-up notes</p>
+            <p className="font-medium">Saved follow-up notes</p>
             <p className="mt-1 whitespace-pre-wrap text-muted-foreground">{app.admin_notes}</p>
           </div>
         )}
@@ -1572,7 +1596,7 @@ export function VolunteersManager({
                         <p className="text-xs text-amber-800">
                           {canSaveRemovals
                             ? "New roles still need training. Saving now will remove unchecked roles only."
-                            : "Check off required training above before granting new roles."}
+                            : "Check off required training below before granting new roles."}
                         </p>
                       )}
                     </div>
@@ -1583,79 +1607,11 @@ export function VolunteersManager({
           </ReviewCollapsibleSection>
         )}
 
-        <div className="space-y-3">
-          <Label className="text-sm font-medium">Training & Requirements</Label>
-          <p className="text-xs text-muted-foreground">
-            Liability waiver and policy are completed by the volunteer at sign-in. Check off
-            training items here after verification.
-          </p>
-          <div className="flex flex-wrap gap-4">
-            {ADMIN_CHECKBOX_FIELDS.filter(({ key }) => trainingRequirementFields.includes(key)).map(
-              ({ key, label }) => {
-                const fieldKey = `${app.id}:${key}`;
-                const checked = Boolean(requirementSource[key]);
-                return (
-                  <div key={key} className="flex items-center gap-2">
-                    <Checkbox
-                      id={fieldKey}
-                      checked={checked}
-                      disabled={updatingField === fieldKey}
-                      onCheckedChange={(value) =>
-                        updateApplicationField(app.id, key, value === true, context)
-                      }
-                    />
-                    <Label htmlFor={fieldKey} className="text-sm font-normal">
-                      {label}
-                    </Label>
-                  </div>
-                );
-              }
-            )}
-          </div>
-          {expansionRequirementFields.length === 0 && isRoleExpansion && context.rolesReady && (
-            <p className="text-xs text-green-700">
-              No additional training requirements for the requested roles — ready to approve.
-            </p>
-          )}
-          {relevantRequirementFields.length === 0 && !isRoleExpansion && (
-            <p className="text-xs text-muted-foreground">
-              Select volunteer roles above to see which training requirements apply.
-            </p>
-          )}
-          {isRoleExpansion && context.pendingRoleRequests.length === 0 && (
-            <p className="text-xs text-muted-foreground">
-              Check off any requirements below, then approve the role expansion above or here.
-            </p>
-          )}
-          {showCertificatePanel && (
-            <ApplicationCertificatePanel
-              applicationId={app.id}
-              certificateUrl={certificateUrl}
-              certificateUploaded={certificateUploaded}
-              onUpdated={(uploadedUrl) => {
-                setApplicationPatches((current) => ({
-                  ...current,
-                  [app.id]: {
-                    ...current[app.id],
-                    tnvr_certificate_uploaded: true,
-                    tnvr_certificate_url: uploadedUrl,
-                  },
-                }));
-              }}
-            />
-          )}
-        </div>
-
         {showApplicationRoleEditor && !isRoleExpansion && (
-          <div className="rounded-lg border bg-muted/20 p-4 space-y-4">
-            <div className="space-y-1">
-              <p className="text-sm font-medium">Volunteer roles</p>
-              <p className="text-xs text-muted-foreground">
-                Select or adjust volunteer interests for this application
-                {app.birthday ? " (filtered by age)" : ""}.
-              </p>
-            </div>
-
+          <ReviewSection
+            title="Volunteer interests"
+            description={`Select or adjust volunteer interests for this application${app.birthday ? " (filtered by age)" : ""}.`}
+          >
             <VolunteerRoleCheckboxList
               entries={selectableApprovalRoles}
               selectedRoles={selectedApprovalRoles}
@@ -1703,7 +1659,7 @@ export function VolunteersManager({
             />
 
             {canReview && rolesNeedingTnvrCert(selectedApprovalRoles) && (
-              <p className="text-xs text-muted-foreground border-t pt-4">
+              <p className="border-t pt-3 text-xs text-muted-foreground">
                 TNVR field roles require certificate and shadow training before trap team
                 assignment.
               </p>
@@ -1714,11 +1670,82 @@ export function VolunteersManager({
                 Role changes are saved with Save changes at the bottom.
               </p>
             )}
-          </div>
+          </ReviewSection>
+        )}
+
+        {showTrainingManagement && (
+          <ReviewSection
+            title="Training & requirements"
+            description="Liability waiver and policy are completed by the volunteer at sign-in. Check off training items here after verification."
+          >
+            <div className="flex flex-wrap gap-4">
+              {ADMIN_CHECKBOX_FIELDS.filter(({ key }) =>
+                trainingRequirementFields.includes(key)
+              ).map(({ key, label }) => {
+                const fieldKey = `${app.id}:${key}`;
+                const checked = Boolean(requirementSource[key]);
+                return (
+                  <div key={key} className="flex items-center gap-2">
+                    <Checkbox
+                      id={fieldKey}
+                      checked={checked}
+                      disabled={updatingField === fieldKey}
+                      onCheckedChange={(value) =>
+                        updateApplicationField(app.id, key, value === true, context)
+                      }
+                    />
+                    <Label htmlFor={fieldKey} className="text-sm font-normal">
+                      {label}
+                    </Label>
+                  </div>
+                );
+              })}
+            </div>
+            {expansionRequirementFields.length === 0 && isRoleExpansion && context.rolesReady && (
+              <p className="text-xs text-green-700">
+                No additional training requirements for the requested roles — ready to approve.
+              </p>
+            )}
+            {relevantRequirementFields.length === 0 && !isRoleExpansion && (
+              <p className="text-xs text-muted-foreground">
+                Select volunteer interests above to see which training requirements apply.
+              </p>
+            )}
+            {isRoleExpansion && context.pendingRoleRequests.length === 0 && (
+              <p className="text-xs text-muted-foreground">
+                Check off any requirements here, then approve the role expansion above or under
+                Decision.
+              </p>
+            )}
+            {showCertificatePanel && (
+              <ApplicationCertificatePanel
+                applicationId={app.id}
+                certificateUrl={certificateUrl}
+                certificateUploaded={certificateUploaded}
+                onUpdated={(uploadedUrl) => {
+                  setApplicationPatches((current) => ({
+                    ...current,
+                    [app.id]: {
+                      ...current[app.id],
+                      tnvr_certificate_uploaded: true,
+                      tnvr_certificate_url: uploadedUrl,
+                    },
+                  }));
+                }}
+              />
+            )}
+          </ReviewSection>
         )}
 
         {showReviewActions && (
-          <div className="space-y-4 border-t pt-4">
+          <ReviewSection
+            title="Decision"
+            description={
+              isRoleExpansion
+                ? "Approve or reject the requested role expansion after verifying training."
+                : "Record follow-up notes and approve, reject, or move this application."
+            }
+          >
             <div className="space-y-2">
               <Label htmlFor={`notes-${app.id}`}>
                 {app.status === "needs_followup" ? "Follow-up notes" : "Follow-up notes (optional)"}
@@ -1736,7 +1763,9 @@ export function VolunteersManager({
                 <Button
                   size="sm"
                   variant="outline"
-                  disabled={savingEmailId === app.id || notesForApp(app) === (app.admin_notes ?? "")}
+                  disabled={
+                    savingEmailId === app.id || notesForApp(app) === (app.admin_notes ?? "")
+                  }
                   onClick={() => saveFollowUpNotes(app.id, notesForApp(app))}
                 >
                   {savingEmailId === app.id ? "Saving..." : "Save Notes"}
@@ -1744,9 +1773,7 @@ export function VolunteersManager({
               )}
             </div>
 
-            {!isRoleExpansion && reviewActions && (
-              <div>{reviewActions}</div>
-            )}
+            {!isRoleExpansion && reviewActions ? <div>{reviewActions}</div> : null}
             {actionError && reviewingApplication?.id === app.id && (
               <p
                 className={`text-sm ${
@@ -1762,7 +1789,7 @@ export function VolunteersManager({
                 {actionError}
               </p>
             )}
-          </div>
+          </ReviewSection>
         )}
 
         {app.status === "approved" && !linkedProfile && (
@@ -1775,14 +1802,14 @@ export function VolunteersManager({
         )}
 
         {app.status === "approved" && linkedProfile && (
-          <div className="rounded-md border bg-muted/30 p-3 space-y-2">
-            <p className="text-sm font-medium">Volunteer login</p>
-            <p className="text-sm text-muted-foreground">
-              Reset to the temporary password if they cannot sign in or never set one up.
-              {linkedProfile?.must_change_password && (
-                <> This volunteer is already flagged to change their password on next sign-in.</>
-              )}
-            </p>
+          <ReviewSection
+            title="Account & login"
+            description={
+              linkedProfile.must_change_password
+                ? "Reset to the temporary password if they cannot sign in. They are already flagged to change their password on next sign-in."
+                : "Reset to the temporary password if they cannot sign in or never set one up."
+            }
+          >
             <div className="flex flex-wrap gap-2">
               <Button
                 size="sm"
@@ -1812,10 +1839,13 @@ export function VolunteersManager({
                 {actingId === app.id ? "Working..." : "Mark inactive"}
               </Button>
             </div>
-          </div>
+          </ReviewSection>
         )}
 
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t pt-4">
+        <ReviewSection
+          title="Remove from platform"
+          description="Deletes their application/login and clears live assignments. This cannot be undone."
+        >
           <Button
             size="sm"
             variant="destructive"
@@ -1825,7 +1855,7 @@ export function VolunteersManager({
             <Trash2 className="h-4 w-4 mr-1" />
             {actingId === app.id ? "Removing..." : "Remove volunteer"}
           </Button>
-        </div>
+        </ReviewSection>
       </div>
     );
   }
