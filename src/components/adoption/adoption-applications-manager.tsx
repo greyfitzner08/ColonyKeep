@@ -190,45 +190,6 @@ function ApplicationDetails({
 }) {
   return (
     <div className="space-y-8">
-      <section
-        className={cn(
-          "space-y-3 rounded-lg border p-4",
-          ranking.rank === "good" && "border-emerald-200 bg-emerald-50/70",
-          ranking.rank === "caution" && "border-amber-200 bg-amber-50/70",
-          ranking.rank === "poor" && "border-red-200 bg-red-50/70"
-        )}
-      >
-        <div className="flex flex-wrap items-center gap-2">
-          <p className="text-base font-semibold tracking-tight">Screening summary</p>
-          <RankBadge rank={ranking.rank} badCount={ranking.badCount} />
-        </div>
-        {ranking.flags.length > 0 ? (
-          <ul className="list-disc space-y-1 pl-5 text-sm">
-            {ranking.flags.map((flag) => (
-              <li
-                key={flag.id}
-                className={
-                  flag.tone === "yellow"
-                    ? "rounded-md bg-amber-100 px-2 py-1 text-amber-950"
-                    : undefined
-                }
-              >
-                {flag.label}
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="text-sm text-muted-foreground">
-            No answers were flagged. This is not a final adoption decision.
-          </p>
-        )}
-        {ranking.flags.length > 0 ? (
-          <p className="text-xs text-muted-foreground">
-            Flagged answers are highlighted in the application below.
-          </p>
-        ) : null}
-      </section>
-
       <section className="space-y-4">
         <SectionHeading title="Interest & housing" />
         <div className="grid gap-4 sm:grid-cols-2">
