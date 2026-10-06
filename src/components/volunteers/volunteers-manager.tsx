@@ -1801,60 +1801,62 @@ export function VolunteersManager({
           </div>
         )}
 
-        {app.status === "approved" && linkedProfile && (
-          <ReviewSection
-            title="Account & login"
-            description={
-              linkedProfile.must_change_password
-                ? "Reset to the temporary password if they cannot sign in. They are already flagged to change their password on next sign-in."
-                : "Reset to the temporary password if they cannot sign in or never set one up."
-            }
-          >
-            <div className="flex flex-wrap gap-2">
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={resettingPasswordId === app.id || actingId === app.id}
-                onClick={() => resetTemporaryPassword(app.id, app.full_name)}
-              >
-                <KeyRound className="h-4 w-4 mr-1" />
-                {resettingPasswordId === app.id ? "Resetting…" : "Reset to temporary password"}
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={actingId === app.id}
-                onClick={() => {
-                  if (
-                    !window.confirm(
-                      `Mark ${app.full_name} as inactive? They will not be able to log in until re-approved.`
-                    )
-                  ) {
-                    return;
-                  }
-                  void handleAction(app.id, "inactive");
-                }}
-              >
-                <UserMinus className="h-4 w-4 mr-1" />
-                {actingId === app.id ? "Working..." : "Mark inactive"}
-              </Button>
-            </div>
-          </ReviewSection>
-        )}
-
         <ReviewSection
-          title="Remove from platform"
-          description="Deletes their application/login and clears live assignments. This cannot be undone."
+          title="Account & login"
+          description={
+            app.status === "approved" && linkedProfile
+              ? linkedProfile.must_change_password
+                ? "Reset to the temporary password if they cannot sign in. They are already flagged to change their password on next sign-in."
+                : "Manage their login access, or remove them from the platform entirely."
+              : "Remove this person from the platform if the application should not remain."
+          }
         >
-          <Button
-            size="sm"
-            variant="destructive"
-            onClick={() => deleteApplication(app.id, app.full_name)}
-            disabled={actingId === app.id}
-          >
-            <Trash2 className="h-4 w-4 mr-1" />
-            {actingId === app.id ? "Removing..." : "Remove volunteer"}
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            {app.status === "approved" && linkedProfile ? (
+              <>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={resettingPasswordId === app.id || actingId === app.id}
+                  onClick={() => resetTemporaryPassword(app.id, app.full_name)}
+                >
+                  <KeyRound className="h-4 w-4 mr-1" />
+                  {resettingPasswordId === app.id ? "Resetting…" : "Reset to temporary password"}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={actingId === app.id}
+                  onClick={() => {
+                    if (
+                      !window.confirm(
+                        `Mark ${app.full_name} as inactive? They will not be able to log in until re-approved.`
+                      )
+                    ) {
+                      return;
+                    }
+                    void handleAction(app.id, "inactive");
+                  }}
+                >
+                  <UserMinus className="h-4 w-4 mr-1" />
+                  {actingId === app.id ? "Working..." : "Mark inactive"}
+                </Button>
+              </>
+            ) : null}
+            <Button
+              size="sm"
+              variant="destructive"
+              onClick={() => deleteApplication(app.id, app.full_name)}
+              disabled={actingId === app.id}
+            >
+              <Trash2 className="h-4 w-4 mr-1" />
+              {actingId === app.id ? "Removing..." : "Remove volunteer"}
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Remove deletes their application/login and clears live assignments. This cannot be
+            undone.
+          </p>
         </ReviewSection>
       </div>
     );
