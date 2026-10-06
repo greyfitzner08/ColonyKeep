@@ -987,7 +987,7 @@ export function TrapEquipmentManager({
               </div>
 
               <div className="space-y-2">
-                <Label>TNVR volunteer who keeps this</Label>
+                <Label>Who keeps this</Label>
                 <Select
                   value={form.assigned_to_profile_id || UNASSIGNED}
                   onValueChange={(value) =>
@@ -1011,7 +1011,7 @@ export function TrapEquipmentManager({
                   </SelectContent>
                 </Select>
                 <p className="text-sm text-muted-foreground">
-                  The team volunteer responsible for this equipment in inventory.
+                  The TNVR team member or administrator responsible for this equipment in inventory.
                 </p>
               </div>
 
