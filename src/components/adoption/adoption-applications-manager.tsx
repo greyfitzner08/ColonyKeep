@@ -557,6 +557,13 @@ function ApplicationCard({
           </button>
         ) : null}
 
+        <div className="shrink-0 pt-1 text-left sm:w-40">
+          <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+            Submitted
+          </p>
+          <p className="text-sm font-medium leading-snug text-foreground">{submittedLabel}</p>
+        </div>
+
         <div
           className={cn("min-w-0 flex-1 space-y-2 text-left", mode === "list" && "cursor-pointer")}
           onClick={mode === "list" ? () => setOpen((value) => !value) : undefined}
@@ -579,8 +586,34 @@ function ApplicationCard({
             </p>
           ) : null}
           <div className="flex flex-wrap items-start justify-between gap-3">
-            <div className="min-w-0 space-y-1">
+            <div className="min-w-0 space-y-1.5">
               <p className="text-xl font-semibold leading-tight tracking-tight">{fullName}</p>
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
+                {application.applicant_phone ? (
+                  <a
+                    href={`tel:${application.applicant_phone}`}
+                    className="text-foreground hover:underline"
+                    onClick={(event) => event.stopPropagation()}
+                  >
+                    {application.applicant_phone}
+                  </a>
+                ) : null}
+                {application.applicant_phone && application.applicant_email ? (
+                  <span className="text-muted-foreground">·</span>
+                ) : null}
+                {application.applicant_email ? (
+                  <span className="inline-flex max-w-full items-center gap-1.5">
+                    <a
+                      href={`mailto:${application.applicant_email}`}
+                      className="break-all text-primary hover:underline"
+                      onClick={(event) => event.stopPropagation()}
+                    >
+                      {application.applicant_email}
+                    </a>
+                    <CopyEmailButton email={application.applicant_email} />
+                  </span>
+                ) : null}
+              </div>
               <p className="text-sm text-muted-foreground">
                 Wrote{" "}
                 <span className="font-medium text-foreground">{application.cat_interest_name}</span>
@@ -591,11 +624,6 @@ function ApplicationCard({
               <RankBadge rank={ranking.rank} badCount={ranking.badCount} />
               <Badge variant="secondary">{adoptionApplicationStatusLabel(status)}</Badge>
             </div>
-          </div>
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
-            <span>{application.applicant_phone}</span>
-            <span className="hidden sm:inline">·</span>
-            <span>Submitted {submittedLabel}</span>
           </div>
         </div>
 
@@ -615,16 +643,6 @@ function ApplicationCard({
               className="hidden h-14 w-14 rounded-full object-cover sm:block"
             />
           ) : null}
-          <div className="flex max-w-[240px] items-start gap-2">
-            <a
-              href={`mailto:${application.applicant_email}`}
-              className="break-all text-sm text-primary hover:underline"
-              onClick={(event) => event.stopPropagation()}
-            >
-              {application.applicant_email}
-            </a>
-            <CopyEmailButton email={application.applicant_email} />
-          </div>
         </div>
       </div>
 
