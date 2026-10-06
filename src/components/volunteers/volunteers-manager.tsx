@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -87,6 +87,7 @@ import { VolunteerDuplicatesDialog } from "@/components/volunteers/volunteer-dup
 import { AdminDuplicateAccountsDialog } from "@/components/admin/admin-duplicate-accounts-dialog";
 import {
   Check,
+  ChevronDown,
   X,
   MessageCircle,
   Trash2,
@@ -110,6 +111,46 @@ interface VolunteersManagerProps {
   dismissedApplicationPairKeys?: string[];
   /** Sorted `idA:idB` keys for profile pairs already marked keep-both. */
   dismissedProfilePairKeys?: string[];
+}
+
+/** Compact collapsible block used in the review dialog. */
+function ReviewCollapsibleSection({
+  title,
+  description,
+  defaultOpen = false,
+  children,
+}: {
+  title: string;
+  description?: string;
+  defaultOpen?: boolean;
+  children: ReactNode;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+
+  return (
+    <div className="space-y-4 rounded-lg border bg-muted/20 p-4">
+      <button
+        type="button"
+        className="flex w-full items-start gap-3 text-left"
+        onClick={() => setOpen((value) => !value)}
+        aria-expanded={open}
+      >
+        <div className="min-w-0 flex-1 space-y-1">
+          <p className="text-sm font-medium">{title}</p>
+          {description ? (
+            <p className="text-xs text-muted-foreground">{description}</p>
+          ) : null}
+        </div>
+        <ChevronDown
+          className={cn(
+            "mt-0.5 h-4 w-4 shrink-0 text-muted-foreground transition-transform",
+            open && "rotate-180"
+          )}
+        />
+      </button>
+      {open ? children : null}
+    </div>
+  );
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -1457,15 +1498,11 @@ export function VolunteersManager({
         )}
 
         {showApprovedVolunteerManagement && (
-          <div className="space-y-4 rounded-lg border bg-muted/20 p-4">
-            <div className="space-y-1">
-              <p className="text-sm font-medium">Volunteer interests</p>
-              <p className="text-xs text-muted-foreground">
-                Uncheck a role to remove it anytime — including when training is still pending.
-                New roles still need training verified below before they can be granted.
-              </p>
-            </div>
-
+          <ReviewCollapsibleSection
+            title="Volunteer interests"
+            description="Uncheck a role to remove it anytime — including when training is still pending. New roles still need training verified below before they can be granted."
+            defaultOpen={false}
+          >
             {(() => {
               const managedRoles = managedRolesForApp(app.id, approvedRoles);
               const managedEntries = filterSignupRoleDescriptions(
@@ -1543,7 +1580,7 @@ export function VolunteersManager({
                 </>
               );
             })()}
-          </div>
+          </ReviewCollapsibleSection>
         )}
 
         <div className="space-y-3">
