@@ -1,12 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { Check, ChevronDown, Copy } from "lucide-react";
+import { Check, ChevronDown, Copy, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   CardsTableToggle,
   type CardsTableViewMode,
@@ -20,7 +20,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { PageControlBar } from "@/components/layout/page-control-bar";
 import {
@@ -90,10 +89,38 @@ function cardToneClass(rank: AdoptionApplicationRank): string {
   return "border-red-200/80 bg-red-50/40";
 }
 
-function Answer({ label, value }: { label: string; value?: string | null }) {
+type AnswerHighlight = "flag" | "yellow" | undefined;
+
+function Answer({
+  label,
+  value,
+  highlight,
+}: {
+  label: string;
+  value?: string | null;
+  highlight?: AnswerHighlight;
+}) {
   return (
-    <div className="space-y-0.5">
-      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
+    <div
+      className={cn(
+        "space-y-0.5 rounded-md",
+        highlight === "flag" && "border border-red-200 bg-red-50/80 p-2.5",
+        highlight === "yellow" && "border border-amber-200 bg-amber-50/80 p-2.5"
+      )}
+    >
+      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+        {label}
+        {highlight ? (
+          <span
+            className={cn(
+              "ml-1.5 normal-case tracking-normal",
+              highlight === "yellow" ? "text-amber-800" : "text-red-800"
+            )}
+          >
+            · flagged
+          </span>
+        ) : null}
+      </p>
       <p className="text-sm whitespace-pre-wrap">{value?.trim() ? value : "—"}</p>
     </div>
   );
@@ -145,7 +172,16 @@ function CopyEmailButton({ email }: { email: string }) {
   );
 }
 
-function ScreeningTab({
+function flagTone(
+  ranking: AdoptionApplicationRankResult,
+  id: string
+): AnswerHighlight {
+  const flag = ranking.flags.find((entry) => entry.id === id);
+  if (!flag) return undefined;
+  return flag.tone === "yellow" ? "yellow" : "flag";
+}
+
+function ApplicationDetails({
   answers,
   ranking,
 }: {
@@ -153,7 +189,7 @@ function ScreeningTab({
   ranking: AdoptionApplicationRankResult;
 }) {
   return (
-    <div className="space-y-5">
+    <div className="space-y-8">
       <section
         className={cn(
           "space-y-3 rounded-lg border p-4",
@@ -163,7 +199,7 @@ function ScreeningTab({
         )}
       >
         <div className="flex flex-wrap items-center gap-2">
-          <p className="text-lg font-semibold tracking-tight">Screening flags</p>
+          <p className="text-base font-semibold tracking-tight">Screening summary</p>
           <RankBadge rank={ranking.rank} badCount={ranking.badCount} />
         </div>
         {ranking.flags.length > 0 ? (
@@ -183,44 +219,16 @@ function ScreeningTab({
           </ul>
         ) : (
           <p className="text-sm text-muted-foreground">
-            No screening answers were flagged. This is not a final adoption decision.
+            No answers were flagged. This is not a final adoption decision.
           </p>
         )}
+        {ranking.flags.length > 0 ? (
+          <p className="text-xs text-muted-foreground">
+            Flagged answers are highlighted in the application below.
+          </p>
+        ) : null}
       </section>
 
-      <section className="space-y-4">
-        <SectionHeading
-          title="Key screening answers"
-          description="Answers that may need follow-up — not a final decision"
-        />
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Answer label="Lifelong commitment" value={yesLabel(answers.lifelong_commitment)} />
-          <Answer label="Rents" value={yesLabel(answers.rents)} />
-          <Answer label="Cats approved (if renting)" value={yesLabel(answers.rent_cats_approved)} />
-          <Answer label="Allergic to cats" value={yesLabel(answers.allergic_to_cats)} />
-          <Answer label="Allergy explanation" value={answers.allergic_explanation} />
-          <Answer label="Living plan" value={labelFor(CAT_LIVING_PLANS, answers.living_plan)} />
-          <Answer label="Plan to declaw" value={yesLabel(answers.plan_to_declaw)} />
-          <Answer
-            label="Possible rehome circumstances"
-            value={[
-              ...answers.rehome_circumstances.map((v) => labelFor(REHOME_CIRCUMSTANCES, v)),
-              answers.rehome_other,
-            ]
-              .filter(Boolean)
-              .join(", ")}
-          />
-          <Answer label="Can pay vet costs" value={yesLabel(answers.can_pay_vet_costs)} />
-          <Answer label="Cat is family" value={yesLabel(answers.cat_is_family)} />
-        </div>
-      </section>
-    </div>
-  );
-}
-
-function DetailsTab({ answers }: { answers: AdoptionApplicationAnswers }) {
-  return (
-    <div className="space-y-8">
       <section className="space-y-4">
         <SectionHeading title="Interest & housing" />
         <div className="grid gap-4 sm:grid-cols-2">
@@ -231,6 +239,11 @@ function DetailsTab({ answers }: { answers: AdoptionApplicationAnswers }) {
                 ? answers.how_heard_other || "Other"
                 : labelFor(HOW_HEARD_SOURCES, answers.how_heard)
             }
+          />
+          <Answer
+            label="Lifelong commitment"
+            value={yesLabel(answers.lifelong_commitment)}
+            highlight={flagTone(ranking, "lifelong_commitment")}
           />
           <Answer label="Housemate" value={answers.housemate_name} />
           <Answer
@@ -247,11 +260,53 @@ function DetailsTab({ answers }: { answers: AdoptionApplicationAnswers }) {
                 : labelFor(RESIDENCE_TYPES, answers.residence_type)
             }
           />
+          <Answer label="Rents" value={yesLabel(answers.rents)} />
+          <Answer
+            label="Cats approved (if renting)"
+            value={yesLabel(answers.rent_cats_approved)}
+            highlight={flagTone(ranking, "rent_cats_approved")}
+          />
           <Answer
             label="Landlord"
             value={[answers.landlord_name, answers.landlord_email, answers.landlord_phone]
               .filter(Boolean)
               .join(" · ")}
+          />
+          <Answer
+            label="Allergic to cats"
+            value={yesLabel(answers.allergic_to_cats)}
+            highlight={flagTone(ranking, "allergic_to_cats")}
+          />
+          <Answer label="Allergy explanation" value={answers.allergic_explanation} />
+          <Answer
+            label="Living plan"
+            value={labelFor(CAT_LIVING_PLANS, answers.living_plan)}
+            highlight={flagTone(ranking, "living_plan")}
+          />
+          <Answer
+            label="Plan to declaw"
+            value={yesLabel(answers.plan_to_declaw)}
+            highlight={flagTone(ranking, "plan_to_declaw")}
+          />
+          <Answer
+            label="Possible rehome circumstances"
+            value={[
+              ...answers.rehome_circumstances.map((v) => labelFor(REHOME_CIRCUMSTANCES, v)),
+              answers.rehome_other,
+            ]
+              .filter(Boolean)
+              .join(", ")}
+            highlight={flagTone(ranking, "rehome_circumstances")}
+          />
+          <Answer
+            label="Can pay vet costs"
+            value={yesLabel(answers.can_pay_vet_costs)}
+            highlight={flagTone(ranking, "can_pay_vet_costs")}
+          />
+          <Answer
+            label="Cat is family"
+            value={yesLabel(answers.cat_is_family)}
+            highlight={flagTone(ranking, "cat_is_family")}
           />
         </div>
       </section>
@@ -330,15 +385,27 @@ function DetailsTab({ answers }: { answers: AdoptionApplicationAnswers }) {
                   key={index}
                   className={cn(
                     "rounded-lg border bg-muted/20 p-3",
-                    isDogPetType(pet.animal_type) && "border-amber-300 bg-amber-50"
+                    (isDogPetType(pet.animal_type) ||
+                      (pet.current_status === "in_home" && pet.spayed_neutered === "no")) &&
+                      "border-amber-300 bg-amber-50"
                   )}
                 >
-                  <p className="mb-3 text-sm font-semibold">Pet #{index + 1}</p>
+                  <p className="mb-3 text-sm font-semibold">
+                    Pet #{index + 1}
+                    {isDogPetType(pet.animal_type) ||
+                    (pet.current_status === "in_home" && pet.spayed_neutered === "no") ? (
+                      <span className="ml-1.5 font-normal text-amber-800">· flagged</span>
+                    ) : null}
+                  </p>
                   <div className="grid gap-3 sm:grid-cols-2">
                     <Answer label="Name" value={pet.name} />
                     <Answer label="Age" value={pet.age} />
                     <Answer label="Year acquired" value={pet.year_acquired} />
-                    <Answer label="Pet type" value={petTypeLabel(pet)} />
+                    <Answer
+                      label="Pet type"
+                      value={petTypeLabel(pet)}
+                      highlight={isDogPetType(pet.animal_type) ? "yellow" : undefined}
+                    />
                     <Answer label="Gender" value={petGenderLabel(pet.gender)} />
                     <Answer
                       label="Status"
@@ -352,6 +419,7 @@ function DetailsTab({ answers }: { answers: AdoptionApplicationAnswers }) {
                       <Answer
                         label="Spayed / neutered"
                         value={yesLabel(pet.spayed_neutered)}
+                        highlight={pet.spayed_neutered === "no" ? "yellow" : undefined}
                       />
                     )}
                   </div>
@@ -368,16 +436,19 @@ function DetailsTab({ answers }: { answers: AdoptionApplicationAnswers }) {
 function ApplicationCard({
   application,
   cats,
-  defaultOpen = false,
+  mode = "list",
+  onClose,
 }: {
   application: AdoptionApplication;
   cats: { id: string; name: string }[];
-  defaultOpen?: boolean;
+  /** list = expandable card stack; panel = always-open review pane under the table */
+  mode?: "list" | "panel";
+  onClose?: () => void;
 }) {
   const router = useRouter();
   const ranking = rankAdoptionApplication(application.answers);
   const answers = application.answers ?? ({} as AdoptionApplicationAnswers);
-  const [open, setOpen] = useState(defaultOpen);
+  const [open, setOpen] = useState(mode === "panel");
   const [status, setStatus] = useState<AdoptionApplicationStatus>(application.status);
   const [staffNotes, setStaffNotes] = useState(application.staff_notes ?? "");
   const [additionalNotes, setAdditionalNotes] = useState(application.additional_notes ?? "");
@@ -391,6 +462,7 @@ function ApplicationCard({
   const [saving, setSaving] = useState(false);
   const [justSaved, setJustSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
 
   const fullName = `${application.applicant_first_name} ${application.applicant_last_name}`.trim();
   const submittedLabel = new Date(application.created_at).toLocaleString();
@@ -400,6 +472,12 @@ function ApplicationCard({
     additionalNotes !== savedSnapshot.additionalNotes ||
     catId !== savedSnapshot.catId;
   const linkedCat = cats.find((cat) => cat.id === catId);
+  const showBody = mode === "panel" || open;
+
+  useEffect(() => {
+    if (mode !== "panel") return;
+    panelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [mode, application.id]);
 
   async function save() {
     setSaving(true);
@@ -438,25 +516,47 @@ function ApplicationCard({
   }
 
   return (
-    <Card className={cn("overflow-hidden", cardToneClass(ranking.rank))}>
+    <Card
+      ref={panelRef}
+      id={mode === "panel" ? "adoption-application-review" : undefined}
+      className={cn("overflow-hidden", cardToneClass(ranking.rank))}
+    >
       <div className="flex w-full items-start gap-3 px-5 py-4">
-        <button
-          type="button"
-          className="mt-1 shrink-0 rounded-md p-0.5 text-muted-foreground transition-colors hover:bg-background/60"
-          onClick={() => setOpen((value) => !value)}
-          aria-expanded={open}
-          aria-label={open ? "Collapse application" : "Expand application"}
-        >
-          <ChevronDown
-            className={cn("h-5 w-5 transition-transform", open && "rotate-180")}
-          />
-        </button>
+        {mode === "list" ? (
+          <button
+            type="button"
+            className="mt-1 shrink-0 rounded-md p-0.5 text-muted-foreground transition-colors hover:bg-background/60"
+            onClick={() => setOpen((value) => !value)}
+            aria-expanded={open}
+            aria-label={open ? "Collapse application" : "Expand application"}
+          >
+            <ChevronDown
+              className={cn("h-5 w-5 transition-transform", open && "rotate-180")}
+            />
+          </button>
+        ) : null}
 
-        <button
-          type="button"
-          className="min-w-0 flex-1 space-y-2 text-left"
-          onClick={() => setOpen((value) => !value)}
+        <div
+          className={cn("min-w-0 flex-1 space-y-2 text-left", mode === "list" && "cursor-pointer")}
+          onClick={mode === "list" ? () => setOpen((value) => !value) : undefined}
+          onKeyDown={
+            mode === "list"
+              ? (event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    setOpen((value) => !value);
+                  }
+                }
+              : undefined
+          }
+          role={mode === "list" ? "button" : undefined}
+          tabIndex={mode === "list" ? 0 : undefined}
         >
+          {mode === "panel" ? (
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              Reviewing below
+            </p>
+          ) : null}
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="min-w-0 space-y-1">
               <p className="text-xl font-semibold leading-tight tracking-tight">{fullName}</p>
@@ -476,9 +576,15 @@ function ApplicationCard({
             <span className="hidden sm:inline">·</span>
             <span>Submitted {submittedLabel}</span>
           </div>
-        </button>
+        </div>
 
         <div className="flex shrink-0 flex-col items-end gap-2">
+          {mode === "panel" && onClose ? (
+            <Button type="button" size="sm" variant="outline" onClick={onClose}>
+              <X className="mr-1 h-4 w-4" />
+              Close review
+            </Button>
+          ) : null}
           {application.cat?.profile_photo_url ? (
             <Image
               src={application.cat.profile_photo_url}
@@ -501,127 +607,114 @@ function ApplicationCard({
         </div>
       </div>
 
-      {open ? (
-        <CardContent className="border-t bg-background/50 pb-5 pt-4">
-          <Tabs defaultValue="screening" className="space-y-4">
-            <TabsList className="grid h-auto w-full grid-cols-1 gap-1 sm:grid-cols-3">
-              <TabsTrigger value="screening">Screening</TabsTrigger>
-              <TabsTrigger value="details">Full details</TabsTrigger>
-              <TabsTrigger value="review">Staff review</TabsTrigger>
-            </TabsList>
+      {showBody ? (
+        <CardContent className="space-y-8 border-t bg-background/50 pb-5 pt-4">
+          <ApplicationDetails answers={answers} ranking={ranking} />
 
-            <TabsContent value="screening" className="mt-0">
-              <ScreeningTab answers={answers} ranking={ranking} />
-            </TabsContent>
-
-            <TabsContent value="details" className="mt-0">
-              <DetailsTab answers={answers} />
-            </TabsContent>
-
-            <TabsContent value="review" className="mt-0 space-y-4">
-              <SectionHeading
-                title="Internal use only"
-                description="Update workflow status, choose the cat this application is for, and keep staff notes"
+          <section className="space-y-4 border-t pt-6">
+            <SectionHeading
+              title="Staff review"
+              description="Update workflow status, link a cat, and keep internal notes"
+            />
+            <div className="space-y-2">
+              <Label>Cat this application is for</Label>
+              <p className="text-sm text-muted-foreground">
+                The name they typed stays “{application.cat_interest_name}”. Choose the cat in the
+                program when the spelling is off or they want a different cat. Their household
+                answers stay on this application.
+              </p>
+              <Select
+                value={cats.some((cat) => cat.id === catId) ? catId : "none"}
+                onValueChange={(value) => {
+                  markEdited();
+                  setCatId(value);
+                }}
+              >
+                <SelectTrigger className="max-w-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Not linked yet</SelectItem>
+                  {cats.map((cat) => (
+                    <SelectItem key={cat.id} value={cat.id}>
+                      {cat.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Status</Label>
+              <Select
+                value={status}
+                onValueChange={(value) => {
+                  markEdited();
+                  setStatus(value as AdoptionApplicationStatus);
+                }}
+              >
+                <SelectTrigger className="max-w-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {ADOPTION_APPLICATION_STATUSES.map((entry) => (
+                    <SelectItem key={entry.value} value={entry.value}>
+                      {entry.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Staff notes</Label>
+              <Textarea
+                rows={3}
+                value={staffNotes}
+                onChange={(e) => {
+                  markEdited();
+                  setStaffNotes(e.target.value);
+                }}
               />
-              <div className="space-y-2">
-                <Label>Cat this application is for</Label>
-                <p className="text-sm text-muted-foreground">
-                  The name they typed stays “{application.cat_interest_name}”. Choose the cat in the program when
-                  the spelling is off or they want a different cat. Their household answers stay on this application.
-                </p>
-                <Select
-                  value={cats.some((cat) => cat.id === catId) ? catId : "none"}
-                  onValueChange={(value) => {
-                    markEdited();
-                    setCatId(value);
-                  }}
-                >
-                  <SelectTrigger className="max-w-xs">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">Not linked yet</SelectItem>
-                    {cats.map((cat) => (
-                      <SelectItem key={cat.id} value={cat.id}>
-                        {cat.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Status</Label>
-                <Select
-                  value={status}
-                  onValueChange={(value) => {
-                    markEdited();
-                    setStatus(value as AdoptionApplicationStatus);
-                  }}
-                >
-                  <SelectTrigger className="max-w-xs">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {ADOPTION_APPLICATION_STATUSES.map((entry) => (
-                      <SelectItem key={entry.value} value={entry.value}>
-                        {entry.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Staff notes</Label>
-                <Textarea
-                  rows={3}
-                  value={staffNotes}
-                  onChange={(e) => {
-                    markEdited();
-                    setStaffNotes(e.target.value);
-                  }}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Additional notes</Label>
-                <Textarea
-                  rows={3}
-                  value={additionalNotes}
-                  onChange={(e) => {
-                    markEdited();
-                    setAdditionalNotes(e.target.value);
-                  }}
-                />
-              </div>
-              {error ? <p className="text-sm text-destructive">{error}</p> : null}
-              <div className="flex items-center justify-end gap-3">
-                {justSaved && !dirty ? (
-                  <p className="text-sm text-emerald-700">Review saved</p>
-                ) : null}
-                <Button
-                  type="button"
-                  onClick={() => void save()}
-                  disabled={saving || !dirty}
-                  variant={justSaved && !dirty ? "outline" : "default"}
-                  className={cn(
-                    justSaved &&
-                      !dirty &&
-                      "border-emerald-300 bg-emerald-50 text-emerald-900 hover:bg-emerald-50"
-                  )}
-                >
-                  {saving ? (
-                    "Saving…"
-                  ) : justSaved && !dirty ? (
-                    <>
-                      <Check className="mr-1.5 h-4 w-4" />
-                      Saved
-                    </>
-                  ) : (
-                    "Save review"
-                  )}
-                </Button>
-              </div>
-            </TabsContent>
-          </Tabs>
+            </div>
+            <div className="space-y-2">
+              <Label>Additional notes</Label>
+              <Textarea
+                rows={3}
+                value={additionalNotes}
+                onChange={(e) => {
+                  markEdited();
+                  setAdditionalNotes(e.target.value);
+                }}
+              />
+            </div>
+            {error ? <p className="text-sm text-destructive">{error}</p> : null}
+            <div className="flex items-center justify-end gap-3">
+              {justSaved && !dirty ? (
+                <p className="text-sm text-emerald-700">Review saved</p>
+              ) : null}
+              <Button
+                type="button"
+                onClick={() => void save()}
+                disabled={saving || !dirty}
+                variant={justSaved && !dirty ? "outline" : "default"}
+                className={cn(
+                  justSaved &&
+                    !dirty &&
+                    "border-emerald-300 bg-emerald-50 text-emerald-900 hover:bg-emerald-50"
+                )}
+              >
+                {saving ? (
+                  "Saving…"
+                ) : justSaved && !dirty ? (
+                  <>
+                    <Check className="mr-1.5 h-4 w-4" />
+                    Saved
+                  </>
+                ) : (
+                  "Save review"
+                )}
+              </Button>
+            </div>
+          </section>
         </CardContent>
       ) : null}
     </Card>
@@ -720,7 +813,8 @@ export function AdoptionApplicationsManager({
       {
         id: "rank",
         label: "Screening",
-        sortValue: (row) => adoptionApplicationRankSortValue(rankAdoptionApplication(row.answers).rank),
+        sortValue: (row) =>
+          adoptionApplicationRankSortValue(rankAdoptionApplication(row.answers).rank),
         render: (row) => {
           const ranking = rankAdoptionApplication(row.answers);
           return <RankBadge rank={ranking.rank} badCount={ranking.badCount} />;
@@ -800,7 +894,9 @@ export function AdoptionApplicationsManager({
         wrap: true,
         sortValue: (row) => row.additional_notes ?? "",
         render: (row) => (
-          <span className="whitespace-pre-wrap text-sm">{row.additional_notes?.trim() || "—"}</span>
+          <span className="whitespace-pre-wrap text-sm">
+            {row.additional_notes?.trim() || "—"}
+          </span>
         ),
       },
       {
@@ -859,16 +955,19 @@ export function AdoptionApplicationsManager({
       id: "actions",
       label: "Actions",
       hideable: false,
-      render: (row) => (
-        <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          onClick={() => setFocusedId((current) => (current === row.id ? null : row.id))}
-        >
-          {focusedId === row.id ? "Hide" : "Open"}
-        </Button>
-      ),
+      render: (row) => {
+        const isFocused = focusedId === row.id;
+        return (
+          <Button
+            type="button"
+            size="sm"
+            variant={isFocused ? "secondary" : "outline"}
+            onClick={() => setFocusedId((current) => (current === row.id ? null : row.id))}
+          >
+            {isFocused ? "Close review" : "Review below"}
+          </Button>
+        );
+      },
     };
 
     return [...core, ...answerColumns, actions];
@@ -975,9 +1074,18 @@ export function AdoptionApplicationsManager({
             emptyMessage="No adoption applications match these filters."
           />
           {focused ? (
-            <ApplicationCard key={focused.id} application={focused} cats={cats} defaultOpen />
+            <ApplicationCard
+              key={focused.id}
+              application={focused}
+              cats={cats}
+              mode="panel"
+              onClose={() => setFocusedId(null)}
+            />
           ) : (
-            <p className="text-sm text-muted-foreground">Open a row to review the full application.</p>
+            <p className="rounded-lg border border-dashed px-4 py-6 text-center text-sm text-muted-foreground">
+              Choose <span className="font-medium text-foreground">Review below</span> on a row to
+              open the full application under this table.
+            </p>
           )}
         </div>
       )}
