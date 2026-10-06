@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { Check, ChevronDown, Copy, Trash2, X } from "lucide-react";
@@ -100,15 +100,16 @@ function Answer({
   value?: string | null;
   highlight?: AnswerHighlight;
 }) {
+  const display = value?.trim() ? value : "—";
   return (
     <div
       className={cn(
-        "space-y-0.5 rounded-md",
-        highlight === "flag" && "border border-red-200 bg-red-50/80 p-2.5",
-        highlight === "yellow" && "border border-amber-200 bg-amber-50/80 p-2.5"
+        "rounded-md border border-border/70 bg-background px-3 py-2.5",
+        highlight === "flag" && "border-red-300 bg-red-50/90",
+        highlight === "yellow" && "border-amber-300 bg-amber-50/90"
       )}
     >
-      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+      <dt className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
         {label}
         {highlight ? (
           <span
@@ -120,19 +121,43 @@ function Answer({
             · flagged
           </span>
         ) : null}
-      </p>
-      <p className="text-sm whitespace-pre-wrap">{value?.trim() ? value : "—"}</p>
+      </dt>
+      <dd
+        className={cn(
+          "mt-1 text-base font-medium leading-snug text-foreground whitespace-pre-wrap",
+          !value?.trim() && "font-normal text-muted-foreground"
+        )}
+      >
+        {display}
+      </dd>
     </div>
   );
 }
 
-function SectionHeading({ title, description }: { title: string; description?: string }) {
+function DetailSection({
+  title,
+  description,
+  children,
+}: {
+  title: string;
+  description?: string;
+  children: ReactNode;
+}) {
   return (
-    <div className="space-y-0.5 border-b pb-2">
-      <h3 className="text-base font-semibold tracking-tight">{title}</h3>
-      {description ? <p className="text-sm text-muted-foreground">{description}</p> : null}
-    </div>
+    <section className="overflow-hidden rounded-lg border bg-muted/15">
+      <div className="border-b bg-muted/40 px-4 py-3">
+        <h3 className="text-sm font-semibold tracking-tight text-foreground">{title}</h3>
+        {description ? (
+          <p className="mt-0.5 text-sm text-muted-foreground">{description}</p>
+        ) : null}
+      </div>
+      <div className="p-4">{children}</div>
+    </section>
   );
+}
+
+function AnswerGrid({ children }: { children: ReactNode }) {
+  return <dl className="grid gap-3 sm:grid-cols-2">{children}</dl>;
 }
 
 function CopyEmailButton({ email }: { email: string }) {
@@ -189,10 +214,9 @@ function ApplicationDetails({
   ranking: AdoptionApplicationRankResult;
 }) {
   return (
-    <div className="space-y-8">
-      <section className="space-y-4">
-        <SectionHeading title="Interest & housing" />
-        <div className="grid gap-4 sm:grid-cols-2">
+    <div className="space-y-5">
+      <DetailSection title="Interest & housing">
+        <AnswerGrid>
           <Answer
             label="How heard"
             value={
@@ -269,12 +293,11 @@ function ApplicationDetails({
             value={yesLabel(answers.cat_is_family)}
             highlight={flagTone(ranking, "cat_is_family")}
           />
-        </div>
-      </section>
+        </AnswerGrid>
+      </DetailSection>
 
-      <section className="space-y-4">
-        <SectionHeading title="Household" />
-        <div className="grid gap-4 sm:grid-cols-2">
+      <DetailSection title="Household">
+        <AnswerGrid>
           <Answer
             label="Employment"
             value={
@@ -299,97 +322,104 @@ function ApplicationDetails({
           />
           <Answer label="Hours alone / day" value={answers.hours_alone} />
           <Answer label="Backup caregiver" value={answers.backup_caregiver} />
-        </div>
-      </section>
+        </AnswerGrid>
+      </DetailSection>
 
-      <section className="space-y-4">
-        <SectionHeading title="Pet history & references" />
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Answer label="Pets in last 5 years" value={yesLabel(answers.had_pets_last_five_years)} />
-          <Answer
-            label="Veterinarian"
-            value={[answers.vet_practice_name, answers.vet_name, answers.vet_phone]
-              .filter(Boolean)
-              .join(" · ")}
-          />
-          <Answer label="Never had pet — vet plan" value={answers.never_had_pet_vet_plan} />
-          <Answer
-            label="Reference 1"
-            value={[
-              answers.reference_1_name,
-              answers.reference_1_relationship,
-              answers.reference_1_email,
-              answers.reference_1_phone,
-            ]
-              .filter(Boolean)
-              .join(" · ")}
-          />
-          <Answer
-            label="Reference 2"
-            value={[
-              answers.reference_2_name,
-              answers.reference_2_relationship,
-              answers.reference_2_email,
-              answers.reference_2_phone,
-            ]
-              .filter(Boolean)
-              .join(" · ")}
-          />
-          <Answer label="Final comments" value={answers.final_comments} />
-        </div>
+      <DetailSection title="Pet history & references">
+        <div className="space-y-4">
+          <AnswerGrid>
+            <Answer
+              label="Pets in last 5 years"
+              value={yesLabel(answers.had_pets_last_five_years)}
+            />
+            <Answer
+              label="Veterinarian"
+              value={[answers.vet_practice_name, answers.vet_name, answers.vet_phone]
+                .filter(Boolean)
+                .join(" · ")}
+            />
+            <Answer label="Never had pet — vet plan" value={answers.never_had_pet_vet_plan} />
+            <Answer
+              label="Reference 1"
+              value={[
+                answers.reference_1_name,
+                answers.reference_1_relationship,
+                answers.reference_1_email,
+                answers.reference_1_phone,
+              ]
+                .filter(Boolean)
+                .join(" · ")}
+            />
+            <Answer
+              label="Reference 2"
+              value={[
+                answers.reference_2_name,
+                answers.reference_2_relationship,
+                answers.reference_2_email,
+                answers.reference_2_phone,
+              ]
+                .filter(Boolean)
+                .join(" · ")}
+            />
+            <Answer label="Final comments" value={answers.final_comments} />
+          </AnswerGrid>
 
-        {(answers.pets ?? []).some((pet) => pet.name || pet.animal_type) ? (
-          <div className="space-y-3 pt-2">
-            {(answers.pets ?? []).map((pet, index) =>
-              pet.name || pet.animal_type ? (
-                <div
-                  key={index}
-                  className={cn(
-                    "rounded-lg border bg-muted/20 p-3",
-                    (isDogPetType(pet.animal_type) ||
-                      (pet.current_status === "in_home" && pet.spayed_neutered === "no")) &&
-                      "border-amber-300 bg-amber-50"
-                  )}
-                >
-                  <p className="mb-3 text-sm font-semibold">
-                    Pet #{index + 1}
-                    {isDogPetType(pet.animal_type) ||
-                    (pet.current_status === "in_home" && pet.spayed_neutered === "no") ? (
-                      <span className="ml-1.5 font-normal text-amber-800">· flagged</span>
-                    ) : null}
-                  </p>
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <Answer label="Name" value={pet.name} />
-                    <Answer label="Age" value={pet.age} />
-                    <Answer label="Year acquired" value={pet.year_acquired} />
-                    <Answer
-                      label="Pet type"
-                      value={petTypeLabel(pet)}
-                      highlight={isDogPetType(pet.animal_type) ? "yellow" : undefined}
-                    />
-                    <Answer label="Gender" value={petGenderLabel(pet.gender)} />
-                    <Answer
-                      label="Status"
-                      value={
-                        pet.current_status === "other"
-                          ? pet.current_status_other || "Other"
-                          : labelFor(PET_CURRENT_STATUSES, pet.current_status)
-                      }
-                    />
-                    {pet.current_status === "in_home" && (
-                      <Answer
-                        label="Spayed / neutered"
-                        value={yesLabel(pet.spayed_neutered)}
-                        highlight={pet.spayed_neutered === "no" ? "yellow" : undefined}
-                      />
+          {(answers.pets ?? []).some((pet) => pet.name || pet.animal_type) ? (
+            <div className="space-y-3 border-t pt-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Pets listed
+              </p>
+              {(answers.pets ?? []).map((pet, index) =>
+                pet.name || pet.animal_type ? (
+                  <div
+                    key={index}
+                    className={cn(
+                      "rounded-lg border bg-background p-3",
+                      (isDogPetType(pet.animal_type) ||
+                        (pet.current_status === "in_home" && pet.spayed_neutered === "no")) &&
+                        "border-amber-300 bg-amber-50"
                     )}
+                  >
+                    <p className="mb-3 text-sm font-semibold text-foreground">
+                      Pet #{index + 1}
+                      {isDogPetType(pet.animal_type) ||
+                      (pet.current_status === "in_home" && pet.spayed_neutered === "no") ? (
+                        <span className="ml-1.5 font-normal text-amber-800">· flagged</span>
+                      ) : null}
+                    </p>
+                    <AnswerGrid>
+                      <Answer label="Name" value={pet.name} />
+                      <Answer label="Age" value={pet.age} />
+                      <Answer label="Year acquired" value={pet.year_acquired} />
+                      <Answer
+                        label="Pet type"
+                        value={petTypeLabel(pet)}
+                        highlight={isDogPetType(pet.animal_type) ? "yellow" : undefined}
+                      />
+                      <Answer label="Gender" value={petGenderLabel(pet.gender)} />
+                      <Answer
+                        label="Status"
+                        value={
+                          pet.current_status === "other"
+                            ? pet.current_status_other || "Other"
+                            : labelFor(PET_CURRENT_STATUSES, pet.current_status)
+                        }
+                      />
+                      {pet.current_status === "in_home" && (
+                        <Answer
+                          label="Spayed / neutered"
+                          value={yesLabel(pet.spayed_neutered)}
+                          highlight={pet.spayed_neutered === "no" ? "yellow" : undefined}
+                        />
+                      )}
+                    </AnswerGrid>
                   </div>
-                </div>
-              ) : null
-            )}
-          </div>
-        ) : null}
-      </section>
+                ) : null
+              )}
+            </div>
+          ) : null}
+        </div>
+      </DetailSection>
     </div>
   );
 }
@@ -599,124 +629,125 @@ function ApplicationCard({
       </div>
 
       {showBody ? (
-        <CardContent className="space-y-8 border-t bg-background/50 pb-5 pt-4">
+        <CardContent className="space-y-5 border-t bg-background/50 pb-5 pt-4">
           <ApplicationDetails answers={answers} ranking={ranking} />
 
-          <section className="space-y-4 border-t pt-6">
-            <SectionHeading
-              title="Staff review"
-              description="Update workflow status, link a cat, and keep internal notes"
-            />
-            <div className="space-y-2">
-              <Label>Cat this application is for</Label>
-              <p className="text-sm text-muted-foreground">
-                The name they typed stays “{application.cat_interest_name}”. Choose the cat in the
-                program when the spelling is off or they want a different cat. Their household
-                answers stay on this application.
-              </p>
-              <Select
-                value={cats.some((cat) => cat.id === catId) ? catId : "none"}
-                onValueChange={(value) => {
-                  markEdited();
-                  setCatId(value);
-                }}
-              >
-                <SelectTrigger className="max-w-xs">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">Not linked yet</SelectItem>
-                  {cats.map((cat) => (
-                    <SelectItem key={cat.id} value={cat.id}>
-                      {cat.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Status</Label>
-              <Select
-                value={status}
-                onValueChange={(value) => {
-                  markEdited();
-                  setStatus(value as AdoptionApplicationStatus);
-                }}
-              >
-                <SelectTrigger className="max-w-xs">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {ADOPTION_APPLICATION_STATUSES.map((entry) => (
-                    <SelectItem key={entry.value} value={entry.value}>
-                      {entry.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Staff notes</Label>
-              <Textarea
-                rows={3}
-                value={staffNotes}
-                onChange={(e) => {
-                  markEdited();
-                  setStaffNotes(e.target.value);
-                }}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Additional notes</Label>
-              <Textarea
-                rows={3}
-                value={additionalNotes}
-                onChange={(e) => {
-                  markEdited();
-                  setAdditionalNotes(e.target.value);
-                }}
-              />
-            </div>
-            {error ? <p className="text-sm text-destructive">{error}</p> : null}
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <Button
-                type="button"
-                variant="destructive"
-                disabled={saving || deleting}
-                onClick={() => void removeApplication()}
-              >
-                <Trash2 className="mr-1.5 h-4 w-4" />
-                {deleting ? "Deleting…" : "Delete application"}
-              </Button>
-              <div className="flex items-center gap-3">
-                {justSaved && !dirty ? (
-                  <p className="text-sm text-emerald-700">Review saved</p>
-                ) : null}
+          <DetailSection
+            title="Staff review"
+            description="Update workflow status, link a cat, and keep internal notes"
+          >
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label>Cat this application is for</Label>
+                <p className="text-sm text-muted-foreground">
+                  The name they typed stays “{application.cat_interest_name}”. Choose the cat in the
+                  program when the spelling is off or they want a different cat. Their household
+                  answers stay on this application.
+                </p>
+                <Select
+                  value={cats.some((cat) => cat.id === catId) ? catId : "none"}
+                  onValueChange={(value) => {
+                    markEdited();
+                    setCatId(value);
+                  }}
+                >
+                  <SelectTrigger className="max-w-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Not linked yet</SelectItem>
+                    {cats.map((cat) => (
+                      <SelectItem key={cat.id} value={cat.id}>
+                        {cat.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Status</Label>
+                <Select
+                  value={status}
+                  onValueChange={(value) => {
+                    markEdited();
+                    setStatus(value as AdoptionApplicationStatus);
+                  }}
+                >
+                  <SelectTrigger className="max-w-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {ADOPTION_APPLICATION_STATUSES.map((entry) => (
+                      <SelectItem key={entry.value} value={entry.value}>
+                        {entry.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Staff notes</Label>
+                <Textarea
+                  rows={3}
+                  value={staffNotes}
+                  onChange={(e) => {
+                    markEdited();
+                    setStaffNotes(e.target.value);
+                  }}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Additional notes</Label>
+                <Textarea
+                  rows={3}
+                  value={additionalNotes}
+                  onChange={(e) => {
+                    markEdited();
+                    setAdditionalNotes(e.target.value);
+                  }}
+                />
+              </div>
+              {error ? <p className="text-sm text-destructive">{error}</p> : null}
+              <div className="flex flex-wrap items-center justify-between gap-3">
                 <Button
                   type="button"
-                  onClick={() => void save()}
-                  disabled={saving || deleting || !dirty}
-                  variant={justSaved && !dirty ? "outline" : "default"}
-                  className={cn(
-                    justSaved &&
-                      !dirty &&
-                      "border-emerald-300 bg-emerald-50 text-emerald-900 hover:bg-emerald-50"
-                  )}
+                  variant="destructive"
+                  disabled={saving || deleting}
+                  onClick={() => void removeApplication()}
                 >
-                  {saving ? (
-                    "Saving…"
-                  ) : justSaved && !dirty ? (
-                    <>
-                      <Check className="mr-1.5 h-4 w-4" />
-                      Saved
-                    </>
-                  ) : (
-                    "Save review"
-                  )}
+                  <Trash2 className="mr-1.5 h-4 w-4" />
+                  {deleting ? "Deleting…" : "Delete application"}
                 </Button>
+                <div className="flex items-center gap-3">
+                  {justSaved && !dirty ? (
+                    <p className="text-sm text-emerald-700">Review saved</p>
+                  ) : null}
+                  <Button
+                    type="button"
+                    onClick={() => void save()}
+                    disabled={saving || deleting || !dirty}
+                    variant={justSaved && !dirty ? "outline" : "default"}
+                    className={cn(
+                      justSaved &&
+                        !dirty &&
+                        "border-emerald-300 bg-emerald-50 text-emerald-900 hover:bg-emerald-50"
+                    )}
+                  >
+                    {saving ? (
+                      "Saving…"
+                    ) : justSaved && !dirty ? (
+                      <>
+                        <Check className="mr-1.5 h-4 w-4" />
+                        Saved
+                      </>
+                    ) : (
+                      "Save review"
+                    )}
+                  </Button>
+                </div>
               </div>
             </div>
-          </section>
+          </DetailSection>
         </CardContent>
       ) : null}
     </Card>
