@@ -644,7 +644,7 @@ export function AdoptionApplicationsManager({
 }: AdoptionApplicationsManagerProps) {
   const [statusFilter, setStatusFilter] = useState("open");
   const [rankFilter, setRankFilter] = useState("all");
-  const [viewMode, setViewMode] = useState<CardsTableViewMode>("cards");
+  const [viewMode, setViewMode] = useState<CardsTableViewMode>("table");
   const [focusedId, setFocusedId] = useState<string | null>(null);
 
   const rows = useMemo(() => {
