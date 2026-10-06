@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { getAppProfile } from "@/lib/auth";
 import { canManageTrapEquipment } from "@/lib/permissions";
+import { isTrapSchoolTeamName } from "@/lib/cases/assign-case-team";
 import { buildVolunteerOptions } from "@/lib/equipment/volunteers";
 import { TrapEquipmentManager } from "@/components/equipment/trap-equipment-manager";
 import { PageHeader } from "@/components/layout/page-header";
@@ -59,7 +60,11 @@ export default async function EquipmentPage() {
   }
 
   const volunteers = buildVolunteerOptions(profiles ?? [], phonesByEmail, teamFilterId);
-  const userTeam = teams?.find((team) => team.id === profile?.team_id) ?? null;
+  // Trap School is a case-routing team, not an equipment-holding team.
+  const equipmentTeams = ((teams ?? []) as TrapTeam[]).filter(
+    (team) => !isTrapSchoolTeamName(team.name)
+  );
+  const userTeam = equipmentTeams.find((team) => team.id === profile?.team_id) ?? null;
 
   return (
     <div className="space-y-6">
@@ -73,7 +78,7 @@ export default async function EquipmentPage() {
       />
       <TrapEquipmentManager
         items={(items ?? []) as TrapEquipmentItem[]}
-        teams={(teams ?? []) as TrapTeam[]}
+        teams={equipmentTeams}
         volunteers={volunteers}
         defaultTeamId={profile?.team_id ?? null}
         currentProfileId={profile?.id ?? ""}
