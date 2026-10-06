@@ -1,11 +1,11 @@
 import type { EquipmentVolunteerOption, VolunteerRole } from "@/lib/types";
 
-/** Platform role labeled "TNVR Team" — the only people who keep trap equipment. */
+/** People who can keep trap equipment in inventory: TNVR Team or Administrator. */
 export function isTnvrVolunteerProfile(profile: {
   role?: string | null;
   volunteer_roles?: VolunteerRole[] | null;
 }): boolean {
-  return profile.role === "trap_team_lead";
+  return profile.role === "trap_team_lead" || profile.role === "admin";
 }
 
 export function buildVolunteerOptions(
@@ -23,7 +23,8 @@ export function buildVolunteerOptions(
   return profiles
     .filter((profile) => {
       if (!isTnvrVolunteerProfile(profile)) return false;
-      if (teamId && profile.team_id !== teamId) return false;
+      // Admins are org-wide holders; they may not be on a trap team.
+      if (teamId && profile.role !== "admin" && profile.team_id !== teamId) return false;
       return true;
     })
     .map((profile) => ({

@@ -120,12 +120,17 @@ export async function POST(request: NextRequest) {
 
     if (!assignee || !isTnvrVolunteerProfile(assignee)) {
       return NextResponse.json(
-        { error: "Only a TNVR Team volunteer can keep this equipment." },
+        { error: "Only a TNVR Team member or administrator can keep this equipment." },
         { status: 400 }
       );
     }
 
-    if (!isAdmin && teamId && assignee.team_id !== teamId) {
+    if (
+      !isAdmin &&
+      teamId &&
+      assignee.role !== "admin" &&
+      assignee.team_id !== teamId
+    ) {
       return NextResponse.json(
         { error: "Volunteer must be on your trap team" },
         { status: 400 }

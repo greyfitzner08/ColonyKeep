@@ -32,7 +32,8 @@ export default async function EquipmentPage() {
     .not("role", "is", null);
 
   if (teamFilterId) {
-    profilesQuery = profilesQuery.eq("team_id", teamFilterId);
+    // Include this team's TNVR members plus org admins (who may not have a team_id).
+    profilesQuery = profilesQuery.or(`team_id.eq.${teamFilterId},role.eq.admin`);
   }
 
   const [{ data: items }, { data: teams }, { data: profiles }, { data: applications }] =
