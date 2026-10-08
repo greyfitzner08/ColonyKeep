@@ -242,6 +242,11 @@ export function Sidebar({
     element?.scrollIntoView({ block: "nearest", behavior: "smooth" });
   }, [highlightedNav, tourActive]);
 
+  // Keep the instruction panel readable on phones — don't leave the drawer open over it.
+  useEffect(() => {
+    if (tourActive) setMobileOpen(false);
+  }, [tourActive]);
+
   const nav = (
     <nav className="flex h-full min-h-0 flex-col p-4">
       <div className="mb-6 flex shrink-0 items-center gap-2 px-2">
@@ -369,6 +374,7 @@ export function Sidebar({
             profile={profile}
             userName={userName}
             variant="sidebar"
+            onActivate={() => setMobileOpen(false)}
           />
           <LogoutButton />
         </div>

@@ -22,6 +22,8 @@ interface PlatformTutorialTriggerProps {
   userName?: string | null;
   variant?: "card" | "sidebar";
   className?: string;
+  /** Called when the walkthrough chooser or tour opens (e.g. close mobile nav). */
+  onActivate?: () => void;
 }
 
 export function PlatformTutorialTrigger({
@@ -29,13 +31,20 @@ export function PlatformTutorialTrigger({
   userName,
   variant = "card",
   className,
+  onActivate,
 }: PlatformTutorialTriggerProps) {
   const [chooserOpen, setChooserOpen] = useState(false);
   const [tourOpen, setTourOpen] = useState(false);
   const [mode, setMode] = useState<TutorialMode>("quick");
   const advancedTrack = useMemo(() => advancedTrackForProfile(profile), [profile]);
 
+  function openChooser() {
+    onActivate?.();
+    setChooserOpen(true);
+  }
+
   function startTour(nextMode: TutorialMode) {
+    onActivate?.();
     setMode(nextMode);
     setChooserOpen(false);
     setTourOpen(true);
@@ -48,7 +57,7 @@ export function PlatformTutorialTrigger({
           type="button"
           variant="sidebar"
           className={cn("h-auto w-full justify-start gap-2 px-2 py-2", className)}
-          onClick={() => setChooserOpen(true)}
+          onClick={openChooser}
         >
           <Compass className="h-4 w-4 shrink-0" aria-hidden="true" />
           <span className="text-sm font-medium">Walkthroughs</span>
