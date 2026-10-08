@@ -37,7 +37,8 @@ import { Button } from "@/components/ui/button";
 import { BrandMark } from "@/components/branding/brand-mark";
 import { LogoutButton } from "@/components/layout/logout-button";
 import { AdminRolePreviewControl } from "@/components/admin/admin-role-preview";
-import { PlatformTutorialTrigger } from "@/components/platform-tutorial/platform-tutorial-trigger";
+import { PlatformTutorialSidebarButton, PlatformTutorialSidebarHost } from "@/components/platform-tutorial/platform-tutorial-trigger";
+import type { TutorialMode } from "@/lib/platform-tutorial/tracks";
 import { useAdoptionApplicationsNavIndicator } from "@/components/layout/use-adoption-applications-nav-indicator";
 import { useTeamFeedNavIndicator } from "@/components/layout/use-team-feed-nav-indicator";
 import type { AdoptionApplicationsActivity } from "@/lib/adoption/activity";
@@ -210,6 +211,9 @@ export function Sidebar({
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, true>>({});
+  const [walkthroughChooserOpen, setWalkthroughChooserOpen] = useState(false);
+  const [walkthroughTourOpen, setWalkthroughTourOpen] = useState(false);
+  const [walkthroughMode, setWalkthroughMode] = useState<TutorialMode>("quick");
   const { highlightedNav, tourActive } = useTutorialNavigation();
   const showTeamFeedIndicator = useTeamFeedNavIndicator(teamFeedActivity, profile?.id);
   const showAdoptionApplicationsIndicator = useAdoptionApplicationsNavIndicator(
@@ -242,12 +246,20 @@ export function Sidebar({
     element?.scrollIntoView({ block: "nearest", behavior: "smooth" });
   }, [highlightedNav, tourActive]);
 
-  // Keep the instruction panel readable on phones — don't leave the drawer open over it.
-  useEffect(() => {
-    if (tourActive) setMobileOpen(false);
-  }, [tourActive]);
+  function openWalkthroughChooser() {
+    setMobileOpen(false);
+    setWalkthroughChooserOpen(true);
+  }
 
-  const nav = (
+  function startWalkthrough(mode: TutorialMode) {
+    setMobileOpen(false);
+    setWalkthroughMode(mode);
+    setWalkthroughChooserOpen(false);
+    setWalkthroughTourOpen(true);
+  }
+
+  function renderNav() {
+    return (
     <nav className="flex h-full min-h-0 flex-col p-4">
       <div className="mb-6 flex shrink-0 items-center gap-2 px-2">
         <BrandMark
@@ -370,17 +382,13 @@ export function Sidebar({
               />
             )}
           </div>
-          <PlatformTutorialTrigger
-            profile={profile}
-            userName={userName}
-            variant="sidebar"
-            onActivate={() => setMobileOpen(false)}
-          />
+          <PlatformTutorialSidebarButton onClick={openWalkthroughChooser} />
           <LogoutButton />
         </div>
       )}
     </nav>
-  );
+    );
+  }
 
   return (
     <>
@@ -412,7 +420,7 @@ export function Sidebar({
         )}
         style={{ zIndex: tourActive ? Z_INDEX.tutorialSidebar : Z_INDEX.sidebar }}
       >
-        {nav}
+        {renderNav()}
       </aside>
 
       {mobileOpen && (
@@ -427,10 +435,21 @@ export function Sidebar({
             className="fixed bottom-0 left-0 top-14 flex w-64 max-w-[85vw] flex-col border-r border-sidebar-border bg-sidebar shadow-xl lg:hidden"
             style={{ zIndex: Z_INDEX.mobileNavPanel }}
           >
-            {nav}
+            {renderNav()}
           </aside>
         </>
       )}
+
+      <PlatformTutorialSidebarHost
+        profile={profile}
+        userName={userName}
+        chooserOpen={walkthroughChooserOpen}
+        onChooserOpenChange={setWalkthroughChooserOpen}
+        tourOpen={walkthroughTourOpen}
+        onTourOpenChange={setWalkthroughTourOpen}
+        mode={walkthroughMode}
+        onSelectTour={startWalkthrough}
+      />
     </>
   );
 }

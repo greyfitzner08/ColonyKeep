@@ -17,70 +17,88 @@ import type { TutorialMode } from "@/lib/platform-tutorial/tracks";
 import { cn } from "@/lib/utils";
 import type { Profile } from "@/lib/types";
 
+/** Sidebar button only — overlays must be mounted via PlatformTutorialSidebarHost. */
+export function PlatformTutorialSidebarButton({
+  className,
+  onClick,
+}: {
+  className?: string;
+  onClick: () => void;
+}) {
+  return (
+    <Button
+      type="button"
+      variant="sidebar"
+      className={cn("h-auto w-full justify-start gap-2 px-2 py-2", className)}
+      onClick={onClick}
+    >
+      <Compass className="h-4 w-4 shrink-0" aria-hidden="true" />
+      <span className="text-sm font-medium">Walkthroughs</span>
+    </Button>
+  );
+}
+
+/** Always-mounted host so closing the mobile drawer does not wipe walkthrough state. */
+export function PlatformTutorialSidebarHost({
+  profile,
+  userName,
+  chooserOpen,
+  onChooserOpenChange,
+  tourOpen,
+  onTourOpenChange,
+  mode,
+  onSelectTour,
+}: {
+  profile: Profile | null;
+  userName?: string | null;
+  chooserOpen: boolean;
+  onChooserOpenChange: (open: boolean) => void;
+  tourOpen: boolean;
+  onTourOpenChange: (open: boolean) => void;
+  mode: TutorialMode;
+  onSelectTour: (mode: TutorialMode) => void;
+}) {
+  const advancedTrack = useMemo(() => advancedTrackForProfile(profile), [profile]);
+
+  return (
+    <>
+      <WalkthroughChooser
+        open={chooserOpen}
+        onOpenChange={onChooserOpenChange}
+        advancedTrackTitle={advancedTrack?.title}
+        advancedTrackSummary={advancedTrack?.summary}
+        advancedRoleLabel={advancedTrack?.roleLabel}
+        onSelect={onSelectTour}
+      />
+      <PlatformTutorialModal
+        open={tourOpen}
+        onOpenChange={onTourOpenChange}
+        profile={profile}
+        userName={userName}
+        mode={mode}
+      />
+    </>
+  );
+}
+
 interface PlatformTutorialTriggerProps {
   profile: Profile | null;
   userName?: string | null;
-  variant?: "card" | "sidebar";
   className?: string;
-  /** Called when the walkthrough chooser or tour opens (e.g. close mobile nav). */
-  onActivate?: () => void;
 }
 
 export function PlatformTutorialTrigger({
   profile,
   userName,
-  variant = "card",
   className,
-  onActivate,
 }: PlatformTutorialTriggerProps) {
-  const [chooserOpen, setChooserOpen] = useState(false);
   const [tourOpen, setTourOpen] = useState(false);
   const [mode, setMode] = useState<TutorialMode>("quick");
   const advancedTrack = useMemo(() => advancedTrackForProfile(profile), [profile]);
 
-  function openChooser() {
-    onActivate?.();
-    setChooserOpen(true);
-  }
-
   function startTour(nextMode: TutorialMode) {
-    onActivate?.();
     setMode(nextMode);
-    setChooserOpen(false);
     setTourOpen(true);
-  }
-
-  if (variant === "sidebar") {
-    return (
-      <>
-        <Button
-          type="button"
-          variant="sidebar"
-          className={cn("h-auto w-full justify-start gap-2 px-2 py-2", className)}
-          onClick={openChooser}
-        >
-          <Compass className="h-4 w-4 shrink-0" aria-hidden="true" />
-          <span className="text-sm font-medium">Walkthroughs</span>
-        </Button>
-
-        <WalkthroughChooser
-          open={chooserOpen}
-          onOpenChange={setChooserOpen}
-          advancedTrackTitle={advancedTrack?.title}
-          advancedTrackSummary={advancedTrack?.summary}
-          advancedRoleLabel={advancedTrack?.roleLabel}
-          onSelect={startTour}
-        />
-
-        <PlatformTutorialModal
-          open={tourOpen}
-          onOpenChange={setTourOpen}
-          profile={profile}
-          userName={userName}
-          mode={mode}
-        />
-      </>
-    );
   }
 
   return (
