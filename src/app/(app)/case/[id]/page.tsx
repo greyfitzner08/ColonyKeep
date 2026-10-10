@@ -19,6 +19,7 @@ import { cn } from "@/lib/utils";
 import { canAddCaseHistoryNote } from "@/lib/cases/case-permissions";
 import { normalizeHistoryLog } from "@/lib/cases/history-log";
 import { isCaseWorker, canManageAppointments } from "@/lib/permissions";
+import { APPOINTMENTS_UI_ENABLED } from "@/lib/features";
 import { CaseClaimActions } from "@/components/cases/case-claim-actions";
 import { CaseNeedsMoreInfoAction } from "@/components/cases/case-needs-more-info-action";
 import { PageHeader } from "@/components/layout/page-header";
@@ -44,13 +45,17 @@ export default async function CasePage({ params }: CasePageProps) {
   const [{ data: cats }, { data: appointments }, { data: availableAppointments }, { data: clinicFixes }, { data: teams }] =
     await Promise.all([
       supabase.from("cats").select("*").eq("help_request_id", id),
-      supabase.from("appointments").select("*").eq("help_request_id", id),
-      supabase
-        .from("appointments")
-        .select("*")
-        .eq("status", "available")
-        .gte("date", new Date().toISOString().split("T")[0])
-        .order("date"),
+      APPOINTMENTS_UI_ENABLED
+        ? supabase.from("appointments").select("*").eq("help_request_id", id)
+        : Promise.resolve({ data: [] as Appointment[] }),
+      APPOINTMENTS_UI_ENABLED
+        ? supabase
+            .from("appointments")
+            .select("*")
+            .eq("status", "available")
+            .gte("date", new Date().toISOString().split("T")[0])
+            .order("date")
+        : Promise.resolve({ data: [] as Appointment[] }),
       supabase
         .from("clinic_fixes")
         .select("*")

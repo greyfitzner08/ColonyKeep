@@ -25,6 +25,7 @@ import { CaseColonyTab } from "@/components/cases/case-colony-tab";
 import { CaseIntakeSection } from "@/components/cases/case-intake-section";
 import { CaseHistorySection } from "@/components/cases/case-history-section";
 import { CaseAppointmentsSection } from "@/components/appointments/case-appointments-section";
+import { APPOINTMENTS_UI_ENABLED } from "@/lib/features";
 import { useDebouncedCallback } from "@/lib/hooks/use-debounced-callback";
 
 type SaveState = "idle" | "saving" | "saved" | "error";
@@ -394,7 +395,9 @@ export function CaseDetailTabs({
         <TabsTrigger value="reporter">Reporter</TabsTrigger>
         <TabsTrigger value="colony">Colony</TabsTrigger>
         <TabsTrigger value="intake">Case details</TabsTrigger>
-        <TabsTrigger value="appointments">Appointments ({appointments.length})</TabsTrigger>
+        {APPOINTMENTS_UI_ENABLED ? (
+          <TabsTrigger value="appointments">Appointments ({appointments.length})</TabsTrigger>
+        ) : null}
         <TabsTrigger value="history">History</TabsTrigger>
       </TabsList>
 
@@ -441,22 +444,24 @@ export function CaseDetailTabs({
         />
       </TabsContent>
 
-      <TabsContent value="appointments" className="mt-4">
-        <CaseAppointmentsSection
-          helpRequest={{
-            id: hr.id,
-            case_number: hr.case_number,
-            contact_name: hr.contact_name,
-          }}
-          appointments={appointments}
-          availableAppointments={availableAppointments}
-          cats={cats}
-          clinicFixes={clinicFixes}
-          userEmail={userEmail}
-          isAdmin={userRole === "admin"}
-          readOnly={readOnly}
-        />
-      </TabsContent>
+      {APPOINTMENTS_UI_ENABLED ? (
+        <TabsContent value="appointments" className="mt-4">
+          <CaseAppointmentsSection
+            helpRequest={{
+              id: hr.id,
+              case_number: hr.case_number,
+              contact_name: hr.contact_name,
+            }}
+            appointments={appointments}
+            availableAppointments={availableAppointments}
+            cats={cats}
+            clinicFixes={clinicFixes}
+            userEmail={userEmail}
+            isAdmin={userRole === "admin"}
+            readOnly={readOnly}
+          />
+        </TabsContent>
+      ) : null}
 
       <TabsContent value="history" className="mt-4">
         <CaseHistorySection
