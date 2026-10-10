@@ -140,7 +140,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { href: "/team-feed", label: "Team Feed", icon: MessageSquare },
       { href: "/team-directory", label: "Team Directory", icon: Contact },
-      { href: "/shift-board", label: "Shift Board", icon: CalendarDays },
+      { href: "/shift-board", label: "Events", icon: CalendarDays },
     ],
   },
   {

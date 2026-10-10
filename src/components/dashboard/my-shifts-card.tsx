@@ -54,7 +54,7 @@ export function MyShiftsCard({ shifts }: MyShiftsCardProps) {
           <div className="space-y-3 text-sm text-muted-foreground">
             <p>You are not signed up for any upcoming shifts.</p>
             <Button asChild variant="outline" size="sm">
-              <Link href="/shift-board">Browse shift board</Link>
+              <Link href="/shift-board">View events</Link>
             </Button>
           </div>
         ) : (
@@ -92,7 +92,7 @@ export function MyShiftsCard({ shifts }: MyShiftsCardProps) {
               );
             })}
             <Button asChild variant="link" className="px-0">
-              <Link href="/shift-board">View shift board</Link>
+              <Link href="/shift-board">View events</Link>
             </Button>
           </div>
         )}

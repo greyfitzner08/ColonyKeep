@@ -5,3 +5,6 @@
 
 /** Appointments page + nav/quick links. Case clinic-result tools stay available. */
 export const APPOINTMENTS_UI_ENABLED = false;
+
+/** Shift signup rows under the Events calendar. Calendar embed stays visible. */
+export const SHIFT_SIGNUPS_UI_ENABLED = false;

@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 import type { ProfilePermissions } from "@/lib/permissions";
 import { getProfilePermissions } from "@/lib/permissions";
-import { APPOINTMENTS_UI_ENABLED } from "@/lib/features";
+import { APPOINTMENTS_UI_ENABLED, SHIFT_SIGNUPS_UI_ENABLED } from "@/lib/features";
 import type { PlatformTutorialStep } from "@/lib/platform-tutorial/steps";
 import type { Profile, UserRole } from "@/lib/types";
 
@@ -112,11 +112,14 @@ const ADMIN_TRACK: AdvancedTutorialTrack = {
     step({
       id: "adv-admin-events",
       title: "Event staffing is separate from case work",
-      description:
-        "Clinic Events and the Shift Board handle outreach days and volunteer positions. Someone can help at an event without working trap cases — and vice versa.",
+      description: SHIFT_SIGNUPS_UI_ENABLED
+        ? "Clinic Events and Events handle outreach days and volunteer positions. Someone can help at an event without working trap cases — and vice versa."
+        : "Events shows the shared calendar for outreach days. Case work stays in Trap Queue — someone can help at an event without working trap cases.",
       icon: CalendarDays,
       navHref: "/shift-board",
-      flowNote: "Shifts claimed here show on each volunteer’s Dashboard and My Impact.",
+      flowNote: SHIFT_SIGNUPS_UI_ENABLED
+        ? "Shifts claimed here show on each volunteer’s Dashboard and My Impact."
+        : "Calendar view · case work stays in Trap Queue.",
     }),
     step({
       id: "adv-admin-feed",
@@ -209,11 +212,12 @@ const TRAP_LEAD_TRACK: AdvancedTutorialTrack = {
     }),
     step({
       id: "adv-trap-shifts",
-      title: "Staff events on Shift Board",
+      title: "Staff events on Events",
       description:
-        "Community or clinic event days use the Shift Board. Claiming a shift doesn’t move a trap case — it’s separate volunteer staffing.",
+        "Community or clinic event days use Events. Claiming a shift doesn’t move a trap case — it’s separate volunteer staffing.",
       icon: CalendarDays,
       navHref: "/shift-board",
+      visible: () => SHIFT_SIGNUPS_UI_ENABLED,
       flowNote: "Case work and event shifts are parallel tracks.",
     }),
     step({
@@ -280,11 +284,12 @@ const CLINIC_TRACK: AdvancedTutorialTrack = {
     }),
     step({
       id: "adv-clinic-shifts",
-      title: "Staff the day on Shift Board",
+      title: "Staff the day on Events",
       description:
         "Create event positions and shifts so volunteers can claim roles (registration, parking, etc.). Event staffing complements clinic capacity — it doesn’t replace appointment slots.",
       icon: CalendarDays,
       navHref: "/shift-board",
+      visible: () => SHIFT_SIGNUPS_UI_ENABLED,
       flowNote: "Appointments = cat capacity · Shifts = volunteer positions.",
     }),
     step({
@@ -363,10 +368,10 @@ const CASE_VOLUNTEER_TRACK: AdvancedTutorialTrack = {
       id: "adv-case-shifts",
       title: "Event shifts are optional extras",
       description:
-        "Shift Board is for event positions (registration, outreach days). Claiming a shift doesn’t assign you a trap case.",
+        "Events is for event positions (registration, outreach days). Claiming a shift doesn’t assign you a trap case.",
       icon: CalendarDays,
       navHref: "/shift-board",
-      visible: (p) => p.canClaimShifts,
+      visible: (p) => SHIFT_SIGNUPS_UI_ENABLED && p.canClaimShifts,
       flowNote: "Two volunteer paths: case queues and event shifts.",
     }),
     step({
@@ -403,12 +408,15 @@ const EVENT_VOLUNTEER_TRACK: AdvancedTutorialTrack = {
     }),
     step({
       id: "adv-event-shifts",
-      title: "Claim work on Shift Board",
-      description:
-        "Open events list positions (for example Registration Desk) with dated shifts. Sign up for a slot you can keep — your claim reserves capacity for that position.",
+      title: SHIFT_SIGNUPS_UI_ENABLED ? "Claim work on Events" : "Check upcoming Events",
+      description: SHIFT_SIGNUPS_UI_ENABLED
+        ? "Open events list positions (for example Registration Desk) with dated shifts. Sign up for a slot you can keep — your claim reserves capacity for that position."
+        : "Open Events to see the shared calendar of outreach days and volunteer gatherings.",
       icon: CalendarDays,
       navHref: "/shift-board",
-      flowNote: "Action: open event → choose position → Sign Up on a dated shift.",
+      flowNote: SHIFT_SIGNUPS_UI_ENABLED
+        ? "Action: open event → choose position → Sign Up on a dated shift."
+        : "Calendar view for team events.",
     }),
     step({
       id: "adv-event-dashboard",
@@ -417,7 +425,8 @@ const EVENT_VOLUNTEER_TRACK: AdvancedTutorialTrack = {
         "Upcoming claimed shifts appear on the Dashboard with countdown timing. That’s your personal schedule view after signing up.",
       icon: ClipboardCheck,
       navHref: "/",
-      flowNote: "Shift Board creates the claim · Dashboard reminds you.",
+      visible: () => SHIFT_SIGNUPS_UI_ENABLED,
+      flowNote: "Events creates the claim · Dashboard reminds you.",
     }),
     step({
       id: "adv-event-feed",
@@ -496,13 +505,16 @@ const GENERAL_TRACK: AdvancedTutorialTrack = {
     }),
     step({
       id: "adv-general-shifts",
-      title: "Shift Board for timed volunteer slots",
-      description:
-        "If you have shift access, claim event positions here. Claims appear back on your dashboard.",
+      title: SHIFT_SIGNUPS_UI_ENABLED ? "Events for timed volunteer slots" : "Events calendar",
+      description: SHIFT_SIGNUPS_UI_ENABLED
+        ? "If you have shift access, claim event positions here. Claims appear back on your dashboard."
+        : "Open Events to browse the shared team calendar.",
       icon: CalendarDays,
       navHref: "/shift-board",
       visible: (p) => p.canClaimShifts,
-      flowNote: "Shift Board ↔ Dashboard upcoming shifts.",
+      flowNote: SHIFT_SIGNUPS_UI_ENABLED
+        ? "Events ↔ Dashboard upcoming shifts."
+        : "Events shows the shared calendar.",
     }),
     step({
       id: "adv-general-resources",

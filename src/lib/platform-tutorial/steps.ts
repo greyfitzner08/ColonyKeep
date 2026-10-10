@@ -19,7 +19,7 @@ import {
   Settings,
 } from "lucide-react";
 import type { ProfilePermissions } from "@/lib/permissions";
-import { APPOINTMENTS_UI_ENABLED } from "@/lib/features";
+import { APPOINTMENTS_UI_ENABLED, SHIFT_SIGNUPS_UI_ENABLED } from "@/lib/features";
 
 export interface PlatformTutorialStep {
   id: string;
@@ -127,9 +127,10 @@ export const PLATFORM_TUTORIAL_STEPS: PlatformTutorialStep[] = [
   },
   {
     id: "shift-board",
-    title: "Shift board",
-    description:
-      "Browse open volunteer shifts. Claim a slot when you're available — upcoming shifts also show on the dashboard.",
+    title: "Events",
+    description: SHIFT_SIGNUPS_UI_ENABLED
+      ? "Browse open volunteer shifts. Claim a slot when you're available — upcoming shifts also show on the dashboard."
+      : "See upcoming team events on the shared calendar.",
     icon: CalendarDays,
     navHref: "/shift-board",
     visible: (p) => p.canClaimShifts,

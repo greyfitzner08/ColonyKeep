@@ -63,7 +63,7 @@ Dashboard shows org-wide work; sidebar includes everything (queues, clinics, vol
 1. **Volunteers** — approve applicants, assign interests/teams, set platform role, merge duplicates, reopen inactive.
 2. **Trap Queue / Hotspots / Equipment** — support field ops; share the public request form from Trap Queue.
 3. **Clinics → Appointments / Clinic Events** — partners, slots, public events.
-4. **Shift Board** — events come from the Google calendar; add positions and shifts under those events.
+4. **Events** — events come from the Google calendar; add positions and shifts under those events.
 5. **Team Feed / Reports / Admin** — communicate, measure, brand/settings/teams.
 
 ### Caseload
@@ -76,7 +76,7 @@ Not a personal queue; they supervise and fix access. Work history still appears 
 **Job:** Run field work for assigned teams — trap, transport, recovery, clinic booking, gear. Includes **Trap School** for small colonies (≤5 cats/kittens).
 
 ### After login
-Dashboard shows team cases, personally claimed cases, shifts, pending clinic follow-ups when relevant. Sidebar includes Trap Queue, Hotspots, Appointments, Equipment, Shift Board, and shared tools.
+Dashboard shows team cases, personally claimed cases, shifts, pending clinic follow-ups when relevant. Sidebar includes Trap Queue, Hotspots, Appointments, Equipment, Events, and shared tools.
 
 ### Day-to-day
 1. **Trap Queue** — primary board (team-assigned + personally claimed).
@@ -85,7 +85,7 @@ Dashboard shows team cases, personally claimed cases, shifts, pending clinic fol
 4. **Hotspots** for route/colony planning.
 5. **Equipment** — check traps in/out (doesn’t auto-return when a case closes).
 6. **Appointments** — reserve open slots for cases (admins add slots to the schedule); log clinic results after.
-7. **Shift Board** for event staffing; **Team Directory** for teammates.
+7. **Events** for event staffing; **Team Directory** for teammates.
 
 ### Caseload management
 - Team scope via **assigned trap team** + personal claims.
@@ -98,10 +98,10 @@ Dashboard shows team cases, personally claimed cases, shifts, pending clinic fol
 **Job:** Staff events and community work; stay oriented via feed, resources, and profile. Same page access for every volunteer interest.
 
 ### After login
-Core: Dashboard, **Shift Board**, **Team Feed**, **Resources**, **Profile**, **My Impact**; **Team Directory** if adult (birthday set). No Trap Queue, Clinics, or Appointments unless the admin changes their **platform role**.
+Core: Dashboard, **Events**, **Team Feed**, **Resources**, **Profile**, **My Impact**; **Team Directory** if adult (birthday set). No Trap Queue, Clinics, or Appointments unless the admin changes their **platform role**.
 
 ### Day-to-day
-1. **Shift Board** — open event → position → dated shift → **Sign Up** (or join waitlist).
+1. **Events** — open event → position → dated shift → **Sign Up** (or join waitlist).
 2. Confirm on **Dashboard** (upcoming shifts).
 3. Check **Team Feed** before the day.
 4. Read **Resources**; keep **Profile** interests/contact current so admins can match you to the right shifts.
@@ -121,7 +121,7 @@ Shift claims, not cases. Signing up for a shift does **not** assign a trap case.
 | Appointments | TNVR Team, Administrator |
 | Clinics & Clinic Events | Administrator |
 | Equipment | TNVR Team, Administrator |
-| Shift Board | Everyone with a login |
+| Events | Everyone with a login |
 | Volunteers / Admin / Reports | Administrator |
 | Team Feed / Resources / Profile / My Impact | Everyone with a login |
 

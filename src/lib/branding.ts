@@ -13,7 +13,7 @@ export interface PlatformBranding {
   logo_light_url: string | null;
   primary_color: string;
   sidebar_color: string;
-  /** Public Google Calendar iframe embed URL shown on Shift Board. */
+  /** Public Google Calendar iframe embed URL shown on Events. */
   google_calendar_embed_url: string | null;
   /** Intro shown before the public colony request form. */
   intake_about_message: string;

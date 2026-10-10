@@ -5,6 +5,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { ShiftBoard } from "@/components/shifts/shift-board";
 import { ShiftBoardTitle } from "@/components/shifts/shift-board-title";
 import { GoogleCalendarEmbed } from "@/components/shifts/google-calendar-embed";
+import { SHIFT_SIGNUPS_UI_ENABLED } from "@/lib/features";
 import { isGoogleCalendarSyncConfigured } from "@/lib/shifts/google-calendar-ical";
 import { syncGoogleCalendarShifts } from "@/lib/shifts/sync-google-calendar";
 import type { Shift } from "@/lib/types";
@@ -15,8 +16,9 @@ export default async function ShiftBoardPage() {
   const isAdmin = profile?.role === "admin";
   const branding = await getPlatformBranding();
   const calendarConnected = isGoogleCalendarSyncConfigured();
+  const showSignups = SHIFT_SIGNUPS_UI_ENABLED;
 
-  if (calendarConnected) {
+  if (showSignups && calendarConnected) {
     try {
       const service = await createServiceClient();
       await syncGoogleCalendarShifts(service);
@@ -29,13 +31,16 @@ export default async function ShiftBoardPage() {
     }
   }
 
-  const { data: shifts } = await supabase
-    .from("shifts")
-    .select("*")
-    .gte("date", new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0])
-    .order("date");
+  let typedShifts: Shift[] = [];
+  if (showSignups) {
+    const { data: shifts } = await supabase
+      .from("shifts")
+      .select("*")
+      .gte("date", new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0])
+      .order("date");
+    typedShifts = (shifts ?? []) as Shift[];
+  }
 
-  const typedShifts = (shifts ?? []) as Shift[];
   const rosterEmails = Array.from(
     new Set(
       typedShifts.flatMap((shift) =>
@@ -47,7 +52,7 @@ export default async function ShiftBoardPage() {
   );
 
   const signupNamesByEmail: Record<string, string> = {};
-  if (isAdmin && rosterEmails.length > 0) {
+  if (showSignups && isAdmin && rosterEmails.length > 0) {
     const { data: profiles } = await supabase
       .from("profiles")
       .select("email, full_name")
@@ -62,30 +67,32 @@ export default async function ShiftBoardPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title={<ShiftBoardTitle />} />
+      <PageHeader title={<ShiftBoardTitle showSignupHelp={showSignups} />} />
       {branding.google_calendar_embed_url && (
         <GoogleCalendarEmbed embedUrl={branding.google_calendar_embed_url} />
       )}
-      {calendarConnected && (
+      {showSignups && calendarConnected && (
         <p className="text-sm text-muted-foreground">
           Signup rows follow events added on the team Google calendar. Join them here. Admins can set spot limits and roles on each row.
         </p>
       )}
-      <ShiftBoard
-        shifts={typedShifts}
-        userEmail={profile?.email ?? ""}
-        isAdmin={isAdmin}
-        eligibilityProfile={
-          profile
-            ? {
-                role: profile.role,
-                volunteer_roles: profile.volunteer_roles ?? [],
-                tnvr_certificate_uploaded: Boolean(profile.tnvr_certificate_uploaded),
-              }
-            : null
-        }
-        signupNamesByEmail={signupNamesByEmail}
-      />
+      {showSignups ? (
+        <ShiftBoard
+          shifts={typedShifts}
+          userEmail={profile?.email ?? ""}
+          isAdmin={isAdmin}
+          eligibilityProfile={
+            profile
+              ? {
+                  role: profile.role,
+                  volunteer_roles: profile.volunteer_roles ?? [],
+                  tnvr_certificate_uploaded: Boolean(profile.tnvr_certificate_uploaded),
+                }
+              : null
+          }
+          signupNamesByEmail={signupNamesByEmail}
+        />
+      ) : null}
     </div>
   );
 }

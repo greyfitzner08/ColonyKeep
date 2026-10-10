@@ -410,7 +410,7 @@ export function BrandingSettings({ branding }: BrandingSettingsProps) {
 
       <CollapsibleCard
         title="Public Google Calendar"
-        description="Shown on the Shift Board. Paste the public embed URL from Google Calendar settings."
+        description="Shown on Events. Paste the public embed URL from Google Calendar settings."
       >
             <Label htmlFor="branding-google-calendar">Embed URL</Label>
             <Input
