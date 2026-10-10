@@ -19,6 +19,7 @@ import {
   Settings,
 } from "lucide-react";
 import type { ProfilePermissions } from "@/lib/permissions";
+import { APPOINTMENTS_UI_ENABLED } from "@/lib/features";
 
 export interface PlatformTutorialStep {
   id: string;
@@ -89,7 +90,7 @@ export const PLATFORM_TUTORIAL_STEPS: PlatformTutorialStep[] = [
       "Schedule and manage clinic appointments linked to active cases — holds, confirmations, and payment status.",
     icon: Calendar,
     navHref: "/appointments",
-    visible: (p) => p.canManageAppointments,
+    visible: (p) => APPOINTMENTS_UI_ENABLED && p.routes.includes("/appointments"),
   },
   {
     id: "clinics",

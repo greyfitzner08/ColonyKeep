@@ -27,6 +27,7 @@ import {
   PawPrint,
   ClipboardList,
 } from "lucide-react";
+import { APPOINTMENTS_UI_ENABLED } from "@/lib/features";
 import { cn } from "@/lib/utils";
 import { getProfilePermissions } from "@/lib/permissions";
 import { useTutorialNavigation } from "@/components/platform-tutorial/tutorial-navigation-context";
@@ -110,7 +111,9 @@ const NAV_GROUPS: NavGroup[] = [
     label: "Operations",
     items: [
       { href: "/trap-queue", label: "Trap Queue", icon: Kanban },
-      { href: "/appointments", label: "Appointments", icon: Calendar },
+      ...(APPOINTMENTS_UI_ENABLED
+        ? ([{ href: "/appointments", label: "Appointments", icon: Calendar }] as NavItem[])
+        : []),
       { href: "/hotspots", label: "Hotspots Map", icon: Map },
       { href: "/equipment", label: "Equipment", icon: Package },
     ],

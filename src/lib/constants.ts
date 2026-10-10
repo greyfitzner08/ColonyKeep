@@ -124,7 +124,6 @@ export const ROLE_PERMISSIONS: Record<
     routes: [
       "/",
       "/trap-queue",
-      "/appointments",
       "/clinics",
       "/hotspots",
       "/volunteers",
@@ -143,7 +142,6 @@ export const ROLE_PERMISSIONS: Record<
       "/",
       "/case",
       "/trap-queue",
-      "/appointments",
       "/hotspots",
       "/shift-board",
       "/team-feed",

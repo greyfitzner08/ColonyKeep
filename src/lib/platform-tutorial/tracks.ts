@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import type { ProfilePermissions } from "@/lib/permissions";
 import { getProfilePermissions } from "@/lib/permissions";
+import { APPOINTMENTS_UI_ENABLED } from "@/lib/features";
 import type { PlatformTutorialStep } from "@/lib/platform-tutorial/steps";
 import type { Profile, UserRole } from "@/lib/types";
 
@@ -96,6 +97,7 @@ const ADMIN_TRACK: AdvancedTutorialTrack = {
         "When cats need surgery, reserve appointment slots and link them to cases. Clinics define capacity; appointments consume it.",
       icon: Calendar,
       navHref: "/appointments",
+      visible: () => APPOINTMENTS_UI_ENABLED,
       flowNote: "Clinic settings → available slots → case appointments → transport/recovery follow-up.",
     }),
     step({
@@ -202,6 +204,7 @@ const TRAP_LEAD_TRACK: AdvancedTutorialTrack = {
         "Reserve slots for cats that need surgery, then coordinate transport. Appointment records link clinic capacity to your case cats.",
       icon: Calendar,
       navHref: "/appointments",
+      visible: () => APPOINTMENTS_UI_ENABLED,
       flowNote: "Trap success → appointment hold → transport → recovery → return.",
     }),
     step({
@@ -263,6 +266,7 @@ const CLINIC_TRACK: AdvancedTutorialTrack = {
         "As an admin, create clinic slots on the calendar and help teams reserve them for case cats. TNVR users can reserve existing slots but cannot add new ones.",
       icon: Calendar,
       navHref: "/appointments",
+      visible: () => APPOINTMENTS_UI_ENABLED,
       flowNote: "Clinics → admin creates slots → teams reserve → case transport plans.",
     }),
     step({
@@ -352,7 +356,7 @@ const CASE_VOLUNTEER_TRACK: AdvancedTutorialTrack = {
         "When cats need surgery, appointments reserve clinic capacity. Coordinate with your lead before holding slots you can’t fill.",
       icon: Calendar,
       navHref: "/appointments",
-      visible: (p) => p.canManageAppointments,
+      visible: (p) => APPOINTMENTS_UI_ENABLED && p.canManageAppointments,
       flowNote: "Trap → appointment → transport → recovery → return.",
     }),
     step({

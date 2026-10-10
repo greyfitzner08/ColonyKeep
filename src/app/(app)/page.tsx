@@ -16,6 +16,7 @@ import {
   canViewTrapTeamSection,
   isCaseWorker,
 } from "@/lib/permissions";
+import { APPOINTMENTS_UI_ENABLED } from "@/lib/features";
 import type { HelpRequest, Shift } from "@/lib/types";
 
 const CLOSED_STATUSES = '("completed","closed")';
@@ -44,7 +45,7 @@ export default async function DashboardPage() {
   const trapWorker = profile.role === "admin" || profile.role === "trap_team_lead";
   const intakeWorker = false;
   const showShifts = canClaimShifts(profile);
-  const showAppointments = canManageAppointments(profile);
+  const showAppointments = APPOINTMENTS_UI_ENABLED && canManageAppointments(profile);
   const showProgramAppointments = profile.role === "admin";
   const showTrapTeam = canViewTrapTeamSection(profile);
 

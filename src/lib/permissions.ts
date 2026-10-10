@@ -1,3 +1,4 @@
+import { APPOINTMENTS_UI_ENABLED } from "@/lib/features";
 import { isAdult } from "@/lib/volunteers/age-eligibility";
 import type { Profile, UserRole } from "@/lib/types";
 
@@ -109,7 +110,7 @@ export function getProfilePermissions(profile: Profile | null): ProfilePermissio
         "/",
         "/profile",
         "/trap-queue",
-        "/appointments",
+        ...(APPOINTMENTS_UI_ENABLED ? ["/appointments"] : []),
         "/clinics",
         "/clinic-events",
         "/hotspots",
@@ -161,7 +162,9 @@ export function getProfilePermissions(profile: Profile | null): ProfilePermissio
   if (role === "trap_team_lead") {
     routes.add("/trap-queue");
     routes.add("/hotspots");
-    routes.add("/appointments");
+    if (APPOINTMENTS_UI_ENABLED) {
+      routes.add("/appointments");
+    }
     routes.add("/equipment");
   }
 
