@@ -49,7 +49,7 @@ export function TrapQueueToolbar({
   const scopeParam = searchParams.get("scope");
   const scope = scopeParam === "history" ? "history" : scopeParam === "closed" ? "closed" : "queue";
   const currentView = searchParams.get("view") ?? defaultView;
-  const hideClaimed = scope === "queue" && searchParams.get("claimed") === "hide";
+  const hideClaimed = scope === "queue" && searchParams.get("claimed") !== "show";
 
   function updateParams(mutate: (params: URLSearchParams) => void) {
     const params = new URLSearchParams(searchParams.toString());
@@ -60,7 +60,7 @@ export function TrapQueueToolbar({
   const activeFilterCount =
     (showWorkHistory && scope !== "queue" ? 1 : 0) +
     (scope !== "history" && currentView !== defaultView ? 1 : 0) +
-    (hideClaimed ? 1 : 0);
+    (scope === "queue" && !hideClaimed ? 1 : 0);
 
   return (
     <PageControlBar
@@ -155,9 +155,9 @@ export function TrapQueueToolbar({
                   onCheckedChange={(value) =>
                     updateParams((params) => {
                       if (value) {
-                        params.delete("claimed");
+                        params.set("claimed", "show");
                       } else {
-                        params.set("claimed", "hide");
+                        params.delete("claimed");
                       }
                     })
                   }

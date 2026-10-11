@@ -44,7 +44,7 @@ export function TrapQueueShell({
   const searchParams = useSearchParams();
 
   const layout = (searchParams.get("layout") === "table" ? "table" : "cards") as CaseViewMode;
-  const sort = (searchParams.get("sort") ?? "date_desc") as IntakeSortKey;
+  const sort = (searchParams.get("sort") ?? "date_asc") as IntakeSortKey;
   const searchQuery = searchParams.get("q") ?? "";
   const isClosedScope = searchParams.get("scope") === "closed";
 
@@ -76,7 +76,7 @@ export function TrapQueueShell({
         sort={sort}
         searchQuery={searchQuery}
         onLayoutChange={(nextLayout) => updateParam("layout", nextLayout === "cards" ? "" : nextLayout)}
-        onSortChange={(nextSort) => updateParam("sort", nextSort === "date_desc" ? "" : nextSort)}
+        onSortChange={(nextSort) => updateParam("sort", nextSort === "date_asc" ? "" : nextSort)}
         onSearchChange={(query) => updateParam("q", query)}
         defaultView={defaultView}
         actions={toolbarActions}

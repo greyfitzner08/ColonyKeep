@@ -30,7 +30,7 @@ export default async function TrapQueuePage({ searchParams }: TrapQueuePageProps
 
   const isHistoryScope = params.scope === "history";
   const isClosedScope = params.scope === "closed";
-  const hideClaimed = !isHistoryScope && !isClosedScope && params.claimed === "hide";
+  const hideClaimed = !isHistoryScope && !isClosedScope && params.claimed !== "show";
   const defaultView = defaultTrapQueueView({
     role: profile?.role,
     teamId: profile?.team_id,
