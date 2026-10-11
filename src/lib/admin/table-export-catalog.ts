@@ -345,6 +345,7 @@ export const EXPORTABLE_TABLES: ExportableTable[] = [
       { id: "claimed_by_name", label: "Claimed by volunteer name" },
       { id: "assigned_team_id", label: "assigned team id" },
       { id: "assigned_team_name", label: "Assigned team name" },
+      { id: "trap_school_eligible", label: "Trap School eligible" },
       { id: "follow_up_log", label: "follow up log" },
       { id: "follow_up_due_date", label: "follow up due date" },
       { id: "medical_flags", label: "medical flags" },

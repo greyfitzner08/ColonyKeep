@@ -80,6 +80,11 @@ export function CaseCard({
                 Medical
               </Badge>
             )}
+            {hr.trap_school_eligible ? (
+              <Badge variant="outline" className="text-xs whitespace-nowrap">
+                Trap School
+              </Badge>
+            ) : null}
             {statusBadge}
           </div>
         </div>

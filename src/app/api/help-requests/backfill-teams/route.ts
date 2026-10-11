@@ -40,6 +40,7 @@ export async function POST(_request: NextRequest) {
         assigned_team_id: assignment.assigned_team_id,
         assigned_team_name: assignment.assigned_team_name,
         assigned_team: assignment.assigned_team_name,
+        trap_school_eligible: Boolean(assignment.trap_school_eligible),
       })
       .eq("id", row.id);
 

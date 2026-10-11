@@ -41,7 +41,7 @@ This guide explains how access works in the app. **Page access is controlled by 
 ~~~
 Public / community request form
     → Auto-assign trap team by colony ZIP
-       (or Trap School when 5 or fewer cats/kittens are reported)
+       by ZIP; Trap School tag when ≤5 cats/kittens
     → Trap Queue (claim, trap, transport, recovery)
     → Appointments (reserve clinic slots, link to case/cats)
     → Clinic day + log results
@@ -73,7 +73,7 @@ Not a personal queue; they supervise and fix access. Work history still appears 
 
 ## 4. TNVR Team
 
-**Job:** Run field work for assigned teams — trap, transport, recovery, clinic booking, gear. Includes **Trap School** for small colonies (≤5 cats/kittens).
+**Job:** Run field work for assigned teams — trap, transport, recovery, clinic booking, gear. Small colonies (≤5 cats/kittens) are tagged **Trap School** on their ZIP team.
 
 ### After login
 Dashboard shows team cases, personally claimed cases, shifts, pending clinic follow-ups when relevant. Sidebar includes Trap Queue, Hotspots, Appointments, Equipment, Events, and shared tools.
@@ -131,7 +131,7 @@ Shift claims, not cases. Signing up for a shift does **not** assign a trap case.
 
 1. **Platform role** = which pages you can open.
 2. **Volunteer interests** = how you are staffed and labeled — not extra page unlocks.
-3. **Cases** auto-assign to a trap team (or Trap School), then move Trap → Clinic appointment → done.
+3. **Cases** auto-assign to a trap team by ZIP (Trap School tag when ≤5 cats), then move Trap → Clinic appointment → done.
 4. **Events/shifts** are a parallel path for all volunteers.
 5. **Claim** = ownership before edit (except admin).
 6. **Dashboard** summarizes; **queues/calendars** are where work happens.

@@ -147,11 +147,15 @@ export function CaseDetailTabs({
       },
       teams
     );
-    if (!assigned.assigned_team_id) return next;
     return {
       ...next,
-      assigned_team_id: assigned.assigned_team_id ?? null,
-      assigned_team_name: assigned.assigned_team_name ?? null,
+      ...(assigned.assigned_team_id
+        ? {
+            assigned_team_id: assigned.assigned_team_id ?? null,
+            assigned_team_name: assigned.assigned_team_name ?? null,
+          }
+        : {}),
+      trap_school_eligible: Boolean(assigned.trap_school_eligible),
     };
   }
 
@@ -176,6 +180,7 @@ export function CaseDetailTabs({
       assigned_team_id: persistedPayload.assigned_team_id,
       assigned_team_name: persistedPayload.assigned_team_name,
       assigned_team: persistedPayload.assigned_team_name,
+      trap_school_eligible: Boolean(persistedPayload.trap_school_eligible),
       closure_notes: persistedPayload.closure_notes,
       outcome: persistedPayload.outcome,
       resolution: persistedPayload.resolution,

@@ -69,7 +69,7 @@ export const PLATFORM_TUTORIAL_STEPS: PlatformTutorialStep[] = [
     id: "trap-queue",
     title: "Trap queue",
     description:
-      "New community requests land here automatically — assigned by colony ZIP, or to Trap School when 5 or fewer cats/kittens are reported. Claim a case before editing.",
+      "New community requests land here automatically — assigned by colony ZIP. Colonies with 5 or fewer cats/kittens are tagged Trap School. Claim a case before editing.",
     icon: Kanban,
     navHref: "/trap-queue",
     visible: (p) => p.canViewTrapQueue,

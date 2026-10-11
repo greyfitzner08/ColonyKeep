@@ -262,6 +262,8 @@ export function applyPublicOutcomeDeltas(
       cats_over_8_weeks: next.cats_over_8_weeks,
       kittens_under_8_weeks: next.kittens_under_8_weeks,
       cats_remaining: next.cats_remaining,
+      trap_school_eligible:
+        Math.max(0, next.cats_over_8_weeks ?? 0) + Math.max(0, next.kittens_under_8_weeks ?? 0) <= 5,
     },
     summary: toPublicProgressSummary(next),
     historyDetails: `Public colony update: ${parts.join(", ")}. Remaining now ${next.cats_remaining}.`,

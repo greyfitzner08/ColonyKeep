@@ -179,6 +179,8 @@ export interface HelpRequest {
   newsletter_list_added_at: string | null;
   assigned_team_id: string | null;
   assigned_team_name: string | null;
+  /** Small colony (≤5 cats/kittens) — Trap School candidate; team still follows ZIP. */
+  trap_school_eligible?: boolean;
   claimed_by_email: string | null;
   claimed_by_name: string | null;
   claimant_needs_review?: boolean;

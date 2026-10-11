@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { CaseViewMode } from "@/components/cases/case-queue-view";
 import type { IntakeSortKey } from "@/lib/cases/sort-intake-cases";
+import { isTrapSchoolTeamName } from "@/lib/cases/assign-case-team";
 import type { TrapQueueView } from "@/lib/cases/trap-queue-query";
 import { sortTrapTeams } from "@/lib/trap-teams/sort-teams";
 
@@ -50,6 +51,8 @@ export function TrapQueueToolbar({
   const scope = scopeParam === "history" ? "history" : scopeParam === "closed" ? "closed" : "queue";
   const currentView = searchParams.get("view") ?? defaultView;
   const hideClaimed = scope === "queue" && searchParams.get("claimed") !== "show";
+  const trapSchoolOnly = scope !== "history" && searchParams.get("trapSchool") === "only";
+  const geographicTeams = sortTrapTeams(teams).filter((team) => !isTrapSchoolTeamName(team.name));
 
   function updateParams(mutate: (params: URLSearchParams) => void) {
     const params = new URLSearchParams(searchParams.toString());
@@ -60,7 +63,8 @@ export function TrapQueueToolbar({
   const activeFilterCount =
     (showWorkHistory && scope !== "queue" ? 1 : 0) +
     (scope !== "history" && currentView !== defaultView ? 1 : 0) +
-    (scope === "queue" && !hideClaimed ? 1 : 0);
+    (scope === "queue" && !hideClaimed ? 1 : 0) +
+    (trapSchoolOnly ? 1 : 0);
 
   return (
     <PageControlBar
@@ -136,7 +140,7 @@ export function TrapQueueToolbar({
                   )}
                   <SelectItem value="unassigned">No team</SelectItem>
                   <SelectItem value="all">All Teams</SelectItem>
-                  {sortTrapTeams(teams).map((team) => (
+                  {geographicTeams.map((team) => (
                     <SelectItem key={team.id} value={team.id}>
                       {team.id === myTeamId ? `${team.name} (my team)` : team.name}
                     </SelectItem>
@@ -147,7 +151,7 @@ export function TrapQueueToolbar({
           ) : null}
 
           {scope === "queue" ? (
-            <div className="flex items-end min-w-0">
+            <div className="flex flex-wrap items-end gap-x-4 gap-y-2 min-w-0">
               <div className="flex h-9 items-center gap-2">
                 <Checkbox
                   id="trap-queue-show-claimed"
@@ -164,6 +168,47 @@ export function TrapQueueToolbar({
                 />
                 <Label htmlFor="trap-queue-show-claimed" className="text-sm font-normal">
                   Show claimed cases
+                </Label>
+              </div>
+              <div className="flex h-9 items-center gap-2">
+                <Checkbox
+                  id="trap-queue-trap-school"
+                  checked={trapSchoolOnly}
+                  onCheckedChange={(value) =>
+                    updateParams((params) => {
+                      if (value) {
+                        params.set("trapSchool", "only");
+                      } else {
+                        params.delete("trapSchool");
+                      }
+                    })
+                  }
+                />
+                <Label htmlFor="trap-queue-trap-school" className="text-sm font-normal">
+                  Trap School only
+                </Label>
+              </div>
+            </div>
+          ) : null}
+
+          {scope === "closed" ? (
+            <div className="flex items-end min-w-0">
+              <div className="flex h-9 items-center gap-2">
+                <Checkbox
+                  id="trap-queue-trap-school-closed"
+                  checked={trapSchoolOnly}
+                  onCheckedChange={(value) =>
+                    updateParams((params) => {
+                      if (value) {
+                        params.set("trapSchool", "only");
+                      } else {
+                        params.delete("trapSchool");
+                      }
+                    })
+                  }
+                />
+                <Label htmlFor="trap-queue-trap-school-closed" className="text-sm font-normal">
+                  Trap School only
                 </Label>
               </div>
             </div>

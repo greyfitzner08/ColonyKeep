@@ -19,6 +19,8 @@ export function findTrapTeamForZip(
 
   for (const team of teams) {
     if (team.is_active === false) continue;
+    // Trap School is a case flag, not a ZIP assignment target.
+    if (team.name.trim().toLowerCase() === "trap school") continue;
     if (team.zip_codes.some((entry) => normalizeZip(entry) === normalized)) {
       return { id: team.id, name: team.name };
     }

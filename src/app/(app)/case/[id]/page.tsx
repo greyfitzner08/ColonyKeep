@@ -105,6 +105,11 @@ export default async function CasePage({ params }: CasePageProps) {
                 <AlertTriangle className="h-3 w-3" /> Medical
               </Badge>
             )}
+            {hr.trap_school_eligible ? (
+              <Badge variant="outline" className="text-sm">
+                Trap School
+              </Badge>
+            ) : null}
             <ClaimantReviewFlag helpRequest={hr} />
           </>
         }

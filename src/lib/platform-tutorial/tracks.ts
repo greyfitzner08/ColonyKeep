@@ -67,7 +67,7 @@ const ADMIN_TRACK: AdvancedTutorialTrack = {
       id: "adv-admin-intake",
       title: "Cases land in the Trap Queue",
       description:
-        "New colony requests auto-assign to a trap team by ZIP, or to Trap School when 5 or fewer cats/kittens are reported. Staff claim them from the Trap Queue and work field logistics.",
+        "New colony requests auto-assign to a trap team by ZIP. Colonies with 5 or fewer cats/kittens are tagged Trap School so teams can filter or sort for them. Staff claim them from the Trap Queue and work field logistics.",
       icon: Kanban,
       navHref: "/trap-queue",
       flowNote: "Public form → auto team assignment → Trap Queue.",
@@ -161,7 +161,7 @@ const TRAP_LEAD_TRACK: AdvancedTutorialTrack = {
       id: "adv-trap-welcome",
       title: "Your role leading field work",
       description:
-        "You coordinate trapping through recovery. New requests auto-assign to your team (or Trap School for small colonies). This walkthrough ties the Trap Queue to equipment and appointments.",
+        "You coordinate trapping through recovery. New requests auto-assign to your team by ZIP; small colonies are tagged Trap School. This walkthrough ties the Trap Queue to equipment and appointments.",
       icon: Sparkles,
     }),
     step({
@@ -342,7 +342,7 @@ const CASE_VOLUNTEER_TRACK: AdvancedTutorialTrack = {
       icon: Kanban,
       navHref: "/trap-queue",
       visible: (p) => p.canViewTrapQueue,
-      flowNote: "Auto-assigned by ZIP or Trap School · Claim before editing.",
+      flowNote: "Auto-assigned by ZIP · Trap School tag for ≤5 cats · Claim before editing.",
     }),
     step({
       id: "adv-case-equipment",

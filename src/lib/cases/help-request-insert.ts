@@ -51,6 +51,7 @@ export const HELP_REQUEST_INSERT_COLUMNS = new Set([
   "apartment_name",
   "assigned_team_id",
   "assigned_team_name",
+  "trap_school_eligible",
   "claimed_by_email",
   "claimed_by_name",
   "claimant_needs_review",

@@ -19,7 +19,7 @@ import { isClaimedTrapCase } from "@/lib/cases/statuses";
 import type { HelpRequest } from "@/lib/types";
 
 interface TrapQueuePageProps {
-  searchParams: Promise<{ view?: string; scope?: string; claimed?: string }>;
+  searchParams: Promise<{ view?: string; scope?: string; claimed?: string; trapSchool?: string }>;
 }
 
 export default async function TrapQueuePage({ searchParams }: TrapQueuePageProps) {
@@ -31,6 +31,7 @@ export default async function TrapQueuePage({ searchParams }: TrapQueuePageProps
   const isHistoryScope = params.scope === "history";
   const isClosedScope = params.scope === "closed";
   const hideClaimed = !isHistoryScope && !isClosedScope && params.claimed !== "show";
+  const trapSchoolOnly = !isHistoryScope && params.trapSchool === "only";
   const defaultView = defaultTrapQueueView({
     role: profile?.role,
     teamId: profile?.team_id,
@@ -56,6 +57,9 @@ export default async function TrapQueuePage({ searchParams }: TrapQueuePageProps
     });
     const { data: helpRequests } = await query;
     cases = (helpRequests ?? []) as HelpRequest[];
+    if (trapSchoolOnly) {
+      cases = cases.filter((helpRequest) => Boolean(helpRequest.trap_school_eligible));
+    }
   } else {
     const query = buildTrapQueueQuery(supabase, {
       view,
@@ -66,6 +70,9 @@ export default async function TrapQueuePage({ searchParams }: TrapQueuePageProps
     cases = sortCasesMedicalFirst((helpRequests ?? []) as HelpRequest[]);
     if (hideClaimed) {
       cases = cases.filter((helpRequest) => !isClaimedTrapCase(helpRequest));
+    }
+    if (trapSchoolOnly) {
+      cases = cases.filter((helpRequest) => Boolean(helpRequest.trap_school_eligible));
     }
   }
 
@@ -83,7 +90,7 @@ export default async function TrapQueuePage({ searchParams }: TrapQueuePageProps
       : view === "unassigned"
         ? "Cases not yet assigned to a trap team."
         : view === "all"
-          ? "All active trapping cases across every team. New requests auto-assign by ZIP, or to Trap School when 5 or fewer cats/kittens are reported."
+          ? "All active trapping cases across every team. New requests auto-assign by colony ZIP; colonies with 5 or fewer cats/kittens are tagged Trap School."
           : `Cases assigned to ${viewLabel}.`;
 
   const canImport = profile?.role === "admin";

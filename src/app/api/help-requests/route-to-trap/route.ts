@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireApiRole } from "@/lib/api/auth";
-import { applyTrapTeamAssignment } from "@/lib/cases/assign-team-by-zip";
+import { applyCaseTrapTeamAssignment } from "@/lib/cases/assign-case-team";
 import { releaseIntakeAssignmentFields } from "@/lib/cases/case-assignment";
 import { intakeClaimRequiredResponse } from "@/lib/cases/intake-claim-api";
 import { INTAKE_QUEUE_STATUSES } from "@/lib/cases/statuses";
@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
   const { data: existing, error: fetchError } = await service
     .from("help_requests")
     .select(
-      "id, status, colony_zip, assigned_team_id, assigned_team_name, history_log, claimed_by_email, claimed_by_name, assigned_to"
+      "id, status, colony_zip, cats_over_8_weeks, kittens_under_8_weeks, assigned_team_id, assigned_team_name, history_log, claimed_by_email, claimed_by_name, assigned_to"
     )
     .eq("id", helpRequestId)
     .single();
@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
     .select("id, name, zip_codes, is_active")
     .eq("is_active", true);
 
-  const assignment = applyTrapTeamAssignment({}, existing.colony_zip, teams ?? []);
+  const assignment = applyCaseTrapTeamAssignment(existing, teams ?? []);
   const teamName = assignment.assigned_team_name ?? existing.assigned_team_name;
   const hadIntakeClaim = Boolean(
     existing.claimed_by_email?.trim() ||
@@ -66,8 +66,12 @@ export async function POST(request: NextRequest) {
     actor_email: profile!.email,
     actor_name: profile!.full_name ?? profile!.email,
     details: teamName
-      ? `Routed to trap team ${teamName} by intake${hadIntakeClaim ? " (released from intake assignment)" : ""}`
-      : `Routed to trap queue by intake${hadIntakeClaim ? " (released from intake assignment)" : ""} (no matching team ZIP)`,
+      ? `Routed to trap team ${teamName} by intake${
+          assignment.trap_school_eligible ? " · Trap School eligible" : ""
+        }${hadIntakeClaim ? " (released from intake assignment)" : ""}`
+      : `Routed to trap queue by intake${
+          assignment.trap_school_eligible ? " · Trap School eligible" : ""
+        }${hadIntakeClaim ? " (released from intake assignment)" : ""} (no matching team ZIP)`,
   };
 
   const historyLog = [...(existing.history_log ?? []), historyEntry];
@@ -82,6 +86,7 @@ export async function POST(request: NextRequest) {
         history_log: historyLog,
       }),
       assigned_team: teamName,
+      trap_school_eligible: Boolean(assignment.trap_school_eligible),
     })
     .eq("id", helpRequestId);
 
@@ -93,5 +98,6 @@ export async function POST(request: NextRequest) {
     success: true,
     assignedTeamId: assignment.assigned_team_id ?? existing.assigned_team_id ?? null,
     assignedTeamName: teamName ?? null,
+    trapSchoolEligible: Boolean(assignment.trap_school_eligible),
   });
 }

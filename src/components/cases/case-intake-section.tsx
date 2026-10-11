@@ -156,11 +156,13 @@ export function CaseIntakeSection({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">Unassigned</SelectItem>
-                  {sortTrapTeams(teams).map((t) => (
-                    <SelectItem key={t.id} value={t.id}>
-                      {t.name}
-                    </SelectItem>
-                  ))}
+                  {sortTrapTeams(teams)
+                    .filter((t) => t.name.trim().toLowerCase() !== "trap school")
+                    .map((t) => (
+                      <SelectItem key={t.id} value={t.id}>
+                        {t.name}
+                      </SelectItem>
+                    ))}
                 </SelectContent>
               </Select>
             </div>

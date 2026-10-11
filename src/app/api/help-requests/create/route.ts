@@ -124,10 +124,9 @@ export async function POST(request: NextRequest) {
         action: "routed_to_trap_team",
         actor_email: null,
         actor_name: "System",
-        details:
-          assignment.reason === "trap_school"
-            ? `Auto-assigned to ${assignment.name} (5 or fewer cats/kittens reported)`
-            : `Auto-assigned to ${assignment.name} by colony ZIP`,
+        details: assignment.trap_school_eligible
+          ? `Auto-assigned to ${assignment.name} by colony ZIP · Trap School eligible (5 or fewer cats/kittens)`
+          : `Auto-assigned to ${assignment.name} by colony ZIP`,
       });
       assigned.history_log = history;
       assigned.status = "routed_to_trap_team";

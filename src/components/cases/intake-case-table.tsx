@@ -123,6 +123,11 @@ export function IntakeCaseTable({
                   Medical
                 </Badge>
               )}
+              {helpRequest.trap_school_eligible ? (
+                <Badge variant="outline" className="text-xs whitespace-nowrap">
+                  Trap School
+                </Badge>
+              ) : null}
               {claimBeforeReview && isMine && (
                 <Badge variant="outline" className="text-xs">
                   Yours
