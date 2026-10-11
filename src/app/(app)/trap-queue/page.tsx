@@ -30,13 +30,15 @@ export default async function TrapQueuePage({ searchParams }: TrapQueuePageProps
 
   const isHistoryScope = params.scope === "history";
   const isClosedScope = params.scope === "closed";
-  const hideClaimed = !isHistoryScope && !isClosedScope && params.claimed !== "show";
-  const trapSchoolOnly = !isHistoryScope && params.trapSchool === "only";
   const defaultView = defaultTrapQueueView({
     role: profile?.role,
     teamId: profile?.team_id,
   });
   const view = (params.view ?? defaultView) as TrapQueueView;
+  const actorEmail = (profile?.email ?? "").trim().toLowerCase();
+  const hideOthersClaimed =
+    !isHistoryScope && !isClosedScope && view !== "my_claims" && params.claimed !== "show";
+  const trapSchoolOnly = !isHistoryScope && params.trapSchool === "only";
 
   const [{ data: teams }, { data: myTeam }] = await Promise.all([
     supabase.from("trap_teams").select("id, name").eq("is_active", true).order("name"),
@@ -68,8 +70,11 @@ export default async function TrapQueuePage({ searchParams }: TrapQueuePageProps
     });
     const { data: helpRequests } = await query;
     cases = sortCasesMedicalFirst((helpRequests ?? []) as HelpRequest[]);
-    if (hideClaimed) {
-      cases = cases.filter((helpRequest) => !isClaimedTrapCase(helpRequest));
+    if (hideOthersClaimed) {
+      cases = cases.filter((helpRequest) => {
+        if (!isClaimedTrapCase(helpRequest)) return true;
+        return (helpRequest.claimed_by_email ?? "").trim().toLowerCase() === actorEmail;
+      });
     }
     if (trapSchoolOnly) {
       cases = cases.filter((helpRequest) => Boolean(helpRequest.trap_school_eligible));
@@ -85,13 +90,15 @@ export default async function TrapQueuePage({ searchParams }: TrapQueuePageProps
         : view === "unassigned"
           ? "Closed and completed cases that were never assigned to a trap team."
           : `Closed and completed cases for ${viewLabel}. They stay off the active trap queue.`
-    : view === "mine"
-      ? "Cases assigned to your trap team and cases you have personally claimed."
-      : view === "unassigned"
-        ? "Cases not yet assigned to a trap team."
-        : view === "all"
-          ? "All active trapping cases across every team. New requests auto-assign by colony ZIP; colonies with 5 or fewer cats/kittens are tagged Trap School."
-          : `Cases assigned to ${viewLabel}.`;
+    : view === "my_claims"
+      ? "Active cases you personally claimed — your working list."
+      : view === "mine"
+        ? "Cases assigned to your trap team and cases you have personally claimed."
+        : view === "unassigned"
+          ? "Cases not yet assigned to a trap team."
+          : view === "all"
+            ? "All active trapping cases across every team. New requests auto-assign by colony ZIP; colonies with 5 or fewer cats/kittens are tagged Trap School."
+            : `Cases assigned to ${viewLabel}.`;
 
   const canImport = profile?.role === "admin";
   const requestFormUrl = `${await getServerAppUrl()}/request`;

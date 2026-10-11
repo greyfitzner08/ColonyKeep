@@ -128,11 +128,11 @@ export function IntakeCaseTable({
                   Trap School
                 </Badge>
               ) : null}
-              {claimBeforeReview && isMine && (
-                <Badge variant="outline" className="text-xs">
+              {isMine ? (
+                <Badge className="bg-emerald-600 text-xs text-white hover:bg-emerald-600">
                   Yours
                 </Badge>
-              )}
+              ) : null}
             </div>
           );
         },

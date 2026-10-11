@@ -85,6 +85,11 @@ export function CaseCard({
                 Trap School
               </Badge>
             ) : null}
+            {isMine ? (
+              <Badge className="bg-emerald-600 text-xs text-white hover:bg-emerald-600">
+                Yours
+              </Badge>
+            ) : null}
             {statusBadge}
           </div>
         </div>
@@ -126,7 +131,12 @@ export function CaseCard({
   );
 
   return (
-    <Card className="flex flex-col overflow-hidden">
+    <Card
+      className={cn(
+        "flex flex-col overflow-hidden",
+        isMine && "border-emerald-500/70 ring-1 ring-emerald-500/30"
+      )}
+    >
       {lockOpenUntilClaim ? (
         <div className="flex-1">{summary}</div>
       ) : (

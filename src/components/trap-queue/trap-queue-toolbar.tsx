@@ -50,7 +50,8 @@ export function TrapQueueToolbar({
   const scopeParam = searchParams.get("scope");
   const scope = scopeParam === "history" ? "history" : scopeParam === "closed" ? "closed" : "queue";
   const currentView = searchParams.get("view") ?? defaultView;
-  const hideClaimed = scope === "queue" && searchParams.get("claimed") !== "show";
+  const hideOthersClaimed =
+    scope === "queue" && currentView !== "my_claims" && searchParams.get("claimed") !== "show";
   const trapSchoolOnly = scope !== "history" && searchParams.get("trapSchool") === "only";
   const geographicTeams = sortTrapTeams(teams).filter((team) => !isTrapSchoolTeamName(team.name));
 
@@ -63,7 +64,7 @@ export function TrapQueueToolbar({
   const activeFilterCount =
     (showWorkHistory && scope !== "queue" ? 1 : 0) +
     (scope !== "history" && currentView !== defaultView ? 1 : 0) +
-    (scope === "queue" && !hideClaimed ? 1 : 0) +
+    (scope === "queue" && currentView !== "my_claims" && !hideOthersClaimed ? 1 : 0) +
     (trapSchoolOnly ? 1 : 0);
 
   return (
@@ -133,6 +134,7 @@ export function TrapQueueToolbar({
                   <SelectValue placeholder="Select queue" />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="my_claims">My claims</SelectItem>
                   {isTrapRole && (
                     <SelectItem value="mine">
                       {myTeamName ? `My Team (${myTeamName})` : "My Work"}
@@ -152,24 +154,26 @@ export function TrapQueueToolbar({
 
           {scope === "queue" ? (
             <div className="flex flex-wrap items-end gap-x-4 gap-y-2 min-w-0">
-              <div className="flex h-9 items-center gap-2">
-                <Checkbox
-                  id="trap-queue-show-claimed"
-                  checked={!hideClaimed}
-                  onCheckedChange={(value) =>
-                    updateParams((params) => {
-                      if (value) {
-                        params.set("claimed", "show");
-                      } else {
-                        params.delete("claimed");
-                      }
-                    })
-                  }
-                />
-                <Label htmlFor="trap-queue-show-claimed" className="text-sm font-normal">
-                  Show claimed cases
-                </Label>
-              </div>
+              {currentView !== "my_claims" ? (
+                <div className="flex h-9 items-center gap-2">
+                  <Checkbox
+                    id="trap-queue-show-claimed"
+                    checked={!hideOthersClaimed}
+                    onCheckedChange={(value) =>
+                      updateParams((params) => {
+                        if (value) {
+                          params.set("claimed", "show");
+                        } else {
+                          params.delete("claimed");
+                        }
+                      })
+                    }
+                  />
+                  <Label htmlFor="trap-queue-show-claimed" className="text-sm font-normal">
+                    Show others&apos; claimed cases
+                  </Label>
+                </div>
+              ) : null}
               <div className="flex h-9 items-center gap-2">
                 <Checkbox
                   id="trap-queue-trap-school"

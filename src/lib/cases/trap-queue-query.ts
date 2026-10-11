@@ -3,7 +3,7 @@ import { TRAP_QUEUE_STATUSES } from "@/lib/cases/statuses";
 
 export { TRAP_KANBAN_STATUSES, TRAP_QUEUE_STATUSES } from "@/lib/cases/statuses";
 
-export type TrapQueueView = "mine" | "unassigned" | "all" | string;
+export type TrapQueueView = "mine" | "my_claims" | "unassigned" | "all" | string;
 
 interface TrapQueueQueryOptions {
   view: TrapQueueView;
@@ -40,6 +40,10 @@ export function buildTrapQueueQuery(
     return query.is("assigned_team_id", null);
   }
 
+  if (view === "my_claims") {
+    return query.eq("claimed_by_email", userEmail);
+  }
+
   if (view === "mine") {
     if (teamId) {
       return query.or(`assigned_team_id.eq.${teamId},claimed_by_email.eq.${userEmail}`);
@@ -65,6 +69,7 @@ export function buildClosedCasesQuery(
 
   if (view === "all") return query;
   if (view === "unassigned") return query.is("assigned_team_id", null);
+  if (view === "my_claims") return query.eq("claimed_by_email", userEmail);
   if (view === "mine") {
     if (teamId) {
       return query.or(`assigned_team_id.eq.${teamId},claimed_by_email.eq.${userEmail}`);
@@ -79,6 +84,7 @@ export function trapQueueViewLabel(
   teams: { id: string; name: string }[],
   myTeamName?: string | null
 ): string {
+  if (view === "my_claims") return "My claims";
   if (view === "mine") {
     return myTeamName ? `My Team (${myTeamName})` : "My Work";
   }

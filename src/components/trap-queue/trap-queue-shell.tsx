@@ -61,8 +61,16 @@ export function TrapQueueShell({
   const visibleCases = useMemo(() => {
     const filtered = filterCasesBySearch(cases, searchQuery);
     if (isClosedScope) return filtered;
-    return sortIntakeCases(filtered, sort);
-  }, [cases, searchQuery, sort, isClosedScope]);
+    const sorted = sortIntakeCases(filtered, sort);
+    const email = userEmail.trim().toLowerCase();
+    if (!email) return sorted;
+    // Pin your claimed cases above the rest so they stay easy to spot.
+    return [...sorted].sort((a, b) => {
+      const aMine = (a.claimed_by_email ?? "").trim().toLowerCase() === email ? 0 : 1;
+      const bMine = (b.claimed_by_email ?? "").trim().toLowerCase() === email ? 0 : 1;
+      return aMine - bMine;
+    });
+  }, [cases, searchQuery, sort, isClosedScope, userEmail]);
 
   return (
     <div className="space-y-4">
