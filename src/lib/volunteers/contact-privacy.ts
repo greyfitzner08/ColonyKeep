@@ -11,6 +11,7 @@ export interface ContactPrivacySettings {
 
 type PrivacyFlag = boolean | null | undefined;
 
+/** All directory/map contact fields are opt-in — hide unless explicitly true. */
 export function resolveContactPrivacy(profile: {
   show_on_hotspots_map?: PrivacyFlag;
   show_phone_in_directory?: PrivacyFlag;
@@ -20,10 +21,10 @@ export function resolveContactPrivacy(profile: {
   show_address_on_hotspots_map?: PrivacyFlag;
 }): ContactPrivacySettings {
   return {
-    show_on_hotspots_map: profile.show_on_hotspots_map !== false,
-    show_phone_in_directory: profile.show_phone_in_directory !== false,
-    show_email_in_directory: profile.show_email_in_directory !== false,
-    show_address_in_directory: profile.show_address_in_directory !== false,
+    show_on_hotspots_map: profile.show_on_hotspots_map === true,
+    show_phone_in_directory: profile.show_phone_in_directory === true,
+    show_email_in_directory: profile.show_email_in_directory === true,
+    show_address_in_directory: profile.show_address_in_directory === true,
     show_phone_on_hotspots_map: profile.show_phone_on_hotspots_map === true,
     show_address_on_hotspots_map: profile.show_address_on_hotspots_map === true,
   };

@@ -45,7 +45,7 @@ function hasMappableAddress(profile: ProfileMapRow) {
 }
 
 function isVisibleOnHotspotsMap(profile: ProfileMapRow) {
-  return profile.show_on_hotspots_map !== false;
+  return profile.show_on_hotspots_map === true;
 }
 
 function toHotspotMapVolunteer(
