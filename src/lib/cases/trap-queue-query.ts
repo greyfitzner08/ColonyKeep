@@ -6,7 +6,7 @@ export { TRAP_KANBAN_STATUSES, TRAP_QUEUE_STATUSES } from "@/lib/cases/statuses"
 /** Primary Trap Queue work mode. */
 export type TrapQueueFocus = "needs_claim" | "mine";
 
-/** Team scope for the Needs claim list (and closed workspace). */
+/** Team scope for the Unclaimed list (and closed workspace). */
 export type TrapQueueTeamScope = "mine" | "all" | "unassigned" | string;
 
 /** @deprecated Prefer TrapQueueFocus + TrapQueueTeamScope. */
@@ -162,5 +162,5 @@ export function trapQueueTeamScopeLabel(
 }
 
 export function trapQueueFocusLabel(focus: TrapQueueFocus): string {
-  return focus === "mine" ? "My claims" : "Needs claim";
+  return focus === "mine" ? "My claims" : "Unclaimed";
 }

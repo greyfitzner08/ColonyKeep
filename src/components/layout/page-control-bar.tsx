@@ -54,6 +54,30 @@ export function PageControlBar({
   const hasFilters = Boolean(filters);
   const hasToolbarRow = Boolean(search || actions || hasFilters || meta);
   const collapseAll = filterCollapse === "all";
+  const showFiltersPanel = hasFilters && (collapseAll ? filtersOpen : true);
+
+  const filtersToggle = hasFilters ? (
+    <Button
+      type="button"
+      variant="outline"
+      size="sm"
+      className={cn("h-9", !collapseAll && "md:hidden")}
+      aria-expanded={filtersOpen}
+      aria-controls="page-control-filters"
+      onClick={() => setFiltersOpen((open) => !open)}
+    >
+      <SlidersHorizontal className="h-4 w-4" />
+      {filtersLabel}
+      {activeFilterCount > 0 ? (
+        <Badge variant="secondary" className="h-5 min-w-5 px-1.5 font-normal">
+          {activeFilterCount}
+        </Badge>
+      ) : null}
+      <ChevronDown
+        className={cn("h-4 w-4 transition-transform", filtersOpen && "rotate-180")}
+      />
+    </Button>
+  ) : null;
 
   return (
     <section
@@ -73,44 +97,27 @@ export function PageControlBar({
         >
           <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
             {search ? <div className="w-full min-w-0 max-w-sm">{search}</div> : null}
-            {hasFilters ? (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className={cn("h-9", !collapseAll && "md:hidden")}
-                aria-expanded={filtersOpen}
-                onClick={() => setFiltersOpen((open) => !open)}
-              >
-                <SlidersHorizontal className="h-4 w-4" />
-                {filtersLabel}
-                {activeFilterCount > 0 ? (
-                  <Badge variant="secondary" className="h-5 min-w-5 px-1.5 font-normal">
-                    {activeFilterCount}
-                  </Badge>
-                ) : null}
-                <ChevronDown
-                  className={cn("h-4 w-4 transition-transform", filtersOpen && "rotate-180")}
-                />
-              </Button>
-            ) : null}
+            {!collapseAll ? filtersToggle : null}
             {meta ? (
               <p className="text-sm text-muted-foreground">{meta}</p>
             ) : null}
           </div>
 
-          {actions ? (
-            <div className="flex shrink-0 flex-wrap items-center gap-2 sm:justify-end">{actions}</div>
+          {actions || (collapseAll && filtersToggle) ? (
+            <div className="flex shrink-0 flex-wrap items-center gap-2 sm:justify-end">
+              {actions}
+              {collapseAll ? filtersToggle : null}
+            </div>
           ) : null}
         </div>
       ) : null}
 
-      {hasFilters ? (
+      {showFiltersPanel ? (
         <div
+          id="page-control-filters"
           className={cn(
-            "gap-2 border-t border-border/60 pt-3 sm:grid-cols-2 lg:grid-cols-3 xl:flex xl:flex-wrap xl:items-end",
-            filtersOpen ? "grid" : "hidden",
-            !collapseAll && "md:grid"
+            "grid gap-2 border-t border-border/60 pt-3 sm:grid-cols-2 lg:grid-cols-3 xl:flex xl:flex-wrap xl:items-end",
+            !collapseAll && !filtersOpen && "max-md:hidden"
           )}
         >
           {filters}

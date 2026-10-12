@@ -177,12 +177,24 @@ export function IntakeCaseTable({
         ),
       },
       {
-        id: "cats",
-        label: "Cats",
+        id: "kittens",
+        label: "Kittens (<8 wk)",
+        sortValue: (helpRequest) => helpRequest.kittens_under_8_weeks ?? 0,
+        render: (helpRequest) => helpRequest.kittens_under_8_weeks ?? 0,
+      },
+      {
+        id: "adults",
+        label: "Adults (8+ wk)",
+        sortValue: (helpRequest) => helpRequest.cats_over_8_weeks ?? 0,
+        render: (helpRequest) => helpRequest.cats_over_8_weeks ?? 0,
+      },
+      {
+        id: "cats_total",
+        label: "Total",
         sortValue: (helpRequest) =>
-          helpRequest.kittens_under_8_weeks + helpRequest.cats_over_8_weeks,
+          (helpRequest.kittens_under_8_weeks ?? 0) + (helpRequest.cats_over_8_weeks ?? 0),
         render: (helpRequest) =>
-          helpRequest.kittens_under_8_weeks + helpRequest.cats_over_8_weeks,
+          (helpRequest.kittens_under_8_weeks ?? 0) + (helpRequest.cats_over_8_weeks ?? 0),
       },
       {
         id: "team",

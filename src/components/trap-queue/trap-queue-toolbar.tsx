@@ -120,7 +120,7 @@ export function TrapQueueToolbar({
           )}
           onClick={() => setFocus("needs_claim")}
         >
-          Needs claim
+          Unclaimed
         </Button>
         <Button
           type="button"

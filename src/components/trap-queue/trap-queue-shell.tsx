@@ -98,7 +98,7 @@ export function TrapQueueShell({
             ? "No cases match your search."
             : searchParams.get("focus") === "mine"
               ? "You have not claimed any active cases."
-              : "No unclaimed cases in this queue."}
+              : "No unclaimed cases in this queue right now."}
         </p>
       ) : layout === "table" ? (
         <IntakeCaseTable
