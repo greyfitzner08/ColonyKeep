@@ -2,8 +2,9 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowDown, ArrowUp, Plus, RotateCcw, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, ChevronDown, ChevronRight, Plus, RotateCcw, Trash2 } from "lucide-react";
 import { IntakeAboutEditor, type IntakeAboutEditorHandle } from "@/components/admin/intake-about-editor";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -24,9 +25,14 @@ import {
   type IntakeHelpFunnelLink,
   type IntakeHelpFunnelRule,
 } from "@/lib/intake/help-funnel";
+import { cn } from "@/lib/utils";
 
 function reindex(rules: IntakeHelpFunnelRule[]) {
   return rules.map((rule, index) => ({ ...rule, sort_order: index }));
+}
+
+function pathListTitle(rule: IntakeHelpFunnelRule) {
+  return rule.title.trim() || rule.name.trim() || "Untitled path";
 }
 
 export function InquiryFormCustomFieldsEditor({ branding }: { branding: PlatformBranding }) {
@@ -36,9 +42,20 @@ export function InquiryFormCustomFieldsEditor({ branding }: { branding: Platform
   const [buttonText, setButtonText] = useState(branding.intake_donate_text);
   const [buttonUrl, setButtonUrl] = useState(branding.intake_donate_url ?? "");
   const [rules, setRules] = useState<IntakeHelpFunnelRule[]>(branding.intake_help_funnel_rules);
+  /** Paths start collapsed; newly added ones open expanded. */
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(() => new Set());
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+
+  function toggleExpanded(id: string) {
+    setExpandedIds((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
 
   function markDirty() {
     setSaved(false);
@@ -230,15 +247,12 @@ export function InquiryFormCustomFieldsEditor({ branding }: { branding: Platform
             variant="outline"
             disabled={saving || rules.length >= 20}
             onClick={() => {
-              setRules((current) =>
-                reindex([
-                  ...current,
-                  createEmptyHelpFunnelRule({
-                    name: `Resource path ${current.length + 1}`,
-                    sort_order: current.length,
-                  }),
-                ])
-              );
+              const next = createEmptyHelpFunnelRule({
+                name: `Resource path ${rules.length + 1}`,
+                sort_order: rules.length,
+              });
+              setRules((current) => reindex([...current, next]));
+              setExpandedIds((current) => new Set(current).add(next.id));
               markDirty();
             }}
           >
@@ -253,206 +267,265 @@ export function InquiryFormCustomFieldsEditor({ branding }: { branding: Platform
             who only need a trap, and optionally a fallback for everyone else.
           </div>
         ) : (
-          <div className="space-y-4">
-            {rules.map((rule, index) => (
-              <div key={rule.id} className="space-y-4 rounded-lg border bg-card p-4 shadow-sm">
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div className="min-w-0 flex-1 space-y-1.5">
-                    <Label htmlFor={`funnel-name-${rule.id}`}>Admin label</Label>
-                    <Input
-                      id={`funnel-name-${rule.id}`}
-                      value={rule.name}
-                      disabled={saving}
-                      maxLength={80}
-                      onChange={(event) => updateRule(rule.id, { name: event.target.value })}
-                    />
-                  </div>
-                  <div className="flex flex-wrap items-center gap-2 pt-6">
-                    <Button
-                      type="button"
-                      size="icon"
-                      variant="ghost"
-                      disabled={saving || index === 0}
-                      aria-label="Move up"
-                      onClick={() => moveRule(rule.id, -1)}
-                    >
-                      <ArrowUp className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      type="button"
-                      size="icon"
-                      variant="ghost"
-                      disabled={saving || index === rules.length - 1}
-                      aria-label="Move down"
-                      onClick={() => moveRule(rule.id, 1)}
-                    >
-                      <ArrowDown className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      type="button"
-                      size="icon"
-                      variant="ghost"
-                      disabled={saving}
-                      aria-label="Remove path"
-                      onClick={() => {
-                        setRules((current) => reindex(current.filter((entry) => entry.id !== rule.id)));
-                        markDirty();
-                      }}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-
-                <div className="flex flex-wrap gap-4">
-                  <label className="flex items-center gap-2 text-sm">
-                    <Checkbox
-                      checked={rule.enabled}
-                      disabled={saving}
-                      onCheckedChange={(checked) =>
-                        updateRule(rule.id, { enabled: checked === true })
-                      }
-                    />
-                    Enabled
-                  </label>
-                  <label className="flex items-center gap-2 text-sm">
-                    <Checkbox
-                      checked={rule.is_fallback}
-                      disabled={saving}
-                      onCheckedChange={(checked) =>
-                        updateRule(rule.id, { is_fallback: checked === true })
-                      }
-                    />
-                    Fallback (use when nothing else matches)
-                  </label>
-                </div>
-
-                {!rule.is_fallback ? (
-                  <div className="space-y-2">
-                    <p className="text-sm font-medium">Match when How you can help answers are…</p>
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      {INTAKE_HELP_FUNNEL_FIELDS.map((field) => (
-                        <div key={field.key} className="space-y-1.5">
-                          <Label htmlFor={`funnel-${rule.id}-${field.key}`}>{field.label}</Label>
-                          <Select
-                            value={rule.conditions[field.key] ?? "any"}
-                            onValueChange={(value) =>
-                              updateCondition(rule.id, field.key, value as IntakeHelpAnswerMatch)
-                            }
-                            disabled={saving}
-                          >
-                            <SelectTrigger id={`funnel-${rule.id}-${field.key}`}>
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="any">Any</SelectItem>
-                              <SelectItem value="Yes">Yes</SelectItem>
-                              <SelectItem value="No">No</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ) : null}
-
-                <div className="space-y-1.5">
-                  <Label htmlFor={`funnel-title-${rule.id}`}>Title shown to submitter</Label>
-                  <Input
-                    id={`funnel-title-${rule.id}`}
-                    value={rule.title}
-                    disabled={saving}
-                    maxLength={120}
-                    placeholder="Next steps for trapping yourself"
-                    onChange={(event) => updateRule(rule.id, { title: event.target.value })}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <div>
-                    <Label htmlFor={`funnel-body-${rule.id}`}>Message</Label>
-                    <p className="text-xs text-muted-foreground">
-                      Format text and insert links the same way as the About us editors.
-                    </p>
-                  </div>
-                  <IntakeAboutEditor
-                    id={`funnel-body-${rule.id}`}
-                    variant="document"
-                    allowLinks
-                    allowLists
-                    value={rule.body}
-                    disabled={saving}
-                    onChange={(value) => updateRule(rule.id, { body: value })}
-                  />
-                </div>
-
-                <div className="space-y-2">
+          <div className="space-y-3">
+            {rules.map((rule, index) => {
+              const expanded = expandedIds.has(rule.id);
+              return (
+                <div
+                  key={rule.id}
+                  className={cn(
+                    "rounded-lg border bg-card shadow-sm",
+                    expanded ? "space-y-4 p-4" : "px-3 py-2.5"
+                  )}
+                >
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div>
-                      <Label>Button links</Label>
-                      <p className="text-xs text-muted-foreground">
-                        Optional large buttons under the message (e.g. Watch TNVR video).
-                      </p>
-                    </div>
-                    <Button
+                    <button
                       type="button"
-                      size="sm"
-                      variant="ghost"
-                      disabled={saving || rule.links.length >= 6}
-                      onClick={() =>
-                        updateRule(rule.id, {
-                          links: [...rule.links, { label: "", url: "" }],
-                        })
-                      }
+                      className="flex min-w-0 flex-1 items-center gap-2 text-left"
+                      aria-expanded={expanded}
+                      onClick={() => toggleExpanded(rule.id)}
                     >
-                      <Plus className="h-3.5 w-3.5" />
-                      Add button
-                    </Button>
+                      {expanded ? (
+                        <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
+                      ) : (
+                        <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+                      )}
+                      <span className="truncate text-sm font-medium">{pathListTitle(rule)}</span>
+                      {!rule.enabled ? (
+                        <Badge variant="outline" className="shrink-0 text-[11px]">
+                          Disabled
+                        </Badge>
+                      ) : null}
+                      {rule.is_fallback ? (
+                        <Badge variant="secondary" className="shrink-0 text-[11px]">
+                          Fallback
+                        </Badge>
+                      ) : null}
+                    </button>
+                    <div className="flex shrink-0 flex-wrap items-center gap-1">
+                      <Button
+                        type="button"
+                        size="icon"
+                        variant="ghost"
+                        disabled={saving || index === 0}
+                        aria-label="Move up"
+                        onClick={() => moveRule(rule.id, -1)}
+                      >
+                        <ArrowUp className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        type="button"
+                        size="icon"
+                        variant="ghost"
+                        disabled={saving || index === rules.length - 1}
+                        aria-label="Move down"
+                        onClick={() => moveRule(rule.id, 1)}
+                      >
+                        <ArrowDown className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        type="button"
+                        size="icon"
+                        variant="ghost"
+                        disabled={saving}
+                        aria-label="Remove path"
+                        onClick={() => {
+                          setRules((current) =>
+                            reindex(current.filter((entry) => entry.id !== rule.id))
+                          );
+                          setExpandedIds((current) => {
+                            const next = new Set(current);
+                            next.delete(rule.id);
+                            return next;
+                          });
+                          markDirty();
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
-                  {rule.links.length === 0 ? null : (
-                    <div className="space-y-2">
-                      {rule.links.map((link, linkIndex) => (
-                        <div key={`${rule.id}-link-${linkIndex}`} className="flex flex-wrap gap-2">
-                          <Input
-                            className="min-w-[10rem] flex-1"
-                            value={link.label}
+
+                  {expanded ? (
+                    <>
+                      <div className="min-w-0 space-y-1.5">
+                        <Label htmlFor={`funnel-name-${rule.id}`}>Admin label</Label>
+                        <Input
+                          id={`funnel-name-${rule.id}`}
+                          value={rule.name}
+                          disabled={saving}
+                          maxLength={80}
+                          onChange={(event) => updateRule(rule.id, { name: event.target.value })}
+                        />
+                      </div>
+
+                      <div className="flex flex-wrap gap-4">
+                        <label className="flex items-center gap-2 text-sm">
+                          <Checkbox
+                            checked={rule.enabled}
                             disabled={saving}
-                            placeholder="Button label"
-                            maxLength={80}
-                            onChange={(event) =>
-                              updateLink(rule.id, linkIndex, { label: event.target.value })
+                            onCheckedChange={(checked) =>
+                              updateRule(rule.id, { enabled: checked === true })
                             }
                           />
-                          <Input
-                            className="min-w-[12rem] flex-[2]"
-                            value={link.url}
+                          Enabled
+                        </label>
+                        <label className="flex items-center gap-2 text-sm">
+                          <Checkbox
+                            checked={rule.is_fallback}
                             disabled={saving}
-                            placeholder="https://…"
-                            onChange={(event) =>
-                              updateLink(rule.id, linkIndex, { url: event.target.value })
+                            onCheckedChange={(checked) =>
+                              updateRule(rule.id, { is_fallback: checked === true })
                             }
                           />
+                          Fallback (use when nothing else matches)
+                        </label>
+                      </div>
+
+                      {!rule.is_fallback ? (
+                        <div className="space-y-2">
+                          <p className="text-sm font-medium">
+                            Match when How you can help answers are…
+                          </p>
+                          <div className="grid gap-3 sm:grid-cols-2">
+                            {INTAKE_HELP_FUNNEL_FIELDS.map((field) => (
+                              <div key={field.key} className="space-y-1.5">
+                                <Label htmlFor={`funnel-${rule.id}-${field.key}`}>
+                                  {field.label}
+                                </Label>
+                                <Select
+                                  value={rule.conditions[field.key] ?? "any"}
+                                  onValueChange={(value) =>
+                                    updateCondition(
+                                      rule.id,
+                                      field.key,
+                                      value as IntakeHelpAnswerMatch
+                                    )
+                                  }
+                                  disabled={saving}
+                                >
+                                  <SelectTrigger id={`funnel-${rule.id}-${field.key}`}>
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="any">Any</SelectItem>
+                                    <SelectItem value="Yes">Yes</SelectItem>
+                                    <SelectItem value="No">No</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ) : null}
+
+                      <div className="space-y-1.5">
+                        <Label htmlFor={`funnel-title-${rule.id}`}>Title shown to submitter</Label>
+                        <Input
+                          id={`funnel-title-${rule.id}`}
+                          value={rule.title}
+                          disabled={saving}
+                          maxLength={120}
+                          placeholder="Next steps for trapping yourself"
+                          onChange={(event) =>
+                            updateRule(rule.id, { title: event.target.value })
+                          }
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <div>
+                          <Label htmlFor={`funnel-body-${rule.id}`}>Message</Label>
+                          <p className="text-xs text-muted-foreground">
+                            Format text and insert links the same way as the About us editors.
+                          </p>
+                        </div>
+                        <IntakeAboutEditor
+                          id={`funnel-body-${rule.id}`}
+                          variant="document"
+                          allowLinks
+                          allowLists
+                          value={rule.body}
+                          disabled={saving}
+                          onChange={(value) => updateRule(rule.id, { body: value })}
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div>
+                            <Label>Button links</Label>
+                            <p className="text-xs text-muted-foreground">
+                              Optional large buttons under the message (e.g. Watch TNVR video).
+                            </p>
+                          </div>
                           <Button
                             type="button"
-                            size="icon"
+                            size="sm"
                             variant="ghost"
-                            disabled={saving}
-                            aria-label="Remove button"
+                            disabled={saving || rule.links.length >= 6}
                             onClick={() =>
                               updateRule(rule.id, {
-                                links: rule.links.filter((_, i) => i !== linkIndex),
+                                links: [...rule.links, { label: "", url: "" }],
                               })
                             }
                           >
-                            <Trash2 className="h-4 w-4" />
+                            <Plus className="h-3.5 w-3.5" />
+                            Add button
                           </Button>
                         </div>
-                      ))}
-                    </div>
-                  )}
+                        {rule.links.length === 0 ? null : (
+                          <div className="space-y-2">
+                            {rule.links.map((link, linkIndex) => (
+                              <div
+                                key={`${rule.id}-link-${linkIndex}`}
+                                className="flex flex-wrap gap-2"
+                              >
+                                <Input
+                                  className="min-w-[10rem] flex-1"
+                                  value={link.label}
+                                  disabled={saving}
+                                  placeholder="Button label"
+                                  maxLength={80}
+                                  onChange={(event) =>
+                                    updateLink(rule.id, linkIndex, {
+                                      label: event.target.value,
+                                    })
+                                  }
+                                />
+                                <Input
+                                  className="min-w-[12rem] flex-[2]"
+                                  value={link.url}
+                                  disabled={saving}
+                                  placeholder="https://…"
+                                  onChange={(event) =>
+                                    updateLink(rule.id, linkIndex, { url: event.target.value })
+                                  }
+                                />
+                                <Button
+                                  type="button"
+                                  size="icon"
+                                  variant="ghost"
+                                  disabled={saving}
+                                  aria-label="Remove button"
+                                  onClick={() =>
+                                    updateRule(rule.id, {
+                                      links: rule.links.filter((_, i) => i !== linkIndex),
+                                    })
+                                  }
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </>
+                  ) : null}
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </section>
