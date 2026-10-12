@@ -1,3 +1,5 @@
+import { intakeAboutPlainText, sanitizeIntakeAboutHtml } from "@/lib/intake-about-html";
+
 /** Yes/No fields from the inquiry form "How you can help" step. */
 export const INTAKE_HELP_FUNNEL_FIELDS = [
   {
@@ -59,7 +61,7 @@ export type IntakeHelpAnswers = Record<IntakeHelpFunnelFieldKey, string>;
 const MAX_RULES = 20;
 const MAX_NAME = 80;
 const MAX_TITLE = 120;
-const MAX_BODY = 4000;
+const MAX_BODY = 8000;
 const MAX_LINKS = 6;
 const MAX_LINK_LABEL = 80;
 
@@ -151,11 +153,13 @@ export function normalizeIntakeHelpFunnelRules(value: unknown): IntakeHelpFunnel
         : "Untitled path";
     const title =
       typeof raw.title === "string" ? raw.title.trim().slice(0, MAX_TITLE) : "";
-    const body = typeof raw.body === "string" ? raw.body.trim().slice(0, MAX_BODY) : "";
+    const bodyRaw = typeof raw.body === "string" ? raw.body : "";
+    const body = sanitizeIntakeAboutHtml(bodyRaw, { allowLinks: true }).slice(0, MAX_BODY);
     const links = normalizeLinks(raw.links);
     const isFallback = raw.is_fallback === true;
+    const hasBody = Boolean(intakeAboutPlainText(body).trim());
     // Keep named drafts so admins can save in-progress paths.
-    if (!title && !body && links.length === 0 && !isFallback && name === "Untitled path") {
+    if (!title && !hasBody && links.length === 0 && !isFallback && name === "Untitled path") {
       continue;
     }
 

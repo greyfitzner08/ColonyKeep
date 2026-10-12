@@ -39,6 +39,7 @@ import {
   matchIntakeHelpFunnelRule,
   type IntakeHelpFunnelRule,
 } from "@/lib/intake/help-funnel";
+import { intakeAboutPlainText, sanitizeIntakeAboutHtml } from "@/lib/intake-about-html";
 
 const STEPS = [
   {
@@ -659,10 +660,13 @@ export function ColonyIntakeForm({
       able_to_trap_transport: form.able_to_trap_transport,
       has_recovery_space: form.has_recovery_space,
     });
+    const helpBodyHtml = helpResources
+      ? sanitizeIntakeAboutHtml(helpResources.body, { allowLinks: true })
+      : "";
     const showHelpResources = Boolean(
       helpResources &&
         (helpResources.title.trim() ||
-          helpResources.body.trim() ||
+          intakeAboutPlainText(helpBodyHtml).trim() ||
           helpResources.links.length > 0)
     );
 
@@ -701,10 +705,11 @@ export function ColonyIntakeForm({
                 ) : (
                   <p className="font-semibold text-foreground">Recommended next steps</p>
                 )}
-                {helpResources.body.trim() ? (
-                  <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground/90">
-                    {helpResources.body.trim()}
-                  </p>
+                {intakeAboutPlainText(helpBodyHtml).trim() ? (
+                  <div
+                    className="text-sm leading-[1.15] text-foreground/90 [&_a]:font-medium [&_a]:text-primary [&_a]:underline [&_a]:underline-offset-2 [&_li]:my-0 [&_p]:my-0 [&_ul]:my-2 [&_ul]:list-disc [&_ul]:pl-5"
+                    dangerouslySetInnerHTML={{ __html: helpBodyHtml }}
+                  />
                 ) : null}
                 {helpResources.links.length > 0 ? (
                   <div className="flex flex-col gap-2 pt-1">

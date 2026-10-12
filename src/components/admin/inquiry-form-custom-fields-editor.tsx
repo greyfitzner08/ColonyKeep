@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -369,22 +368,32 @@ export function InquiryFormCustomFieldsEditor({ branding }: { branding: Platform
                   />
                 </div>
 
-                <div className="space-y-1.5">
-                  <Label htmlFor={`funnel-body-${rule.id}`}>Message</Label>
-                  <Textarea
+                <div className="space-y-2">
+                  <div>
+                    <Label htmlFor={`funnel-body-${rule.id}`}>Message</Label>
+                    <p className="text-xs text-muted-foreground">
+                      Format text and insert links the same way as the About us editors.
+                    </p>
+                  </div>
+                  <IntakeAboutEditor
                     id={`funnel-body-${rule.id}`}
+                    variant="document"
+                    allowLinks
+                    allowLists
                     value={rule.body}
                     disabled={saving}
-                    rows={4}
-                    maxLength={4000}
-                    placeholder="Who to contact, what to do next, trap pickup details…"
-                    onChange={(event) => updateRule(rule.id, { body: event.target.value })}
+                    onChange={(value) => updateRule(rule.id, { body: value })}
                   />
                 </div>
 
                 <div className="space-y-2">
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <Label>Links</Label>
+                    <div>
+                      <Label>Button links</Label>
+                      <p className="text-xs text-muted-foreground">
+                        Optional large buttons under the message (e.g. Watch TNVR video).
+                      </p>
+                    </div>
                     <Button
                       type="button"
                       size="sm"
@@ -397,14 +406,10 @@ export function InquiryFormCustomFieldsEditor({ branding }: { branding: Platform
                       }
                     >
                       <Plus className="h-3.5 w-3.5" />
-                      Add link
+                      Add button
                     </Button>
                   </div>
-                  {rule.links.length === 0 ? (
-                    <p className="text-xs text-muted-foreground">
-                      Optional — e.g. TNVR training video, trap pickup page, email contact.
-                    </p>
-                  ) : (
+                  {rule.links.length === 0 ? null : (
                     <div className="space-y-2">
                       {rule.links.map((link, linkIndex) => (
                         <div key={`${rule.id}-link-${linkIndex}`} className="flex flex-wrap gap-2">
@@ -412,7 +417,7 @@ export function InquiryFormCustomFieldsEditor({ branding }: { branding: Platform
                             className="min-w-[10rem] flex-1"
                             value={link.label}
                             disabled={saving}
-                            placeholder="Link label"
+                            placeholder="Button label"
                             maxLength={80}
                             onChange={(event) =>
                               updateLink(rule.id, linkIndex, { label: event.target.value })
@@ -432,7 +437,7 @@ export function InquiryFormCustomFieldsEditor({ branding }: { branding: Platform
                             size="icon"
                             variant="ghost"
                             disabled={saving}
-                            aria-label="Remove link"
+                            aria-label="Remove button"
                             onClick={() =>
                               updateRule(rule.id, {
                                 links: rule.links.filter((_, i) => i !== linkIndex),
