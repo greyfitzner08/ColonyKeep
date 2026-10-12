@@ -2,7 +2,16 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowDown, ArrowUp, ChevronDown, ChevronRight, Plus, RotateCcw, Trash2 } from "lucide-react";
+import {
+  ArrowDown,
+  ArrowUp,
+  ChevronDown,
+  ChevronRight,
+  ExternalLink,
+  Plus,
+  RotateCcw,
+  Trash2,
+} from "lucide-react";
 import { IntakeAboutEditor, type IntakeAboutEditorHandle } from "@/components/admin/intake-about-editor";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -178,12 +187,20 @@ export function InquiryFormCustomFieldsEditor({ branding }: { branding: Platform
 
   return (
     <div className="w-full space-y-10">
-      <div>
-        <h2 className="text-lg font-semibold">Inquiry form custom fields</h2>
-        <p className="text-sm text-muted-foreground">
-          Customize the public report-a-colony form intro and the resources people see after they
-          submit, based on their How you can help answers.
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0 space-y-1">
+          <h2 className="text-lg font-semibold">Inquiry form custom fields</h2>
+          <p className="text-sm text-muted-foreground">
+            Customize the public report-a-colony form intro and the resources people see after they
+            submit, based on their How you can help answers.
+          </p>
+        </div>
+        <Button type="button" size="sm" variant="outline" asChild>
+          <a href="/request" target="_blank" rel="noopener noreferrer">
+            View inquiry form
+            <ExternalLink className="h-3.5 w-3.5" />
+          </a>
+        </Button>
       </div>
 
       <section
