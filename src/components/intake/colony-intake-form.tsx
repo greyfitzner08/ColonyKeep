@@ -161,6 +161,26 @@ function formatHomeAddress(form: CommunityIntakeSubmission) {
 
 const invalidInputClass = "border-destructive focus-visible:ring-destructive";
 
+const HOW_HEARD_OPTIONS = [
+  "Facebook",
+  "Nextdoor",
+  "Instagram",
+  "Google",
+  "Friend/Family",
+  "Other",
+] as const;
+
+type HowHeardOption = (typeof HOW_HEARD_OPTIONS)[number];
+
+function composeHowHeard(choice: HowHeardOption | "", other: string) {
+  if (!choice) return "";
+  if (choice === "Other") {
+    const detail = other.trim();
+    return detail ? `Other: ${detail}` : "";
+  }
+  return choice;
+}
+
 type IntakeFieldErrorKey =
   | "service_county"
   | "contact_first_name"
@@ -180,7 +200,8 @@ type IntakeFieldErrorKey =
   | "willing_to_trap_transport"
   | "able_to_trap_transport"
   | "has_recovery_space"
-  | "how_heard";
+  | "how_heard"
+  | "how_heard_other";
 
 type IntakeFieldErrors = Partial<Record<IntakeFieldErrorKey, string>>;
 
@@ -288,7 +309,11 @@ function catsFieldErrors(form: CommunityIntakeSubmission): IntakeFieldErrors {
   return errors;
 }
 
-function helpFieldErrors(form: CommunityIntakeSubmission): IntakeFieldErrors {
+function helpFieldErrors(
+  form: CommunityIntakeSubmission,
+  howHeardChoice: HowHeardOption | "",
+  howHeardOther: string
+): IntakeFieldErrors {
   const errors: IntakeFieldErrors = {};
   if (!yesNoAnswered(form.trapping_experience)) {
     errors.trapping_experience = "Say whether you have trapping experience.";
@@ -305,7 +330,11 @@ function helpFieldErrors(form: CommunityIntakeSubmission): IntakeFieldErrors {
   if (!yesNoAnswered(form.has_recovery_space)) {
     errors.has_recovery_space = "Say whether you have a place to hold cats before and after surgery.";
   }
-  if (!form.how_heard.trim()) {
+  if (!howHeardChoice) {
+    errors.how_heard = "Tell us how you heard about us.";
+  } else if (howHeardChoice === "Other" && !howHeardOther.trim()) {
+    errors.how_heard_other = "Please tell us how you heard about us.";
+  } else if (!form.how_heard.trim()) {
     errors.how_heard = "Tell us how you heard about us.";
   }
   return errors;
@@ -402,6 +431,8 @@ export function ColonyIntakeForm({
   const [fieldErrors, setFieldErrors] = useState<IntakeFieldErrors>({});
   const [form, setForm] = useState<CommunityIntakeSubmission>(EMPTY_FORM);
   const [colonySameAsHome, setColonySameAsHome] = useState(true);
+  const [howHeardChoice, setHowHeardChoice] = useState<HowHeardOption | "">("");
+  const [howHeardOther, setHowHeardOther] = useState("");
 
   function clearFieldError(key: IntakeFieldErrorKey) {
     setFieldErrors((current) => {
@@ -525,7 +556,7 @@ export function ColonyIntakeForm({
     if (currentStep === 1) return reporterFieldErrors(form, serviceCounty);
     if (currentStep === 2) return locationFieldErrors(form, colonySameAsHome);
     if (currentStep === 3) return catsFieldErrors(form);
-    if (currentStep === 4) return helpFieldErrors(form);
+    if (currentStep === 4) return helpFieldErrors(form, howHeardChoice, howHeardOther);
     return {};
   }
 
@@ -1248,17 +1279,62 @@ export function ColonyIntakeForm({
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="intake-how_heard">How did you hear about us?</Label>
-                  <Input
-                    id="intake-how_heard"
-                    value={form.how_heard}
-                    aria-invalid={Boolean(fieldErrors.how_heard)}
-                    className={fieldErrors.how_heard ? invalidInputClass : undefined}
-                    onChange={(e) => update("how_heard", e.target.value)}
-                  />
+                  <Select
+                    value={howHeardChoice || "__none__"}
+                    onValueChange={(value) => {
+                      const choice =
+                        value === "__none__" ? "" : (value as HowHeardOption);
+                      setHowHeardChoice(choice);
+                      clearFieldError("how_heard");
+                      clearFieldError("how_heard_other");
+                      if (choice === "Other") {
+                        update("how_heard", composeHowHeard(choice, howHeardOther));
+                      } else {
+                        setHowHeardOther("");
+                        update("how_heard", composeHowHeard(choice, ""));
+                      }
+                    }}
+                  >
+                    <SelectTrigger
+                      id="intake-how_heard"
+                      aria-invalid={Boolean(fieldErrors.how_heard)}
+                      className={fieldErrors.how_heard ? invalidInputClass : undefined}
+                    >
+                      <SelectValue placeholder="Select an option" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">Select an option...</SelectItem>
+                      {HOW_HEARD_OPTIONS.map((option) => (
+                        <SelectItem key={option} value={option}>
+                          {option}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   {fieldErrors.how_heard && (
                     <p className="text-sm text-destructive">{fieldErrors.how_heard}</p>
                   )}
                 </div>
+                {howHeardChoice === "Other" ? (
+                  <div className="space-y-2">
+                    <Label htmlFor="intake-how_heard_other">Please tell us how you heard about us</Label>
+                    <Input
+                      id="intake-how_heard_other"
+                      value={howHeardOther}
+                      aria-invalid={Boolean(fieldErrors.how_heard_other)}
+                      className={fieldErrors.how_heard_other ? invalidInputClass : undefined}
+                      onChange={(e) => {
+                        const next = e.target.value;
+                        setHowHeardOther(next);
+                        clearFieldError("how_heard_other");
+                        update("how_heard", composeHowHeard("Other", next));
+                      }}
+                    />
+                    {fieldErrors.how_heard_other && (
+                      <p className="text-sm text-destructive">{fieldErrors.how_heard_other}</p>
+                    )}
+                  </div>
+                ) : null}
               </>
             )}
 
