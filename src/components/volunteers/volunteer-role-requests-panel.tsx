@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -19,10 +19,44 @@ import { formatDate } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import { getApiErrorMessage } from "@/lib/api/errors";
 import type { VolunteerRole, VolunteerRoleRequest } from "@/lib/types";
-import { Check, X } from "lucide-react";
+import { Check, ChevronDown, ChevronUp, X } from "lucide-react";
+
+const COLLAPSED_STORAGE_KEY = "volunteers-role-requests-collapsed";
+const SNOOZED_UNTIL_STORAGE_KEY = "volunteers-role-requests-snoozed-until";
 
 interface VolunteerRoleRequestsPanelProps {
   requests: VolunteerRoleRequest[];
+}
+
+function endOfLocalDayIso() {
+  const end = new Date();
+  end.setHours(23, 59, 59, 999);
+  return end.toISOString();
+}
+
+function readCollapsedPreference() {
+  if (typeof window === "undefined") return false;
+  try {
+    return window.localStorage.getItem(COLLAPSED_STORAGE_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function readSnoozedUntil() {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(SNOOZED_UNTIL_STORAGE_KEY);
+    if (!raw) return null;
+    const until = new Date(raw);
+    if (Number.isNaN(until.getTime()) || until.getTime() <= Date.now()) {
+      window.localStorage.removeItem(SNOOZED_UNTIL_STORAGE_KEY);
+      return null;
+    }
+    return until.toISOString();
+  } catch {
+    return null;
+  }
 }
 
 function roleLabel(role: VolunteerRole) {
@@ -49,8 +83,52 @@ export function VolunteerRoleRequestsPanel({ requests }: VolunteerRoleRequestsPa
   const [notes, setNotes] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [requirementState, setRequirementState] = useState<Record<string, VolunteerRoleRequest>>({});
+  const [collapsed, setCollapsed] = useState(false);
+  const [snoozedUntil, setSnoozedUntil] = useState<string | null>(null);
+  const [prefsReady, setPrefsReady] = useState(false);
+
+  useEffect(() => {
+    setCollapsed(readCollapsedPreference());
+    setSnoozedUntil(readSnoozedUntil());
+    setPrefsReady(true);
+  }, []);
+
+  function setCollapsedPreference(next: boolean) {
+    setCollapsed(next);
+    try {
+      window.localStorage.setItem(COLLAPSED_STORAGE_KEY, next ? "1" : "0");
+    } catch {
+      // Ignore storage failures (private mode, etc.).
+    }
+  }
+
+  function snoozeForToday() {
+    const until = endOfLocalDayIso();
+    setSnoozedUntil(until);
+    setCollapsedPreference(true);
+    try {
+      window.localStorage.setItem(SNOOZED_UNTIL_STORAGE_KEY, until);
+    } catch {
+      // Ignore storage failures.
+    }
+  }
+
+  function clearSnooze() {
+    setSnoozedUntil(null);
+    setCollapsedPreference(false);
+    try {
+      window.localStorage.removeItem(SNOOZED_UNTIL_STORAGE_KEY);
+    } catch {
+      // Ignore storage failures.
+    }
+  }
 
   if (pending.length === 0) return null;
+
+  const title = pending.some((r) => (r.request_type ?? "add") === "remove")
+    ? "Pending role change requests"
+    : "Pending role expansion requests";
+  const isSnoozed = Boolean(snoozedUntil && new Date(snoozedUntil).getTime() > Date.now());
 
   function requestState(request: VolunteerRoleRequest) {
     return requirementState[request.id] ?? request;
@@ -163,18 +241,85 @@ export function VolunteerRoleRequestsPanel({ requests }: VolunteerRoleRequestsPa
     router.refresh();
   }
 
+  // Avoid a full-panel flash before local preferences load.
+  if (!prefsReady) {
+    return (
+      <div className="flex items-center justify-between gap-3 rounded-lg border border-primary/30 bg-card px-4 py-3">
+        <div className="flex min-w-0 items-center gap-2">
+          <p className="truncate text-sm font-medium">{title}</p>
+          <Badge variant="secondary">{pending.length}</Badge>
+        </div>
+      </div>
+    );
+  }
+
+  if (isSnoozed) {
+    return (
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-dashed bg-muted/30 px-4 py-2.5">
+        <p className="text-sm text-muted-foreground">
+          <span className="font-medium text-foreground">{pending.length}</span> pending role{" "}
+          {pending.length === 1 ? "request" : "requests"} snoozed until tomorrow
+        </p>
+        <Button type="button" size="sm" variant="outline" onClick={clearSnooze}>
+          Show requests
+        </Button>
+      </div>
+    );
+  }
+
+  if (collapsed) {
+    return (
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-primary/30 bg-card px-4 py-3 shadow-sm">
+        <button
+          type="button"
+          className="flex min-w-0 flex-1 items-center gap-2 text-left"
+          onClick={() => setCollapsedPreference(false)}
+        >
+          <p className="truncate text-sm font-medium">{title}</p>
+          <Badge variant="secondary">{pending.length}</Badge>
+          <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
+        </button>
+        <div className="flex shrink-0 flex-wrap gap-2">
+          <Button type="button" size="sm" variant="ghost" onClick={snoozeForToday}>
+            Snooze today
+          </Button>
+          <Button type="button" size="sm" variant="outline" onClick={() => setCollapsedPreference(false)}>
+            Expand
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <Card className="border-primary/30">
-      <CardHeader>
-        <CardTitle className="text-lg">
-          {pending.some((r) => (r.request_type ?? "add") === "remove")
-            ? "Pending role change requests"
-            : "Pending role expansion requests"}
-        </CardTitle>
-        <p className="text-sm text-muted-foreground">
-          Check off each requirement after you verify it. New trapping-related roles always start
-          without TNVR certificate or shadow credit — confirm those manually before approving.
-        </p>
+      <CardHeader className="space-y-3">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0 space-y-1">
+            <CardTitle className="flex flex-wrap items-center gap-2 text-lg">
+              {title}
+              <Badge variant="secondary">{pending.length}</Badge>
+            </CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Check off each requirement after you verify it. New trapping-related roles always start
+              without TNVR certificate or shadow credit — confirm those manually before approving.
+            </p>
+          </div>
+          <div className="flex shrink-0 flex-wrap gap-2">
+            <Button type="button" size="sm" variant="ghost" onClick={snoozeForToday}>
+              Snooze today
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => setCollapsedPreference(true)}
+            >
+              <ChevronUp className="mr-1 h-4 w-4" />
+              Minimize
+            </Button>
+          </div>
+        </div>
       </CardHeader>
       <CardContent className="space-y-4">
         {error && (
