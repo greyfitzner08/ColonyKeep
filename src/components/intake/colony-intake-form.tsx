@@ -36,6 +36,7 @@ import {
   reporterIsColonyFeeder,
 } from "@/lib/cases/public-intake";
 import {
+  intakeTotalCats,
   matchIntakeHelpFunnelRule,
   type IntakeHelpFunnelRule,
 } from "@/lib/intake/help-funnel";
@@ -659,6 +660,7 @@ export function ColonyIntakeForm({
       willing_to_trap_transport: form.willing_to_trap_transport,
       able_to_trap_transport: form.able_to_trap_transport,
       has_recovery_space: form.has_recovery_space,
+      total_cats: intakeTotalCats(form.cats_over_8_weeks, form.kittens_under_8_weeks),
     });
     const helpBodyHtml = helpResources
       ? sanitizeIntakeAboutHtml(helpResources.body, { allowLinks: true })

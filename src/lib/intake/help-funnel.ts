@@ -39,6 +39,12 @@ export interface IntakeHelpFunnelConditions {
   willing_to_trap_transport?: IntakeHelpAnswerMatch;
   able_to_trap_transport?: IntakeHelpAnswerMatch;
   has_recovery_space?: IntakeHelpAnswerMatch;
+  /**
+   * Inclusive bounds on cats over 8 weeks + kittens under 8 weeks.
+   * Omit (or leave blank in admin) to ignore colony size.
+   */
+  total_cats_min?: number;
+  total_cats_max?: number;
 }
 
 export interface IntakeHelpFunnelRule {
@@ -56,7 +62,10 @@ export interface IntakeHelpFunnelRule {
   links: IntakeHelpFunnelLink[];
 }
 
-export type IntakeHelpAnswers = Record<IntakeHelpFunnelFieldKey, string>;
+export type IntakeHelpAnswers = Record<IntakeHelpFunnelFieldKey, string> & {
+  /** cats_over_8_weeks + kittens_under_8_weeks */
+  total_cats: number;
+};
 
 const MAX_RULES = 20;
 const MAX_NAME = 80;
@@ -64,6 +73,15 @@ const MAX_TITLE = 120;
 const MAX_BODY = 8000;
 const MAX_LINKS = 6;
 const MAX_LINK_LABEL = 80;
+const MAX_TOTAL_CATS_BOUND = 9999;
+
+export function intakeTotalCats(catsOver8Weeks: number, kittensUnder8Weeks: number) {
+  const cats = Number.isFinite(catsOver8Weeks) ? Math.max(0, Math.floor(catsOver8Weeks)) : 0;
+  const kittens = Number.isFinite(kittensUnder8Weeks)
+    ? Math.max(0, Math.floor(kittensUnder8Weeks))
+    : 0;
+  return cats + kittens;
+}
 
 /** Local helper avoids importing branding (circular). */
 function normalizeHttpsUrl(value: string): string | null {
@@ -93,6 +111,13 @@ function normalizeMatch(value: unknown): IntakeHelpAnswerMatch {
   return "any";
 }
 
+function normalizeTotalCatsBound(value: unknown): number | undefined {
+  if (value === null || value === undefined || value === "") return undefined;
+  const n = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(n)) return undefined;
+  return Math.min(MAX_TOTAL_CATS_BOUND, Math.max(0, Math.floor(n)));
+}
+
 function normalizeConditions(value: unknown): IntakeHelpFunnelConditions {
   if (!value || typeof value !== "object") return {};
   const raw = value as Record<string, unknown>;
@@ -102,6 +127,20 @@ function normalizeConditions(value: unknown): IntakeHelpFunnelConditions {
     if (match !== "any") {
       conditions[field.key] = match;
     }
+  }
+  const min = normalizeTotalCatsBound(raw.total_cats_min);
+  const max = normalizeTotalCatsBound(raw.total_cats_max);
+  if (min !== undefined) conditions.total_cats_min = min;
+  if (max !== undefined) conditions.total_cats_max = max;
+  // Swap if admin entered max below min.
+  if (
+    conditions.total_cats_min !== undefined &&
+    conditions.total_cats_max !== undefined &&
+    conditions.total_cats_min > conditions.total_cats_max
+  ) {
+    const swap = conditions.total_cats_min;
+    conditions.total_cats_min = conditions.total_cats_max;
+    conditions.total_cats_max = swap;
   }
   return conditions;
 }
@@ -194,6 +233,15 @@ function answersMatchRule(
     if (expected === "any") continue;
     const actual = (answers[field.key] ?? "").trim();
     if (actual !== expected) return false;
+  }
+  const total = Number.isFinite(answers.total_cats)
+    ? Math.max(0, Math.floor(answers.total_cats))
+    : 0;
+  if (conditions.total_cats_min !== undefined && total < conditions.total_cats_min) {
+    return false;
+  }
+  if (conditions.total_cats_max !== undefined && total > conditions.total_cats_max) {
+    return false;
   }
   return true;
 }

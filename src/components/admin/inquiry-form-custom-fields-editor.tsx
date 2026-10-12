@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
+import { NumberInput } from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -78,6 +79,26 @@ export function InquiryFormCustomFieldsEditor({ branding }: { branding: Platform
         if (rule.id !== id) return rule;
         const conditions = { ...rule.conditions };
         if (value === "any") {
+          delete conditions[field];
+        } else {
+          conditions[field] = value;
+        }
+        return { ...rule, conditions };
+      })
+    );
+    markDirty();
+  }
+
+  function updateTotalCatsBound(
+    id: string,
+    field: "total_cats_min" | "total_cats_max",
+    value: number | null
+  ) {
+    setRules((current) =>
+      current.map((rule) => {
+        if (rule.id !== id) return rule;
+        const conditions = { ...rule.conditions };
+        if (value === null) {
           delete conditions[field];
         } else {
           conditions[field] = value;
@@ -383,38 +404,94 @@ export function InquiryFormCustomFieldsEditor({ branding }: { branding: Platform
                       </div>
 
                       {!rule.is_fallback ? (
-                        <div className="space-y-2">
-                          <p className="text-sm font-medium">
-                            Match when How you can help answers are…
-                          </p>
-                          <div className="grid gap-3 sm:grid-cols-2">
-                            {INTAKE_HELP_FUNNEL_FIELDS.map((field) => (
-                              <div key={field.key} className="space-y-1.5">
-                                <Label htmlFor={`funnel-${rule.id}-${field.key}`}>
-                                  {field.label}
-                                </Label>
-                                <Select
-                                  value={rule.conditions[field.key] ?? "any"}
+                        <div className="space-y-4">
+                          <div className="space-y-2">
+                            <p className="text-sm font-medium">
+                              Match when How you can help answers are…
+                            </p>
+                            <div className="grid gap-3 sm:grid-cols-2">
+                              {INTAKE_HELP_FUNNEL_FIELDS.map((field) => (
+                                <div key={field.key} className="space-y-1.5">
+                                  <Label htmlFor={`funnel-${rule.id}-${field.key}`}>
+                                    {field.label}
+                                  </Label>
+                                  <Select
+                                    value={rule.conditions[field.key] ?? "any"}
+                                    onValueChange={(value) =>
+                                      updateCondition(
+                                        rule.id,
+                                        field.key,
+                                        value as IntakeHelpAnswerMatch
+                                      )
+                                    }
+                                    disabled={saving}
+                                  >
+                                    <SelectTrigger id={`funnel-${rule.id}-${field.key}`}>
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="any">Any</SelectItem>
+                                      <SelectItem value="Yes">Yes</SelectItem>
+                                      <SelectItem value="No">No</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+
+                          <div className="space-y-2">
+                            <div>
+                              <p className="text-sm font-medium">
+                                Match when total cats + kittens is…
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                Combined count from the About the Cats step. Leave blank for any
+                                size.
+                              </p>
+                            </div>
+                            <div className="grid gap-3 sm:grid-cols-2">
+                              <div className="space-y-1.5">
+                                <Label htmlFor={`funnel-${rule.id}-total-min`}>Minimum</Label>
+                                <NumberInput
+                                  id={`funnel-${rule.id}-total-min`}
+                                  integer
+                                  allowEmpty
+                                  min={0}
+                                  max={9999}
+                                  disabled={saving}
+                                  value={rule.conditions.total_cats_min ?? ""}
+                                  placeholder="Any"
                                   onValueChange={(value) =>
-                                    updateCondition(
+                                    updateTotalCatsBound(
                                       rule.id,
-                                      field.key,
-                                      value as IntakeHelpAnswerMatch
+                                      "total_cats_min",
+                                      typeof value === "number" ? value : null
                                     )
                                   }
-                                  disabled={saving}
-                                >
-                                  <SelectTrigger id={`funnel-${rule.id}-${field.key}`}>
-                                    <SelectValue />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="any">Any</SelectItem>
-                                    <SelectItem value="Yes">Yes</SelectItem>
-                                    <SelectItem value="No">No</SelectItem>
-                                  </SelectContent>
-                                </Select>
+                                />
                               </div>
-                            ))}
+                              <div className="space-y-1.5">
+                                <Label htmlFor={`funnel-${rule.id}-total-max`}>Maximum</Label>
+                                <NumberInput
+                                  id={`funnel-${rule.id}-total-max`}
+                                  integer
+                                  allowEmpty
+                                  min={0}
+                                  max={9999}
+                                  disabled={saving}
+                                  value={rule.conditions.total_cats_max ?? ""}
+                                  placeholder="Any"
+                                  onValueChange={(value) =>
+                                    updateTotalCatsBound(
+                                      rule.id,
+                                      "total_cats_max",
+                                      typeof value === "number" ? value : null
+                                    )
+                                  }
+                                />
+                              </div>
+                            </div>
                           </div>
                         </div>
                       ) : null}
