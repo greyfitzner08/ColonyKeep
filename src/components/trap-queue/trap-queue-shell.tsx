@@ -10,8 +10,8 @@ import { TrapQueueToolbar } from "@/components/trap-queue/trap-queue-toolbar";
 import { filterCasesBySearch } from "@/lib/cases/search-cases";
 import { sortIntakeCases, type IntakeSortKey } from "@/lib/cases/sort-intake-cases";
 import type { CaseViewMode } from "@/components/cases/case-queue-view";
-import type { HelpRequest } from "@/lib/types";
-import type { TrapQueueView } from "@/lib/cases/trap-queue-query";
+import type { TrapQueueTeamScope } from "@/lib/cases/trap-queue-query";
+import type { HelpRequest, UserRole } from "@/lib/types";
 
 interface TrapQueueShellProps {
   cases: HelpRequest[];
@@ -22,8 +22,9 @@ interface TrapQueueShellProps {
   myTeamId: string | null;
   myTeamName?: string | null;
   isTrapRole: boolean;
+  userRole?: UserRole | null;
   showWorkHistory?: boolean;
-  defaultView?: TrapQueueView;
+  defaultTeamScope?: TrapQueueTeamScope;
   toolbarActions?: ReactNode;
 }
 
@@ -36,8 +37,9 @@ export function TrapQueueShell({
   myTeamId,
   myTeamName = null,
   isTrapRole,
+  userRole = null,
   showWorkHistory = true,
-  defaultView = "all",
+  defaultTeamScope = "all",
   toolbarActions,
 }: TrapQueueShellProps) {
   const router = useRouter();
@@ -61,16 +63,8 @@ export function TrapQueueShell({
   const visibleCases = useMemo(() => {
     const filtered = filterCasesBySearch(cases, searchQuery);
     if (isClosedScope) return filtered;
-    const sorted = sortIntakeCases(filtered, sort);
-    const email = userEmail.trim().toLowerCase();
-    if (!email) return sorted;
-    // Pin your claimed cases above the rest so they stay easy to spot.
-    return [...sorted].sort((a, b) => {
-      const aMine = (a.claimed_by_email ?? "").trim().toLowerCase() === email ? 0 : 1;
-      const bMine = (b.claimed_by_email ?? "").trim().toLowerCase() === email ? 0 : 1;
-      return aMine - bMine;
-    });
-  }, [cases, searchQuery, sort, isClosedScope, userEmail]);
+    return sortIntakeCases(filtered, sort);
+  }, [cases, searchQuery, sort, isClosedScope]);
 
   return (
     <div className="space-y-4">
@@ -79,6 +73,7 @@ export function TrapQueueShell({
         myTeamId={myTeamId}
         myTeamName={myTeamName}
         isTrapRole={isTrapRole}
+        userRole={userRole}
         showWorkHistory={showWorkHistory}
         layout={layout}
         sort={sort}
@@ -86,7 +81,7 @@ export function TrapQueueShell({
         onLayoutChange={(nextLayout) => updateParam("layout", nextLayout === "cards" ? "" : nextLayout)}
         onSortChange={(nextSort) => updateParam("sort", nextSort === "date_asc" ? "" : nextSort)}
         onSearchChange={(query) => updateParam("q", query)}
-        defaultView={defaultView}
+        defaultTeamScope={defaultTeamScope}
         actions={toolbarActions}
       />
 
@@ -99,7 +94,11 @@ export function TrapQueueShell({
         />
       ) : visibleCases.length === 0 ? (
         <p className="py-8 text-center text-muted-foreground">
-          {searchQuery.trim() ? "No cases match your search." : "No cases in this view."}
+          {searchQuery.trim()
+            ? "No cases match your search."
+            : searchParams.get("focus") === "mine"
+              ? "You have not claimed any active cases."
+              : "No unclaimed cases in this queue."}
         </p>
       ) : layout === "table" ? (
         <IntakeCaseTable
