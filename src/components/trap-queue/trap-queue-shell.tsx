@@ -10,7 +10,7 @@ import { TrapQueueToolbar } from "@/components/trap-queue/trap-queue-toolbar";
 import { filterCasesBySearch } from "@/lib/cases/search-cases";
 import { sortIntakeCases, type IntakeSortKey } from "@/lib/cases/sort-intake-cases";
 import type { CaseViewMode } from "@/components/cases/case-queue-view";
-import type { TrapQueueTeamScope } from "@/lib/cases/trap-queue-query";
+import type { TrapQueueFocus, TrapQueueTeamScope } from "@/lib/cases/trap-queue-query";
 import type { HelpRequest, UserRole } from "@/lib/types";
 
 interface TrapQueueShellProps {
@@ -25,6 +25,8 @@ interface TrapQueueShellProps {
   userRole?: UserRole | null;
   showWorkHistory?: boolean;
   defaultTeamScope?: TrapQueueTeamScope;
+  hasMyClaims?: boolean;
+  focus?: TrapQueueFocus;
   toolbarActions?: ReactNode;
 }
 
@@ -40,6 +42,8 @@ export function TrapQueueShell({
   userRole = null,
   showWorkHistory = true,
   defaultTeamScope = "all",
+  hasMyClaims = false,
+  focus = "needs_claim",
   toolbarActions,
 }: TrapQueueShellProps) {
   const router = useRouter();
@@ -82,6 +86,7 @@ export function TrapQueueShell({
         onSortChange={(nextSort) => updateParam("sort", nextSort === "date_asc" ? "" : nextSort)}
         onSearchChange={(query) => updateParam("q", query)}
         defaultTeamScope={defaultTeamScope}
+        hasMyClaims={hasMyClaims}
         actions={toolbarActions}
       />
 
@@ -96,7 +101,7 @@ export function TrapQueueShell({
         <p className="py-8 text-center text-muted-foreground">
           {searchQuery.trim()
             ? "No cases match your search."
-            : searchParams.get("focus") === "mine"
+            : focus === "mine"
               ? "You have not claimed any active cases."
               : "No unclaimed cases in this queue right now."}
         </p>

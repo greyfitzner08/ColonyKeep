@@ -32,6 +32,7 @@ interface TrapQueueToolbarProps {
   sort: IntakeSortKey;
   searchQuery: string;
   defaultTeamScope?: TrapQueueTeamScope;
+  hasMyClaims?: boolean;
   onLayoutChange: (layout: CaseViewMode) => void;
   onSortChange: (sort: IntakeSortKey) => void;
   onSearchChange: (query: string) => void;
@@ -49,6 +50,7 @@ export function TrapQueueToolbar({
   sort,
   searchQuery,
   defaultTeamScope = "all",
+  hasMyClaims = false,
   onLayoutChange,
   onSortChange,
   onSearchChange,
@@ -58,6 +60,7 @@ export function TrapQueueToolbar({
   const searchParams = useSearchParams();
   const scopeParam = searchParams.get("scope");
   const scope = scopeParam === "history" ? "history" : scopeParam === "closed" ? "closed" : "queue";
+  const defaultFocus = defaultTrapQueueFocus({ hasMyClaims });
 
   const { focus, teamScope, showOthersClaimed } = resolveTrapQueueNavigation({
     focusParam: searchParams.get("focus"),
@@ -66,6 +69,7 @@ export function TrapQueueToolbar({
     claimedParam: searchParams.get("claimed"),
     role: userRole,
     teamId: myTeamId,
+    hasMyClaims,
   });
 
   const trapSchoolOnly = scope !== "history" && searchParams.get("trapSchool") === "only";
@@ -84,7 +88,7 @@ export function TrapQueueToolbar({
 
   function setFocus(next: TrapQueueFocus) {
     updateParams((params) => {
-      if (next === defaultTrapQueueFocus()) {
+      if (next === defaultFocus) {
         params.delete("focus");
       } else {
         params.set("focus", next);

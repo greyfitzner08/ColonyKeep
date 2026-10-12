@@ -18,8 +18,28 @@ interface TrapQueueQueryOptions {
   userEmail: string;
 }
 
-export function defaultTrapQueueFocus(): TrapQueueFocus {
-  return "needs_claim";
+/** Default focus: My claims when the user has active claims, otherwise Unclaimed. */
+export function defaultTrapQueueFocus(options?: {
+  hasMyClaims?: boolean;
+}): TrapQueueFocus {
+  return options?.hasMyClaims ? "mine" : "needs_claim";
+}
+
+/** Whether the user has any active trap-queue cases claimed in their name. */
+export async function userHasActiveTrapClaims(
+  supabase: SupabaseClient,
+  userEmail: string
+): Promise<boolean> {
+  const email = userEmail.trim();
+  if (!email) return false;
+
+  const { count } = await supabase
+    .from("help_requests")
+    .select("id", { count: "exact", head: true })
+    .in("status", TRAP_QUEUE_STATUSES)
+    .eq("claimed_by_email", email);
+
+  return (count ?? 0) > 0;
 }
 
 /** Default team scope: trappers with a team see their team; everyone else sees all teams. */
@@ -51,6 +71,7 @@ export function resolveTrapQueueNavigation(options: {
   claimedParam?: string | null;
   role?: string | null;
   teamId?: string | null;
+  hasMyClaims?: boolean;
 }): {
   focus: TrapQueueFocus;
   teamScope: TrapQueueTeamScope;
@@ -60,6 +81,7 @@ export function resolveTrapQueueNavigation(options: {
     role: options.role,
     teamId: options.teamId,
   });
+  const defaultFocus = defaultTrapQueueFocus({ hasMyClaims: options.hasMyClaims });
 
   // Legacy: view=my_claims
   if (options.viewParam === "my_claims" && !options.focusParam) {
@@ -88,7 +110,11 @@ export function resolveTrapQueueNavigation(options: {
   }
 
   const focus: TrapQueueFocus =
-    options.focusParam === "mine" ? "mine" : defaultTrapQueueFocus();
+    options.focusParam === "mine"
+      ? "mine"
+      : options.focusParam === "needs_claim"
+        ? "needs_claim"
+        : defaultFocus;
   const teamScope = (options.teamParam ?? defaultTeam) as TrapQueueTeamScope;
 
   return {

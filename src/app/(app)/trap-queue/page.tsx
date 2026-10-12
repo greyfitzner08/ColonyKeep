@@ -10,6 +10,7 @@ import {
   resolveTrapQueueNavigation,
   trapQueueFocusLabel,
   trapQueueTeamScopeLabel,
+  userHasActiveTrapClaims,
 } from "@/lib/cases/trap-queue-query";
 import { TrapQueueShell } from "@/components/trap-queue/trap-queue-shell";
 import { InquiryAdminMenu } from "@/components/cases/inquiry-admin-menu";
@@ -39,6 +40,23 @@ export default async function TrapQueuePage({ searchParams }: TrapQueuePageProps
 
   const isHistoryScope = params.scope === "history";
   const isClosedScope = params.scope === "closed";
+  const trapSchoolOnly = !isHistoryScope && params.trapSchool === "only";
+  const defaultTeamScope = defaultTrapQueueTeamScope({
+    role: profile?.role,
+    teamId: profile?.team_id,
+  });
+
+  const [{ data: teams }, { data: myTeam }, hasMyClaims] = await Promise.all([
+    supabase.from("trap_teams").select("id, name").eq("is_active", true).order("name"),
+    profile?.team_id
+      ? supabase.from("trap_teams").select("name").eq("id", profile.team_id).maybeSingle()
+      : Promise.resolve({ data: null }),
+    // Only needed for the active queue default; skip on history/closed.
+    !isHistoryScope && !isClosedScope
+      ? userHasActiveTrapClaims(supabase, actorEmail)
+      : Promise.resolve(false),
+  ]);
+
   const { focus, teamScope, showOthersClaimed } = resolveTrapQueueNavigation({
     focusParam: params.focus,
     teamParam: params.team,
@@ -46,19 +64,8 @@ export default async function TrapQueuePage({ searchParams }: TrapQueuePageProps
     claimedParam: params.claimed,
     role: profile?.role,
     teamId: profile?.team_id,
+    hasMyClaims,
   });
-  const trapSchoolOnly = !isHistoryScope && params.trapSchool === "only";
-  const defaultTeamScope = defaultTrapQueueTeamScope({
-    role: profile?.role,
-    teamId: profile?.team_id,
-  });
-
-  const [{ data: teams }, { data: myTeam }] = await Promise.all([
-    supabase.from("trap_teams").select("id, name").eq("is_active", true).order("name"),
-    profile?.team_id
-      ? supabase.from("trap_teams").select("name").eq("id", profile.team_id).maybeSingle()
-      : Promise.resolve({ data: null }),
-  ]);
 
   let cases: HelpRequest[] = [];
 
@@ -164,6 +171,8 @@ export default async function TrapQueuePage({ searchParams }: TrapQueuePageProps
           userRole={profile?.role ?? null}
           showWorkHistory
           defaultTeamScope={defaultTeamScope}
+          hasMyClaims={hasMyClaims}
+          focus={focus}
         />
       </Suspense>
     </div>
