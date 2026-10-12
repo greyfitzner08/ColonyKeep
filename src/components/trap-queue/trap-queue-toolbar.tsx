@@ -5,7 +5,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { CaseQueueControls } from "@/components/cases/case-queue-controls";
 import { CaseQueueSearch } from "@/components/cases/case-queue-search";
 import { PageControlBar } from "@/components/layout/page-control-bar";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { CaseViewMode } from "@/components/cases/case-queue-view";
@@ -49,11 +48,14 @@ export function TrapQueueToolbar({
   const searchParams = useSearchParams();
   const scopeParam = searchParams.get("scope");
   const scope = scopeParam === "history" ? "history" : scopeParam === "closed" ? "closed" : "queue";
-  const currentView = searchParams.get("view") ?? defaultView;
+  const rawView = searchParams.get("view") ?? defaultView;
+  // "My team" only applies when the user has a trap team; otherwise treat as claimed-by-me.
+  const currentView = rawView === "mine" && !myTeamId ? "my_claims" : rawView;
   const hideOthersClaimed =
     scope === "queue" && currentView !== "my_claims" && searchParams.get("claimed") !== "show";
   const trapSchoolOnly = scope !== "history" && searchParams.get("trapSchool") === "only";
   const geographicTeams = sortTrapTeams(teams).filter((team) => !isTrapSchoolTeamName(team.name));
+  const showMyTeamOption = Boolean(isTrapRole && myTeamId);
 
   function updateParams(mutate: (params: URLSearchParams) => void) {
     const params = new URLSearchParams(searchParams.toString());
@@ -63,14 +65,57 @@ export function TrapQueueToolbar({
 
   const activeFilterCount =
     (showWorkHistory && scope !== "queue" ? 1 : 0) +
-    (scope !== "history" && currentView !== defaultView ? 1 : 0) +
     (scope === "queue" && currentView !== "my_claims" && !hideOthersClaimed ? 1 : 0) +
-    (trapSchoolOnly ? 1 : 0);
+    (trapSchoolOnly ? 1 : 0) +
+    (scope !== "closed" && layout !== "cards" ? 1 : 0) +
+    (scope !== "closed" && sort !== "date_asc" ? 1 : 0);
+
+  const queueSelect =
+    scope !== "history" ? (
+      <div className="w-full min-w-[12rem] sm:w-[220px]">
+        <Label htmlFor="trap-queue-team" className="sr-only">
+          Whose cases
+        </Label>
+        <Select
+          value={currentView}
+          onValueChange={(view) =>
+            updateParams((params) => {
+              if (view === defaultView || (view === "my_claims" && defaultView === "mine" && !myTeamId)) {
+                params.delete("view");
+              } else {
+                params.set("view", view);
+              }
+            })
+          }
+        >
+          <SelectTrigger id="trap-queue-team" className="h-9 w-full">
+            <SelectValue placeholder="Whose cases" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="my_claims">Claimed by me</SelectItem>
+            {showMyTeamOption ? (
+              <SelectItem value="mine">
+                {myTeamName ? `My team · ${myTeamName}` : "My team"}
+              </SelectItem>
+            ) : null}
+            <SelectItem value="unassigned">No team</SelectItem>
+            <SelectItem value="all">All teams</SelectItem>
+            {geographicTeams.map((team) => (
+              <SelectItem key={team.id} value={team.id}>
+                {team.id === myTeamId ? `${team.name} (my team)` : team.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+    ) : null;
 
   return (
     <PageControlBar
       aria-label="Queue controls"
       activeFilterCount={activeFilterCount}
+      filterCollapse="all"
+      filtersLabel="Filters"
       search={
         <CaseQueueSearch
           id="trap-queue-search"
@@ -78,7 +123,12 @@ export function TrapQueueToolbar({
           onChange={onSearchChange}
         />
       }
-      actions={actions}
+      actions={
+        <>
+          {queueSelect}
+          {actions}
+        </>
+      }
       filters={
         <>
           {showWorkHistory ? (
@@ -113,122 +163,86 @@ export function TrapQueueToolbar({
             </div>
           ) : null}
 
-          {scope !== "history" ? (
+          {scope === "queue" && currentView !== "my_claims" ? (
             <div className="space-y-1.5 min-w-0">
-              <Label htmlFor="trap-queue-team" className="text-xs font-medium text-muted-foreground">
-                Team queue
+              <Label
+                htmlFor="trap-queue-claim-visibility"
+                className="text-xs font-medium text-muted-foreground"
+              >
+                Claim visibility
               </Label>
               <Select
-                value={currentView}
-                onValueChange={(view) =>
+                value={hideOthersClaimed ? "hide_others" : "show_all"}
+                onValueChange={(value) =>
                   updateParams((params) => {
-                    if (view === defaultView) {
-                      params.delete("view");
+                    if (value === "show_all") {
+                      params.set("claimed", "show");
                     } else {
-                      params.set("view", view);
+                      params.delete("claimed");
                     }
                   })
                 }
               >
-                <SelectTrigger id="trap-queue-team" className="h-9 w-full">
-                  <SelectValue placeholder="Select queue" />
+                <SelectTrigger id="trap-queue-claim-visibility" className="h-9 w-full">
+                  <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="my_claims">My claims</SelectItem>
-                  {isTrapRole && (
-                    <SelectItem value="mine">
-                      {myTeamName ? `My Team (${myTeamName})` : "My Work"}
-                    </SelectItem>
-                  )}
-                  <SelectItem value="unassigned">No team</SelectItem>
-                  <SelectItem value="all">All Teams</SelectItem>
-                  {geographicTeams.map((team) => (
-                    <SelectItem key={team.id} value={team.id}>
-                      {team.id === myTeamId ? `${team.name} (my team)` : team.name}
-                    </SelectItem>
-                  ))}
+                  <SelectItem value="hide_others">Hide others&apos; claims</SelectItem>
+                  <SelectItem value="show_all">Show all claims</SelectItem>
                 </SelectContent>
               </Select>
             </div>
           ) : null}
 
-          {scope === "queue" ? (
-            <div className="flex flex-wrap items-end gap-x-4 gap-y-2 min-w-0">
-              {currentView !== "my_claims" ? (
-                <div className="flex h-9 items-center gap-2">
-                  <Checkbox
-                    id="trap-queue-show-claimed"
-                    checked={!hideOthersClaimed}
-                    onCheckedChange={(value) =>
-                      updateParams((params) => {
-                        if (value) {
-                          params.set("claimed", "show");
-                        } else {
-                          params.delete("claimed");
-                        }
-                      })
+          {scope === "queue" || scope === "closed" ? (
+            <div className="space-y-1.5 min-w-0">
+              <Label
+                htmlFor="trap-queue-trap-school"
+                className="text-xs font-medium text-muted-foreground"
+              >
+                Trap School
+              </Label>
+              <Select
+                value={trapSchoolOnly ? "only" : "all"}
+                onValueChange={(value) =>
+                  updateParams((params) => {
+                    if (value === "only") {
+                      params.set("trapSchool", "only");
+                    } else {
+                      params.delete("trapSchool");
                     }
-                  />
-                  <Label htmlFor="trap-queue-show-claimed" className="text-sm font-normal">
-                    Show others&apos; claimed cases
-                  </Label>
-                </div>
-              ) : null}
-              <div className="flex h-9 items-center gap-2">
-                <Checkbox
-                  id="trap-queue-trap-school"
-                  checked={trapSchoolOnly}
-                  onCheckedChange={(value) =>
-                    updateParams((params) => {
-                      if (value) {
-                        params.set("trapSchool", "only");
-                      } else {
-                        params.delete("trapSchool");
-                      }
-                    })
-                  }
-                />
-                <Label htmlFor="trap-queue-trap-school" className="text-sm font-normal">
-                  Trap School only
-                </Label>
-              </div>
-            </div>
-          ) : null}
-
-          {scope === "closed" ? (
-            <div className="flex items-end min-w-0">
-              <div className="flex h-9 items-center gap-2">
-                <Checkbox
-                  id="trap-queue-trap-school-closed"
-                  checked={trapSchoolOnly}
-                  onCheckedChange={(value) =>
-                    updateParams((params) => {
-                      if (value) {
-                        params.set("trapSchool", "only");
-                      } else {
-                        params.delete("trapSchool");
-                      }
-                    })
-                  }
-                />
-                <Label htmlFor="trap-queue-trap-school-closed" className="text-sm font-normal">
-                  Trap School only
-                </Label>
-              </div>
+                  })
+                }
+              >
+                <SelectTrigger id="trap-queue-trap-school" className="h-9 w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All colonies</SelectItem>
+                  <SelectItem value="only">Trap School only</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           ) : null}
 
           {scope === "closed" ? null : (
-          <div className="space-y-1.5 min-w-0 sm:col-span-2 xl:min-w-[280px] xl:flex-1">
-            <p className="text-xs font-medium text-muted-foreground">Layout & sort</p>
-            <CaseQueueControls
-              view={layout}
-              sort={sort}
-              onViewChange={onLayoutChange}
-              onSortChange={onSortChange}
-            />
-          </div>
+            <div className="space-y-1.5 min-w-0 sm:col-span-2 xl:min-w-[280px] xl:flex-1">
+              <p className="text-xs font-medium text-muted-foreground">Layout & sort</p>
+              <CaseQueueControls
+                view={layout}
+                sort={sort}
+                onViewChange={onLayoutChange}
+                onSortChange={onSortChange}
+              />
+            </div>
           )}
+
+          {scope !== "history" ? (
+            <p className="text-xs text-muted-foreground sm:col-span-2 xl:basis-full">
+              Claimed by me = your personal list
+              {showMyTeamOption ? " · My team = your team’s open queue" : ""}.
+            </p>
+          ) : null}
         </>
       }
     />

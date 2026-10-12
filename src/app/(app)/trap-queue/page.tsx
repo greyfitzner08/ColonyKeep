@@ -91,9 +91,9 @@ export default async function TrapQueuePage({ searchParams }: TrapQueuePageProps
           ? "Closed and completed cases that were never assigned to a trap team."
           : `Closed and completed cases for ${viewLabel}. They stay off the active trap queue.`
     : view === "my_claims"
-      ? "Active cases you personally claimed — your working list."
+      ? "Only cases you personally claimed — your working list."
       : view === "mine"
-        ? "Cases assigned to your trap team and cases you have personally claimed."
+        ? "Open cases on your trap team (including ones you claimed)."
         : view === "unassigned"
           ? "Cases not yet assigned to a trap team."
           : view === "all"

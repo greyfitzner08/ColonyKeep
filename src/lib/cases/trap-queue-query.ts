@@ -84,11 +84,11 @@ export function trapQueueViewLabel(
   teams: { id: string; name: string }[],
   myTeamName?: string | null
 ): string {
-  if (view === "my_claims") return "My claims";
+  if (view === "my_claims") return "Claimed by me";
   if (view === "mine") {
-    return myTeamName ? `My Team (${myTeamName})` : "My Work";
+    return myTeamName ? `My team · ${myTeamName}` : "My team";
   }
   if (view === "unassigned") return "No team";
-  if (view === "all") return "All Teams";
-  return teams.find((team) => team.id === view)?.name ?? "Team Queue";
+  if (view === "all") return "All teams";
+  return teams.find((team) => team.id === view)?.name ?? "Team queue";
 }

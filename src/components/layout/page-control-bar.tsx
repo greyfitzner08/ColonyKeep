@@ -23,6 +23,11 @@ interface PageControlBarProps {
   filtersLabel?: string;
   /** Start with filters expanded on mobile. */
   defaultFiltersOpen?: boolean;
+  /**
+   * `mobile` — filters always visible from md up; toggle on small screens.
+   * `all` — filters stay behind the Filters button at every breakpoint.
+   */
+  filterCollapse?: "mobile" | "all";
   className?: string;
   /** Accessible name for the controls region. */
   "aria-label"?: string;
@@ -41,12 +46,14 @@ export function PageControlBar({
   activeFilterCount = 0,
   filtersLabel = "Filters",
   defaultFiltersOpen = false,
+  filterCollapse = "mobile",
   className,
   "aria-label": ariaLabel = "Page controls",
 }: PageControlBarProps) {
   const [filtersOpen, setFiltersOpen] = useState(defaultFiltersOpen);
   const hasFilters = Boolean(filters);
   const hasToolbarRow = Boolean(search || actions || hasFilters || meta);
+  const collapseAll = filterCollapse === "all";
 
   return (
     <section
@@ -71,7 +78,7 @@ export function PageControlBar({
                 type="button"
                 variant="outline"
                 size="sm"
-                className="h-9 md:hidden"
+                className={cn("h-9", !collapseAll && "md:hidden")}
                 aria-expanded={filtersOpen}
                 onClick={() => setFiltersOpen((open) => !open)}
               >
@@ -103,7 +110,7 @@ export function PageControlBar({
           className={cn(
             "gap-2 border-t border-border/60 pt-3 sm:grid-cols-2 lg:grid-cols-3 xl:flex xl:flex-wrap xl:items-end",
             filtersOpen ? "grid" : "hidden",
-            "md:grid"
+            !collapseAll && "md:grid"
           )}
         >
           {filters}
