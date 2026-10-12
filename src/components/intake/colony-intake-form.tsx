@@ -35,6 +35,10 @@ import {
   buildFeederFieldsFromIntake,
   reporterIsColonyFeeder,
 } from "@/lib/cases/public-intake";
+import {
+  matchIntakeHelpFunnelRule,
+  type IntakeHelpFunnelRule,
+} from "@/lib/intake/help-funnel";
 
 const STEPS = [
   {
@@ -418,10 +422,12 @@ export function ColonyIntakeForm({
   aboutMessage,
   donateUrl,
   donateText,
+  helpFunnelRules = [],
 }: {
   aboutMessage: string;
   donateUrl: string | null;
   donateText: string;
+  helpFunnelRules?: IntakeHelpFunnelRule[];
 }) {
   const [step, setStep] = useState(0);
   const [submitting, setSubmitting] = useState(false);
@@ -646,6 +652,20 @@ export function ColonyIntakeForm({
   }
 
   if (submitted) {
+    const helpResources = matchIntakeHelpFunnelRule(helpFunnelRules, {
+      trapping_experience: form.trapping_experience,
+      need_traps: form.need_traps,
+      willing_to_trap_transport: form.willing_to_trap_transport,
+      able_to_trap_transport: form.able_to_trap_transport,
+      has_recovery_space: form.has_recovery_space,
+    });
+    const showHelpResources = Boolean(
+      helpResources &&
+        (helpResources.title.trim() ||
+          helpResources.body.trim() ||
+          helpResources.links.length > 0)
+    );
+
     return (
       <div className="min-h-screen flex items-center justify-center bg-muted/30 p-4">
         <Card className="max-w-lg w-full text-center">
@@ -673,6 +693,33 @@ export function ColonyIntakeForm({
               Our volunteer team uses this case number to track your colony submission, so please reference it as volunteers work with you on this case.
               </p>
             </div>
+
+            {showHelpResources && helpResources ? (
+              <div className="rounded-lg border border-primary/25 bg-primary/5 px-4 py-4 text-left space-y-3">
+                {helpResources.title.trim() ? (
+                  <p className="font-semibold text-foreground">{helpResources.title.trim()}</p>
+                ) : (
+                  <p className="font-semibold text-foreground">Recommended next steps</p>
+                )}
+                {helpResources.body.trim() ? (
+                  <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground/90">
+                    {helpResources.body.trim()}
+                  </p>
+                ) : null}
+                {helpResources.links.length > 0 ? (
+                  <div className="flex flex-col gap-2 pt-1">
+                    {helpResources.links.map((link) => (
+                      <Button key={`${link.label}-${link.url}`} type="button" asChild variant="outline">
+                        <a href={link.url} target="_blank" rel="noopener noreferrer">
+                          {link.label}
+                          <ExternalLink className="h-4 w-4" />
+                        </a>
+                      </Button>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
 
             <QueueSnapshot />
           </CardContent>

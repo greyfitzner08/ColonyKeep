@@ -1,3 +1,8 @@
+import {
+  normalizeIntakeHelpFunnelRules,
+  type IntakeHelpFunnelRule,
+} from "@/lib/intake/help-funnel";
+
 export const DEFAULT_APP_NAME = "TNVR Rescue";
 
 /** Default brand teal — matches globals.css --primary. */
@@ -20,6 +25,8 @@ export interface PlatformBranding {
   /** Optional donate button on the colony request intro. */
   intake_donate_url: string | null;
   intake_donate_text: string;
+  /** Post-submit resource paths matched to How you can help answers. */
+  intake_help_funnel_rules: IntakeHelpFunnelRule[];
   /** Intro shown before the public rescue application. */
   adoption_entrance_about_message: string;
   adoption_entrance_button_text: string;
@@ -56,6 +63,7 @@ export function defaultPlatformBranding(): PlatformBranding {
     intake_about_message: DEFAULT_INTAKE_ABOUT_MESSAGE,
     intake_donate_url: DEFAULT_INTAKE_DONATE_URL,
     intake_donate_text: DEFAULT_INTAKE_DONATE_TEXT,
+    intake_help_funnel_rules: [],
     adoption_entrance_about_message: DEFAULT_ENTRANCE_ABOUT_MESSAGE,
     adoption_entrance_button_text: "",
     adoption_entrance_button_url: null,
@@ -156,6 +164,7 @@ export function normalizePlatformBranding(
         intake_about_message?: string | null;
         intake_donate_url?: string | null;
         intake_donate_text?: string | null;
+        intake_help_funnel_rules?: unknown;
         adoption_entrance_about_message?: string | null;
         adoption_entrance_button_text?: string | null;
         adoption_entrance_button_url?: string | null;
@@ -185,6 +194,7 @@ export function normalizePlatformBranding(
     intake_donate_url:
       donateUrl === undefined ? DEFAULT_INTAKE_DONATE_URL : donateUrl,
     intake_donate_text: donateText ?? "",
+    intake_help_funnel_rules: normalizeIntakeHelpFunnelRules(row?.intake_help_funnel_rules),
     adoption_entrance_about_message: entranceAbout || DEFAULT_ENTRANCE_ABOUT_MESSAGE,
     adoption_entrance_button_text: entranceButtonText.slice(0, 80),
     adoption_entrance_button_url: entranceButtonUrl === undefined ? null : entranceButtonUrl,

@@ -11,6 +11,7 @@ import {
   normalizePublicHttpsUrl,
   type PlatformBranding,
 } from "@/lib/branding";
+import { normalizeIntakeHelpFunnelRules } from "@/lib/intake/help-funnel";
 import { createServiceClient } from "@/lib/supabase/server";
 import { intakeAboutPlainText, sanitizeIntakeAboutHtml } from "@/lib/intake-about-html";
 
@@ -51,7 +52,7 @@ function validateThemeColor(value: unknown, fallback: string): string | null {
 }
 
 const BRANDING_SELECT =
-  "app_name, logo_url, logo_light_url, primary_color, sidebar_color, google_calendar_embed_url, intake_about_message, intake_donate_url, intake_donate_text, adoption_entrance_about_message, adoption_entrance_button_text, adoption_entrance_button_url, adoption_entrance_links" as const;
+  "app_name, logo_url, logo_light_url, primary_color, sidebar_color, google_calendar_embed_url, intake_about_message, intake_donate_url, intake_donate_text, intake_help_funnel_rules, adoption_entrance_about_message, adoption_entrance_button_text, adoption_entrance_button_url, adoption_entrance_links" as const;
 
 export async function GET() {
   try {
@@ -80,6 +81,7 @@ async function saveIntakeIntro(
     intake_about_message?: unknown;
     intake_donate_text?: unknown;
     intake_donate_url?: unknown;
+    intake_help_funnel_rules?: unknown;
   },
   profileId: string
 ): Promise<NextResponse> {
@@ -89,7 +91,7 @@ async function saveIntakeIntro(
       ? sanitizeIntakeAboutHtml(aboutRaw, { allowLinks: true })
       : DEFAULT_INTAKE_ABOUT_MESSAGE;
   if (aboutMessage.length > MAX_INTAKE_ABOUT_LENGTH) {
-    return NextResponse.json({ error: "The colony request intro is too long." }, { status: 400 });
+    return NextResponse.json({ error: "The inquiry form intro is too long." }, { status: 400 });
   }
 
   const donateTextRaw = body.intake_donate_text ?? "";
@@ -106,11 +108,14 @@ async function saveIntakeIntro(
         ? "Add a link for the button, or clear the button label. Your text was saved."
         : null;
 
+  const helpFunnelRules = normalizeIntakeHelpFunnelRules(body.intake_help_funnel_rules);
+
   const service = await createServiceClient();
   const { data, error } = await service
     .from("platform_branding")
     .update({
       intake_about_message: aboutMessage,
+      intake_help_funnel_rules: helpFunnelRules,
       ...(warning
         ? {}
         : {

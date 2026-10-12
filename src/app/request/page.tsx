@@ -10,6 +10,7 @@ export default async function RequestPage() {
       aboutMessage={branding.intake_about_message}
       donateUrl={branding.intake_donate_url}
       donateText={branding.intake_donate_text}
+      helpFunnelRules={branding.intake_help_funnel_rules}
     />
   );
 }
