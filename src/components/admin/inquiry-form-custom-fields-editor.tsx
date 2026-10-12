@@ -45,6 +45,7 @@ export function InquiryFormCustomFieldsEditor({ branding }: { branding: Platform
   const [rules, setRules] = useState<IntakeHelpFunnelRule[]>(branding.intake_help_funnel_rules);
   /** Paths start collapsed; newly added ones open expanded. */
   const [expandedIds, setExpandedIds] = useState<Set<string>>(() => new Set());
+  const [introExpanded, setIntroExpanded] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
@@ -185,72 +186,99 @@ export function InquiryFormCustomFieldsEditor({ branding }: { branding: Platform
         </p>
       </div>
 
-      <section className="space-y-4">
-        <div>
-          <h3 className="text-base font-semibold">About us intro</h3>
-          <p className="text-sm text-muted-foreground">The first step of the public inquiry form.</p>
-        </div>
-        <IntakeAboutEditor
-          ref={editorRef}
-          id="inquiry-form-intro"
-          variant="document"
-          allowLinks
-          allowLists
-          value={message}
-          disabled={saving}
-          onChange={(value) => {
-            setMessage(value);
-            markDirty();
-          }}
-          preview={
-            buttonText.trim() || buttonUrl.trim() ? (
-              <div className="flex flex-wrap items-center gap-3 border-t px-6 py-4">
-                <span className="inline-flex h-10 items-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground">
-                  {buttonText.trim() || "Donate"}
-                </span>
-                <p className="text-xs text-muted-foreground">Shown at the bottom of About us.</p>
-              </div>
-            ) : null
-          }
-        />
+      <section
+        className={cn(
+          "rounded-lg border bg-card shadow-sm",
+          introExpanded ? "space-y-4 p-4" : "px-3 py-2.5"
+        )}
+      >
+        <button
+          type="button"
+          className="flex w-full min-w-0 items-center gap-2 text-left"
+          aria-expanded={introExpanded}
+          onClick={() => setIntroExpanded((open) => !open)}
+        >
+          {introExpanded ? (
+            <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
+          ) : (
+            <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+          )}
+          <span className="truncate text-sm font-medium">About us intro</span>
+          {!introExpanded ? (
+            <span className="truncate text-xs text-muted-foreground">
+              First step of the public inquiry form
+            </span>
+          ) : null}
+        </button>
 
-        <div className="max-w-xl space-y-3">
-          <div>
-            <h4 className="text-sm font-medium">Add a button</h4>
-            <p className="text-xs text-muted-foreground">
-              Shown at the bottom of About us. Leave both fields blank to hide it.
+        {introExpanded ? (
+          <>
+            <p className="text-sm text-muted-foreground">
+              The first step of the public inquiry form.
             </p>
-          </div>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div className="space-y-1.5">
-              <Label htmlFor="inquiry-intro-button-text">Button label</Label>
-              <Input
-                id="inquiry-intro-button-text"
-                value={buttonText}
-                maxLength={80}
-                disabled={saving}
-                placeholder="Donate"
-                onChange={(event) => {
-                  setButtonText(event.target.value);
-                  markDirty();
-                }}
-              />
+            <IntakeAboutEditor
+              ref={editorRef}
+              id="inquiry-form-intro"
+              variant="document"
+              allowLinks
+              allowLists
+              value={message}
+              disabled={saving}
+              onChange={(value) => {
+                setMessage(value);
+                markDirty();
+              }}
+              preview={
+                buttonText.trim() || buttonUrl.trim() ? (
+                  <div className="flex flex-wrap items-center gap-3 border-t px-6 py-4">
+                    <span className="inline-flex h-10 items-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground">
+                      {buttonText.trim() || "Donate"}
+                    </span>
+                    <p className="text-xs text-muted-foreground">Shown at the bottom of About us.</p>
+                  </div>
+                ) : null
+              }
+            />
+
+            <div className="max-w-xl space-y-3">
+              <div>
+                <h4 className="text-sm font-medium">Add a button</h4>
+                <p className="text-xs text-muted-foreground">
+                  Shown at the bottom of About us. Leave both fields blank to hide it.
+                </p>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <Label htmlFor="inquiry-intro-button-text">Button label</Label>
+                  <Input
+                    id="inquiry-intro-button-text"
+                    value={buttonText}
+                    maxLength={80}
+                    disabled={saving}
+                    placeholder="Donate"
+                    onChange={(event) => {
+                      setButtonText(event.target.value);
+                      markDirty();
+                    }}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="inquiry-intro-button-url">Web address</Label>
+                  <Input
+                    id="inquiry-intro-button-url"
+                    value={buttonUrl}
+                    disabled={saving}
+                    placeholder="example.com"
+                    onChange={(event) => {
+                      setButtonUrl(event.target.value);
+                      markDirty();
+                    }}
+                  />
+                </div>
+              </div>
             </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="inquiry-intro-button-url">Web address</Label>
-              <Input
-                id="inquiry-intro-button-url"
-                value={buttonUrl}
-                disabled={saving}
-                placeholder="example.com"
-                onChange={(event) => {
-                  setButtonUrl(event.target.value);
-                  markDirty();
-                }}
-              />
-            </div>
-          </div>
-        </div>
+          </>
+        ) : null}
       </section>
 
       <section className="space-y-4 border-t pt-8">
@@ -614,6 +642,7 @@ export function InquiryFormCustomFieldsEditor({ branding }: { branding: Platform
           variant="ghost"
           disabled={saving}
           onClick={() => {
+            setMessage(DEFAULT_INTAKE_ABOUT_MESSAGE);
             editorRef.current?.setHtml(DEFAULT_INTAKE_ABOUT_MESSAGE);
             markDirty();
           }}
