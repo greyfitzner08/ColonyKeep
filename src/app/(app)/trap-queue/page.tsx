@@ -12,7 +12,9 @@ import {
   trapQueueTeamScopeLabel,
   userHasActiveTrapClaims,
 } from "@/lib/cases/trap-queue-query";
+import { fetchIdleClaimFollowUps } from "@/lib/cases/idle-claim-follow-up";
 import { TrapQueueShell } from "@/components/trap-queue/trap-queue-shell";
+import { IdleClaimFollowUpBanner } from "@/components/trap-queue/idle-claim-follow-up-banner";
 import { InquiryAdminMenu } from "@/components/cases/inquiry-admin-menu";
 import { ShareRequestFormLink } from "@/components/cases/share-request-form-link";
 import { PageHeader } from "@/components/layout/page-header";
@@ -46,7 +48,7 @@ export default async function TrapQueuePage({ searchParams }: TrapQueuePageProps
     teamId: profile?.team_id,
   });
 
-  const [{ data: teams }, { data: myTeam }, hasMyClaims] = await Promise.all([
+  const [{ data: teams }, { data: myTeam }, hasMyClaims, idleClaimFollowUps] = await Promise.all([
     supabase.from("trap_teams").select("id, name").eq("is_active", true).order("name"),
     profile?.team_id
       ? supabase.from("trap_teams").select("name").eq("id", profile.team_id).maybeSingle()
@@ -55,6 +57,7 @@ export default async function TrapQueuePage({ searchParams }: TrapQueuePageProps
     !isHistoryScope && !isClosedScope
       ? userHasActiveTrapClaims(supabase, actorEmail)
       : Promise.resolve(false),
+    actorEmail ? fetchIdleClaimFollowUps(supabase, actorEmail) : Promise.resolve([]),
   ]);
 
   const { focus, teamScope, showOthersClaimed } = resolveTrapQueueNavigation({
@@ -157,6 +160,8 @@ export default async function TrapQueuePage({ searchParams }: TrapQueuePageProps
           ) : null
         }
       />
+
+      {!isHistoryScope ? <IdleClaimFollowUpBanner alerts={idleClaimFollowUps} /> : null}
 
       <Suspense fallback={<div className="h-40 animate-pulse rounded-lg bg-muted" />}>
         <TrapQueueShell
