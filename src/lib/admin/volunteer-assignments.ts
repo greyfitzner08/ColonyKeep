@@ -202,7 +202,7 @@ export async function previewVolunteerAssignments(
   if (shiftRows.length > 0) {
     groups.push({
       key: "shift_signups",
-      label: "Shift board",
+      label: "Events",
       description: "Shift signups and waitlist spots for this volunteer.",
       unassignOutcome:
         "Removes them from the signup and waitlist. The shift stays on the board for other volunteers.",

@@ -95,8 +95,8 @@ export function VolunteerContactPrivacyPanel({ profile }: VolunteerContactPrivac
       <CardHeader>
         <CardTitle>Directory &amp; map visibility</CardTitle>
         <CardDescription>
-          Choose what contact details other team members can see in the team directory and on the
-          hotspots map.
+          Everything below starts hidden. Turn on only the details you want other team members to
+          see in the team directory and on the hotspots map.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">

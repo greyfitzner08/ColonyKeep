@@ -51,14 +51,14 @@ const ADMIN_TRACK: AdvancedTutorialTrack = {
       id: "adv-admin-welcome",
       title: "Your role as administrator",
       description:
-        "You see every module. This advanced walkthrough follows the operational path: people → cases → clinics → volunteer events → reporting.",
+        "You see every module. This advanced walkthrough follows the operational path: people → cases → clinics → events → reporting.",
       icon: Sparkles,
     }),
     step({
       id: "adv-admin-people",
       title: "Start with people",
       description:
-        "Approve volunteer applications and assign platform roles in Volunteers. Platform role controls which queues and pages someone can open — fixing access problems usually starts here.",
+        "Approve volunteer applications and assign platform roles in Volunteers. Pending role-change requests can be minimized or snoozed for the day when the list is long. Platform role controls which pages someone can open.",
       icon: Users,
       navHref: "/volunteers",
       flowNote: "Platform role unlocks Trap Queue, Clinics, etc. Interests are for staffing only.",
@@ -67,28 +67,28 @@ const ADMIN_TRACK: AdvancedTutorialTrack = {
       id: "adv-admin-intake",
       title: "Cases land in the Trap Queue",
       description:
-        "New colony requests auto-assign to a trap team by ZIP. Colonies with 5 or fewer cats/kittens are tagged Trap School so teams can filter or sort for them. Staff claim them from the Trap Queue and work field logistics.",
+        "Public inquiry forms auto-assign by colony ZIP. Colonies with 5 or fewer cats/kittens get a Trap School tag. Configure the form intro and after-submit resource paths under Admin → Inquiry form custom fields.",
       icon: Kanban,
       navHref: "/trap-queue",
-      flowNote: "Public form → auto team assignment → Trap Queue.",
+      flowNote: "Public form → ZIP team + Trap School tag → Trap Queue.",
     }),
     step({
       id: "adv-admin-trap",
       title: "Field work lives in the Trap Queue",
       description:
-        "Once a case is ready for trapping, transport, or recovery, teams work it from the Trap Queue. Status changes and notes here are what other volunteers rely on.",
+        "Teams switch between Unclaimed (oldest first, ready to claim) and My claims. The queue defaults to My claims when the user has active claims. Use Filters for team scope, others’ claims, and Trap School. Kitten, adult, and total columns help size the colony.",
       icon: Kanban,
       navHref: "/trap-queue",
-      flowNote: "Hotspots Map uses the same cases for geographic planning.",
+      flowNote: "Unclaimed ↔ My claims · Filters for scope · Hotspots for geography.",
     }),
     step({
       id: "adv-admin-hotspots",
       title: "Map the same cases",
       description:
-        "Hotspots shows colony locations from help requests. Use it with the queues — not instead of them — when planning routes or spotting nearby colonies.",
+        "Hotspots shows colony locations from help requests. Volunteer pins only appear when someone opted in under My Profile → Directory & map visibility.",
       icon: Map,
       navHref: "/hotspots",
-      flowNote: "Map pins ↔ Trap Queue records for the same cases.",
+      flowNote: "Map pins ↔ Trap Queue records · volunteer pins are opt-in.",
     }),
     step({
       id: "adv-admin-appointments",
@@ -104,10 +104,10 @@ const ADMIN_TRACK: AdvancedTutorialTrack = {
       id: "adv-admin-clinics",
       title: "Configure partner clinics",
       description:
-        "Clinic records hold hours, services, and slot rules that power the appointments calendar and public clinic events.",
+        "Clinic records hold hours, services, and booking settings that power public clinic events.",
       icon: Building2,
       navHref: "/clinics",
-      flowNote: "Change a clinic here and appointment booking reflects it.",
+      flowNote: "Clinic config → Clinic Events public booking.",
     }),
     step({
       id: "adv-admin-events",
@@ -134,7 +134,7 @@ const ADMIN_TRACK: AdvancedTutorialTrack = {
       id: "adv-admin-reports",
       title: "Measure outcomes in Reports",
       description:
-        "Reports roll up case, clinic, and volunteer activity. If numbers look wrong, check upstream data in queues, appointments, and volunteer records first.",
+        "Reports roll up case, clinic, and volunteer activity. If numbers look wrong, check upstream data in Trap Queue, Clinic Events, and volunteer records first.",
       icon: BarChart3,
       navHref: "/reports",
       flowNote: "Reports read operational data — they don’t create it.",
@@ -143,10 +143,10 @@ const ADMIN_TRACK: AdvancedTutorialTrack = {
       id: "adv-admin-settings",
       title: "Platform settings",
       description:
-        "Admin settings cover users, trap teams, role descriptions, and imports. Use this when someone can’t see a page they should — often a role or team assignment issue.",
+        "Admin covers users, trap teams, role descriptions, branding, imports, and Inquiry form custom fields (About us intro + after-submit paths matched to How you can help and total cats).",
       icon: Settings,
       navHref: "/admin",
-      flowNote: "Teams + roles → what appears in each person’s sidebar.",
+      flowNote: "Teams + roles → sidebar · Inquiry form custom fields → public /request.",
     }),
   ],
 };
@@ -154,30 +154,30 @@ const ADMIN_TRACK: AdvancedTutorialTrack = {
 const TRAP_LEAD_TRACK: AdvancedTutorialTrack = {
   id: "trap_team_lead",
   title: "Trap team lead workflow",
-  summary: "How field cases connect to equipment, appointments, clinics, and volunteer shifts.",
+  summary: "How field cases connect to equipment, clinic events, and teammates.",
   roleLabel: "TNVR Team",
   steps: [
     step({
       id: "adv-trap-welcome",
       title: "Your role leading field work",
       description:
-        "You coordinate trapping through recovery. New requests auto-assign to your team by ZIP; small colonies are tagged Trap School. This walkthrough ties the Trap Queue to equipment and appointments.",
+        "You coordinate trapping through recovery. New requests auto-assign to your team by ZIP; small colonies are tagged Trap School. This walkthrough ties Trap Queue to equipment and teammates.",
       icon: Sparkles,
     }),
     step({
       id: "adv-trap-queue",
       title: "Run the day from Trap Queue",
       description:
-        "Active field cases live here. Update status as cats are trapped, transported, recovered, and returned so clinic folks stay in sync.",
+        "Use Unclaimed for open work (oldest first) and My claims for cases you own. The page opens on My claims when you have active claims. Update status as cats move through trap, transport, recovery, and return.",
       icon: Kanban,
       navHref: "/trap-queue",
-      flowNote: "Action: open case → update status / cats → leave notes for the next person.",
+      flowNote: "Unclaimed ↔ My claims · Filters for team / Trap School · kitten·adult·total columns.",
     }),
     step({
       id: "adv-trap-claim",
       title: "Claim before you edit",
       description:
-        "Claim an unassigned case so nobody else works it at the same time. If details are missing, check case history or mark Needs more info rather than starting a duplicate request.",
+        "Claim from Unclaimed so nobody else works the case at the same time. If details are missing, check case history rather than starting a duplicate request.",
       icon: Kanban,
       navHref: "/trap-queue",
       flowNote: "Public form auto-assigns · Trap Queue owns field work.",
@@ -186,7 +186,7 @@ const TRAP_LEAD_TRACK: AdvancedTutorialTrack = {
       id: "adv-trap-map",
       title: "Plan with Hotspots",
       description:
-        "Use the map to cluster nearby colonies and plan efficient trap nights. Pins are the same cases as your queue cards.",
+        "Use the map to cluster nearby colonies and plan efficient trap nights. Colony pins match your queue cards; teammate pins only appear if they opted in on their profile.",
       icon: Map,
       navHref: "/hotspots",
       flowNote: "Map for planning · Queue for ownership and status.",
@@ -224,17 +224,17 @@ const TRAP_LEAD_TRACK: AdvancedTutorialTrack = {
       id: "adv-trap-directory",
       title: "Find teammates",
       description:
-        "Team Directory helps you reach transporters, recovery homes, and other volunteers when a case needs a handoff.",
+        "Team Directory shows contact details only when teammates chose to share them under Directory & map visibility. Use it for transporters, recovery homes, and handoffs.",
       icon: Users,
       navHref: "/team-directory",
       visible: (p) => p.canViewVolunteerDirectory,
-      flowNote: "Directory for people · Queue for case state.",
+      flowNote: "Directory for people · Queue for case state · sharing is opt-in.",
     }),
     step({
       id: "adv-trap-impact",
       title: "Your work shows in My Impact",
       description:
-        "Cases you touch and shifts you claim roll into personal impact stats — useful for recognizing team effort over time.",
+        "Cases you touch roll into personal impact stats — useful for recognizing team effort over time.",
       icon: Heart,
       navHref: "/my-impact",
     }),
@@ -258,10 +258,10 @@ const CLINIC_TRACK: AdvancedTutorialTrack = {
       id: "adv-clinic-clinics",
       title: "Maintain clinic records",
       description:
-        "Update partner clinic details, services, and slot rules. Appointment availability depends on what’s configured here.",
+        "Update partner clinic details, services, and booking settings used by public clinic events.",
       icon: Building2,
       navHref: "/clinics",
-      flowNote: "Clinic config is the source of booking capacity.",
+      flowNote: "Clinic config feeds Clinic Events booking.",
     }),
     step({
       id: "adv-clinic-appointments",
@@ -280,26 +280,26 @@ const CLINIC_TRACK: AdvancedTutorialTrack = {
         "Clinic Events power public signup days. Capacity and services should stay consistent with the clinic record people expect.",
       icon: Stethoscope,
       navHref: "/clinic-events",
-      flowNote: "Public event booking is separate from internal case appointments.",
+      flowNote: "Public clinic booking for community sign-ups.",
     }),
     step({
       id: "adv-clinic-shifts",
       title: "Staff the day on Events",
       description:
-        "Create event positions and shifts so volunteers can claim roles (registration, parking, etc.). Event staffing complements clinic capacity — it doesn’t replace appointment slots.",
+        "Create event positions and shifts so volunteers can claim roles (registration, parking, etc.). Event staffing complements clinic capacity.",
       icon: CalendarDays,
       navHref: "/shift-board",
       visible: () => SHIFT_SIGNUPS_UI_ENABLED,
-      flowNote: "Appointments = cat capacity · Shifts = volunteer positions.",
+      flowNote: "Clinic Events = cat capacity · Events shifts = volunteer positions.",
     }),
     step({
       id: "adv-clinic-trap",
       title: "Stay aware of field demand",
       description:
-        "Trap Queue and case volume drive when appointment slots get used. Watch demand so clinic days aren’t over- or under-booked.",
+        "Trap Queue volume (Unclaimed and claimed cases) drives clinic-day demand. Watch the queue so clinic days aren’t over- or under-booked.",
       icon: Kanban,
       navHref: "/trap-queue",
-      flowNote: "Field success creates appointment demand.",
+      flowNote: "Field success creates clinic demand.",
     }),
     step({
       id: "adv-clinic-resources",
@@ -315,7 +315,7 @@ const CLINIC_TRACK: AdvancedTutorialTrack = {
 const CASE_VOLUNTEER_TRACK: AdvancedTutorialTrack = {
   id: "case_volunteer",
   title: "Field volunteer workflow",
-  summary: "How intake, trap work, appointments, and gear fit together when you help on cases.",
+  summary: "How intake, trap work, and gear fit together when you help on cases.",
   roleLabel: "Field Volunteer",
   steps: [
     step({
@@ -329,7 +329,7 @@ const CASE_VOLUNTEER_TRACK: AdvancedTutorialTrack = {
       id: "adv-case-dashboard",
       title: "Start from your dashboard",
       description:
-        "Dashboard highlights upcoming shifts and active work relevant to you. Use it as a launchpad, then go to the queue for details.",
+        "Dashboard highlights active work relevant to you. Use it as a launchpad, then go to Trap Queue for details.",
       icon: Compass,
       navHref: "/",
       flowNote: "Dashboard summarizes · Queues hold the live case actions.",
@@ -338,11 +338,11 @@ const CASE_VOLUNTEER_TRACK: AdvancedTutorialTrack = {
       id: "adv-case-trap",
       title: "Execute in Trap Queue",
       description:
-        "New requests land here automatically. Claim a case, then update it as you trap, transport, or recover cats. Status is how leads know what’s left to do.",
+        "Switch Unclaimed vs My claims. Claim from Unclaimed (oldest first), then update status as you trap, transport, or recover cats. Open Filters for team scope or Trap School.",
       icon: Kanban,
       navHref: "/trap-queue",
       visible: (p) => p.canViewTrapQueue,
-      flowNote: "Auto-assigned by ZIP · Trap School tag for ≤5 cats · Claim before editing.",
+      flowNote: "ZIP assign · Trap School tag ≤5 · Claim before editing.",
     }),
     step({
       id: "adv-case-equipment",
@@ -386,7 +386,7 @@ const CASE_VOLUNTEER_TRACK: AdvancedTutorialTrack = {
       id: "adv-case-impact",
       title: "See your contribution",
       description:
-        "My Impact reflects cases and shifts you’ve taken part in — a personal record of your help over time.",
+        "My Impact reflects cases you’ve taken part in — a personal record of your help over time.",
       icon: Heart,
       navHref: "/my-impact",
     }),
@@ -441,10 +441,11 @@ const EVENT_VOLUNTEER_TRACK: AdvancedTutorialTrack = {
       id: "adv-event-directory",
       title: "Find other volunteers",
       description:
-        "Team Directory helps you coordinate with people working the same event when you need a handoff or supply drop.",
+        "Team Directory shows phone, email, or address only when teammates chose to share them. Use it for handoffs or supply drops when those details are visible.",
       icon: Users,
       navHref: "/team-directory",
       visible: (p) => p.canViewVolunteerDirectory,
+      flowNote: "Contact sharing is opt-in on each person’s profile.",
     }),
     step({
       id: "adv-event-resources",
@@ -458,10 +459,10 @@ const EVENT_VOLUNTEER_TRACK: AdvancedTutorialTrack = {
       id: "adv-event-profile",
       title: "Keep interests and contact info updated",
       description:
-        "My Profile holds your volunteer interests and certificate uploads. Interests help admins match you to the right shifts — they don’t change which pages you can open.",
+        "My Profile holds volunteer interests, certificates, and Directory & map visibility. Sharing starts off — turn on only what you want teammates to see. Interests help staffing; they don’t change which pages you can open.",
       icon: UserRound,
       navHref: "/profile",
-      flowNote: "Interests → staffing fit; platform role → page access.",
+      flowNote: "Interests → staffing fit; platform role → page access; visibility → opt-in sharing.",
     }),
     step({
       id: "adv-event-impact",
@@ -528,10 +529,10 @@ const GENERAL_TRACK: AdvancedTutorialTrack = {
       id: "adv-general-profile",
       title: "Keep profile details current",
       description:
-        "Complete contact details, interests, and certificates on My Profile so organizers can match you to shifts. Page access still comes from your platform role.",
+        "Complete contact details, interests, and certificates on My Profile. Directory & map visibility defaults to hidden until you choose to share. Page access still comes from your platform role.",
       icon: UserRound,
       navHref: "/profile",
-      flowNote: "Profile completeness → better staffing matches.",
+      flowNote: "Profile completeness → better staffing matches · sharing is opt-in.",
     }),
     step({
       id: "adv-general-impact",

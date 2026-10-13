@@ -75,7 +75,7 @@ export function canViewTrapTeamSection(profile: Profile | null): boolean {
   return Boolean(profile.team_id);
 }
 
-/** Every signed-in platform role can use Shift Board. */
+/** Every signed-in platform role can use Events (/shift-board). */
 export function canClaimShifts(profile: Profile | null): boolean {
   return Boolean(profile?.role);
 }

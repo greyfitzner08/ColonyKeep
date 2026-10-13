@@ -51,8 +51,9 @@ export const PLATFORM_TUTORIAL_STEPS: PlatformTutorialStep[] = [
   {
     id: "dashboard",
     title: "Your dashboard",
-    description:
-      "Your home base for upcoming shifts, active cases, team updates, and quick links picked for your role.",
+    description: SHIFT_SIGNUPS_UI_ENABLED
+      ? "Your home base for upcoming shifts, active cases, team updates, and quick links picked for your role."
+      : "Your home base for active cases, team updates, and quick links picked for your role.",
     icon: LayoutDashboard,
     navHref: "/",
   },
@@ -69,7 +70,7 @@ export const PLATFORM_TUTORIAL_STEPS: PlatformTutorialStep[] = [
     id: "trap-queue",
     title: "Trap queue",
     description:
-      "New community requests land here automatically — assigned by colony ZIP. Colonies with 5 or fewer cats/kittens are tagged Trap School. Claim a case before editing.",
+      "New requests auto-assign by colony ZIP; colonies with 5 or fewer cats/kittens are tagged Trap School. Use Unclaimed (oldest first) or My claims — the board opens on My claims when you have active claims. Claim before editing; open Filters for team scope and Trap School.",
     icon: Kanban,
     navHref: "/trap-queue",
     visible: (p) => p.canViewTrapQueue,
@@ -78,7 +79,7 @@ export const PLATFORM_TUTORIAL_STEPS: PlatformTutorialStep[] = [
     id: "hotspots",
     title: "Hotspots map",
     description:
-      "See colony locations across the region on a map — useful for planning routes and spotting nearby activity.",
+      "See colony locations and nearby volunteers who opted in from My Profile. Useful for planning routes and spotting activity.",
     icon: Map,
     navHref: "/hotspots",
     visible: (p) => p.routes.includes("/hotspots"),
@@ -95,7 +96,7 @@ export const PLATFORM_TUTORIAL_STEPS: PlatformTutorialStep[] = [
   {
     id: "clinics",
     title: "Clinics",
-    description: "Manage partner clinic details, hours, and booking settings used for TNVR appointments.",
+    description: "Manage partner clinic details, hours, and booking settings used for clinic events.",
     icon: Building2,
     navHref: "/clinics",
     visible: (p) => p.canManageClinics,
@@ -103,7 +104,7 @@ export const PLATFORM_TUTORIAL_STEPS: PlatformTutorialStep[] = [
   {
     id: "clinic-events",
     title: "Clinic events",
-    description: "Create and manage spay/neuter clinic events, capacity, and volunteer scheduling.",
+    description: "Create and manage spay/neuter clinic events, capacity, and public bookings.",
     icon: Stethoscope,
     navHref: "/clinic-events",
     visible: (p) => p.canManageClinicEvents,
@@ -120,7 +121,8 @@ export const PLATFORM_TUTORIAL_STEPS: PlatformTutorialStep[] = [
   {
     id: "volunteers",
     title: "Volunteers",
-    description: "Review applications, approve roles, and manage volunteer onboarding.",
+    description:
+      "Review applications, approve roles, and handle pending role-change requests. Minimize or snooze that panel when you need the rest of the page.",
     icon: Users,
     navHref: "/volunteers",
     visible: (p) => p.canManageVolunteers,
@@ -169,7 +171,8 @@ export const PLATFORM_TUTORIAL_STEPS: PlatformTutorialStep[] = [
   {
     id: "admin",
     title: "Admin settings",
-    description: "Manage users, trap teams, role descriptions, and data imports.",
+    description:
+      "Manage users, trap teams, role descriptions, branding, and Inquiry form custom fields (public intro + after-submit resource paths).",
     icon: Settings,
     navHref: "/admin",
     visible: (p) => p.canManageAdmin,
@@ -178,7 +181,7 @@ export const PLATFORM_TUTORIAL_STEPS: PlatformTutorialStep[] = [
     id: "profile",
     title: "My profile",
     description:
-      "Keep contact info current, review volunteer roles, and upload your TNVR certificate when ready for field team assignment.",
+      "Keep contact info current, review volunteer roles, and upload your TNVR certificate. Directory & map visibility starts hidden — turn on only what you want teammates to see.",
     icon: UserRound,
     navHref: "/profile",
   },

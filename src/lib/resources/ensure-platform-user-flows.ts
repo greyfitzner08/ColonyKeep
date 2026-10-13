@@ -1,12 +1,28 @@
 import { createServiceClient } from "@/lib/supabase/server";
-import { PLATFORM_USER_FLOWS_MARKDOWN } from "@/lib/resources/platform-user-flows";
+import {
+  PLATFORM_USER_FLOWS_DOC_VERSION,
+  PLATFORM_USER_FLOWS_MARKDOWN,
+} from "@/lib/resources/platform-user-flows";
 
 const TITLE = "Platform User Flows";
 const SECTION = "Handbook";
 
+function needsHandbookRefresh(body: string | null | undefined): boolean {
+  if (!body?.trim()) return true;
+  if (!body.includes(`flows-doc-version: ${PLATFORM_USER_FLOWS_DOC_VERSION}`)) return true;
+  // Legacy copies that predate the version marker / current product.
+  if (body.includes("Inquiry Queue")) return true;
+  if (body.includes("**Inquiry Team**")) return true;
+  if (body.includes("Appointments (reserve clinic slots")) return true;
+  if (body.includes("Sign Up (or join waitlist)")) return true;
+  if (body.includes("that unlock more tools")) return true;
+  if (!body.includes("Page access is controlled by platform role only")) return true;
+  return false;
+}
+
 /**
- * Ensures the Platform User Flows handbook exists (idempotent).
- * Admins can edit the stored markdown afterward via Resources.
+ * Ensures the Platform User Flows handbook exists and matches the current seed
+ * when the stored version is behind (idempotent). Admins can still edit afterward.
  */
 export async function ensurePlatformUserFlowsDocument(): Promise<void> {
   const service = await createServiceClient();
@@ -19,14 +35,7 @@ export async function ensurePlatformUserFlowsDocument(): Promise<void> {
     .maybeSingle();
 
   if (existing?.id) {
-    const needsAccessModelRefresh =
-      !existing.body_markdown?.trim() ||
-      existing.body_markdown.includes("that unlock more tools") ||
-      existing.body_markdown.includes("Inquiry Queue") ||
-      existing.body_markdown.includes("**Inquiry Team**") ||
-      !existing.body_markdown.includes("Page access is controlled by platform role only");
-
-    if (needsAccessModelRefresh) {
+    if (needsHandbookRefresh(existing.body_markdown)) {
       await service
         .from("library_documents")
         .update({

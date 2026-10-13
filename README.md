@@ -38,7 +38,7 @@ The app does not send email. Copy addresses from Clinic Events → Manage bookin
 
 ### 3. Run database migration
 
-Apply the schema in `supabase/migrations/001_initial_schema.sql` via the Supabase SQL editor or CLI:
+Apply migrations under `supabase/migrations/` via the Supabase SQL editor, CLI, or linked project:
 
 ```bash
 npx supabase db push
@@ -61,44 +61,54 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000)
 
+## Product flags
+
+Temporary UI gates live in `src/lib/features.ts`:
+
+| Flag | Current | Effect |
+|------|---------|--------|
+| `APPOINTMENTS_UI_ENABLED` | `false` | Hides Appointments nav/page and related case tab |
+| `SHIFT_SIGNUPS_UI_ENABLED` | `false` | Hides shift sign-up rows under Events; calendar remains |
+
 ## Public Pages (no login)
 
 | Route | Description |
 |-------|-------------|
-| `/request` | Civilian colony intake form |
+| `/request` | Community inquiry / colony request form (ZIP assign, Trap School tag, after-submit resources) |
 | `/volunteer-signup` | Volunteer application |
 | `/clinic-booking` | Public clinic event booking |
+| `/update-case` | Public case progress updates |
 
 ## Internal Pages (login + role required)
 
-| Route | Roles |
+| Route | Notes |
 |-------|-------|
-| `/` | All approved volunteers |
-| `/intake` | admin, inquiry_team, trap_team_lead |
-| `/case/:id` | Staff + assigned team |
-| `/trap-queue` | trap roles, volunteers |
-| `/appointments` | clinic coordination volunteer role, trap leads |
-| `/clinics` | admin, clinic coordination volunteer role |
-| `/hotspots` | Most staff roles |
-| `/volunteers` | admin |
-| `/shift-board` | All volunteers |
+| `/` | Dashboard — all approved users |
+| `/trap-queue` | TNVR Team + Admin — Unclaimed / My claims |
+| `/hotspots` | TNVR Team + Admin |
+| `/equipment` | TNVR Team + Admin |
+| `/clinics` | Admin |
+| `/clinic-events` | Admin |
+| `/volunteers` | Admin |
+| `/shift-board` | **Events** calendar — all volunteers |
 | `/team-feed` | All volunteers |
+| `/team-directory` | Adult volunteers + staff (contact fields opt-in) |
 | `/my-impact` | All volunteers |
-| `/reports` | admin |
-| `/admin` | admin |
-| `/clinic-events` | admin, clinic coordination volunteer role |
+| `/resources` | Handbooks, SOPs, walkthroughs |
+| `/reports` | Admin |
+| `/admin` | Admin (includes Inquiry form custom fields) |
+| `/appointments` | Hidden while `APPOINTMENTS_UI_ENABLED` is false |
 
 ## Key Features
 
-- **Case workflow**: `new_intake` → `under_review` → ... → `closed`
-- **Medical flag detection**: Auto-scans intake notes for injury/illness keywords
+- **Inquiry form**: public `/request` with How you can help, how-heard dropdown, ZIP team assign, Trap School tag (≤5 cats+kittens), and admin-configured after-submit resource paths
+- **Trap Queue**: Unclaimed vs My claims; defaults to My claims when the user has claims; Filters; kitten/adult/total columns
+- **Contact privacy**: directory & map visibility opt-in (hidden until the user shares)
 - **RLS policies**: Row-level security on all tables
 - **Volunteer gating**: Unapproved users see application pending screen
-- **Welcome email**: Sent on volunteer approval (via Resend)
-- **Shift confirmation email**: Sent when claiming a shift
-- **Appointment confirmation email**: Sent when reserving a clinic slot
 - **Birthday announcements**: Cron endpoint at `/api/cron/birthdays`
 - **Case numbers**: Auto-generated as `CASE-00001`, `CASE-00002`, etc.
+- **Walkthroughs**: Quick page tour + role-based advanced tracks from Resources
 
 ## Cron Jobs
 
@@ -113,4 +123,3 @@ Authorization: Bearer <CRON_SECRET>
 
 - Primary: `hsl(162 63% 35%)` (nature green)
 - Sidebar: `hsl(162 40% 12%)` (dark green)
-- Font: Inter
