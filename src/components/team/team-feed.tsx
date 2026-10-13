@@ -87,6 +87,8 @@ export function TeamFeed({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editText, setEditText] = useState("");
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const birthdaysSoon = useMemo(() => birthdaysWithinDays(birthdayPeople, 7), [birthdayPeople]);
   const sortedTrapTeams = useMemo(() => sortTrapTeams(trapTeams), [trapTeams]);
@@ -131,16 +133,28 @@ export function TeamFeed({
   }
 
   async function saveEdit(postId: string) {
-    if (!editText.trim() || !profile) return;
-    const supabase = createClient();
-    await supabase
-      .from("team_announcements")
-      .update({ message: editText.trim() })
-      .eq("id", postId)
-      .eq("author_email", profile.email);
-    setEditingId(null);
-    setEditText("");
-    router.refresh();
+    if (!editText.trim() || !profile || savingEdit) return;
+    setSavingEdit(true);
+    setActionError(null);
+    try {
+      const response = await fetch(`/api/team-feed/posts/${postId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: editText.trim() }),
+      });
+      const result = await response.json().catch(() => null);
+      if (!response.ok) {
+        setActionError(result?.error ?? "Unable to save your edit.");
+        return;
+      }
+      setEditingId(null);
+      setEditText("");
+      router.refresh();
+    } catch {
+      setActionError("Network error — check your connection and try again.");
+    } finally {
+      setSavingEdit(false);
+    }
   }
 
   async function deletePost(postId: string) {
@@ -148,20 +162,27 @@ export function TeamFeed({
     if (!confirm("Delete this post? This cannot be undone.")) return;
 
     setDeletingId(postId);
-    const supabase = createClient();
-    const { error } = await supabase.from("team_announcements").delete().eq("id", postId);
-    setDeletingId(null);
+    setActionError(null);
+    try {
+      const response = await fetch(`/api/team-feed/posts/${postId}`, {
+        method: "DELETE",
+      });
+      const result = await response.json().catch(() => null);
+      if (!response.ok) {
+        setActionError(result?.error ?? "Unable to delete this post.");
+        return;
+      }
 
-    if (error) {
-      alert(error.message || "Unable to delete this post.");
-      return;
+      if (editingId === postId) {
+        setEditingId(null);
+        setEditText("");
+      }
+      router.refresh();
+    } catch {
+      setActionError("Network error — check your connection and try again.");
+    } finally {
+      setDeletingId(null);
     }
-
-    if (editingId === postId) {
-      setEditingId(null);
-      setEditText("");
-    }
-    router.refresh();
   }
 
   async function addComment(announcementId: string) {
@@ -348,6 +369,12 @@ export function TeamFeed({
       </Card>
 
       <div className="space-y-4">
+        {actionError ? (
+          <p className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+            {actionError}
+          </p>
+        ) : null}
+
         {initial.length === 0 && (
           <Card>
             <CardContent className="py-10 text-center text-sm text-muted-foreground">
@@ -359,8 +386,9 @@ export function TeamFeed({
         {initial.map((post) => {
           const isAuthor =
             Boolean(profile?.email) &&
-            profile!.email.toLowerCase() === post.author_email?.toLowerCase();
+            profile!.email.toLowerCase() === (post.author_email ?? "").toLowerCase();
           const isAdmin = profile?.role === "admin";
+          const canEdit = isAuthor && !post.is_birthday;
           const canDelete = isAdmin || isAuthor;
           const isEditing = editingId === post.id;
           const postAudience = (post.audience ?? "all") as FeedAudience;
@@ -399,17 +427,19 @@ export function TeamFeed({
                         ))}
                     </div>
                   </div>
-                  {(isAuthor || canDelete) && !isEditing && (
+                  {(canEdit || canDelete) && !isEditing && (
                     <div className="flex shrink-0 items-center">
-                      {isAuthor && !post.is_birthday && (
+                      {canEdit && (
                         <Button
                           size="icon"
                           variant="ghost"
                           onClick={() => {
+                            setActionError(null);
                             setEditingId(post.id);
                             setEditText(post.message);
                           }}
                           aria-label="Edit post"
+                          title="Edit your post"
                         >
                           <Pencil className="h-4 w-4" />
                         </Button>
@@ -422,6 +452,7 @@ export function TeamFeed({
                           disabled={deletingId === post.id}
                           onClick={() => void deletePost(post.id)}
                           aria-label="Delete post"
+                          title={isAuthor ? "Delete your post" : "Delete post"}
                         >
                           {deletingId === post.id ? (
                             <Loader2 className="h-4 w-4 animate-spin" />
@@ -437,18 +468,33 @@ export function TeamFeed({
               <CardContent className="space-y-4">
                 {isEditing ? (
                   <div className="space-y-3">
-                    <Textarea value={editText} onChange={(e) => setEditText(e.target.value)} rows={4} />
+                    <Textarea
+                      value={editText}
+                      onChange={(e) => setEditText(e.target.value)}
+                      rows={4}
+                      disabled={savingEdit}
+                    />
                     <div className="flex gap-2">
-                      <Button size="sm" onClick={() => saveEdit(post.id)}>
-                        <Check className="h-4 w-4 mr-1" />
+                      <Button
+                        size="sm"
+                        disabled={savingEdit || !editText.trim()}
+                        onClick={() => void saveEdit(post.id)}
+                      >
+                        {savingEdit ? (
+                          <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+                        ) : (
+                          <Check className="mr-1 h-4 w-4" />
+                        )}
                         Save
                       </Button>
                       <Button
                         size="sm"
                         variant="outline"
+                        disabled={savingEdit}
                         onClick={() => {
                           setEditingId(null);
                           setEditText("");
+                          setActionError(null);
                         }}
                       >
                         <X className="h-4 w-4 mr-1" />
