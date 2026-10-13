@@ -19,7 +19,11 @@ import {
   fetchAdoptionApplicationsActivity,
   type AdoptionApplicationsActivity,
 } from "@/lib/adoption/activity";
-import { canAccessAdoptions } from "@/lib/permissions";
+import {
+  fetchIdleClaimFollowUpActivity,
+  type IdleClaimFollowUpActivity,
+} from "@/lib/cases/idle-claim-follow-up";
+import { canAccessAdoptions, getProfilePermissions } from "@/lib/permissions";
 import { fetchTeamFeedActivity, type TeamFeedActivity } from "@/lib/team-feed/activity";
 import type { RoleDescription, VolunteerApplication } from "@/lib/types";
 
@@ -106,6 +110,7 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
 
   let teamFeedActivity: TeamFeedActivity | null = null;
   let adoptionApplicationsActivity: AdoptionApplicationsActivity | null = null;
+  let idleClaimFollowUpActivity: IdleClaimFollowUpActivity | null = null;
   if (effectiveProfile) {
     try {
       const supabase = await createClient();
@@ -114,9 +119,16 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
       if (canAccessAdoptions(effectiveProfile)) {
         adoptionApplicationsActivity = await fetchAdoptionApplicationsActivity(service);
       }
+      if (getProfilePermissions(effectiveProfile)?.canViewTrapQueue && effectiveProfile.email) {
+        idleClaimFollowUpActivity = await fetchIdleClaimFollowUpActivity(
+          supabase,
+          effectiveProfile.email
+        );
+      }
     } catch {
       teamFeedActivity = null;
       adoptionApplicationsActivity = null;
+      idleClaimFollowUpActivity = null;
     }
   }
 
@@ -131,6 +143,7 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
       showPlatformTutorial={showPlatformTutorial}
       teamFeedActivity={teamFeedActivity}
       adoptionApplicationsActivity={adoptionApplicationsActivity}
+      idleClaimFollowUpActivity={idleClaimFollowUpActivity}
     >
       {children}
     </AppShellFrame>

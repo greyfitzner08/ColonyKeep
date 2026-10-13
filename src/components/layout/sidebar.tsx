@@ -43,6 +43,10 @@ import type { TutorialMode } from "@/lib/platform-tutorial/tracks";
 import { useAdoptionApplicationsNavIndicator } from "@/components/layout/use-adoption-applications-nav-indicator";
 import { useTeamFeedNavIndicator } from "@/components/layout/use-team-feed-nav-indicator";
 import type { AdoptionApplicationsActivity } from "@/lib/adoption/activity";
+import {
+  shouldShowIdleClaimFollowUpIndicator,
+  type IdleClaimFollowUpActivity,
+} from "@/lib/cases/idle-claim-follow-up";
 import type { TeamFeedActivity } from "@/lib/team-feed/activity";
 
 const NAV_COLLAPSED_STORAGE_PREFIX = "sidebar-nav-collapsed";
@@ -200,6 +204,7 @@ interface SidebarProps {
   roleDescriptions?: RoleDescription[];
   teamFeedActivity?: TeamFeedActivity | null;
   adoptionApplicationsActivity?: AdoptionApplicationsActivity | null;
+  idleClaimFollowUpActivity?: IdleClaimFollowUpActivity | null;
 }
 
 export function Sidebar({
@@ -210,6 +215,7 @@ export function Sidebar({
   roleDescriptions = [],
   teamFeedActivity = null,
   adoptionApplicationsActivity = null,
+  idleClaimFollowUpActivity = null,
 }: SidebarProps) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -223,6 +229,8 @@ export function Sidebar({
     adoptionApplicationsActivity,
     profile?.id
   );
+  const showIdleClaimFollowUpIndicator =
+    shouldShowIdleClaimFollowUpIndicator(idleClaimFollowUpActivity);
 
   const permissions = getProfilePermissions(profile);
   const allowedRoutes = permissions?.routes ?? [];
@@ -295,7 +303,8 @@ export function Sidebar({
             const hasUnreadIndicator = group.items.some(
               (item) =>
                 (item.href === "/team-feed" && showTeamFeedIndicator) ||
-                (item.href === "/adoption/applications" && showAdoptionApplicationsIndicator)
+                (item.href === "/adoption/applications" && showAdoptionApplicationsIndicator) ||
+                (item.href === "/trap-queue" && showIdleClaimFollowUpIndicator)
             );
 
             return (
@@ -358,6 +367,12 @@ export function Sidebar({
                               aria-label="New adoption application"
                             />
                           )}
+                        {item.href === "/trap-queue" && showIdleClaimFollowUpIndicator && (
+                          <span
+                            className="h-1.5 w-1.5 shrink-0 rounded-full bg-pink-400/75"
+                            aria-label="Claimed case needs follow-up"
+                          />
+                        )}
                       </Link>
                     );
                   })}

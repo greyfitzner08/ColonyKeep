@@ -8,6 +8,7 @@ import { PlatformTutorialNavigationProvider } from "@/components/platform-tutori
 import { cn } from "@/lib/utils";
 import type { Profile, RoleDescription } from "@/lib/types";
 import type { AdoptionApplicationsActivity } from "@/lib/adoption/activity";
+import type { IdleClaimFollowUpActivity } from "@/lib/cases/idle-claim-follow-up";
 import type { TeamFeedActivity } from "@/lib/team-feed/activity";
 
 interface AppShellFrameProps {
@@ -21,6 +22,7 @@ interface AppShellFrameProps {
   showPlatformTutorial: boolean;
   teamFeedActivity: TeamFeedActivity | null;
   adoptionApplicationsActivity: AdoptionApplicationsActivity | null;
+  idleClaimFollowUpActivity: IdleClaimFollowUpActivity | null;
 }
 
 export function AppShellFrame({
@@ -34,6 +36,7 @@ export function AppShellFrame({
   showPlatformTutorial,
   teamFeedActivity,
   adoptionApplicationsActivity,
+  idleClaimFollowUpActivity,
 }: AppShellFrameProps) {
   const previewActive = Boolean(previewKey && previewLabel);
 
@@ -60,6 +63,7 @@ export function AppShellFrame({
           userName={effectiveProfile.full_name ?? effectiveProfile.email}
           teamFeedActivity={teamFeedActivity}
           adoptionApplicationsActivity={adoptionApplicationsActivity}
+          idleClaimFollowUpActivity={idleClaimFollowUpActivity}
         />
         <main
           className={cn(

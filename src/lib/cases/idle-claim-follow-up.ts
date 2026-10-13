@@ -12,6 +12,10 @@ export interface IdleClaimFollowUpAlert {
   idleDays: number;
 }
 
+export interface IdleClaimFollowUpActivity {
+  count: number;
+}
+
 /** Whole days since `updatedAt`. */
 export function idleClaimDays(updatedAt: string, asOf = new Date()): number {
   const updated = new Date(updatedAt);
@@ -34,6 +38,32 @@ export function idleClaimCutoffIso(
   return cutoff.toISOString();
 }
 
+/** Lightweight count for the Trap Queue nav indicator. */
+export async function fetchIdleClaimFollowUpActivity(
+  supabase: SupabaseClient,
+  userEmail: string,
+  asOf = new Date()
+): Promise<IdleClaimFollowUpActivity> {
+  const email = userEmail.trim();
+  if (!email) return { count: 0 };
+
+  const { count, error } = await supabase
+    .from("help_requests")
+    .select("id", { count: "exact", head: true })
+    .in("status", TRAP_QUEUE_STATUSES)
+    .ilike("claimed_by_email", email)
+    .lte("updated_at", idleClaimCutoffIso(asOf));
+
+  if (error) return { count: 0 };
+  return { count: count ?? 0 };
+}
+
+export function shouldShowIdleClaimFollowUpIndicator(
+  activity: IdleClaimFollowUpActivity | null | undefined
+): boolean {
+  return (activity?.count ?? 0) > 0;
+}
+
 /** Active trap-queue cases claimed by this user and idle for 21+ days. */
 export async function fetchIdleClaimFollowUps(
   supabase: SupabaseClient,
@@ -47,18 +77,23 @@ export async function fetchIdleClaimFollowUps(
     .from("help_requests")
     .select("id, case_number, contact_name, updated_at")
     .in("status", TRAP_QUEUE_STATUSES)
-    .eq("claimed_by_email", email)
+    .ilike("claimed_by_email", email)
     .lte("updated_at", idleClaimCutoffIso(asOf))
     .order("updated_at", { ascending: true });
 
   if (error || !data) return [];
 
-  return data.map((row) => {
+  return data.map((row: {
+    id: string;
+    case_number: string | null;
+    contact_name: string | null;
+    updated_at: string | null;
+  }) => {
     const updatedAt = row.updated_at ?? "";
     return {
-      id: row.id as string,
-      caseNumber: (row.case_number as string | null)?.trim() || "Case",
-      contactName: (row.contact_name as string | null)?.trim() || "Unknown contact",
+      id: row.id,
+      caseNumber: row.case_number?.trim() || "Case",
+      contactName: row.contact_name?.trim() || "Unknown contact",
       updatedAt,
       idleDays: idleClaimDays(updatedAt, asOf),
     };
