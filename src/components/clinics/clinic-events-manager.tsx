@@ -36,10 +36,7 @@ import {
   normalizePricingMode,
   pricingSummaryLabel,
 } from "@/lib/clinics/event-pricing";
-import {
-  defaultIncludedCatalog,
-  normalizeServiceCatalog,
-} from "@/lib/clinics/service-catalog";
+import { normalizeServiceCatalog } from "@/lib/clinics/service-catalog";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { DisplayDateInput } from "@/components/ui/display-date-input";
 import type {
@@ -111,7 +108,7 @@ const emptyForm = (): EventForm => ({
   pricing_mode: "flat",
   pricing_matrix: [],
   payment_url: "",
-  service_catalog: defaultIncludedCatalog(),
+  service_catalog: [],
   pending_email_message: "",
   confirmed_email_message: "",
   is_active: true,
@@ -185,7 +182,7 @@ export function ClinicEventsManager({ events, clinics, bookings }: ClinicEventsM
 
   function catalogForClinic(clinicId: string, list: ClinicOption[] = clinicOptions): ClinicServiceOption[] {
     const clinic = list.find((c) => c.id === clinicId);
-    if (!clinic) return defaultIncludedCatalog();
+    if (!clinic) return [];
     return normalizeServiceCatalog(clinic.service_catalog, clinic.included_services, clinic.addon_services);
   }
 
@@ -226,7 +223,7 @@ export function ClinicEventsManager({ events, clinics, bookings }: ClinicEventsM
         operating_days: [],
         slots_per_day: 10,
         slots_by_day: {},
-        service_catalog: defaultIncludedCatalog(),
+        service_catalog: [],
         packages: [],
         is_active: true,
       }),

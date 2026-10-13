@@ -1,10 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { NumberInput } from "@/components/ui/number-input";
-import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   DEFAULT_INCLUDED_SERVICE_NAMES,
@@ -12,8 +11,8 @@ import {
   getIncludedOptions,
 } from "@/lib/clinics/service-catalog";
 import type { ClinicServiceOption } from "@/lib/types";
-import { formatCurrency } from "@/lib/utils";
-import { Plus, Trash2 } from "lucide-react";
+import { cn, formatCurrency } from "@/lib/utils";
+import { ChevronDown, ChevronRight, Plus, Trash2 } from "lucide-react";
 
 interface ServiceCatalogEditorProps {
   value: ClinicServiceOption[];
@@ -24,6 +23,51 @@ interface ServiceCatalogEditorProps {
 
 function isPresetIncludedName(name: string): boolean {
   return (DEFAULT_INCLUDED_SERVICE_NAMES as readonly string[]).includes(name);
+}
+
+function CollapsibleCatalogCard({
+  title,
+  summary,
+  description,
+  defaultOpen = false,
+  children,
+}: {
+  title: string;
+  summary?: string;
+  description?: string;
+  defaultOpen?: boolean;
+  children: ReactNode;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+
+  return (
+    <div className={cn("rounded-md border bg-muted/15", open && "bg-muted/10")}>
+      <button
+        type="button"
+        className="flex w-full min-w-0 items-center gap-2 px-3 py-2.5 text-left"
+        onClick={() => setOpen((value) => !value)}
+        aria-expanded={open}
+      >
+        {open ? (
+          <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
+        ) : (
+          <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+        )}
+        <span className="min-w-0 flex-1 truncate text-sm font-medium">{title}</span>
+        {!open && summary ? (
+          <span className="max-w-[55%] shrink-0 truncate text-xs text-muted-foreground">
+            {summary}
+          </span>
+        ) : null}
+      </button>
+      {open ? (
+        <div className="space-y-3 border-t px-3 py-4">
+          {description ? <p className="text-xs text-muted-foreground">{description}</p> : null}
+          {children}
+        </div>
+      ) : null}
+    </div>
+  );
 }
 
 export function ServiceCatalogEditor({
@@ -97,16 +141,21 @@ export function ServiceCatalogEditor({
     onChange([...included, ...addons.filter((_, i) => i !== index)]);
   }
 
+  const includedSummary =
+    included.length === 0
+      ? "None selected"
+      : `${included.length} selected`;
+  const addonSummary =
+    addons.length === 0 ? "None yet" : `${addons.length} add-on${addons.length === 1 ? "" : "s"}`;
+
   return (
-    <div className="space-y-5">
+    <div className="space-y-2">
       {!packageMode ? (
-        <div className="space-y-3">
-          <div>
-            <Label className="text-sm font-medium">Included services</Label>
-            <p className="text-xs text-muted-foreground">
-              What&apos;s covered when this clinic doesn&apos;t use fixed packages.
-            </p>
-          </div>
+        <CollapsibleCatalogCard
+          title="Included services"
+          summary={includedSummary}
+          description="What's covered when this clinic doesn't use fixed packages."
+        >
           <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
             {DEFAULT_INCLUDED_SERVICE_NAMES.map((name) => (
               <label
@@ -168,19 +217,18 @@ export function ServiceCatalogEditor({
               Add
             </Button>
           </div>
-        </div>
+        </CollapsibleCatalogCard>
       ) : null}
 
-      <div className="space-y-3">
-        <div>
-          <Label className="text-sm font-medium">Optional add-ons</Label>
-          <p className="text-xs text-muted-foreground">
-            {packageMode
-              ? "Extras people can add when booking a clinic event (e.g. microchip)."
-              : "Optional extras with their own price on clinic event booking."}
-          </p>
-        </div>
-
+      <CollapsibleCatalogCard
+        title="Optional add-ons"
+        summary={addonSummary}
+        description={
+          packageMode
+            ? "Extras people can add when booking a clinic event (e.g. microchip)."
+            : "Optional extras with their own price on clinic event booking."
+        }
+      >
         {addons.length > 0 ? (
           <ul className="space-y-2">
             {addons.map((addon, index) => (
@@ -257,7 +305,7 @@ export function ServiceCatalogEditor({
             Add
           </Button>
         </div>
-      </div>
+      </CollapsibleCatalogCard>
     </div>
   );
 }

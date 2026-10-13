@@ -9,14 +9,6 @@ export const DEFAULT_INCLUDED_SERVICE_NAMES = [
   "Deworm",
 ] as const;
 
-export function defaultIncludedCatalog(): ClinicServiceOption[] {
-  return DEFAULT_INCLUDED_SERVICE_NAMES.map((name) => ({
-    name,
-    price: 0,
-    included_in_base: true,
-  }));
-}
-
 export function normalizeServiceCatalog(
   catalog: ClinicServiceOption[] | null | undefined,
   legacyIncluded?: string[] | null,
@@ -42,7 +34,7 @@ export function normalizeServiceCatalog(
     }
   }
 
-  return merged.length > 0 ? merged : defaultIncludedCatalog();
+  return merged;
 }
 
 export function getIncludedOptions(catalog: ClinicServiceOption[]): ClinicServiceOption[] {

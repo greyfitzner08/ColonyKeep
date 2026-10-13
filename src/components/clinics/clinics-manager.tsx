@@ -22,13 +22,13 @@ import {
   formatAddressPartsLine,
 } from "@/components/forms/address-autocomplete";
 import {
-  defaultIncludedCatalog,
   hasVisibleClinicPackages,
   normalizeServiceCatalog,
 } from "@/lib/clinics/service-catalog";
 import { APPOINTMENTS_UI_ENABLED } from "@/lib/features";
 import type { Clinic, ClinicPackage, ClinicServiceOption } from "@/lib/types";
-import { Plus } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { ChevronDown, ChevronRight, Plus } from "lucide-react";
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
@@ -56,6 +56,51 @@ function ModalSection({
   );
 }
 
+function CollapsibleModalCard({
+  title,
+  summary,
+  description,
+  defaultOpen = false,
+  children,
+}: {
+  title: string;
+  summary?: string;
+  description?: string;
+  defaultOpen?: boolean;
+  children: ReactNode;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+
+  return (
+    <div className={cn("rounded-md border bg-muted/15", open && "bg-muted/10")}>
+      <button
+        type="button"
+        className="flex w-full min-w-0 items-center gap-2 px-3 py-2.5 text-left"
+        onClick={() => setOpen((value) => !value)}
+        aria-expanded={open}
+      >
+        {open ? (
+          <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
+        ) : (
+          <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+        )}
+        <span className="min-w-0 flex-1 truncate text-sm font-medium">{title}</span>
+        {!open && summary ? (
+          <span className="max-w-[55%] shrink-0 truncate text-xs text-muted-foreground">
+            {summary}
+          </span>
+        ) : null}
+      </button>
+      {open ? (
+        <div className="space-y-3 border-t px-3 py-4">
+          {description ? <p className="text-sm text-muted-foreground">{description}</p> : null}
+          {children}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 const emptyClinic = {
   name: "",
   address: "",
@@ -63,7 +108,7 @@ const emptyClinic = {
   operating_days: [] as string[],
   slots_per_day: 10,
   slots_by_day: {} as Record<string, number>,
-  service_catalog: defaultIncludedCatalog() as ClinicServiceOption[],
+  service_catalog: [] as ClinicServiceOption[],
   packages: [] as ClinicPackage[],
   check_in_details: "",
   notes: "",
@@ -165,44 +210,44 @@ export function ClinicsManager({ clinics: initial }: ClinicsManagerProps) {
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-1">
-            <ModalSection title="Clinic details">
+          <div key={editing?.id ?? "new"} className="space-y-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="clinic-name">Name</Label>
+              <Input
+                id="clinic-name"
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+                placeholder="Clinic or hospital name"
+              />
+            </div>
+
+            <CollapsibleModalCard
+              title="Clinic details"
+              summary={[form.phone.trim(), form.address.trim()].filter(Boolean).join(" · ") || "Phone & address"}
+            >
               <div className="space-y-3">
                 <div className="space-y-1.5">
-                  <Label htmlFor="clinic-name">Name</Label>
+                  <Label htmlFor="clinic-phone">Phone</Label>
                   <Input
-                    id="clinic-name"
-                    value={form.name}
-                    onChange={(e) => setForm({ ...form, name: e.target.value })}
-                    placeholder="Clinic or hospital name"
+                    id="clinic-phone"
+                    value={form.phone}
+                    onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                    placeholder="Optional"
                   />
                 </div>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <div className="space-y-1.5">
-                    <Label htmlFor="clinic-phone">Phone</Label>
-                    <Input
-                      id="clinic-phone"
-                      value={form.phone}
-                      onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                      placeholder="Optional"
-                    />
-                  </div>
-                  <div className="space-y-1.5 sm:col-span-2">
-                    <AddressAutocomplete
-                      label="Address"
-                      defaultValue={form.address}
-                      onAddressChange={(address) => setForm({ ...form, address })}
-                      onSelect={(parts) =>
-                        setForm({
-                          ...form,
-                          address: formatAddressPartsLine(parts),
-                        })
-                      }
-                    />
-                  </div>
-                </div>
+                <AddressAutocomplete
+                  label="Address"
+                  defaultValue={form.address}
+                  onAddressChange={(address) => setForm({ ...form, address })}
+                  onSelect={(parts) =>
+                    setForm({
+                      ...form,
+                      address: formatAddressPartsLine(parts),
+                    })
+                  }
+                />
               </div>
-            </ModalSection>
+            </CollapsibleModalCard>
 
             <ModalSection
               title="Days open"
@@ -239,7 +284,7 @@ export function ClinicsManager({ clinics: initial }: ClinicsManagerProps) {
 
             <ModalSection
               title="Pricing"
-              description="Packages and optional extras shown on Clinic Events. Add packages when you sell fixed-price offerings."
+              description="Packages and optional extras shown on Clinic Events."
             >
               <ClinicPackagesEditor
                 packages={form.packages}
@@ -252,9 +297,14 @@ export function ClinicsManager({ clinics: initial }: ClinicsManagerProps) {
               />
             </ModalSection>
 
-            <ModalSection
+            <CollapsibleModalCard
               title="Visit info"
-              description="Shown to people booking clinic events when helpful."
+              summary={
+                form.check_in_details.trim() || form.notes.trim()
+                  ? "Details added"
+                  : "Check-in & notes"
+              }
+              description="Shown to people booking clinic events when helpful. Internal notes stay staff-only."
             >
               <div className="space-y-3">
                 <div className="space-y-1.5">
@@ -278,9 +328,9 @@ export function ClinicsManager({ clinics: initial }: ClinicsManagerProps) {
                   />
                 </div>
               </div>
-            </ModalSection>
+            </CollapsibleModalCard>
 
-            {saveError ? <p className="pt-3 text-sm text-destructive">{saveError}</p> : null}
+            {saveError ? <p className="text-sm text-destructive">{saveError}</p> : null}
 
             <div className="flex justify-end gap-2 border-t pt-4">
               <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
