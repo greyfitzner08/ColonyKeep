@@ -16,7 +16,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { createClient } from "@/lib/supabase/client";
-import { formatDateTime } from "@/lib/utils";
+import { cn, formatDateTime } from "@/lib/utils";
 import { VOLUNTEER_ROLES } from "@/lib/constants";
 import {
   birthdaysWithinDays,
@@ -24,10 +24,29 @@ import {
   type BirthdayPerson,
 } from "@/lib/team-feed/birthdays";
 import { BirthdayCalendarDialog } from "@/components/team/birthday-calendar-dialog";
-import type { TeamAnnouncement, Profile, UserRole } from "@/lib/types";
+import type { TeamAnnouncement, Profile, TeamAnnouncementReaction, UserRole } from "@/lib/types";
 import type { FeedAudience } from "@/lib/team-feed/visibility";
+import {
+  TEAM_FEED_REACTION_EMOJIS,
+  normalizeTeamFeedReactions,
+  reactionGroupsForViewer,
+} from "@/lib/team-feed/reactions";
 import { sortTrapTeams } from "@/lib/trap-teams/sort-teams";
-import { Pin, Cake, MessageCircle, Pencil, Trash2, X, Check, Users, Globe, Send, CalendarDays, Loader2 } from "lucide-react";
+import {
+  Pin,
+  Cake,
+  MessageCircle,
+  Pencil,
+  Trash2,
+  X,
+  Check,
+  Users,
+  Globe,
+  Send,
+  CalendarDays,
+  Loader2,
+  SmilePlus,
+} from "lucide-react";
 
 const PLATFORM_ROLES: { value: UserRole; label: string }[] = [
   { value: "admin", label: "Administrators" },
@@ -88,9 +107,18 @@ export function TeamFeed({
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [savingEdit, setSavingEdit] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [reactionOverrides, setReactionOverrides] = useState<
+    Record<string, TeamAnnouncementReaction[]>
+  >({});
+  const [reactingId, setReactingId] = useState<string | null>(null);
+  const [pickerOpenId, setPickerOpenId] = useState<string | null>(null);
 
   const birthdaysSoon = useMemo(() => birthdaysWithinDays(birthdayPeople, 7), [birthdayPeople]);
   const sortedTrapTeams = useMemo(() => sortTrapTeams(trapTeams), [trapTeams]);
+
+  function reactionsForPost(post: TeamAnnouncement) {
+    return reactionOverrides[post.id] ?? normalizeTeamFeedReactions(post.reactions);
+  }
 
   function toggleRole(role: string) {
     setSelectedRoles((prev) =>
@@ -203,6 +231,36 @@ export function TeamFeed({
     await supabase.from("team_announcements").update({ comments }).eq("id", announcementId);
     setCommentTexts({ ...commentTexts, [announcementId]: "" });
     router.refresh();
+  }
+
+  async function toggleReaction(postId: string, emoji: string) {
+    if (!profile || reactingId) return;
+    setReactingId(postId);
+    setActionError(null);
+    setPickerOpenId(null);
+    try {
+      const response = await fetch(`/api/team-feed/posts/${postId}/reactions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ emoji }),
+      });
+      const result = await response.json().catch(() => null);
+      if (!response.ok) {
+        setActionError(result?.error ?? "Unable to update reaction.");
+        return;
+      }
+      if (Array.isArray(result?.reactions)) {
+        setReactionOverrides((current) => ({
+          ...current,
+          [postId]: normalizeTeamFeedReactions(result.reactions),
+        }));
+      }
+      router.refresh();
+    } catch {
+      setActionError("Network error — check your connection and try again.");
+    } finally {
+      setReactingId(null);
+    }
   }
 
   const canPost =
@@ -516,6 +574,74 @@ export function TeamFeed({
                     ))}
                   </div>
                 )}
+
+                {(() => {
+                  const reactions = reactionsForPost(post);
+                  const groups = reactionGroupsForViewer(reactions, profile?.email);
+                  const pickerOpen = pickerOpenId === post.id;
+                  return (
+                    <div className="space-y-2">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        {groups.map((group) => (
+                          <button
+                            key={group.emoji}
+                            type="button"
+                            disabled={!profile || reactingId === post.id}
+                            title={group.names.join(", ")}
+                            onClick={() => void toggleReaction(post.id, group.emoji)}
+                            className={cn(
+                              "inline-flex h-8 items-center gap-1 rounded-full border px-2.5 text-sm transition-colors",
+                              group.reactedByMe
+                                ? "border-primary/40 bg-primary/10"
+                                : "border-border bg-background hover:bg-muted"
+                            )}
+                          >
+                            <span aria-hidden>{group.emoji}</span>
+                            <span className="text-xs font-medium text-muted-foreground">
+                              {group.count}
+                            </span>
+                          </button>
+                        ))}
+                        <div className="relative">
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            className="h-8 gap-1 px-2"
+                            disabled={!profile || reactingId === post.id}
+                            aria-label="Add reaction"
+                            aria-expanded={pickerOpen}
+                            onClick={() =>
+                              setPickerOpenId((current) => (current === post.id ? null : post.id))
+                            }
+                          >
+                            {reactingId === post.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <SmilePlus className="h-4 w-4" />
+                            )}
+                            React
+                          </Button>
+                          {pickerOpen ? (
+                            <div className="absolute left-0 top-full z-20 mt-1 flex flex-wrap gap-1 rounded-lg border bg-popover p-2 shadow-md">
+                              {TEAM_FEED_REACTION_EMOJIS.map((emoji) => (
+                                <button
+                                  key={emoji}
+                                  type="button"
+                                  className="flex h-9 w-9 items-center justify-center rounded-md text-lg hover:bg-muted"
+                                  onClick={() => void toggleReaction(post.id, emoji)}
+                                  aria-label={`React with ${emoji}`}
+                                >
+                                  {emoji}
+                                </button>
+                              ))}
+                            </div>
+                          ) : null}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 {(post.comments ?? []).length > 0 && (
                   <div className="space-y-2 rounded-lg bg-muted/40 p-3">

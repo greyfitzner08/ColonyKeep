@@ -508,6 +508,13 @@ export interface TeamAnnouncementComment {
   created_at: string;
 }
 
+export interface TeamAnnouncementReaction {
+  emoji: string;
+  author_email: string;
+  author_name: string;
+  created_at: string;
+}
+
 export interface TeamAnnouncement {
   id: string;
   message: string;
@@ -522,6 +529,7 @@ export interface TeamAnnouncement {
   is_birthday: boolean;
   birthday_person_name: string | null;
   comments: TeamAnnouncementComment[];
+  reactions: TeamAnnouncementReaction[];
   created_at: string;
   updated_at: string;
 }
