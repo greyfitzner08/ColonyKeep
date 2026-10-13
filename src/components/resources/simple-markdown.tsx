@@ -230,14 +230,15 @@ function CollapsibleSection({
   return (
     <details
       className={cn(
-        "group my-3 overflow-hidden rounded-lg border bg-background",
-        level === 2 ? "border-primary/25" : "border-border/80 bg-muted/20"
+        "group",
+        level === 2 ? "my-4 border-b border-border/70 pb-3" : "my-1.5"
       )}
     >
       <summary
         className={cn(
-          "flex cursor-pointer list-none items-center gap-2 px-3 py-3 text-left marker:content-none",
-          "hover:bg-muted/50 [&::-webkit-details-marker]:hidden"
+          "flex cursor-pointer list-none items-center gap-2 text-left marker:content-none",
+          "rounded-md hover:bg-muted/40 [&::-webkit-details-marker]:hidden",
+          level === 2 ? "py-1.5" : "py-1"
         )}
       >
         <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" />
@@ -252,7 +253,7 @@ function CollapsibleSection({
         <span className="shrink-0 text-xs text-muted-foreground group-open:hidden">Show</span>
         <span className="hidden shrink-0 text-xs text-muted-foreground group-open:inline">Hide</span>
       </summary>
-      <div className="space-y-1 border-t px-3 py-3">{children}</div>
+      <div className="space-y-1 pt-1 pl-6">{children}</div>
     </details>
   );
 }
