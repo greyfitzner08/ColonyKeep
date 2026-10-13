@@ -124,8 +124,8 @@ export default async function TrapQueuePage({ searchParams }: TrapQueuePageProps
       : focus === "mine"
         ? "Cases you personally claimed and are working on."
         : showOthersClaimed
-          ? `Unclaimed cases and others' claims for ${teamLabel}, oldest first.`
-          : `Unclaimed cases for ${teamLabel}, oldest first — ready to claim.`;
+          ? `Open cases and others' claims for ${teamLabel}, oldest first.`
+          : `Open cases for ${teamLabel}, oldest first — ready to claim.`;
 
   const canImport = profile?.role === "admin";
   const requestFormUrl = `${await getServerAppUrl()}/request`;

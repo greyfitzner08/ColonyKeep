@@ -124,7 +124,7 @@ export function TrapQueueToolbar({
           )}
           onClick={() => setFocus("needs_claim")}
         >
-          Unclaimed
+          All Cases
         </Button>
         <Button
           type="button"
@@ -133,7 +133,7 @@ export function TrapQueueToolbar({
           className={cn("h-8 flex-1 gap-1.5 px-3 sm:flex-none", focus === "mine" && "shadow-none")}
           onClick={() => setFocus("mine")}
         >
-          My claims
+          My Cases
         </Button>
       </div>
     ) : null;

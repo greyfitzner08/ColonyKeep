@@ -188,5 +188,5 @@ export function trapQueueTeamScopeLabel(
 }
 
 export function trapQueueFocusLabel(focus: TrapQueueFocus): string {
-  return focus === "mine" ? "My claims" : "Unclaimed";
+  return focus === "mine" ? "My Cases" : "All Cases";
 }
