@@ -16,7 +16,10 @@ function needsHandbookRefresh(body: string | null | undefined): boolean {
   if (body.includes("Appointments (reserve clinic slots")) return true;
   if (body.includes("Sign Up (or join waitlist)")) return true;
   if (body.includes("that unlock more tools")) return true;
-  if (!body.includes("Page access is controlled by platform role only")) return true;
+  if (body.includes("Unclaimed") || body.includes("My claims")) return true;
+  if (!body.includes("Page access is controlled by platform role")) return true;
+  if (!body.includes("All Cases")) return true;
+  if (!body.includes("Follow-up banner")) return true;
   return false;
 }
 
