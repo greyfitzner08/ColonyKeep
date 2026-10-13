@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowDown,
@@ -19,13 +19,6 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { NumberInput } from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { DEFAULT_INTAKE_ABOUT_MESSAGE, type PlatformBranding } from "@/lib/branding";
 import {
   INTAKE_HELP_FUNNEL_FIELDS,
@@ -43,6 +36,69 @@ function reindex(rules: IntakeHelpFunnelRule[]) {
 
 function pathListTitle(rule: IntakeHelpFunnelRule) {
   return rule.title.trim() || rule.name.trim() || "Untitled path";
+}
+
+const MATCH_OPTIONS: { value: IntakeHelpAnswerMatch; label: string }[] = [
+  { value: "any", label: "Any" },
+  { value: "Yes", label: "Yes" },
+  { value: "No", label: "No" },
+];
+
+function MatchToggle({
+  value,
+  disabled,
+  onChange,
+  "aria-label": ariaLabel,
+}: {
+  value: IntakeHelpAnswerMatch;
+  disabled?: boolean;
+  onChange: (value: IntakeHelpAnswerMatch) => void;
+  "aria-label": string;
+}) {
+  return (
+    <div
+      className="inline-flex h-8 items-center rounded-md border bg-background p-0.5"
+      role="group"
+      aria-label={ariaLabel}
+    >
+      {MATCH_OPTIONS.map((option) => (
+        <Button
+          key={option.value}
+          type="button"
+          size="sm"
+          variant={value === option.value ? "secondary" : "ghost"}
+          className={cn(
+            "h-7 min-w-[2.5rem] px-2.5 text-xs",
+            value === option.value && "shadow-none"
+          )}
+          disabled={disabled}
+          onClick={() => onChange(option.value)}
+        >
+          {option.label}
+        </Button>
+      ))}
+    </div>
+  );
+}
+
+function PathSection({
+  title,
+  description,
+  children,
+}: {
+  title: string;
+  description?: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className="space-y-3 rounded-md border bg-muted/15 p-3">
+      <div className="space-y-0.5">
+        <h4 className="text-sm font-semibold tracking-tight">{title}</h4>
+        {description ? <p className="text-xs text-muted-foreground">{description}</p> : null}
+      </div>
+      {children}
+    </div>
+  );
 }
 
 export function InquiryFormCustomFieldsEditor({ branding }: { branding: PlatformBranding }) {
@@ -413,91 +469,81 @@ export function InquiryFormCustomFieldsEditor({ branding }: { branding: Platform
                   </div>
 
                   {expanded ? (
-                    <>
-                      <div className="min-w-0 space-y-1.5">
-                        <Label htmlFor={`funnel-name-${rule.id}`}>Admin label</Label>
-                        <Input
-                          id={`funnel-name-${rule.id}`}
-                          value={rule.name}
-                          disabled={saving}
-                          maxLength={80}
-                          onChange={(event) => updateRule(rule.id, { name: event.target.value })}
-                        />
-                      </div>
-
-                      <div className="flex flex-wrap gap-4">
-                        <label className="flex items-center gap-2 text-sm">
-                          <Checkbox
-                            checked={rule.enabled}
+                    <div className="space-y-3">
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+                        <div className="min-w-0 flex-1 space-y-1.5">
+                          <Label htmlFor={`funnel-name-${rule.id}`}>Admin label</Label>
+                          <Input
+                            id={`funnel-name-${rule.id}`}
+                            value={rule.name}
                             disabled={saving}
-                            onCheckedChange={(checked) =>
-                              updateRule(rule.id, { enabled: checked === true })
-                            }
+                            maxLength={80}
+                            onChange={(event) => updateRule(rule.id, { name: event.target.value })}
                           />
-                          Enabled
-                        </label>
-                        <label className="flex items-center gap-2 text-sm">
-                          <Checkbox
-                            checked={rule.is_fallback}
-                            disabled={saving}
-                            onCheckedChange={(checked) =>
-                              updateRule(rule.id, { is_fallback: checked === true })
-                            }
-                          />
-                          Fallback (use when nothing else matches)
-                        </label>
+                        </div>
+                        <div className="flex flex-wrap gap-x-4 gap-y-2 pb-0.5">
+                          <label className="flex items-center gap-2 text-sm">
+                            <Checkbox
+                              checked={rule.enabled}
+                              disabled={saving}
+                              onCheckedChange={(checked) =>
+                                updateRule(rule.id, { enabled: checked === true })
+                              }
+                            />
+                            Enabled
+                          </label>
+                          <label className="flex items-center gap-2 text-sm">
+                            <Checkbox
+                              checked={rule.is_fallback}
+                              disabled={saving}
+                              onCheckedChange={(checked) =>
+                                updateRule(rule.id, { is_fallback: checked === true })
+                              }
+                            />
+                            Fallback
+                          </label>
+                        </div>
                       </div>
 
                       {!rule.is_fallback ? (
-                        <div className="space-y-4">
-                          <div className="space-y-2">
-                            <p className="text-sm font-medium">
-                              Match when How you can help answers are…
-                            </p>
-                            <div className="grid gap-3 sm:grid-cols-2">
-                              {INTAKE_HELP_FUNNEL_FIELDS.map((field) => (
-                                <div key={field.key} className="space-y-1.5">
-                                  <Label htmlFor={`funnel-${rule.id}-${field.key}`}>
-                                    {field.label}
-                                  </Label>
-                                  <Select
-                                    value={rule.conditions[field.key] ?? "any"}
-                                    onValueChange={(value) =>
-                                      updateCondition(
-                                        rule.id,
-                                        field.key,
-                                        value as IntakeHelpAnswerMatch
-                                      )
-                                    }
-                                    disabled={saving}
-                                  >
-                                    <SelectTrigger id={`funnel-${rule.id}-${field.key}`}>
-                                      <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      <SelectItem value="any">Any</SelectItem>
-                                      <SelectItem value="Yes">Yes</SelectItem>
-                                      <SelectItem value="No">No</SelectItem>
-                                    </SelectContent>
-                                  </Select>
-                                </div>
-                              ))}
-                            </div>
+                        <PathSection
+                          title="Criteria"
+                          description="Who sees this path. First matching path wins."
+                        >
+                          <div className="overflow-x-auto rounded-md border bg-background">
+                            <table className="w-full text-sm">
+                              <thead>
+                                <tr className="border-b bg-muted/40 text-left text-xs text-muted-foreground">
+                                  <th className="px-3 py-2 font-medium">How you can help</th>
+                                  <th className="px-3 py-2 font-medium">Match</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {INTAKE_HELP_FUNNEL_FIELDS.map((field) => (
+                                  <tr key={field.key} className="border-b last:border-b-0">
+                                    <td className="px-3 py-2 align-middle">{field.label}</td>
+                                    <td className="px-3 py-2 align-middle">
+                                      <MatchToggle
+                                        aria-label={`${field.label} match`}
+                                        value={rule.conditions[field.key] ?? "any"}
+                                        disabled={saving}
+                                        onChange={(value) =>
+                                          updateCondition(rule.id, field.key, value)
+                                        }
+                                      />
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
                           </div>
 
-                          <div className="space-y-2">
-                            <div>
-                              <p className="text-sm font-medium">
-                                Match when total cats + kittens is…
+                          <div className="flex flex-wrap items-end gap-3">
+                            <div className="space-y-1">
+                              <p className="text-xs font-medium text-muted-foreground">
+                                Total cats + kittens
                               </p>
-                              <p className="text-xs text-muted-foreground">
-                                Combined count from the About the Cats step. Leave blank for any
-                                size.
-                              </p>
-                            </div>
-                            <div className="grid gap-3 sm:grid-cols-2">
-                              <div className="space-y-1.5">
-                                <Label htmlFor={`funnel-${rule.id}-total-min`}>Minimum</Label>
+                              <div className="flex flex-wrap items-center gap-2">
                                 <NumberInput
                                   id={`funnel-${rule.id}-total-min`}
                                   integer
@@ -505,8 +551,10 @@ export function InquiryFormCustomFieldsEditor({ branding }: { branding: Platform
                                   min={0}
                                   max={9999}
                                   disabled={saving}
+                                  className="w-24"
+                                  aria-label="Minimum total cats"
                                   value={rule.conditions.total_cats_min ?? ""}
-                                  placeholder="Any"
+                                  placeholder="Min"
                                   onValueChange={(value) =>
                                     updateTotalCatsBound(
                                       rule.id,
@@ -515,9 +563,7 @@ export function InquiryFormCustomFieldsEditor({ branding }: { branding: Platform
                                     )
                                   }
                                 />
-                              </div>
-                              <div className="space-y-1.5">
-                                <Label htmlFor={`funnel-${rule.id}-total-max`}>Maximum</Label>
+                                <span className="text-xs text-muted-foreground">to</span>
                                 <NumberInput
                                   id={`funnel-${rule.id}-total-max`}
                                   integer
@@ -525,8 +571,10 @@ export function InquiryFormCustomFieldsEditor({ branding }: { branding: Platform
                                   min={0}
                                   max={9999}
                                   disabled={saving}
+                                  className="w-24"
+                                  aria-label="Maximum total cats"
                                   value={rule.conditions.total_cats_max ?? ""}
-                                  placeholder="Any"
+                                  placeholder="Max"
                                   onValueChange={(value) =>
                                     updateTotalCatsBound(
                                       rule.id,
@@ -535,115 +583,123 @@ export function InquiryFormCustomFieldsEditor({ branding }: { branding: Platform
                                     )
                                   }
                                 />
+                                <span className="text-xs text-muted-foreground">
+                                  blank = any size
+                                </span>
                               </div>
                             </div>
                           </div>
-                        </div>
-                      ) : null}
+                        </PathSection>
+                      ) : (
+                        <p className="rounded-md border border-dashed px-3 py-2 text-xs text-muted-foreground">
+                          Fallback has no criteria — shown when no other enabled path matches.
+                        </p>
+                      )}
 
-                      <div className="space-y-1.5">
-                        <Label htmlFor={`funnel-title-${rule.id}`}>Title shown to submitter</Label>
-                        <Input
-                          id={`funnel-title-${rule.id}`}
-                          value={rule.title}
-                          disabled={saving}
-                          maxLength={120}
-                          placeholder="Next steps for trapping yourself"
-                          onChange={(event) =>
-                            updateRule(rule.id, { title: event.target.value })
-                          }
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <div>
-                          <Label htmlFor={`funnel-body-${rule.id}`}>Message</Label>
-                          <p className="text-xs text-muted-foreground">
-                            Format text and insert links the same way as the About us editors.
-                          </p>
-                        </div>
-                        <IntakeAboutEditor
-                          id={`funnel-body-${rule.id}`}
-                          variant="document"
-                          allowLinks
-                          allowLists
-                          value={rule.body}
-                          disabled={saving}
-                          onChange={(value) => updateRule(rule.id, { body: value })}
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <div>
-                            <Label>Button links</Label>
-                            <p className="text-xs text-muted-foreground">
-                              Optional large buttons under the message (e.g. Watch TNVR video).
-                            </p>
-                          </div>
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="ghost"
-                            disabled={saving || rule.links.length >= 6}
-                            onClick={() =>
-                              updateRule(rule.id, {
-                                links: [...rule.links, { label: "", url: "" }],
-                              })
+                      <PathSection
+                        title="Thank-you content"
+                        description="What the submitter sees when this path matches."
+                      >
+                        <div className="space-y-1.5">
+                          <Label htmlFor={`funnel-title-${rule.id}`}>Title</Label>
+                          <Input
+                            id={`funnel-title-${rule.id}`}
+                            value={rule.title}
+                            disabled={saving}
+                            maxLength={120}
+                            placeholder="Next steps for trapping yourself"
+                            onChange={(event) =>
+                              updateRule(rule.id, { title: event.target.value })
                             }
-                          >
-                            <Plus className="h-3.5 w-3.5" />
-                            Add button
-                          </Button>
+                          />
                         </div>
-                        {rule.links.length === 0 ? null : (
-                          <div className="space-y-2">
-                            {rule.links.map((link, linkIndex) => (
-                              <div
-                                key={`${rule.id}-link-${linkIndex}`}
-                                className="flex flex-wrap gap-2"
-                              >
-                                <Input
-                                  className="min-w-[10rem] flex-1"
-                                  value={link.label}
-                                  disabled={saving}
-                                  placeholder="Button label"
-                                  maxLength={80}
-                                  onChange={(event) =>
-                                    updateLink(rule.id, linkIndex, {
-                                      label: event.target.value,
-                                    })
-                                  }
-                                />
-                                <Input
-                                  className="min-w-[12rem] flex-[2]"
-                                  value={link.url}
-                                  disabled={saving}
-                                  placeholder="https://…"
-                                  onChange={(event) =>
-                                    updateLink(rule.id, linkIndex, { url: event.target.value })
-                                  }
-                                />
-                                <Button
-                                  type="button"
-                                  size="icon"
-                                  variant="ghost"
-                                  disabled={saving}
-                                  aria-label="Remove button"
-                                  onClick={() =>
-                                    updateRule(rule.id, {
-                                      links: rule.links.filter((_, i) => i !== linkIndex),
-                                    })
-                                  }
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            ))}
+
+                        <div className="space-y-1.5">
+                          <Label htmlFor={`funnel-body-${rule.id}`}>Message</Label>
+                          <IntakeAboutEditor
+                            id={`funnel-body-${rule.id}`}
+                            variant="document"
+                            allowLinks
+                            allowLists
+                            value={rule.body}
+                            disabled={saving}
+                            onChange={(value) => updateRule(rule.id, { body: value })}
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <Label>Buttons</Label>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="ghost"
+                              disabled={saving || rule.links.length >= 6}
+                              onClick={() =>
+                                updateRule(rule.id, {
+                                  links: [...rule.links, { label: "", url: "" }],
+                                })
+                              }
+                            >
+                              <Plus className="h-3.5 w-3.5" />
+                              Add
+                            </Button>
                           </div>
-                        )}
-                      </div>
-                    </>
+                          {rule.links.length === 0 ? (
+                            <p className="text-xs text-muted-foreground">
+                              Optional links under the message (e.g. Watch TNVR video).
+                            </p>
+                          ) : (
+                            <div className="space-y-2">
+                              {rule.links.map((link, linkIndex) => (
+                                <div
+                                  key={`${rule.id}-link-${linkIndex}`}
+                                  className="flex flex-wrap gap-2"
+                                >
+                                  <Input
+                                    className="min-w-[10rem] flex-1"
+                                    value={link.label}
+                                    disabled={saving}
+                                    placeholder="Button label"
+                                    maxLength={80}
+                                    onChange={(event) =>
+                                      updateLink(rule.id, linkIndex, {
+                                        label: event.target.value,
+                                      })
+                                    }
+                                  />
+                                  <Input
+                                    className="min-w-[12rem] flex-[2]"
+                                    value={link.url}
+                                    disabled={saving}
+                                    placeholder="https://…"
+                                    onChange={(event) =>
+                                      updateLink(rule.id, linkIndex, {
+                                        url: event.target.value,
+                                      })
+                                    }
+                                  />
+                                  <Button
+                                    type="button"
+                                    size="icon"
+                                    variant="ghost"
+                                    disabled={saving}
+                                    aria-label="Remove button"
+                                    onClick={() =>
+                                      updateRule(rule.id, {
+                                        links: rule.links.filter((_, i) => i !== linkIndex),
+                                      })
+                                    }
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </PathSection>
+                    </div>
                   ) : null}
                 </div>
               );
