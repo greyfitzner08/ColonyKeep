@@ -523,26 +523,27 @@ export function TeamFeed({
                     {(post.comments ?? []).map((comment, i) => (
                       <div key={i} className="text-sm">
                         <p className="font-medium text-xs text-muted-foreground">{comment.author_name}</p>
-                        <p>{comment.text}</p>
+                        <p className="whitespace-pre-wrap">{comment.text}</p>
                       </div>
                     ))}
                   </div>
                 )}
 
-                <div className="flex flex-col gap-2 pt-1 sm:flex-row sm:items-center">
-                  <Input
+                <div className="flex flex-col gap-2 pt-1 sm:flex-row sm:items-end">
+                  <Textarea
                     value={commentTexts[post.id] ?? ""}
                     onChange={(e) => setCommentTexts({ ...commentTexts, [post.id]: e.target.value })}
                     placeholder="Write a comment..."
-                    className="text-sm"
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && !e.shiftKey) {
-                        e.preventDefault();
-                        addComment(post.id);
-                      }
-                    }}
+                    rows={2}
+                    className="min-h-[2.5rem] resize-y text-sm"
                   />
-                  <Button size="icon" variant="outline" className="shrink-0 self-end sm:self-auto" onClick={() => addComment(post.id)}>
+                  <Button
+                    size="icon"
+                    variant="outline"
+                    className="shrink-0 self-end"
+                    onClick={() => void addComment(post.id)}
+                    aria-label="Post comment"
+                  >
                     <MessageCircle className="h-4 w-4" />
                   </Button>
                 </div>
