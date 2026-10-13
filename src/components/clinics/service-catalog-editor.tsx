@@ -98,54 +98,57 @@ export function ServiceCatalogEditor({
   }
 
   return (
-    <div className="space-y-6">
-      {!packageMode && (
-      <div className="space-y-3">
-        <Label className="text-base">Included in base price</Label>
-        <p className="text-sm text-muted-foreground">
-          Checked items are included with the base clinic price at no extra charge.
-        </p>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-          {DEFAULT_INCLUDED_SERVICE_NAMES.map((name) => (
-            <div key={name} className="flex items-center gap-2 rounded-md border px-3 py-2">
-              <Checkbox
-                checked={included.some((item) => item.name === name)}
-                onCheckedChange={(checked) => toggleIncludedPreset(name, !!checked)}
-              />
-              <Label className="font-normal">{name}</Label>
-              <span className="ml-auto text-xs text-muted-foreground">Included</span>
-            </div>
-          ))}
-        </div>
+    <div className="space-y-5">
+      {!packageMode ? (
+        <div className="space-y-3">
+          <div>
+            <Label className="text-sm font-medium">Included services</Label>
+            <p className="text-xs text-muted-foreground">
+              What&apos;s covered when this clinic doesn&apos;t use fixed packages.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
+            {DEFAULT_INCLUDED_SERVICE_NAMES.map((name) => (
+              <label
+                key={name}
+                className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 hover:bg-muted/50"
+              >
+                <Checkbox
+                  checked={included.some((item) => item.name === name)}
+                  onCheckedChange={(checked) => toggleIncludedPreset(name, !!checked)}
+                />
+                <span className="text-sm">{name}</span>
+              </label>
+            ))}
+          </div>
 
-        <div className="space-y-2">
-          <Label className="text-sm">Custom included items</Label>
           {customIncluded.length > 0 ? (
-            <ul className="space-y-2">
+            <ul className="space-y-1">
               {customIncluded.map((item) => (
-                <li key={item.name} className="flex items-center gap-2 rounded-md border px-3 py-2">
-                  <span className="min-w-0 flex-1 text-sm">{item.name}</span>
+                <li
+                  key={item.name}
+                  className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm"
+                >
+                  <span className="min-w-0 flex-1">{item.name}</span>
                   <Button
                     type="button"
                     variant="ghost"
                     size="icon"
-                    className="h-8 w-8 shrink-0"
+                    className="h-7 w-7 shrink-0"
                     onClick={() => removeCustomIncluded(item.name)}
                     aria-label={`Remove ${item.name}`}
                   >
-                    <Trash2 className="h-4 w-4" />
+                    <Trash2 className="h-3.5 w-3.5" />
                   </Button>
                 </li>
               ))}
             </ul>
-          ) : (
-            <p className="text-sm text-muted-foreground">No custom included items yet.</p>
-          )}
+          ) : null}
 
           <div className="flex gap-2">
             <Input
               value={customDraft}
-              placeholder="Custom included service"
+              placeholder="Add another included service"
               onChange={(e) => setCustomDraft(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
@@ -157,62 +160,66 @@ export function ServiceCatalogEditor({
             <Button
               type="button"
               variant="outline"
+              size="sm"
               onClick={addCustomIncluded}
               disabled={!customDraft.trim()}
             >
-              <Plus className="h-4 w-4 mr-1" />
+              <Plus className="mr-1 h-3.5 w-3.5" />
               Add
             </Button>
           </div>
         </div>
-      </div>
-      )}
-
-      {packageMode && (
-        <p className="text-sm text-muted-foreground">
-          Package services are defined above. Use this section only for optional add-ons at booking time.
-        </p>
-      )}
+      ) : null}
 
       <div className="space-y-3">
         <div>
-          <Label className="text-base">Optional add-on services</Label>
-          <p className="text-sm text-muted-foreground">
+          <Label className="text-sm font-medium">Optional add-ons</Label>
+          <p className="text-xs text-muted-foreground">
             {packageMode
-              ? "Extras outside packages that sign-ups can opt into (e.g. microchip)."
-              : "Sign-ups can opt in. Track payment for each add-on in booking management."}
+              ? "Extras people can add when booking a clinic event (e.g. microchip)."
+              : "Optional extras with their own price on clinic event booking."}
           </p>
         </div>
 
-        {addons.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No add-on services yet (e.g. microchip, combo test).</p>
+        {addons.length > 0 ? (
+          <ul className="space-y-2">
+            {addons.map((addon, index) => (
+              <li key={`addon-${addon.name}-${index}`} className="flex items-center gap-2">
+                <span className="min-w-0 flex-1 truncate text-sm">{addon.name}</span>
+                <NumberInput
+                  step="0.01"
+                  min={0}
+                  className="w-24"
+                  aria-label={`${addon.name} price`}
+                  value={addon.price}
+                  onValueChange={(value) => {
+                    if (typeof value === "number") updateAddon(index, { price: value });
+                  }}
+                />
+                <span className="w-16 shrink-0 text-right text-xs text-muted-foreground tabular-nums">
+                  {formatCurrency(addon.price)}
+                </span>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={() => removeAddon(index)}
+                  aria-label={`Remove ${addon.name}`}
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
+              </li>
+            ))}
+          </ul>
         ) : (
-          addons.map((addon, index) => (
-            <div key={`addon-${addon.name}-${index}`} className="flex gap-2 items-center">
-              <span className="min-w-0 flex-1 rounded-md border px-3 py-2 text-sm">{addon.name}</span>
-              <NumberInput
-                step="0.01"
-                min={0}
-                className="w-28"
-                placeholder="Price"
-                value={addon.price}
-                onValueChange={(value) => {
-                  if (typeof value === "number") updateAddon(index, { price: value });
-                }}
-              />
-              <span className="text-sm text-muted-foreground w-20 shrink-0">
-                {formatCurrency(addon.price)}
-              </span>
-              <Button type="button" variant="ghost" size="icon" onClick={() => removeAddon(index)}>
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </div>
-          ))
+          <p className="text-sm text-muted-foreground">No add-ons yet.</p>
         )}
 
-        <div className="flex gap-2 items-center">
+        <div className="flex flex-wrap gap-2 sm:flex-nowrap">
           <Input
-            placeholder="Service name"
+            className="min-w-0 flex-1"
+            placeholder="Add-on name"
             value={addonDraftName}
             onChange={(e) => setAddonDraftName(e.target.value)}
             onKeyDown={(e) => {
@@ -222,13 +229,16 @@ export function ServiceCatalogEditor({
               }
             }}
           />
-          <Input
-            type="number"
+          <NumberInput
             step="0.01"
+            min={0}
             className="w-28"
             placeholder="Price"
-            value={addonDraftPrice}
-            onChange={(e) => setAddonDraftPrice(e.target.value)}
+            value={addonDraftPrice === "" ? "" : Number(addonDraftPrice)}
+            allowEmpty
+            onValueChange={(value) =>
+              setAddonDraftPrice(typeof value === "number" ? String(value) : "")
+            }
             onKeyDown={(e) => {
               if (e.key === "Enter") {
                 e.preventDefault();
@@ -239,10 +249,11 @@ export function ServiceCatalogEditor({
           <Button
             type="button"
             variant="outline"
+            size="sm"
             onClick={addAddon}
             disabled={!addonDraftName.trim()}
           >
-            <Plus className="h-4 w-4 mr-1" />
+            <Plus className="mr-1 h-3.5 w-3.5" />
             Add
           </Button>
         </div>

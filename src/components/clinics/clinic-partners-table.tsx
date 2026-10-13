@@ -20,6 +20,7 @@ import {
   hasVisibleClinicPackages,
   normalizeServiceCatalog,
 } from "@/lib/clinics/service-catalog";
+import { APPOINTMENTS_UI_ENABLED } from "@/lib/features";
 import type { Clinic } from "@/lib/types";
 import { formatCurrency } from "@/lib/utils";
 
@@ -140,7 +141,9 @@ export function ClinicPartnersTable({ clinics, onEdit }: ClinicPartnersTableProp
         render: (clinic) => (
           <div className="text-sm">
             <p>{formatOperatingDays(clinic.operating_days)}</p>
-            <p className="text-muted-foreground">{clinic.slots_per_day} slots/day</p>
+            {APPOINTMENTS_UI_ENABLED ? (
+              <p className="text-muted-foreground">{clinic.slots_per_day} slots/day</p>
+            ) : null}
           </div>
         ),
       },
@@ -250,12 +253,15 @@ export function ClinicPartnersTable({ clinics, onEdit }: ClinicPartnersTableProp
 
                 <div>
                   <p>
-                    <span className="font-medium">Operating days:</span>{" "}
+                    <span className="font-medium">Days open:</span>{" "}
                     {viewingClinic.operating_days.join(", ") || "Not set"}
                   </p>
-                  <p>
-                    <span className="font-medium">Slots per day:</span> {viewingClinic.slots_per_day}
-                  </p>
+                  {APPOINTMENTS_UI_ENABLED ? (
+                    <p>
+                      <span className="font-medium">Slots per day:</span>{" "}
+                      {viewingClinic.slots_per_day}
+                    </p>
+                  ) : null}
                 </div>
 
                 <ClinicPackagesDisplay packages={viewingClinic.packages ?? []} />

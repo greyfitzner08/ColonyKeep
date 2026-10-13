@@ -216,34 +216,25 @@ export function ClinicPackagesEditor({ packages, onChange }: ClinicPackagesEdito
   }
 
   return (
-    <div className="space-y-3 rounded-lg border p-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="space-y-1">
-          <Label className="text-base">Packages</Label>
-          <p className="text-sm text-muted-foreground">
-            One card per package. Name and price are required for booking; list whatever services
-            are included (they do not have to match add-ons below).
-          </p>
-        </div>
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <Label className="text-sm font-medium">Packages</Label>
         <Button type="button" variant="outline" size="sm" onClick={addPackage}>
-          <Plus className="mr-1 h-4 w-4" />
+          <Plus className="mr-1 h-3.5 w-3.5" />
           Add package
         </Button>
       </div>
 
       {packages.length === 0 ? (
-        <div className="rounded-md border border-dashed bg-muted/20 px-4 py-6 text-center">
-          <p className="text-sm text-muted-foreground">
-            No packages yet. Add one if this clinic sells fixed-price packages instead of (or in
-            addition to) per-service add-ons.
-          </p>
-          <Button type="button" variant="secondary" size="sm" className="mt-3" onClick={addPackage}>
-            <Plus className="mr-1 h-4 w-4" />
-            Create first package
-          </Button>
-        </div>
+        <button
+          type="button"
+          onClick={addPackage}
+          className="w-full rounded-md border border-dashed px-4 py-5 text-center text-sm text-muted-foreground transition-colors hover:bg-muted/40"
+        >
+          No packages yet — click to add a fixed-price package
+        </button>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-2">
           {packages.map((pkg, index) => (
             <PackageCard
               key={index}
