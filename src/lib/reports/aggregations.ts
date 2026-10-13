@@ -9,6 +9,7 @@ import {
   type AdoptableCatStatus,
 } from "@/lib/adoption/constants";
 import { findTrapTeamForZip, normalizeZip } from "@/lib/cases/assign-team-by-zip";
+import { isDuplicateClosedCase } from "@/lib/cases/duplicate-closed";
 import { fosterFacilityLabel, type FosterFacility } from "@/lib/cases/foster-facility";
 import { CASE_STATUSES } from "@/lib/constants";
 import { sortTrapTeams } from "@/lib/trap-teams/sort-teams";
@@ -65,6 +66,7 @@ export interface ReportHelpRequest {
   id: string;
   case_number: string;
   status: HelpRequestStatus;
+  outcome?: string | null;
   contact_name: string;
   contact_email: string;
   colony_city: string;
@@ -186,9 +188,10 @@ export function filterHelpRequests(
   requests: ReportHelpRequest[],
   filters: ReportFilters,
   teams: ReportTrapTeam[],
-  options?: { skipDateFilter?: boolean }
+  options?: { skipDateFilter?: boolean; includeDuplicateClosed?: boolean }
 ): ReportHelpRequest[] {
   return requests.filter((hr) => {
+    if (!options?.includeDuplicateClosed && isDuplicateClosedCase(hr)) return false;
     if (!options?.skipDateFilter && !inDateRange(hr.created_at, filters.dateFrom, filters.dateTo)) {
       return false;
     }
@@ -215,8 +218,19 @@ export function filterHelpRequests(
   });
 }
 
-function filterCats(cats: ReportCat[], filters: ReportFilters, requestIds: Set<string>): ReportCat[] {
+/** Case IDs that may contribute cats / clinic work to reports (excludes closed duplicates). */
+export function reportableHelpRequestIds(requests: ReportHelpRequest[]): Set<string> {
+  return new Set(requests.filter((hr) => !isDuplicateClosedCase(hr)).map((hr) => hr.id));
+}
+
+function filterCats(
+  cats: ReportCat[],
+  filters: ReportFilters,
+  requestIds: Set<string>,
+  reportableIds: Set<string>
+): ReportCat[] {
   return cats.filter((cat) => {
+    if (!reportableIds.has(cat.help_request_id)) return false;
     if (requestIds.size > 0 && !requestIds.has(cat.help_request_id)) return false;
     if (filters.clinicId && cat.clinic_id !== filters.clinicId) return false;
     const date = cat.trap_date ?? cat.created_at;
@@ -228,9 +242,11 @@ function filterCats(cats: ReportCat[], filters: ReportFilters, requestIds: Set<s
 function filterAppointments(
   appointments: ReportAppointment[],
   filters: ReportFilters,
-  requestIds: Set<string>
+  requestIds: Set<string>,
+  reportableIds: Set<string>
 ): ReportAppointment[] {
   return appointments.filter((appt) => {
+    if (appt.help_request_id && !reportableIds.has(appt.help_request_id)) return false;
     if (requestIds.size > 0 && appt.help_request_id && !requestIds.has(appt.help_request_id)) {
       return false;
     }
@@ -266,13 +282,15 @@ function filterClinicFixes(
   fixes: ReportClinicFix[],
   filters: ReportFilters,
   requestIds: Set<string>,
-  clinics: ReportClinic[]
+  clinics: ReportClinic[],
+  reportableIds: Set<string>
 ): ReportClinicFix[] {
   const selectedClinicName = filters.clinicId
     ? clinics.find((clinic) => clinic.id === filters.clinicId)?.name?.trim()
     : null;
 
   return fixes.filter((fix) => {
+    if (!reportableIds.has(fix.help_request_id)) return false;
     if (requestIds.size > 0 && !requestIds.has(fix.help_request_id)) return false;
     if (!inDateRange(fix.fix_date, filters.dateFrom, filters.dateTo)) return false;
     if (selectedClinicName && fix.clinic_name?.trim() !== selectedClinicName) return false;
@@ -302,10 +320,11 @@ function collectFosterPlacements(
   cats: ReportCat[],
   filters: ReportFilters,
   requestIds: Set<string>,
-  clinics: ReportClinic[]
+  clinics: ReportClinic[],
+  reportableIds: Set<string>
 ): FosterPlacement[] {
-  const filteredFixes = filterClinicFixes(clinicFixes, filters, requestIds, clinics);
-  const filteredCats = filterCats(cats, filters, requestIds);
+  const filteredFixes = filterClinicFixes(clinicFixes, filters, requestIds, clinics, reportableIds);
+  const filteredCats = filterCats(cats, filters, requestIds, reportableIds);
   const placements: FosterPlacement[] = [];
   const catIdsFromFixes = new Set<string>();
 
@@ -382,21 +401,30 @@ export function runReport(
   adoptableCats: ReportAdoptableCat[] = [],
   adoptionApplications: ReportAdoptionApplication[] = []
 ): ReportResult {
+  const reportableIds = reportableHelpRequestIds(helpRequests);
   const filtered = filterHelpRequests(helpRequests, filters, teams);
   const requestIds = new Set(filtered.map((hr) => hr.id));
   const fosterRequestIds = new Set(
     filterHelpRequests(helpRequests, filters, teams, { skipDateFilter: true }).map((hr) => hr.id)
   );
-  const filteredCats = filterCats(cats, filters, requestIds);
-  const filteredAppointments = filterAppointments(appointments, filters, requestIds);
+  const filteredCats = filterCats(cats, filters, requestIds, reportableIds);
+  const filteredAppointments = filterAppointments(
+    appointments,
+    filters,
+    requestIds,
+    reportableIds
+  );
   const fosterPlacements = collectFosterPlacements(
     clinicFixes,
     cats,
     filters,
     fosterRequestIds,
-    _clinics
+    _clinics,
+    reportableIds
   );
-  const caseById = new Map(helpRequests.map((hr) => [hr.id, hr]));
+  const caseById = new Map(
+    helpRequests.filter((hr) => !isDuplicateClosedCase(hr)).map((hr) => [hr.id, hr])
+  );
 
   switch (type) {
     case "inquiries_by_zip": {

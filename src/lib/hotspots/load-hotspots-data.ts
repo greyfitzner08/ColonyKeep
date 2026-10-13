@@ -1,11 +1,12 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { MapFeeder } from "@/components/maps/hotspots-map";
+import { isDuplicateClosedCase } from "@/lib/cases/duplicate-closed";
 import { HOTSPOT_COLONY_STATUSES } from "@/lib/cases/statuses";
 import { loadHotspotVolunteers } from "@/lib/hotspots/geocode-profile-locations";
 import type { HelpRequest } from "@/lib/types";
 
 const COLONY_HOTSPOT_FIELDS =
-  "id, case_number, status, colony_address, colony_city, colony_state, colony_zip, colony_county, colony_lat, colony_lng, assigned_team_name";
+  "id, case_number, status, outcome, colony_address, colony_city, colony_state, colony_zip, colony_county, colony_lat, colony_lng, assigned_team_name";
 
 export { COLONY_HOTSPOT_FIELDS };
 
@@ -29,10 +30,15 @@ export async function loadHotspotHelpRequests(
     return { helpRequests: [], error: result.error.message };
   }
 
-  return { helpRequests: (result.data ?? []) as HelpRequest[], error: null };
+  // Keep the keeper case on the map; drop closed duplicates so colonies aren't double-pinned.
+  const helpRequests = ((result.data ?? []) as HelpRequest[]).filter(
+    (hr) => !isDuplicateClosedCase(hr)
+  );
+
+  return { helpRequests, error: null };
 }
 
-const FEEDER_MAP_FIELDS = `id, case_number, ${FEEDER_HOTSPOT_FIELDS}`;
+const FEEDER_MAP_FIELDS = `id, case_number, status, outcome, ${FEEDER_HOTSPOT_FIELDS}`;
 
 /** Feeders stay visible across trap workflow — not limited to colony hotspot statuses. */
 export async function loadHotspotFeeders(
@@ -53,8 +59,12 @@ export async function loadHotspotFeeders(
     return { feeders: [], error: result.error.message };
   }
 
+  const helpRequests = ((result.data ?? []) as HelpRequest[]).filter(
+    (hr) => !isDuplicateClosedCase(hr)
+  );
+
   return {
-    feeders: mapFeedersFromHelpRequests((result.data ?? []) as HelpRequest[]),
+    feeders: mapFeedersFromHelpRequests(helpRequests),
     error: null,
   };
 }

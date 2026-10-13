@@ -7,15 +7,16 @@ export async function fetchCommunityStats(): Promise<CommunityStats> {
   const service = await createServiceClient();
   const today = new Date().toISOString().split("T")[0];
 
-  const [{ count: openCases }, { count: catsFixed }, { data: nextClinic }] = await Promise.all([
+  const [{ count: openCases }, { data: duplicateCases }, { data: nextClinic }] = await Promise.all([
     service
       .from("help_requests")
       .select("*", { count: "exact", head: true })
       .not("status", "in", CLOSED_STATUSES),
     service
-      .from("cats")
-      .select("*", { count: "exact", head: true })
-      .eq("appointment_status", "completed"),
+      .from("help_requests")
+      .select("id")
+      .eq("status", "closed")
+      .ilike("outcome", "duplicate"),
     service
       .from("public_clinic_events")
       .select("title, clinic_name, date, location")
@@ -25,6 +26,20 @@ export async function fetchCommunityStats(): Promise<CommunityStats> {
       .limit(1)
       .maybeSingle(),
   ]);
+
+  const duplicateIds = (duplicateCases ?? []).map((row) => row.id as string);
+  let catsFixedQuery = service
+    .from("cats")
+    .select("*", { count: "exact", head: true })
+    .eq("appointment_status", "completed");
+  if (duplicateIds.length > 0) {
+    catsFixedQuery = catsFixedQuery.not(
+      "help_request_id",
+      "in",
+      `(${duplicateIds.join(",")})`
+    );
+  }
+  const { count: catsFixed } = await catsFixedQuery;
 
   return {
     openCases: openCases ?? 0,
