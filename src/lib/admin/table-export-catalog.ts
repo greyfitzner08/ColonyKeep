@@ -572,6 +572,7 @@ export const EXPORTABLE_TABLES: ExportableTable[] = [
       { id: "is_birthday", label: "is birthday" },
       { id: "birthday_person_name", label: "birthday person name" },
       { id: "comments", label: "comments" },
+      { id: "reactions", label: "reactions" },
       { id: "created_at", label: "created at" },
       { id: "updated_at", label: "updated at" },
       { id: "audience", label: "audience" },
