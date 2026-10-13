@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { getAppProfile } from "@/lib/auth";
 import { fetchUserCaseWorkHistory } from "@/lib/cases/user-work-history";
 import {
@@ -12,6 +12,7 @@ import {
   trapQueueTeamScopeLabel,
   userHasActiveTrapClaims,
 } from "@/lib/cases/trap-queue-query";
+import { fetchCaseAssignees } from "@/lib/cases/case-assignees";
 import { fetchIdleClaimFollowUps } from "@/lib/cases/idle-claim-follow-up";
 import { TrapQueueShell } from "@/components/trap-queue/trap-queue-shell";
 import { IdleClaimFollowUpBanner } from "@/components/trap-queue/idle-claim-follow-up-banner";
@@ -38,6 +39,7 @@ export default async function TrapQueuePage({ searchParams }: TrapQueuePageProps
   const supabase = await createClient();
   const profile = await getAppProfile();
   const isTrapRole = profile?.role === "admin" || profile?.role === "trap_team_lead";
+  const isAdmin = profile?.role === "admin";
   const actorEmail = profile?.email ?? "";
 
   const isHistoryScope = params.scope === "history";
@@ -48,17 +50,21 @@ export default async function TrapQueuePage({ searchParams }: TrapQueuePageProps
     teamId: profile?.team_id,
   });
 
-  const [{ data: teams }, { data: myTeam }, hasMyClaims, idleClaimFollowUps] = await Promise.all([
-    supabase.from("trap_teams").select("id, name").eq("is_active", true).order("name"),
-    profile?.team_id
-      ? supabase.from("trap_teams").select("name").eq("id", profile.team_id).maybeSingle()
-      : Promise.resolve({ data: null }),
-    // Only needed for the active queue default; skip on history/closed.
-    !isHistoryScope && !isClosedScope
-      ? userHasActiveTrapClaims(supabase, actorEmail)
-      : Promise.resolve(false),
-    actorEmail ? fetchIdleClaimFollowUps(supabase, actorEmail) : Promise.resolve([]),
-  ]);
+  const [{ data: teams }, { data: myTeam }, hasMyClaims, idleClaimFollowUps, assignees] =
+    await Promise.all([
+      supabase.from("trap_teams").select("id, name").eq("is_active", true).order("name"),
+      profile?.team_id
+        ? supabase.from("trap_teams").select("name").eq("id", profile.team_id).maybeSingle()
+        : Promise.resolve({ data: null }),
+      // Only needed for the active queue default; skip on history/closed.
+      !isHistoryScope && !isClosedScope
+        ? userHasActiveTrapClaims(supabase, actorEmail)
+        : Promise.resolve(false),
+      actorEmail ? fetchIdleClaimFollowUps(supabase, actorEmail) : Promise.resolve([]),
+      isAdmin && !isHistoryScope && !isClosedScope
+        ? createServiceClient().then((service) => fetchCaseAssignees(service))
+        : Promise.resolve([]),
+    ]);
 
   const { focus, teamScope, showOthersClaimed } = resolveTrapQueueNavigation({
     focusParam: params.focus,
@@ -127,7 +133,7 @@ export default async function TrapQueuePage({ searchParams }: TrapQueuePageProps
           ? `Open cases and others' claims for ${teamLabel}, oldest first.`
           : `Open cases for ${teamLabel}, oldest first — ready to claim.`;
 
-  const canImport = profile?.role === "admin";
+  const canImport = isAdmin;
   const requestFormUrl = `${await getServerAppUrl()}/request`;
 
   return (
@@ -168,7 +174,7 @@ export default async function TrapQueuePage({ searchParams }: TrapQueuePageProps
           cases={cases}
           canClaim={!isHistoryScope && !isClosedScope && isTrapRole}
           userEmail={actorEmail}
-          isAdmin={profile?.role === "admin"}
+          isAdmin={isAdmin}
           teams={teams ?? []}
           myTeamId={profile?.team_id ?? null}
           myTeamName={myTeam?.name ?? null}
@@ -178,6 +184,7 @@ export default async function TrapQueuePage({ searchParams }: TrapQueuePageProps
           defaultTeamScope={defaultTeamScope}
           hasMyClaims={hasMyClaims}
           focus={focus}
+          assignees={assignees}
         />
       </Suspense>
     </div>

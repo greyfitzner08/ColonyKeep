@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import { STATUS_COLORS } from "@/lib/constants";
 import { hasActiveMedicalFlag } from "@/lib/medical-flags";
+import { AssignCaseButton } from "@/components/cases/assign-case-button";
 import { CaseFollowUpIndicator } from "@/components/cases/case-follow-up-indicator";
 import { ClaimantReviewFlag } from "@/components/cases/claimant-review-flag";
 import {
@@ -17,6 +18,7 @@ import {
   LIFECYCLE_STATUS_COLORS,
   toCaseLifecycleStatus,
 } from "@/lib/cases/statuses";
+import type { CaseAssigneeOption } from "@/lib/cases/case-assignees";
 import { formatDateTime } from "@/lib/utils";
 import { postCaseClaim } from "@/lib/cases/case-claim-api";
 import type { HelpRequest } from "@/lib/types";
@@ -70,6 +72,7 @@ interface IntakeCaseTableProps {
   isAdmin?: boolean;
   statusLabelContext?: "trap" | "default";
   claimBeforeReview?: boolean;
+  assignees?: CaseAssigneeOption[];
 }
 
 export function IntakeCaseTable({
@@ -79,6 +82,7 @@ export function IntakeCaseTable({
   isAdmin = false,
   statusLabelContext = "default",
   claimBeforeReview = false,
+  assignees = [],
 }: IntakeCaseTableProps) {
   const router = useRouter();
 
@@ -273,6 +277,11 @@ export function IntakeCaseTable({
           const isUnclaimed = !helpRequest.claimed_by_email;
           const canUnclaim =
             helpRequest.claimed_by_email && (isMine || isAdmin);
+          const canAssign =
+            isAdmin &&
+            assignees.length > 0 &&
+            helpRequest.status !== "closed" &&
+            helpRequest.status !== "completed";
           const lockOpen = claimBeforeReview && isUnclaimed;
           return (
             <div className="flex flex-wrap gap-2">
@@ -291,6 +300,15 @@ export function IntakeCaseTable({
                   Claim to review
                 </Button>
               )}
+              {canAssign ? (
+                <AssignCaseButton
+                  helpRequestId={helpRequest.id}
+                  caseNumber={helpRequest.case_number}
+                  claimedByEmail={helpRequest.claimed_by_email}
+                  assignedTeamId={helpRequest.assigned_team_id}
+                  assignees={assignees}
+                />
+              ) : null}
               {canUnclaim && (
                 <Button
                   size="sm"
@@ -300,7 +318,7 @@ export function IntakeCaseTable({
                   {isMine ? "Unclaim" : "Release"}
                 </Button>
               )}
-              {helpRequest.claimed_by_email && !isMine && !canUnclaim && (
+              {helpRequest.claimed_by_email && !isMine && !canUnclaim && !canAssign && (
                 <span className="self-center text-xs text-muted-foreground">Assigned</span>
               )}
             </div>
@@ -308,7 +326,7 @@ export function IntakeCaseTable({
         },
       },
     ];
-  }, [canClaim, userEmail, isAdmin, statusLabelContext, claimBeforeReview]);
+  }, [canClaim, userEmail, isAdmin, statusLabelContext, claimBeforeReview, assignees]);
 
   return (
     <DataTable

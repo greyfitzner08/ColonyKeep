@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { CaseCard } from "@/components/cases/case-card";
+import type { CaseAssigneeOption } from "@/lib/cases/case-assignees";
 import { postCaseClaim } from "@/lib/cases/case-claim-api";
 import type { HelpRequest } from "@/lib/types";
 
@@ -10,6 +11,7 @@ interface TrapQueueBoardProps {
   canClaim: boolean;
   userEmail: string;
   isAdmin?: boolean;
+  assignees?: CaseAssigneeOption[];
 }
 
 export function TrapQueueBoard({
@@ -17,6 +19,7 @@ export function TrapQueueBoard({
   canClaim,
   userEmail,
   isAdmin = false,
+  assignees = [],
 }: TrapQueueBoardProps) {
   const router = useRouter();
 
@@ -41,6 +44,7 @@ export function TrapQueueBoard({
                   onUnclaim: () => mutateCaseClaim(helpRequest.id, "unclaim"),
                   userEmail,
                   isAdmin,
+                  assignees: isAdmin ? assignees : undefined,
                 }
               : undefined
           }

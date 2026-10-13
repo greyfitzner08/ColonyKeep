@@ -1,9 +1,14 @@
+"use client";
+
+import { useState } from "react";
 import Link from "next/link";
 import { AlertTriangle, MapPin, Cat } from "lucide-react";
+import { AssignCaseDialog } from "@/components/cases/assign-case-dialog";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { STATUS_COLORS } from "@/lib/constants";
+import type { CaseAssigneeOption } from "@/lib/cases/case-assignees";
 import {
   getCaseLifecycleLabel,
   getStatusLabel,
@@ -24,6 +29,7 @@ interface CaseCardProps {
     onUnclaim: () => void;
     userEmail: string;
     isAdmin?: boolean;
+    assignees?: CaseAssigneeOption[];
   };
   /** When true, claim before opening full review (intake queue). */
   claimBeforeReview?: boolean;
@@ -40,6 +46,7 @@ export function CaseCard({
   claimBeforeReview = false,
   statusDisplay = "workflow",
 }: CaseCardProps) {
+  const [assignOpen, setAssignOpen] = useState(false);
   const medical = hasActiveMedicalFlag(
     hr.medical_flags ?? [],
     hr.medical_flag_dismissed,
@@ -51,7 +58,12 @@ export function CaseCard({
   const canUnclaim =
     claim && hr.claimed_by_email && (isMine || claim.isAdmin);
   const showClaimButton = claim?.canClaim && isUnclaimed;
-  const showAssignedToOther = claim && hr.claimed_by_email && !isMine && !canUnclaim;
+  const canAssign =
+    Boolean(claim?.isAdmin && claim.assignees && claim.assignees.length > 0) &&
+    hr.status !== "closed" &&
+    hr.status !== "completed";
+  const showAssignedToOther =
+    claim && hr.claimed_by_email && !isMine && !canUnclaim && !canAssign;
   const lockOpenUntilClaim = claimBeforeReview && showClaimButton;
   const caseHref = `/case/${hr.id}`;
   const lifecycle = toCaseLifecycleStatus(hr);
@@ -145,7 +157,11 @@ export function CaseCard({
         </Link>
       )}
 
-      {(showClaimButton || canUnclaim || showAssignedToOther || (claimBeforeReview && isMine)) && (
+      {(showClaimButton ||
+        canUnclaim ||
+        canAssign ||
+        showAssignedToOther ||
+        (claimBeforeReview && isMine)) && (
         <CardFooter className="flex-col items-stretch gap-2 border-t bg-muted/30 px-4 py-3">
           {showClaimButton && (
             <Button
@@ -164,6 +180,19 @@ export function CaseCard({
               <Link href={caseHref}>Review details</Link>
             </Button>
           )}
+          {canAssign && claim?.assignees ? (
+            <Button
+              size="sm"
+              variant="outline"
+              className="w-full"
+              onClick={(event) => {
+                event.preventDefault();
+                setAssignOpen(true);
+              }}
+            >
+              {hr.claimed_by_email ? "Reassign" : "Assign"}
+            </Button>
+          ) : null}
           {canUnclaim && (
             <Button
               size="sm"
@@ -184,6 +213,17 @@ export function CaseCard({
           )}
         </CardFooter>
       )}
+      {canAssign && claim?.assignees ? (
+        <AssignCaseDialog
+          open={assignOpen}
+          onOpenChange={setAssignOpen}
+          helpRequestId={hr.id}
+          caseNumber={hr.case_number}
+          currentClaimedByEmail={hr.claimed_by_email}
+          assignees={claim.assignees}
+          preferredTeamId={hr.assigned_team_id}
+        />
+      ) : null}
     </Card>
   );
 }

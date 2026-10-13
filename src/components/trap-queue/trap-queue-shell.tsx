@@ -10,6 +10,7 @@ import { TrapQueueToolbar } from "@/components/trap-queue/trap-queue-toolbar";
 import { filterCasesBySearch } from "@/lib/cases/search-cases";
 import { sortIntakeCases, type IntakeSortKey } from "@/lib/cases/sort-intake-cases";
 import type { CaseViewMode } from "@/components/cases/case-queue-view";
+import type { CaseAssigneeOption } from "@/lib/cases/case-assignees";
 import type { TrapQueueFocus, TrapQueueTeamScope } from "@/lib/cases/trap-queue-query";
 import type { HelpRequest, UserRole } from "@/lib/types";
 
@@ -28,6 +29,7 @@ interface TrapQueueShellProps {
   hasMyClaims?: boolean;
   focus?: TrapQueueFocus;
   toolbarActions?: ReactNode;
+  assignees?: CaseAssigneeOption[];
 }
 
 export function TrapQueueShell({
@@ -45,6 +47,7 @@ export function TrapQueueShell({
   hasMyClaims = false,
   focus = "needs_claim",
   toolbarActions,
+  assignees = [],
 }: TrapQueueShellProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -112,6 +115,7 @@ export function TrapQueueShell({
           userEmail={userEmail}
           isAdmin={isAdmin}
           statusLabelContext="trap"
+          assignees={assignees}
         />
       ) : (
         <TrapQueueBoard
@@ -119,6 +123,7 @@ export function TrapQueueShell({
           canClaim={canClaim}
           userEmail={userEmail}
           isAdmin={isAdmin}
+          assignees={assignees}
         />
       )}
     </div>

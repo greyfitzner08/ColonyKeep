@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { getAppProfile } from "@/lib/auth";
 import { CaseDetailTabs } from "@/components/cases/case-detail-tabs";
 import { Badge } from "@/components/ui/badge";
@@ -17,6 +17,7 @@ import { ClaimantReviewFlag } from "@/components/cases/claimant-review-flag";
 import { AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { canAddCaseHistoryNote } from "@/lib/cases/case-permissions";
+import { fetchCaseAssignees } from "@/lib/cases/case-assignees";
 import { normalizeHistoryLog } from "@/lib/cases/history-log";
 import { isCaseWorker, canManageAppointments } from "@/lib/permissions";
 import { APPOINTMENTS_UI_ENABLED } from "@/lib/features";
@@ -42,27 +43,41 @@ export default async function CasePage({ params }: CasePageProps) {
 
   if (!helpRequest) notFound();
 
-  const [{ data: cats }, { data: appointments }, { data: availableAppointments }, { data: clinicFixes }, { data: teams }] =
-    await Promise.all([
-      supabase.from("cats").select("*").eq("help_request_id", id),
-      APPOINTMENTS_UI_ENABLED
-        ? supabase.from("appointments").select("*").eq("help_request_id", id)
-        : Promise.resolve({ data: [] as Appointment[] }),
-      APPOINTMENTS_UI_ENABLED
-        ? supabase
-            .from("appointments")
-            .select("*")
-            .eq("status", "available")
-            .gte("date", new Date().toISOString().split("T")[0])
-            .order("date")
-        : Promise.resolve({ data: [] as Appointment[] }),
-      supabase
-        .from("clinic_fixes")
-        .select("*")
-        .eq("help_request_id", id)
-        .order("fix_date", { ascending: false }),
-      supabase.from("trap_teams").select("id, name, zip_codes").eq("is_active", true),
-    ]);
+  const isAdmin = profile?.role === "admin";
+  const [
+    { data: cats },
+    { data: appointments },
+    { data: availableAppointments },
+    { data: clinicFixes },
+    { data: teams },
+    assignees,
+  ] = await Promise.all([
+    supabase.from("cats").select("*").eq("help_request_id", id),
+    APPOINTMENTS_UI_ENABLED
+      ? supabase.from("appointments").select("*").eq("help_request_id", id)
+      : Promise.resolve({ data: [] as Appointment[] }),
+    APPOINTMENTS_UI_ENABLED
+      ? supabase
+          .from("appointments")
+          .select("*")
+          .eq("status", "available")
+          .gte("date", new Date().toISOString().split("T")[0])
+          .order("date")
+      : Promise.resolve({ data: [] as Appointment[] }),
+    supabase
+      .from("clinic_fixes")
+      .select("*")
+      .eq("help_request_id", id)
+      .order("fix_date", { ascending: false }),
+    supabase.from("trap_teams").select("id, name, zip_codes").eq("is_active", true),
+    isAdmin
+      ? createServiceClient().then((service) =>
+          fetchCaseAssignees(service, {
+            preferredTeamId: (helpRequest as HelpRequest).assigned_team_id,
+          })
+        )
+      : Promise.resolve([]),
+  ]);
 
   const hr = {
     ...(helpRequest as HelpRequest),
@@ -128,9 +143,12 @@ export default async function CasePage({ params }: CasePageProps) {
               claimedByEmail={hr.claimed_by_email}
               userEmail={actorEmail}
               userRole={profile?.role ?? null}
-              isAdmin={profile?.role === "admin"}
+              isAdmin={isAdmin}
               canClaim={isCaseWorker(profile)}
               emphasizeClaim={Boolean(claimGate?.kind === "unclaimed")}
+              caseNumber={hr.case_number}
+              assignedTeamId={hr.assigned_team_id}
+              assignees={assignees}
             />
             {canWorkCase && (
               <CaseNeedsMoreInfoAction
