@@ -31,6 +31,7 @@ interface TrapQueuePageProps {
     scope?: string;
     claimed?: string;
     trapSchool?: string;
+    q?: string;
   }>;
 }
 
@@ -45,6 +46,7 @@ export default async function TrapQueuePage({ searchParams }: TrapQueuePageProps
   const isHistoryScope = params.scope === "history";
   const isClosedScope = params.scope === "closed";
   const trapSchoolOnly = !isHistoryScope && params.trapSchool === "only";
+  const isSearching = Boolean(params.q?.trim());
   const defaultTeamScope = defaultTrapQueueTeamScope({
     role: profile?.role,
     teamId: profile?.team_id,
@@ -91,13 +93,14 @@ export default async function TrapQueuePage({ searchParams }: TrapQueuePageProps
     if (trapSchoolOnly) {
       cases = cases.filter((helpRequest) => Boolean(helpRequest.trap_school_eligible));
     }
-  } else if (focus === "mine") {
+  } else if (focus === "mine" && !isSearching) {
     const { data: helpRequests } = await buildMyClaimsQuery(supabase, actorEmail);
     cases = (helpRequests ?? []) as HelpRequest[];
     if (trapSchoolOnly) {
       cases = cases.filter((helpRequest) => Boolean(helpRequest.trap_school_eligible));
     }
   } else {
+    // All Cases — or My Cases while searching (so search can find any active case).
     const query = buildTrapQueueQuery(supabase, {
       teamScope,
       teamId: profile?.team_id ?? null,
@@ -106,15 +109,19 @@ export default async function TrapQueuePage({ searchParams }: TrapQueuePageProps
     const { data: helpRequests } = await query;
     cases = (helpRequests ?? []) as HelpRequest[];
 
-    const emailLower = actorEmail.trim().toLowerCase();
-    if (showOthersClaimed) {
-      // Unclaimed + others' claims (your claims live under My claims).
-      cases = cases.filter((helpRequest) => {
-        if (!isClaimedTrapCase(helpRequest)) return true;
-        return (helpRequest.claimed_by_email ?? "").trim().toLowerCase() !== emailLower;
-      });
-    } else {
-      cases = cases.filter((helpRequest) => !isClaimedTrapCase(helpRequest));
+    // While searching, include claimed cases so a case # lookup isn't hidden by
+    // "others' claims" being off (or by being on My Cases).
+    if (!isSearching) {
+      const emailLower = actorEmail.trim().toLowerCase();
+      if (showOthersClaimed) {
+        // Unclaimed + others' claims (your claims live under My Cases).
+        cases = cases.filter((helpRequest) => {
+          if (!isClaimedTrapCase(helpRequest)) return true;
+          return (helpRequest.claimed_by_email ?? "").trim().toLowerCase() !== emailLower;
+        });
+      } else {
+        cases = cases.filter((helpRequest) => !isClaimedTrapCase(helpRequest));
+      }
     }
 
     if (trapSchoolOnly) {
