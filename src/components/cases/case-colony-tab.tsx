@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { CaseCollapsibleSection } from "@/components/cases/case-collapsible-section";
 import { CaseFeederSection } from "@/components/cases/case-feeder-section";
 import { CatCountSummaryDisplay } from "@/components/cases/cat-count-summary-display";
@@ -12,7 +12,59 @@ import { Button } from "@/components/ui/button";
 import { formatSingleLineAddress } from "@/lib/cases/colony-notes";
 import { summarizeCatCounts } from "@/lib/cases/cat-counts";
 import type { Cat, ClinicFix, HelpRequest } from "@/lib/types";
-import { Plus } from "lucide-react";
+import { Info, Plus } from "lucide-react";
+
+const CAT_COUNTS_HELP =
+  "Counts track how many cats still need spay/neuter, not how many are physically at the colony. Fixed cats — including those reported on the public update form — are removed from the still-need-fixing total whether they return to the colony or go to foster/facility.";
+
+function CatCountsInfoTip() {
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const panelId = useId();
+
+  useEffect(() => {
+    if (!open) return;
+
+    function onKey(event: KeyboardEvent) {
+      if (event.key === "Escape") setOpen(false);
+    }
+
+    function onPointer(event: MouseEvent) {
+      if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
+    }
+
+    document.addEventListener("keydown", onKey);
+    document.addEventListener("mousedown", onPointer);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.removeEventListener("mousedown", onPointer);
+    };
+  }, [open]);
+
+  return (
+    <div ref={rootRef} className="relative">
+      <button
+        type="button"
+        className="inline-flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
+        aria-label="About colony cat counts"
+        aria-expanded={open}
+        aria-controls={panelId}
+        onClick={() => setOpen((current) => !current)}
+      >
+        <Info className="h-4 w-4" aria-hidden />
+      </button>
+      {open ? (
+        <p
+          id={panelId}
+          role="note"
+          className="absolute right-0 top-full z-20 mt-2 w-[min(22rem,calc(100vw-2rem))] rounded-md border bg-popover px-3 py-2 text-sm font-normal leading-relaxed text-popover-foreground shadow-md"
+        >
+          {CAT_COUNTS_HELP}
+        </p>
+      ) : null}
+    </div>
+  );
+}
 
 interface CaseColonyTabProps {
   helpRequest: HelpRequest;
@@ -65,20 +117,18 @@ export function CaseColonyTab({
         title={`Cats at colony${cats.length > 0 ? ` (${cats.length})` : ""}`}
         defaultOpen
         headerAction={
-          readOnly ? undefined : (
-            <Button size="sm" onClick={() => setAddCatOpen(true)}>
-              <Plus className="h-4 w-4 mr-1" />
-              Add cats
-            </Button>
-          )
+          <div className="flex items-center gap-2">
+            <CatCountsInfoTip />
+            {readOnly ? null : (
+              <Button size="sm" onClick={() => setAddCatOpen(true)}>
+                <Plus className="h-4 w-4 mr-1" />
+                Add cats
+              </Button>
+            )}
+          </div>
         }
       >
         <CatCountSummaryDisplay counts={counts} pregnantCount={hr.pregnant_count} />
-        <p className="mt-3 text-sm text-muted-foreground">
-          Counts track how many cats still need spay/neuter, not how many are physically at the
-          colony. Fixed cats — including those reported on the public update form — are removed from
-          the still-need-fixing total whether they return to the colony or go to foster/facility.
-        </p>
 
         {cats.length === 0 ? (
           <p className="mt-4 text-sm text-muted-foreground">
