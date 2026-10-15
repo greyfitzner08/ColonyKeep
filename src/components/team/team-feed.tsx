@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { CaseQueueSearch } from "@/components/cases/case-queue-search";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -24,6 +25,7 @@ import {
   type BirthdayPerson,
 } from "@/lib/team-feed/birthdays";
 import { BirthdayCalendarDialog } from "@/components/team/birthday-calendar-dialog";
+import { filterTeamFeedPosts } from "@/lib/team-feed/search";
 import type { TeamAnnouncement, Profile, TeamAnnouncementReaction, UserRole } from "@/lib/types";
 import type { FeedAudience } from "@/lib/team-feed/visibility";
 import {
@@ -47,6 +49,8 @@ import {
   Loader2,
   SmilePlus,
 } from "lucide-react";
+
+const FEED_PAGE_SIZE = 25;
 
 const PLATFORM_ROLES: { value: UserRole; label: string }[] = [
   { value: "admin", label: "Administrators" },
@@ -112,9 +116,25 @@ export function TeamFeed({
   >({});
   const [reactingId, setReactingId] = useState<string | null>(null);
   const [pickerOpenId, setPickerOpenId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [visibleCount, setVisibleCount] = useState(FEED_PAGE_SIZE);
 
   const birthdaysSoon = useMemo(() => birthdaysWithinDays(birthdayPeople, 7), [birthdayPeople]);
   const sortedTrapTeams = useMemo(() => sortTrapTeams(trapTeams), [trapTeams]);
+  const filteredPosts = useMemo(
+    () => filterTeamFeedPosts(initial, searchQuery),
+    [initial, searchQuery]
+  );
+  const visiblePosts = useMemo(
+    () => filteredPosts.slice(0, visibleCount),
+    [filteredPosts, visibleCount]
+  );
+  const hasMorePosts = visibleCount < filteredPosts.length;
+  const isSearching = Boolean(searchQuery.trim());
+
+  useEffect(() => {
+    setVisibleCount(FEED_PAGE_SIZE);
+  }, [searchQuery, initial.length]);
 
   function reactionsForPost(post: TeamAnnouncement) {
     return reactionOverrides[post.id] ?? normalizeTeamFeedReactions(post.reactions);
@@ -432,6 +452,22 @@ export function TeamFeed({
           </p>
         ) : null}
 
+        {initial.length > 0 ? (
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <CaseQueueSearch
+              value={searchQuery}
+              onChange={setSearchQuery}
+              placeholder="Search posts, authors, comments…"
+              className="w-full sm:max-w-md"
+            />
+            {isSearching ? (
+              <p className="text-sm text-muted-foreground shrink-0">
+                {filteredPosts.length} match{filteredPosts.length === 1 ? "" : "es"}
+              </p>
+            ) : null}
+          </div>
+        ) : null}
+
         {initial.length === 0 && (
           <Card>
             <CardContent className="py-10 text-center text-sm text-muted-foreground">
@@ -440,7 +476,15 @@ export function TeamFeed({
           </Card>
         )}
 
-        {initial.map((post) => {
+        {initial.length > 0 && filteredPosts.length === 0 && (
+          <Card>
+            <CardContent className="py-10 text-center text-sm text-muted-foreground">
+              No posts match “{searchQuery.trim()}”.
+            </CardContent>
+          </Card>
+        )}
+
+        {visiblePosts.map((post) => {
           const isAuthor =
             Boolean(profile?.email) &&
             profile!.email.toLowerCase() === (post.author_email ?? "").toLowerCase();
@@ -676,6 +720,21 @@ export function TeamFeed({
             </Card>
           );
         })}
+
+        {hasMorePosts ? (
+          <div className="flex justify-center pt-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setVisibleCount((count) => count + FEED_PAGE_SIZE)}
+            >
+              Load more
+              <span className="ml-1.5 text-muted-foreground">
+                ({filteredPosts.length - visibleCount} remaining)
+              </span>
+            </Button>
+          </div>
+        ) : null}
       </div>
     </div>
   );
