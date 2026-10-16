@@ -200,6 +200,7 @@ type IntakeFieldErrorKey =
   | "colony_city"
   | "colony_zip"
   | "colony_county"
+  | "cat_counts"
   | "feeding_cats"
   | "trapping_experience"
   | "need_traps"
@@ -309,6 +310,11 @@ function yesNoAnswered(value: string): boolean {
 
 function catsFieldErrors(form: CommunityIntakeSubmission): IntakeFieldErrors {
   const errors: IntakeFieldErrors = {};
+  const cats = Math.max(0, Math.floor(form.cats_over_8_weeks ?? 0));
+  const kittens = Math.max(0, Math.floor(form.kittens_under_8_weeks ?? 0));
+  if (cats + kittens < 1) {
+    errors.cat_counts = "Enter at least one cat or kitten. The total cannot be zero.";
+  }
   if (!yesNoAnswered(form.feeding_cats)) {
     errors.feeding_cats = "Say whether you are feeding the cats.";
   }
@@ -475,6 +481,9 @@ export function ColonyIntakeForm({
       field === "how_heard"
     ) {
       clearFieldError(field);
+    }
+    if (field === "cats_over_8_weeks" || field === "kittens_under_8_weeks") {
+      clearFieldError("cat_counts");
     }
     setForm((prev) => {
       const next = { ...prev, [field]: value };
@@ -1170,33 +1179,45 @@ export function ColonyIntakeForm({
 
             {step === 3 && (
               <>
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label>Cats over 8 weeks</Label>
-                    <NumberInput
-                      integer
-                      min={0}
-                      zeroAsPlaceholder
-                      placeholder="0"
-                      value={form.cats_over_8_weeks}
-                      onValueChange={(value) => {
-                        if (typeof value === "number") update("cats_over_8_weeks", value);
-                      }}
-                    />
+                <div id="intake-cat_counts" className="space-y-2">
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label>Cats over 8 weeks</Label>
+                      <NumberInput
+                        integer
+                        min={0}
+                        zeroAsPlaceholder
+                        placeholder="0"
+                        aria-invalid={Boolean(fieldErrors.cat_counts)}
+                        className={fieldErrors.cat_counts ? invalidInputClass : undefined}
+                        value={form.cats_over_8_weeks}
+                        onValueChange={(value) => {
+                          if (typeof value === "number") update("cats_over_8_weeks", value);
+                        }}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Kittens under 8 weeks</Label>
+                      <NumberInput
+                        integer
+                        min={0}
+                        zeroAsPlaceholder
+                        placeholder="0"
+                        aria-invalid={Boolean(fieldErrors.cat_counts)}
+                        className={fieldErrors.cat_counts ? invalidInputClass : undefined}
+                        value={form.kittens_under_8_weeks}
+                        onValueChange={(value) => {
+                          if (typeof value === "number") update("kittens_under_8_weeks", value);
+                        }}
+                      />
+                    </div>
                   </div>
-                  <div className="space-y-2">
-                    <Label>Kittens under 8 weeks</Label>
-                    <NumberInput
-                      integer
-                      min={0}
-                      zeroAsPlaceholder
-                      placeholder="0"
-                      value={form.kittens_under_8_weeks}
-                      onValueChange={(value) => {
-                        if (typeof value === "number") update("kittens_under_8_weeks", value);
-                      }}
-                    />
-                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Enter at least one cat or kitten total.
+                  </p>
+                  {fieldErrors.cat_counts ? (
+                    <p className="text-sm text-destructive">{fieldErrors.cat_counts}</p>
+                  ) : null}
                 </div>
                 <div className="space-y-2">
                   <Label>Number you suspect are pregnant</Label>

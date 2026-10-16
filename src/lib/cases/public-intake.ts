@@ -121,6 +121,15 @@ export function mapCommunityIntakeToHelpRequest(
     return { error: "Email and phone are required." };
   }
 
+  const catsOver8 = Number(body.cats_over_8_weeks ?? raw.cats_over_8_weeks ?? 0);
+  const kittensUnder8 = Number(body.kittens_under_8_weeks ?? raw.kittens_under_8_weeks ?? 0);
+  const catsTotal =
+    (Number.isFinite(catsOver8) ? Math.max(0, Math.floor(catsOver8)) : 0) +
+    (Number.isFinite(kittensUnder8) ? Math.max(0, Math.floor(kittensUnder8)) : 0);
+  if (catsTotal < 1) {
+    return { error: "Enter at least one cat or kitten. The total cannot be zero." };
+  }
+
   const feeding = yesNoAnswer(body.feeding_cats ?? raw.feeding_cats);
   if (!feeding) {
     return { error: "Say whether you are feeding the cats." };
