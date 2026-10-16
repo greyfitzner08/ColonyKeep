@@ -194,6 +194,18 @@ export function ReportsDashboard({
       label: column.label,
       defaultWidth: column.key === "count" || column.key === "cats" ? 100 : 180,
       render: (row) => cellValue(row, column.key),
+      sortValue: (row) => {
+        if (column.key.startsWith("extra.")) {
+          const field = column.key.slice("extra.".length);
+          return row.extra?.[field] ?? null;
+        }
+        if (column.key === "cats") return row.cats ?? 0;
+        if (column.key === "count") return row.count;
+        const value = row[column.key as keyof typeof row];
+        if (typeof value === "number") return value;
+        if (value == null || value === "") return null;
+        return String(value);
+      },
     }));
   }, [result.columns]);
 
@@ -256,10 +268,10 @@ export function ReportsDashboard({
         />
       </div>
 
-      <Tabs defaultValue="pivot" className="space-y-4 print:block">
+      <Tabs defaultValue="quick" className="space-y-4 print:block">
         <TabsList className="print:hidden grid h-auto w-full grid-cols-1 gap-1 sm:grid-cols-3">
-          <TabsTrigger value="pivot">Pivot builder</TabsTrigger>
           <TabsTrigger value="quick">Quick reports</TabsTrigger>
+          <TabsTrigger value="pivot">Pivot builder</TabsTrigger>
           <TabsTrigger value="table-export">Table export</TabsTrigger>
         </TabsList>
 
