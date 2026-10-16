@@ -1,5 +1,6 @@
 import { CASE_STATUSES } from "@/lib/constants";
 import { normalizeZip } from "@/lib/cases/assign-team-by-zip";
+import { omitsReportedCatsFromReports } from "@/lib/cases/duplicate-closed";
 import type {
   ReportAppointment,
   ReportCat,
@@ -181,12 +182,15 @@ function buildCaseRecords(
   const filtered = filterHelpRequests(helpRequests, reportFilters, teams);
   return filtered.map((hr) => {
     let measureValue = 1;
+    const omitReported = omitsReportedCatsFromReports(hr);
     if (measure === "sum_cats") {
-      measureValue = (hr.cats_over_8_weeks ?? 0) + (hr.kittens_under_8_weeks ?? 0);
+      measureValue = omitReported
+        ? 0
+        : (hr.cats_over_8_weeks ?? 0) + (hr.kittens_under_8_weeks ?? 0);
     } else if (measure === "sum_adults") {
-      measureValue = hr.cats_over_8_weeks ?? 0;
+      measureValue = omitReported ? 0 : (hr.cats_over_8_weeks ?? 0);
     } else if (measure === "sum_kittens") {
-      measureValue = hr.kittens_under_8_weeks ?? 0;
+      measureValue = omitReported ? 0 : (hr.kittens_under_8_weeks ?? 0);
     }
     return { values: caseDimensions(hr), measureValue };
   });

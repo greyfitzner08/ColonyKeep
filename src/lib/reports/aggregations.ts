@@ -9,7 +9,10 @@ import {
   type AdoptableCatStatus,
 } from "@/lib/adoption/constants";
 import { findTrapTeamForZip, normalizeZip } from "@/lib/cases/assign-team-by-zip";
-import { isDuplicateClosedCase } from "@/lib/cases/duplicate-closed";
+import {
+  isDuplicateClosedCase,
+  omitsReportedCatsFromReports,
+} from "@/lib/cases/duplicate-closed";
 import { fosterFacilityLabel, type FosterFacility } from "@/lib/cases/foster-facility";
 import { CASE_STATUSES } from "@/lib/constants";
 import { sortTrapTeams } from "@/lib/trap-teams/sort-teams";
@@ -181,6 +184,7 @@ function teamForRequest(hr: ReportHelpRequest, teams: ReportTrapTeam[]): { id: s
 }
 
 function catCount(hr: ReportHelpRequest): number {
+  if (omitsReportedCatsFromReports(hr)) return 0;
   return (hr.kittens_under_8_weeks ?? 0) + (hr.cats_over_8_weeks ?? 0);
 }
 

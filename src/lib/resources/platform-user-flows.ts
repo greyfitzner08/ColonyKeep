@@ -1,5 +1,5 @@
 /** Default handbook content for the Platform User Flows resource (seeded into library_documents). */
-export const PLATFORM_USER_FLOWS_DOC_VERSION = "2026-10-13b";
+export const PLATFORM_USER_FLOWS_DOC_VERSION = "2026-10-16a";
 
 export const PLATFORM_USER_FLOWS_MARKDOWN = `<!-- flows-doc-version: ${PLATFORM_USER_FLOWS_DOC_VERSION} -->
 # ColonyKeep user flows — start to finish
@@ -64,6 +64,8 @@ Public / community inquiry form (/request)
 **Colony feeders:** When the submitter says they feed the cats, their contact + colony address fill the case **feeder** fields (shown on Hotspots when geocoded). Staff can edit feeder info on the case.
 
 **Closing as duplicate:** Cases closed with outcome **Duplicate** stay visible for audit but are **excluded from Reports** (and related cat counts) so cats are not counted twice. Keep real work on the keeper case.
+
+**Closed Partial TNVR / Referred Elsewhere:** Those cases stay in Reports for case volume, but their intake **cats reported** no longer count toward report totals (quick reports and pivot “cats/adults/kittens reported” measures).
 
 ---
 
@@ -159,6 +161,6 @@ Community/event participation, not trap cases. Interests help organizers know wh
 5. **Idle claims** (21+ days without updates) surface as a Trap Queue follow-up banner + sidebar dot for the claimant.
 6. **Events** is the shared calendar path for all volunteers (shift sign-ups optional when enabled).
 7. **Contact sharing** is opt-in on My Profile (everything starts hidden).
-8. **Reports** omit duplicate-closed cases so cats are not double-counted.
+8. **Reports** omit duplicate-closed cases so cats are not double-counted; Partial TNVR / Referred Elsewhere closed cases keep case counts but drop intake cats reported.
 9. **Dashboard** summarizes; **queues/calendars** are where work happens.
 `;
