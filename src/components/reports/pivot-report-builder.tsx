@@ -147,7 +147,10 @@ export function PivotReportBuilder({
   useEffect(() => {
     if (showAppointmentTiedReports()) return;
     if (!isAppointmentTiedPivotDataset(config.dataset)) return;
-    setConfig((current) => sanitizePivotConfig({ ...current, dataset: "cases" }));
+    setConfig((current) => {
+      const next = sanitizePivotConfig({ ...current, dataset: "cases" });
+      return next ?? { ...DEFAULT_PIVOT_CONFIG, dataset: "cases" };
+    });
   }, [config.dataset]);
 
   const result = useMemo(
