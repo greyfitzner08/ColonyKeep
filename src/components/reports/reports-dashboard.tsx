@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ChevronDown, Download, Filter, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -37,8 +37,11 @@ import {
 } from "@/lib/reports/aggregations";
 import { ADOPTABLE_CAT_STATUSES } from "@/lib/adoption/constants";
 import { ADOPTION_APPLICATION_STATUSES } from "@/lib/adoption/application";
-import { CASE_STATUSES } from "@/lib/constants";
 import { downloadCsv, reportToCsv } from "@/lib/reports/export-csv";
+import {
+  isAppointmentTiedReportType,
+  showAppointmentTiedReports,
+} from "@/lib/reports/visibility";
 import { cn } from "@/lib/utils";
 
 const REPORT_TYPES: { value: ReportType; label: string; hint: string }[] = [
@@ -153,6 +156,20 @@ export function ReportsDashboard({
   const [reportType, setReportType] = useState<ReportType>("inquiries_by_zip");
   const [setupOpen, setSetupOpen] = useState(false);
 
+  const visibleReportTypes = useMemo(
+    () =>
+      REPORT_TYPES.filter(
+        (entry) => showAppointmentTiedReports() || !isAppointmentTiedReportType(entry.value)
+      ),
+    []
+  );
+
+  useEffect(() => {
+    if (visibleReportTypes.some((entry) => entry.value === reportType)) return;
+    const fallback = visibleReportTypes[0];
+    if (fallback) setReportType(fallback.value);
+  }, [reportType, visibleReportTypes]);
+
   const options = useMemo(
     () => reportFilterOptions(helpRequests, teams, clinics),
     [helpRequests, teams, clinics]
@@ -186,7 +203,9 @@ export function ReportsDashboard({
     ]
   );
 
-  const activeReport = REPORT_TYPES.find((entry) => entry.value === reportType);
+  const activeReport =
+    visibleReportTypes.find((entry) => entry.value === reportType) ??
+    REPORT_TYPES.find((entry) => entry.value === reportType);
 
   const reportTableColumns = useMemo((): DataTableColumn<(typeof result.rows)[number]>[] => {
     return result.columns.map((column) => ({
@@ -220,7 +239,7 @@ export function ReportsDashboard({
         ? next.startsWith("adoption_application")
           ? ADOPTION_APPLICATION_STATUSES
           : ADOPTABLE_CAT_STATUSES
-        : CASE_STATUSES;
+        : options.statuses;
       if (current.status && !allowed.some((entry) => entry.value === current.status)) {
         return { ...current, status: "" };
       }
@@ -333,7 +352,7 @@ export function ReportsDashboard({
                 <p className="text-xs text-muted-foreground">Choose which report to run.</p>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
-                {REPORT_TYPES.map((entry) => (
+                {visibleReportTypes.map((entry) => (
                   <button
                     key={entry.value}
                     type="button"

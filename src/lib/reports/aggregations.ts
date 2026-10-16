@@ -15,6 +15,7 @@ import {
 } from "@/lib/cases/duplicate-closed";
 import { fosterFacilityLabel, type FosterFacility } from "@/lib/cases/foster-facility";
 import { CASE_STATUSES } from "@/lib/constants";
+import { reportCaseStatuses } from "@/lib/reports/visibility";
 import { sortTrapTeams } from "@/lib/trap-teams/sort-teams";
 import type { HelpRequestStatus } from "@/lib/types";
 
@@ -661,7 +662,7 @@ export function runReport(
     }
 
     case "case_status_summary": {
-      const rows = CASE_STATUSES.map((entry) => ({
+      const rows = reportCaseStatuses().map((entry) => ({
         key: entry.value,
         label: entry.label,
         count: filtered.filter((hr) => hr.status === entry.value).length,
@@ -852,6 +853,6 @@ export function reportFilterOptions(
     clinics: clinics
       .filter((clinic) => clinic.is_active !== false)
       .map((clinic) => ({ id: clinic.id, name: clinic.name })),
-    statuses: CASE_STATUSES,
+    statuses: reportCaseStatuses(),
   };
 }

@@ -45,6 +45,10 @@ import type {
   ReportTrapTeam,
 } from "@/lib/reports/aggregations";
 import { reportFilterOptions } from "@/lib/reports/aggregations";
+import {
+  isAppointmentTiedPivotDataset,
+  showAppointmentTiedReports,
+} from "@/lib/reports/visibility";
 import { cn } from "@/lib/utils";
 
 interface SavedReportRow {
@@ -126,11 +130,25 @@ export function PivotReportBuilder({
     [helpRequests, teams, clinics]
   );
 
+  const visibleDatasets = useMemo(
+    () =>
+      PIVOT_DATASETS.filter(
+        (entry) => showAppointmentTiedReports() || !isAppointmentTiedPivotDataset(entry.value)
+      ),
+    []
+  );
+
   const dimensionOptions = useMemo(
     () => dimensionsForDataset(config.dataset),
     [config.dataset]
   );
   const measureOptions = useMemo(() => measuresForDataset(config.dataset), [config.dataset]);
+
+  useEffect(() => {
+    if (showAppointmentTiedReports()) return;
+    if (!isAppointmentTiedPivotDataset(config.dataset)) return;
+    setConfig((current) => sanitizePivotConfig({ ...current, dataset: "cases" }));
+  }, [config.dataset]);
 
   const result = useMemo(
     () =>
@@ -341,7 +359,7 @@ export function PivotReportBuilder({
               <div className="space-y-1.5">
                 <Label>Dataset</Label>
                 <div className="grid gap-2 sm:grid-cols-2">
-                  {PIVOT_DATASETS.map((entry) => (
+                  {visibleDatasets.map((entry) => (
                     <button
                       key={entry.value}
                       type="button"

@@ -21,10 +21,21 @@ import {
   type ExportableTableId,
 } from "@/lib/admin/table-export-catalog";
 import { downloadCsv } from "@/lib/reports/export-csv";
+import {
+  isAppointmentTiedExportTable,
+  showAppointmentTiedReports,
+} from "@/lib/reports/visibility";
 import { cn } from "@/lib/utils";
 
 export function TableExportPanel() {
-  const [tableId, setTableId] = useState<ExportableTableId>(EXPORTABLE_TABLES[0]!.id);
+  const visibleTables = useMemo(
+    () =>
+      EXPORTABLE_TABLES.filter(
+        (entry) => showAppointmentTiedReports() || !isAppointmentTiedExportTable(entry.id)
+      ),
+    []
+  );
+  const [tableId, setTableId] = useState<ExportableTableId>(visibleTables[0]!.id);
   const [selectedColumns, setSelectedColumns] = useState<string[]>([]);
   const [columnQuery, setColumnQuery] = useState("");
   const [exporting, setExporting] = useState(false);
@@ -32,6 +43,12 @@ export function TableExportPanel() {
   const [status, setStatus] = useState<string | null>(null);
 
   const table = useMemo(() => getExportableTable(tableId), [tableId]);
+
+  useEffect(() => {
+    if (visibleTables.some((entry) => entry.id === tableId)) return;
+    const fallback = visibleTables[0];
+    if (fallback) setTableId(fallback.id);
+  }, [tableId, visibleTables]);
 
   useEffect(() => {
     if (!table) return;
@@ -162,7 +179,7 @@ export function TableExportPanel() {
               <SelectValue placeholder="Select a table" />
             </SelectTrigger>
             <SelectContent>
-              {EXPORTABLE_TABLES.map((entry) => (
+              {visibleTables.map((entry) => (
                 <SelectItem key={entry.id} value={entry.id}>
                   {entry.label}
                 </SelectItem>
