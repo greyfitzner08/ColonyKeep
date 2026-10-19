@@ -753,7 +753,7 @@ export function ColonyIntakeForm({
           </Link>
           <h1 className="text-xl font-bold sm:text-2xl">Report Community Cats in Mecklenburg County</h1>
           <p className="text-muted-foreground mt-1">
-            We currently serve colonies in Mecklenburg County, NC. Your report goes to our team of volunteers.
+            We currently serve community cats in Mecklenburg County, NC. Your report goes to our team of volunteers.
           </p>
           <div className="mx-auto mt-5 max-w-md rounded-lg border border-primary/25 bg-primary/5 px-4 py-3.5 text-center">
             <p className="text-sm font-medium text-foreground">Already reported a colony?</p>
