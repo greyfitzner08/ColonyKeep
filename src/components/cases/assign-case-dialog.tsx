@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -10,14 +11,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   caseAssigneeDisplayName,
   type CaseAssigneeOption,
@@ -45,6 +40,7 @@ export function AssignCaseDialog({
 }: AssignCaseDialogProps) {
   const router = useRouter();
   const [assigneeId, setAssigneeId] = useState("");
+  const [query, setQuery] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -63,6 +59,15 @@ export function AssignCaseDialog({
     return next;
   }, [assignees, preferredTeamId]);
 
+  const visibleAssignees = useMemo(() => {
+    const needle = query.trim().toLowerCase();
+    if (!needle) return sortedAssignees;
+    return sortedAssignees.filter((person) => {
+      const name = caseAssigneeDisplayName(person).toLowerCase();
+      return name.includes(needle) || person.email.toLowerCase().includes(needle);
+    });
+  }, [query, sortedAssignees]);
+
   const defaultId = useMemo(() => {
     if (!currentClaimedByEmail) return "";
     const match = assignees.find(
@@ -74,6 +79,7 @@ export function AssignCaseDialog({
   useEffect(() => {
     if (open) {
       setAssigneeId(defaultId);
+      setQuery("");
       setError(null);
     }
   }, [open, defaultId]);
@@ -124,21 +130,50 @@ export function AssignCaseDialog({
                 No TNVR users found. Add someone with the TNVR Team role first.
               </p>
             ) : (
-              <Select value={assigneeId} onValueChange={setAssigneeId} disabled={saving}>
-                <SelectTrigger id="assign-case-user">
-                  <SelectValue placeholder="Select a person" />
-                </SelectTrigger>
-                <SelectContent>
-                  {sortedAssignees.map((person) => (
-                    <SelectItem key={person.id} value={person.id}>
-                      {caseAssigneeDisplayName(person)}
-                      {preferredTeamId && person.team_id === preferredTeamId
-                        ? " · case team"
-                        : ""}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="space-y-2">
+                <div className="relative">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    id="assign-case-user"
+                    value={query}
+                    onChange={(event) => setQuery(event.target.value)}
+                    placeholder="Search TNVR users…"
+                    disabled={saving}
+                    className="pl-9"
+                    autoComplete="off"
+                  />
+                </div>
+                <div className="max-h-56 overflow-y-auto rounded-md border">
+                  {visibleAssignees.length === 0 ? (
+                    <p className="px-3 py-2 text-sm text-muted-foreground">
+                      No TNVR users match “{query.trim()}”.
+                    </p>
+                  ) : (
+                    visibleAssignees.map((person) => {
+                      const selected = person.id === assigneeId;
+                      return (
+                        <button
+                          key={person.id}
+                          type="button"
+                          disabled={saving}
+                          onClick={() => setAssigneeId(person.id)}
+                          className={`flex w-full flex-col items-start px-3 py-2 text-left text-sm hover:bg-accent ${
+                            selected ? "bg-accent" : ""
+                          }`}
+                        >
+                          <span>
+                            {caseAssigneeDisplayName(person)}
+                            {preferredTeamId && person.team_id === preferredTeamId
+                              ? " · case team"
+                              : ""}
+                          </span>
+                          <span className="text-xs text-muted-foreground">{person.email}</span>
+                        </button>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
             )}
           </div>
 
