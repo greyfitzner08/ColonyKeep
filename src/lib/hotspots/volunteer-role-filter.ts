@@ -9,6 +9,12 @@ const HIDDEN_HOTSPOT_VOLUNTEER_ROLES = new Set<VolunteerRole>([
   "story_writer",
   "crafter",
   "grant_writing",
+  "event_volunteer",
+  "youth_volunteer",
+  "adoption_specialist",
+  "community_outreach",
+  "videographer",
+  "clinic_coordination",
 ]);
 
 export const HOTSPOT_VOLUNTEER_ROLES = VOLUNTEER_ROLES.filter(
