@@ -255,6 +255,8 @@ export const EXPORTABLE_TABLES: ExportableTable[] = [
       { id: "zip", label: "zip" },
       { id: "phone", label: "phone" },
       { id: "email", label: "email" },
+      { id: "phones", label: "phones" },
+      { id: "emails", label: "emails" },
       { id: "notes", label: "notes" },
       { id: "partnership_status", label: "partnership status" },
       { id: "is_active", label: "is active" },

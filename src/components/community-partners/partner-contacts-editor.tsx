@@ -14,9 +14,18 @@ import {
 interface PartnerContactsEditorProps {
   contacts: PartnerContactInput[];
   onChange: (contacts: PartnerContactInput[]) => void;
+  title?: string;
+  description?: string;
+  addLabel?: string;
 }
 
-export function PartnerContactsEditor({ contacts, onChange }: PartnerContactsEditorProps) {
+export function PartnerContactsEditor({
+  contacts,
+  onChange,
+  title = "Contacts",
+  description = "Add as many people as you need. Mark one as primary for quick reference in the table and exports.",
+  addLabel = "Add contact",
+}: PartnerContactsEditorProps) {
   function updateContact(index: number, patch: Partial<PartnerContactInput>) {
     onChange(contacts.map((contact, contactIndex) => (contactIndex === index ? { ...contact, ...patch } : contact)));
   }
@@ -37,15 +46,12 @@ export function PartnerContactsEditor({ contacts, onChange }: PartnerContactsEdi
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-2">
-        <p className="text-sm font-medium">Contacts</p>
+        <p className="text-sm font-medium">{title}</p>
         <Button type="button" variant="outline" size="sm" onClick={addContact}>
-          Add contact
+          {addLabel}
         </Button>
       </div>
-      <p className="text-xs text-muted-foreground">
-        Add as many people as you need. Mark one as primary for quick reference in the table and
-        exports.
-      </p>
+      <p className="text-xs text-muted-foreground">{description}</p>
 
       {contacts.map((contact, index) => (
         <div key={contact.id ?? `new-${index}`} className="rounded-lg border bg-muted/30 p-4 space-y-4">

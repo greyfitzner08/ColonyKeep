@@ -2,6 +2,10 @@ import {
   parseOrganizationType,
   parsePartnershipStatus,
 } from "@/lib/community-partners/constants";
+import {
+  normalizePartnerEmails,
+  normalizePartnerPhones,
+} from "@/lib/community-partners/contacts";
 import { COMMUNITY_PARTNER_EXPORT_HEADERS } from "@/lib/community-partners/export-csv";
 import type { CommunityPartnerOrganizationType, CommunityPartnerStatus } from "@/lib/types";
 
@@ -12,6 +16,9 @@ const HEADER_ALIASES: Record<string, string> = {
   name: "name",
   business_name: "name",
   organization: "name",
+  apartment_community_name: "name",
+  community_name: "name",
+  gcaa_community: "name",
   organization_type: "organization_type",
   type: "organization_type",
   category: "organization_type",
@@ -26,10 +33,16 @@ const HEADER_ALIASES: Record<string, string> = {
   zip: "zip",
   zip_code: "zip",
   postal_code: "zip",
-  phone: "phone",
-  organization_phone: "phone",
-  email: "email",
-  organization_email: "email",
+  phone: "phones",
+  phones: "phones",
+  phone_number: "phones",
+  phone_numbers: "phones",
+  organization_phone: "phones",
+  email: "emails",
+  emails: "emails",
+  email_address: "emails",
+  email_addresses: "emails",
+  organization_email: "emails",
   contact_name: "contact_name",
   contact: "contact_name",
   contact_title: "contact_title",
@@ -90,6 +103,8 @@ export type CommunityPartnerImportPayload = {
     zip: string | null;
     phone: string | null;
     email: string | null;
+    emails: string[];
+    phones: string[];
     notes: string | null;
     is_active: boolean;
   };
@@ -111,8 +126,11 @@ export function mapCommunityPartnerImportRow(raw: Record<string, unknown>): {
   const name = row.name?.trim();
 
   if (!name) {
-    return { record: null, error: "Organization name is required" };
+    return { record: null, error: "Organization or apartment community name is required" };
   }
+
+  const emails = normalizePartnerEmails(row.emails);
+  const phones = normalizePartnerPhones(row.phones);
 
   const contact =
     row.contact_name || row.contact_email || row.contact_phone || row.contact_title
@@ -137,8 +155,10 @@ export function mapCommunityPartnerImportRow(raw: Record<string, unknown>): {
         city: row.city ?? null,
         state: row.state ?? null,
         zip: row.zip ?? null,
-        phone: row.phone ?? null,
-        email: row.email ?? null,
+        phones,
+        emails,
+        phone: phones[0] ?? null,
+        email: emails[0] ?? null,
         notes: row.notes ?? null,
         is_active: parseBoolean(row.is_active),
       },

@@ -595,6 +595,7 @@ export type CommunityPartnerOrganizationType =
   | "sponsor"
   | "municipal"
   | "media"
+  | "gcaa"
   | "other";
 
 export type CommunityPartnerStatus =
@@ -628,6 +629,8 @@ export interface CommunityPartner {
   zip: string | null;
   phone: string | null;
   email: string | null;
+  emails?: string[];
+  phones?: string[];
   notes: string | null;
   partnership_status: CommunityPartnerStatus;
   is_active: boolean;

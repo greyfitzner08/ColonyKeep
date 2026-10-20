@@ -2,9 +2,10 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Check, Copy, Download, Eye, Pencil, Plus, Trash2 } from "lucide-react";
+import { Eye, Pencil, Plus, Trash2 } from "lucide-react";
 import { CommunityPartnerImporter } from "@/components/community-partners/partner-importer";
 import { PartnerContactsEditor } from "@/components/community-partners/partner-contacts-editor";
+import { PartnerValueList } from "@/components/community-partners/partner-value-list";
 import { AddressAutocomplete } from "@/components/forms/address-autocomplete";
 import { ControlSearch, PageControlBar } from "@/components/layout/page-control-bar";
 import {
@@ -34,12 +35,19 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   COMMUNITY_PARTNER_ORGANIZATION_TYPES,
   COMMUNITY_PARTNER_STATUSES,
+  isGcaaPartner,
   organizationTypeLabel,
   partnershipStatusLabel,
+  partnerWebsiteHref,
 } from "@/lib/community-partners/constants";
 import {
   contactsFromPartner,
   emptyPartnerContactInput,
+  formListFromValues,
+  normalizePartnerEmails,
+  normalizePartnerPhones,
+  partnerEmailList,
+  partnerPhoneList,
   primaryPartnerContact,
   sortPartnerContacts,
   type PartnerContactInput,
@@ -64,24 +72,26 @@ type PartnerForm = {
   city: string;
   state: string;
   zip: string;
-  phone: string;
-  email: string;
+  emails: string[];
+  phones: string[];
   notes: string;
   partnership_status: CommunityPartnerStatus;
   is_active: boolean;
   contacts: PartnerContactInput[];
 };
 
-const emptyPartner = (): PartnerForm => ({
+const emptyPartner = (
+  organizationType: CommunityPartnerOrganizationType = "other"
+): PartnerForm => ({
   name: "",
-  organization_type: "other",
+  organization_type: organizationType,
   website: "",
   address: "",
   city: "",
   state: "",
   zip: "",
-  phone: "",
-  email: "",
+  emails: [""],
+  phones: [""],
   notes: "",
   partnership_status: "active",
   is_active: true,
@@ -109,6 +119,8 @@ function matchesSearch(partner: CommunityPartner, query: string): boolean {
     partner.zip,
     partner.phone,
     partner.email,
+    ...(partner.phones ?? []),
+    ...(partner.emails ?? []),
     partner.notes,
     ...contactFields,
   ]
@@ -134,8 +146,8 @@ function uniquePartnerEmails(partners: CommunityPartner[]): string[] {
   }
 
   for (const partner of partners) {
-    if (partner.partnership_status === "do_not_contact") continue;
-    add(partner.email);
+    if (partner.partnership_status === "do_not_contact" || !partner.is_active) continue;
+    for (const email of partnerEmailList(partner)) add(email);
     for (const contact of partner.contacts ?? []) {
       add(contact.email);
     }
@@ -174,23 +186,32 @@ function PartnerDetailView({
   onEdit: () => void;
 }) {
   const contacts = sortPartnerContacts(partner.contacts ?? []);
+  const isGcaa = isGcaaPartner(partner.organization_type);
+  const emails = partnerEmailList(partner);
+  const phones = partnerPhoneList(partner);
 
   return (
     <div className="space-y-4 text-sm">
       <div className="flex flex-wrap items-center gap-2">
-        <Badge
-          variant={
-            partner.partnership_status === "do_not_contact"
-              ? "destructive"
-              : partner.partnership_status === "active"
-                ? "default"
-                : "secondary"
-          }
-        >
-          {partnershipStatusLabel(partner.partnership_status)}
-        </Badge>
+        {isGcaa ? (
+          <Badge variant={partner.is_active ? "default" : "secondary"}>
+            {partner.is_active ? "Active" : "Inactive"}
+          </Badge>
+        ) : (
+          <Badge
+            variant={
+              partner.partnership_status === "do_not_contact"
+                ? "destructive"
+                : partner.partnership_status === "active"
+                  ? "default"
+                  : "secondary"
+            }
+          >
+            {partnershipStatusLabel(partner.partnership_status)}
+          </Badge>
+        )}
         <Badge variant="outline">{organizationTypeLabel(partner.organization_type)}</Badge>
-        {!partner.is_active && <Badge variant="secondary">Inactive</Badge>}
+        {!isGcaa && !partner.is_active && <Badge variant="secondary">Inactive</Badge>}
       </div>
 
       <div className="space-y-3">
@@ -209,7 +230,7 @@ function PartnerDetailView({
           <div>
             <p className="font-medium">Website</p>
             <a
-              href={partner.website}
+              href={partnerWebsiteHref(partner.website)}
               target="_blank"
               rel="noreferrer"
               className="text-primary hover:underline break-all"
@@ -218,27 +239,35 @@ function PartnerDetailView({
             </a>
           </div>
         )}
-        {partner.phone?.trim() && (
+        {phones.length > 0 && (
           <div>
-            <p className="font-medium">Organization phone</p>
-            <a href={`tel:${partner.phone}`} className="text-primary hover:underline">
-              {partner.phone}
-            </a>
+            <p className="font-medium">{isGcaa ? "Phone numbers" : "Organization phone"}</p>
+            {phones.map((phone) => (
+              <a key={phone} href={`tel:${phone}`} className="block text-primary hover:underline">
+                {phone}
+              </a>
+            ))}
           </div>
         )}
-        {partner.email?.trim() && (
+        {emails.length > 0 && (
           <div>
-            <p className="font-medium">Organization email</p>
-            <a href={`mailto:${partner.email}`} className="text-primary hover:underline break-all">
-              {partner.email}
-            </a>
+            <p className="font-medium">{isGcaa ? "Email addresses" : "Organization email"}</p>
+            {emails.map((email) => (
+              <a
+                key={email}
+                href={`mailto:${email}`}
+                className="block text-primary hover:underline break-all"
+              >
+                {email}
+              </a>
+            ))}
           </div>
         )}
-        <DetailBlock label="Organization notes" value={partner.notes} />
+        <DetailBlock label={isGcaa ? "Notes" : "Organization notes"} value={partner.notes} />
       </div>
 
       <div className="space-y-3">
-        <p className="font-medium">Contacts</p>
+        <p className="font-medium">{isGcaa ? "Points of contact" : "Contacts"}</p>
         {contacts.length === 0 ? (
           <p className="text-muted-foreground">No contacts on file.</p>
         ) : (
@@ -275,7 +304,7 @@ function PartnerDetailView({
 
       <Button type="button" variant="outline" className="w-full" onClick={onEdit}>
         <Pencil className="mr-2 h-4 w-4" />
-        Edit partner
+        {isGcaa ? "Edit apartment community" : "Edit partner"}
       </Button>
     </div>
   );
@@ -305,6 +334,7 @@ export function CommunityPartnersManager({ partners: initial }: CommunityPartner
   }, [initial, search, typeFilter]);
 
   const filteredEmails = useMemo(() => uniquePartnerEmails(filtered), [filtered]);
+  const isGcaaForm = isGcaaPartner(form.organization_type);
 
   async function copyAllEmails() {
     if (filteredEmails.length === 0) return;
@@ -319,7 +349,11 @@ export function CommunityPartnersManager({ partners: initial }: CommunityPartner
 
   function openNew() {
     setEditing(null);
-    setForm(emptyPartner());
+    setForm(
+      emptyPartner(
+        typeFilter !== "all" ? (typeFilter as CommunityPartnerOrganizationType) : "other"
+      )
+    );
     setSaveError(null);
     setDialogOpen(true);
   }
@@ -334,8 +368,8 @@ export function CommunityPartnersManager({ partners: initial }: CommunityPartner
       city: partner.city ?? "",
       state: partner.state ?? "",
       zip: partner.zip ?? "",
-      phone: partner.phone ?? "",
-      email: partner.email ?? "",
+      emails: formListFromValues(partner.emails, partner.email),
+      phones: formListFromValues(partner.phones, partner.phone),
       notes: partner.notes ?? "",
       partnership_status: partner.partnership_status,
       is_active: partner.is_active,
@@ -352,7 +386,12 @@ export function CommunityPartnersManager({ partners: initial }: CommunityPartner
     const response = await fetch("/api/community-partners/save", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...form, id: editing?.id }),
+      body: JSON.stringify({
+        ...form,
+        emails: normalizePartnerEmails(form.emails),
+        phones: normalizePartnerPhones(form.phones),
+        id: editing?.id,
+      }),
     });
     const result = await response.json().catch(() => null);
     setSaving(false);
@@ -387,7 +426,7 @@ export function CommunityPartnersManager({ partners: initial }: CommunityPartner
     return [
       {
         id: "organization",
-        label: "Organization",
+        label: typeFilter === "gcaa" ? "Apartment community" : "Organization",
         defaultWidth: 220,
         wrap: true,
         sortValue: (partner) => partner.name,
@@ -447,15 +486,25 @@ export function CommunityPartnersManager({ partners: initial }: CommunityPartner
       {
         id: "phones",
         label: "Phone",
-        defaultWidth: 130,
+        defaultWidth: 150,
+        wrap: true,
         render: (partner) => {
-          const phone = primaryPartnerContact(partner)?.phone || partner.phone;
-          return phone ? (
-            <a href={`tel:${phone}`} className="whitespace-nowrap text-primary hover:underline">
-              {phone}
-            </a>
-          ) : (
-            "—"
+          const phones = partnerPhoneList(partner);
+          const contactPhone = primaryPartnerContact(partner)?.phone;
+          const values = phones.length > 0 ? phones : contactPhone ? [contactPhone] : [];
+          if (values.length === 0) return "—";
+          return (
+            <div className="space-y-1">
+              {values.map((phone) => (
+                <a
+                  key={phone}
+                  href={`tel:${phone}`}
+                  className="block whitespace-nowrap text-primary hover:underline"
+                >
+                  {phone}
+                </a>
+              ))}
+            </div>
           );
         },
       },
@@ -463,19 +512,29 @@ export function CommunityPartnersManager({ partners: initial }: CommunityPartner
         id: "status",
         label: "Status",
         defaultWidth: 120,
-        render: (partner) => (
-          <Badge
-            variant={
-              partner.partnership_status === "do_not_contact"
-                ? "destructive"
-                : partner.partnership_status === "active"
-                  ? "default"
-                  : "secondary"
-            }
-          >
-            {partnershipStatusLabel(partner.partnership_status)}
-          </Badge>
-        ),
+        render: (partner) => {
+          if (isGcaaPartner(partner.organization_type)) {
+            return (
+              <Badge variant={partner.is_active ? "default" : "secondary"}>
+                {partner.is_active ? "Active" : "Inactive"}
+              </Badge>
+            );
+          }
+
+          return (
+            <Badge
+              variant={
+                partner.partnership_status === "do_not_contact"
+                  ? "destructive"
+                  : partner.partnership_status === "active"
+                    ? "default"
+                    : "secondary"
+              }
+            >
+              {partnershipStatusLabel(partner.partnership_status)}
+            </Badge>
+          );
+        },
       },
       {
         id: "actions",
@@ -514,7 +573,7 @@ export function CommunityPartnersManager({ partners: initial }: CommunityPartner
         ),
       },
     ];
-  }, []);
+  }, [typeFilter]);
 
   return (
     <div className="space-y-6">
@@ -524,7 +583,7 @@ export function CommunityPartnersManager({ partners: initial }: CommunityPartner
           <ControlSearch
             value={search}
             onChange={(event) => setSearch(event.target.value)}
-            placeholder="Search partners, contacts, notes…"
+            placeholder="Search partners, apartment communities, contacts, notes…"
             aria-label="Search community partners"
           />
         }
@@ -544,37 +603,19 @@ export function CommunityPartnersManager({ partners: initial }: CommunityPartner
           </Select>
         }
         primaryActions={
-          <Button size="sm" onClick={openNew}>
-            <Plus className="mr-2 h-4 w-4" />
-            Add partner
-          </Button>
-        }
-        actions={
-          <>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              disabled={filteredEmails.length === 0}
-              onClick={() => void copyAllEmails()}
-            >
-              {emailsCopied ? (
-                <>
-                  <Check className="mr-2 h-4 w-4" />
-                  Copied!
-                </>
-              ) : (
-                <>
-                  <Copy className="mr-2 h-4 w-4" />
-                  Copy {filteredEmails.length} email{filteredEmails.length === 1 ? "" : "s"}
-                </>
-              )}
+          <CommunityPartnerImporter
+            exportCount={filtered.length}
+            onExport={() => exportPartnersCsv(filtered)}
+            copyCount={filteredEmails.length}
+            copyCopied={emailsCopied}
+            copyDisabled={filteredEmails.length === 0}
+            onCopyEmails={() => void copyAllEmails()}
+          >
+            <Button size="sm" onClick={openNew}>
+              <Plus className="mr-2 h-4 w-4" />
+              {typeFilter === "gcaa" ? "Add apartment community" : "Add partner"}
             </Button>
-            <Button variant="outline" size="sm" onClick={() => exportPartnersCsv(filtered)}>
-              <Download className="mr-2 h-4 w-4" />
-              Export CSV
-            </Button>
-          </>
+          </CommunityPartnerImporter>
         }
         meta={
           <>
@@ -592,8 +633,6 @@ export function CommunityPartnersManager({ partners: initial }: CommunityPartner
         minTableWidth={980}
         enableSearch={false}
       />
-
-      <CommunityPartnerImporter />
 
       <Dialog open={viewingPartner != null} onOpenChange={(open) => !open && setViewingPartner(null)}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
@@ -618,11 +657,19 @@ export function CommunityPartnersManager({ partners: initial }: CommunityPartner
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{editing ? "Edit partner" : "Add partner"}</DialogTitle>
+            <DialogTitle>
+              {isGcaaForm
+                ? editing
+                  ? "Edit GCAA apartment community"
+                  : "Add GCAA apartment community"
+                : editing
+                  ? "Edit partner"
+                  : "Add partner"}
+            </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label>Organization name</Label>
+              <Label>{isGcaaForm ? "Apartment community name" : "Organization name"}</Label>
               <Input
                 value={form.name}
                 onChange={(event) => setForm({ ...form, name: event.target.value })}
@@ -653,6 +700,23 @@ export function CommunityPartnersManager({ partners: initial }: CommunityPartner
                 </Select>
               </div>
               <div className="space-y-2">
+                <Label>Is active</Label>
+                <Select
+                  value={form.is_active ? "yes" : "no"}
+                  onValueChange={(value) => setForm({ ...form, is_active: value === "yes" })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="yes">Yes</SelectItem>
+                    <SelectItem value="no">No</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            {!isGcaaForm ? (
+              <div className="space-y-2">
                 <Label>Partnership status</Label>
                 <Select
                   value={form.partnership_status}
@@ -675,7 +739,7 @@ export function CommunityPartnersManager({ partners: initial }: CommunityPartner
                   </SelectContent>
                 </Select>
               </div>
-            </div>
+            ) : null}
             <div className="space-y-2">
               <Label>Website</Label>
               <Input
@@ -721,41 +785,57 @@ export function CommunityPartnersManager({ partners: initial }: CommunityPartner
                 />
               </div>
             </div>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label>Organization phone</Label>
-                <Input
-                  value={form.phone}
-                  onChange={(event) => setForm({ ...form, phone: event.target.value })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Organization email</Label>
-                <Input
-                  type="email"
-                  value={form.email}
-                  onChange={(event) => setForm({ ...form, email: event.target.value })}
-                />
-              </div>
-            </div>
+            <PartnerValueList
+              label={isGcaaForm ? "Email addresses" : "Organization emails"}
+              values={form.emails}
+              onChange={(emails) => setForm({ ...form, emails })}
+              type="email"
+              placeholder="name@example.com"
+              addLabel="Add email"
+            />
+            <PartnerValueList
+              label={isGcaaForm ? "Phone numbers" : "Organization phones"}
+              values={form.phones}
+              onChange={(phones) => setForm({ ...form, phones })}
+              type="tel"
+              placeholder="(704) 555-0100"
+              addLabel="Add phone"
+            />
 
             <PartnerContactsEditor
               contacts={form.contacts}
               onChange={(contacts) => setForm({ ...form, contacts })}
+              title={isGcaaForm ? "Points of contact" : "Contacts"}
+              description={
+                isGcaaForm
+                  ? "Add property managers, leasing staff, or other people at this apartment community."
+                  : "Add as many people as you need. Mark one as primary for quick reference in the table and exports."
+              }
+              addLabel={isGcaaForm ? "Add point of contact" : "Add contact"}
             />
 
             <div className="space-y-2">
-              <Label>Organization notes</Label>
+              <Label>{isGcaaForm ? "Notes" : "Organization notes"}</Label>
               <Textarea
                 value={form.notes}
                 onChange={(event) => setForm({ ...form, notes: event.target.value })}
-                placeholder="Partnership history, preferences, how you work together…"
+                placeholder={
+                  isGcaaForm
+                    ? "Gate codes, colony history, or how this community works with TNVR…"
+                    : "Partnership history, preferences, how you work together…"
+                }
                 rows={4}
               />
             </div>
             {saveError && <p className="text-sm text-destructive">{saveError}</p>}
             <Button onClick={save} className="w-full" disabled={saving}>
-              {saving ? "Saving..." : editing ? "Save changes" : "Add partner"}
+              {saving
+                ? "Saving..."
+                : editing
+                  ? "Save changes"
+                  : isGcaaForm
+                    ? "Add apartment community"
+                    : "Add partner"}
             </Button>
           </div>
         </DialogContent>
@@ -764,7 +844,11 @@ export function CommunityPartnersManager({ partners: initial }: CommunityPartner
       <AlertDialog open={deleteTarget != null} onOpenChange={(open) => !open && setDeleteTarget(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Remove community partner?</AlertDialogTitle>
+            <AlertDialogTitle>
+              {deleteTarget && isGcaaPartner(deleteTarget.organization_type)
+                ? "Remove GCAA apartment community?"
+                : "Remove community partner?"}
+            </AlertDialogTitle>
             <AlertDialogDescription>
               {deleteTarget
                 ? `This will permanently remove ${deleteTarget.name} and all of its contacts from the directory.`
@@ -774,7 +858,7 @@ export function CommunityPartnersManager({ partners: initial }: CommunityPartner
           <AlertDialogFooter>
             <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={confirmDelete} disabled={deleting}>
-              {deleting ? "Removing..." : "Remove partner"}
+              {deleting ? "Removing..." : "Remove"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

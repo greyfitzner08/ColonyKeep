@@ -1,21 +1,46 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  buildCommunityPartnerImportTemplateCsv,
-  COMMUNITY_PARTNER_IMPORT_HEADERS,
-} from "@/lib/community-partners/import-mapper";
-import { Upload } from "lucide-react";
+import { buildCommunityPartnerImportTemplateCsv } from "@/lib/community-partners/import-mapper";
 
-export function CommunityPartnerImporter() {
+interface CommunityPartnerImporterProps {
+  children?: React.ReactNode;
+  exportCount: number;
+  onExport: () => void;
+  copyCount: number;
+  copyCopied: boolean;
+  copyDisabled?: boolean;
+  onCopyEmails: () => void;
+}
+
+export function CommunityPartnerImporter({
+  children,
+  exportCount,
+  onExport,
+  copyCount,
+  copyCopied,
+  copyDisabled,
+  onCopyEmails,
+}: CommunityPartnerImporterProps) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
   const [importing, setImporting] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    function closeOnOutsideClick(event: MouseEvent) {
+      if (!menuRef.current?.contains(event.target as Node)) setMenuOpen(false);
+    }
+    document.addEventListener("mousedown", closeOnOutsideClick);
+    return () => document.removeEventListener("mousedown", closeOnOutsideClick);
+  }, [menuOpen]);
 
   async function importRows(csvText: string) {
     setImporting(true);
@@ -54,6 +79,7 @@ export function CommunityPartnerImporter() {
 
   async function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
+    event.target.value = "";
     if (!file) return;
 
     const text = await file.text();
@@ -63,10 +89,10 @@ export function CommunityPartnerImporter() {
     }
 
     await importRows(text);
-    event.target.value = "";
   }
 
   function downloadTemplate() {
+    setMenuOpen(false);
     const blob = new Blob([buildCommunityPartnerImportTemplateCsv()], {
       type: "text/csv",
     });
@@ -79,40 +105,77 @@ export function CommunityPartnerImporter() {
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base">Import Partners</CardTitle>
-        <CardDescription>
-          Upload a CSV with organization and contact details. Use the same organization name on
-          multiple rows to import several contacts for one partner. Organization Type accepts values
-          like Local Business, Rescue / Sanctuary, Grantor / Funder, Sponsor, Municipal / Government,
-          Media, or Other. Download the template for all {COMMUNITY_PARTNER_IMPORT_HEADERS.length}{" "}
-          columns.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="flex flex-wrap items-center gap-3">
-        <input
-          ref={inputRef}
-          type="file"
-          accept=".csv,text/csv"
-          className="hidden"
-          onChange={handleFileChange}
-        />
-        <Button
-          variant="outline"
-          size="sm"
-          disabled={importing}
-          onClick={() => inputRef.current?.click()}
-        >
-          <Upload className="mr-2 h-4 w-4" />
-          {importing ? "Importing..." : "Upload CSV"}
-        </Button>
-        <Button variant="ghost" size="sm" onClick={downloadTemplate}>
-          Download template
-        </Button>
-        {message && <p className="w-full text-sm text-muted-foreground">{message}</p>}
-        {error && <p className="w-full text-sm text-destructive">{error}</p>}
-      </CardContent>
-    </Card>
+    <div className="flex flex-col items-end gap-2">
+      <div className="flex flex-wrap items-center justify-end gap-1.5">
+        {children}
+        <div className="relative" ref={menuRef}>
+          <input
+            ref={inputRef}
+            type="file"
+            accept=".csv,text/csv"
+            className="hidden"
+            onChange={(event) => void handleFileChange(event)}
+          />
+          <Button
+            type="button"
+            size="icon"
+            variant="outline"
+            className="h-8 w-8"
+            aria-label="Partner tools"
+            aria-expanded={menuOpen}
+            disabled={importing}
+            onClick={() => setMenuOpen((open) => !open)}
+          >
+            <Settings className="h-4 w-4" />
+          </Button>
+          {menuOpen ? (
+            <div className="absolute right-0 z-20 mt-1 w-52 rounded-md border bg-popover p-1 text-popover-foreground shadow-md">
+              <button
+                type="button"
+                className="w-full rounded-sm px-2 py-1.5 text-left text-sm hover:bg-accent"
+                onClick={() => {
+                  setMenuOpen(false);
+                  inputRef.current?.click();
+                }}
+              >
+                {importing ? "Uploading…" : "Upload CSV"}
+              </button>
+              <button
+                type="button"
+                className="w-full rounded-sm px-2 py-1.5 text-left text-sm hover:bg-accent"
+                onClick={downloadTemplate}
+              >
+                Download template
+              </button>
+              <button
+                type="button"
+                className="w-full rounded-sm px-2 py-1.5 text-left text-sm hover:bg-accent"
+                onClick={() => {
+                  setMenuOpen(false);
+                  onExport();
+                }}
+              >
+                Export CSV{exportCount > 0 ? ` (${exportCount})` : ""}
+              </button>
+              <button
+                type="button"
+                className="w-full rounded-sm px-2 py-1.5 text-left text-sm hover:bg-accent disabled:opacity-50"
+                disabled={copyDisabled}
+                onClick={() => {
+                  setMenuOpen(false);
+                  onCopyEmails();
+                }}
+              >
+                {copyCopied
+                  ? "Copied!"
+                  : `Copy ${copyCount} email${copyCount === 1 ? "" : "s"}`}
+              </button>
+            </div>
+          ) : null}
+        </div>
+      </div>
+      {message ? <p className="max-w-md text-right text-sm text-muted-foreground">{message}</p> : null}
+      {error ? <p className="max-w-md text-right text-sm text-destructive">{error}</p> : null}
+    </div>
   );
 }

@@ -27,7 +27,7 @@ export default async function CommunityPartnersPage() {
     <div className="space-y-6">
       <PageHeader
         title="Community Partners"
-        description="Local businesses, rescues, grantors, and other organizations you partner with for events, outreach, and fundraising"
+        description="Local businesses, rescues, grantors, GCAA apartment communities, and other organizations you partner with for events, outreach, and fundraising"
       />
       <CommunityPartnersManager partners={partners} />
     </div>

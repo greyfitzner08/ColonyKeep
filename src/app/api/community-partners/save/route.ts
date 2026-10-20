@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireCommunityPartnerManager } from "@/lib/api/auth";
+import { isGcaaPartner } from "@/lib/community-partners/constants";
 import {
   normalizeContactInputs,
+  normalizePartnerEmails,
+  normalizePartnerPhones,
   type PartnerContactInput,
 } from "@/lib/community-partners/contacts";
 import { syncCommunityPartnerContacts } from "@/lib/community-partners/sync-contacts";
@@ -13,24 +16,38 @@ export async function POST(request: NextRequest) {
 
   const body = await request.json();
   const service = await createServiceClient();
+  const emails = normalizePartnerEmails(body.emails ?? body.email);
+  const phones = normalizePartnerPhones(body.phones ?? body.phone);
+  const organizationType = body.organization_type ?? "other";
+  const isGcaa = isGcaaPartner(organizationType);
+  const isActive = body.is_active ?? true;
 
   const payload = {
     name: String(body.name ?? "").trim(),
-    organization_type: body.organization_type ?? "other",
+    organization_type: organizationType,
     website: body.website?.trim() || null,
     address: body.address?.trim() || null,
     city: body.city?.trim() || null,
     state: body.state?.trim() || null,
     zip: body.zip?.trim() || null,
-    phone: body.phone?.trim() || null,
-    email: body.email?.trim() || null,
+    emails,
+    phones,
+    phone: phones[0] ?? null,
+    email: emails[0] ?? null,
     notes: body.notes?.trim() || null,
-    partnership_status: body.partnership_status ?? "active",
-    is_active: body.is_active ?? true,
+    partnership_status: isGcaa
+      ? isActive
+        ? "active"
+        : "past"
+      : (body.partnership_status ?? "active"),
+    is_active: isActive,
   };
 
   if (!payload.name) {
-    return NextResponse.json({ error: "Organization name is required" }, { status: 400 });
+    return NextResponse.json(
+      { error: isGcaa ? "Apartment community name is required" : "Organization name is required" },
+      { status: 400 }
+    );
   }
 
   const contacts = normalizeContactInputs(

@@ -83,3 +83,49 @@ export function setPrimaryContact(
     is_primary: contactIndex === index,
   }));
 }
+
+function uniqueTrimmed(values: unknown, lowercase: boolean): string[] {
+  const raw = Array.isArray(values)
+    ? values
+    : typeof values === "string"
+      ? values.split(/[\n,;]+/)
+      : [];
+
+  const seen = new Set<string>();
+  const result: string[] = [];
+  for (const entry of raw) {
+    if (typeof entry !== "string") continue;
+    const trimmed = lowercase ? entry.trim().toLowerCase() : entry.trim();
+    if (!trimmed) continue;
+    const key = trimmed.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    result.push(trimmed);
+  }
+  return result;
+}
+
+export function normalizePartnerEmails(value: unknown): string[] {
+  return uniqueTrimmed(value, true);
+}
+
+export function normalizePartnerPhones(value: unknown): string[] {
+  return uniqueTrimmed(value, false);
+}
+
+export function partnerEmailList(
+  partner: Pick<CommunityPartner, "email" | "emails">
+): string[] {
+  return normalizePartnerEmails([...(partner.emails ?? []), partner.email ?? ""]);
+}
+
+export function partnerPhoneList(
+  partner: Pick<CommunityPartner, "phone" | "phones">
+): string[] {
+  return normalizePartnerPhones([...(partner.phones ?? []), partner.phone ?? ""]);
+}
+
+export function formListFromValues(values?: string[] | null, fallback?: string | null): string[] {
+  const list = uniqueTrimmed([...(values ?? []), fallback ?? ""], false);
+  return list.length > 0 ? list : [""];
+}

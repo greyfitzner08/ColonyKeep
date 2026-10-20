@@ -2,7 +2,12 @@ import {
   organizationTypeLabel,
   partnershipStatusLabel,
 } from "@/lib/community-partners/constants";
-import { primaryPartnerContact, sortPartnerContacts } from "@/lib/community-partners/contacts";
+import {
+  partnerEmailList,
+  partnerPhoneList,
+  primaryPartnerContact,
+  sortPartnerContacts,
+} from "@/lib/community-partners/contacts";
 import { downloadCsv } from "@/lib/reports/export-csv";
 import type { CommunityPartner } from "@/lib/types";
 
@@ -41,8 +46,8 @@ function partnerOrgCells(partner: CommunityPartner): string[] {
     partner.city ?? "",
     partner.state ?? "",
     partner.zip ?? "",
-    partner.phone ?? "",
-    partner.email ?? "",
+    partnerPhoneList(partner).join("; "),
+    partnerEmailList(partner).join("; "),
   ];
 }
 

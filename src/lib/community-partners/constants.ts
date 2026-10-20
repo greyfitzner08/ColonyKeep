@@ -13,6 +13,7 @@ export const COMMUNITY_PARTNER_ORGANIZATION_TYPES: {
   { value: "sponsor", label: "Sponsor" },
   { value: "municipal", label: "Municipal / Government" },
   { value: "media", label: "Media" },
+  { value: "gcaa", label: "GCAA" },
   { value: "other", label: "Other" },
 ];
 
@@ -55,7 +56,26 @@ export function partnershipStatusLabel(status: CommunityPartnerStatus): string {
 export function parseOrganizationType(raw: string | undefined): CommunityPartnerOrganizationType {
   const normalized = raw?.trim().toLowerCase() ?? "";
   if (!normalized) return "other";
+  if (
+    normalized === "gcaa" ||
+    normalized.includes("greater charlotte apartment") ||
+    normalized === "apartment community" ||
+    normalized === "apartment communities"
+  ) {
+    return "gcaa";
+  }
   return ORGANIZATION_TYPE_BY_LABEL.get(normalized) ?? "other";
+}
+
+export function isGcaaPartner(type: CommunityPartnerOrganizationType): boolean {
+  return type === "gcaa";
+}
+
+export function partnerWebsiteHref(website: string): string {
+  const trimmed = website.trim();
+  if (!trimmed) return "";
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  return `https://${trimmed}`;
 }
 
 export function parsePartnershipStatus(raw: string | undefined): CommunityPartnerStatus {
