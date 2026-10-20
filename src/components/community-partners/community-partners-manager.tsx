@@ -56,6 +56,7 @@ import {
   contactsFromPartner,
   emptyPartnerContactInput,
   formListFromValues,
+  mergeOrganizationIntoContacts,
   normalizePartnerEmails,
   normalizePartnerPhones,
   partnerEmailList,
@@ -207,14 +208,34 @@ function facilitySummary(partner: {
   );
 }
 
-function contactSummary(partner: {
-  emails: string[];
-  phones: string[];
-  contacts: Array<{ name?: string | null; email?: string | null; phone?: string | null }>;
-}): string {
+function contactSummary(
+  partner: {
+    emails: string[];
+    phones: string[];
+    contacts: Array<{
+      name?: string | null;
+      email?: string | null;
+      phone?: string | null;
+      title?: string | null;
+      notes?: string | null;
+    }>;
+  },
+  peopleOnly = false
+): string {
+  const people = partner.contacts.filter(partnerHasContactDetails);
+  if (peopleOnly) {
+    return joinSummary(
+      [
+        people[0]?.name,
+        people[0]?.email || people[0]?.phone,
+        people.length > 1 ? `+${people.length - 1} more` : "",
+      ],
+      "Points of contact"
+    );
+  }
+
   const emails = normalizePartnerEmails(partner.emails);
   const phones = normalizePartnerPhones(partner.phones);
-  const people = partner.contacts.filter(partnerHasContactDetails);
   return joinSummary(
     [
       emails[0],
@@ -314,15 +335,18 @@ function PartnerDetailView({
       </CollapsibleModalCard>
 
       <CollapsibleModalCard
-        title="Contact info"
-        summary={contactSummary({
-          emails,
-          phones,
-          contacts,
-        })}
+        title={isGcaa ? "Points of contact" : "Contact info"}
+        summary={contactSummary(
+          {
+            emails,
+            phones,
+            contacts,
+          },
+          isGcaa
+        )}
       >
         <div className="space-y-3">
-          {phones.length > 0 ? (
+          {!isGcaa && phones.length > 0 ? (
             <div>
               <p className="font-medium">Phone numbers</p>
               {phones.map((phone) => (
@@ -332,7 +356,7 @@ function PartnerDetailView({
               ))}
             </div>
           ) : null}
-          {emails.length > 0 ? (
+          {!isGcaa && emails.length > 0 ? (
             <div>
               <p className="font-medium">Email addresses</p>
               {emails.map((email) => (
@@ -347,9 +371,32 @@ function PartnerDetailView({
             </div>
           ) : null}
           <div className="space-y-3">
-            <p className="font-medium">{isGcaa ? "Points of contact" : "People"}</p>
+            {!isGcaa ? <p className="font-medium">People</p> : null}
             {contacts.length === 0 ? (
-              <p className="text-muted-foreground">No contacts on file.</p>
+              isGcaa && (emails.length > 0 || phones.length > 0) ? (
+                <div className="space-y-3">
+                  {phones.map((phone) => (
+                    <a
+                      key={phone}
+                      href={`tel:${phone}`}
+                      className="block text-primary hover:underline"
+                    >
+                      {phone}
+                    </a>
+                  ))}
+                  {emails.map((email) => (
+                    <a
+                      key={email}
+                      href={`mailto:${email}`}
+                      className="block text-primary hover:underline break-all"
+                    >
+                      {email}
+                    </a>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-muted-foreground">No contacts on file.</p>
+              )
             ) : (
               contacts.map((contact) => (
                 <div key={contact.id} className="rounded-lg border bg-muted/30 p-3 space-y-1.5">
@@ -469,7 +516,13 @@ export function CommunityPartnersManager({ partners: initial }: CommunityPartner
       partnership_status: partner.partnership_status,
       gcaa_member_status: resolvedGcaaMemberStatus(partner),
       is_active: partner.is_active,
-      contacts: contactsFromPartner(partner),
+      contacts: isGcaaPartner(partner.organization_type)
+        ? mergeOrganizationIntoContacts(
+            contactsFromPartner(partner),
+            formListFromValues(partner.emails, partner.email),
+            formListFromValues(partner.phones, partner.phone)
+          )
+        : contactsFromPartner(partner),
     });
     setSaveError(null);
     setDialogOpen(true);
@@ -787,12 +840,27 @@ export function CommunityPartnersManager({ partners: initial }: CommunityPartner
                   value={form.organization_type}
                   onValueChange={(value) => {
                     const organizationType = value as CommunityPartnerOrganizationType;
+                    const nextIsGcaa = isGcaaPartner(organizationType);
+                    const people = form.contacts.filter(partnerHasContactDetails);
                     setForm({
                       ...form,
                       organization_type: organizationType,
-                      is_active: isGcaaPartner(organizationType)
+                      is_active: nextIsGcaa
                         ? gcaaMemberIsActive(form.gcaa_member_status)
                         : form.is_active,
+                      contacts: nextIsGcaa
+                        ? mergeOrganizationIntoContacts(form.contacts, form.emails, form.phones)
+                        : form.contacts,
+                      emails: nextIsGcaa
+                        ? form.emails
+                        : form.emails.some((email) => email.trim())
+                          ? form.emails
+                          : formListFromValues(people.map((contact) => contact.email)),
+                      phones: nextIsGcaa
+                        ? form.phones
+                        : form.phones.some((phone) => phone.trim())
+                          ? form.phones
+                          : formListFromValues(people.map((contact) => contact.phone)),
                     });
                   }}
                 >
@@ -929,39 +997,51 @@ export function CommunityPartnersManager({ partners: initial }: CommunityPartner
             </CollapsibleModalCard>
 
             <CollapsibleModalCard
-              title="Contact info"
-              summary={contactSummary(form)}
+              title={isGcaaForm ? "Points of contact" : "Contact info"}
+              summary={contactSummary(form, isGcaaForm)}
               description={
                 isGcaaForm
-                  ? "Apartment community emails, phones, and points of contact."
+                  ? "People at this apartment community, including their emails and phones."
                   : "Organization emails, phones, and people at this partner."
               }
             >
-              <PartnerValueList
-                label="Email addresses"
-                values={form.emails}
-                onChange={(emails) => setForm({ ...form, emails })}
-                type="email"
-                placeholder="name@example.com"
-                addLabel="Add email"
-              />
-              <PartnerValueList
-                label="Phone numbers"
-                values={form.phones}
-                onChange={(phones) => setForm({ ...form, phones })}
-                type="tel"
-                placeholder="(704) 555-0100"
-                addLabel="Add phone"
-              />
-              <div className="border-t pt-3">
+              {isGcaaForm ? (
                 <PartnerContactsEditor
                   contacts={form.contacts}
                   onChange={(contacts) => setForm({ ...form, contacts })}
-                  title={isGcaaForm ? "Points of contact" : "People"}
-                  addLabel={isGcaaForm ? "Add point of contact" : "Add person"}
+                  title=""
+                  addLabel="Add point of contact"
                   embedded
                 />
-              </div>
+              ) : (
+                <>
+                  <PartnerValueList
+                    label="Email addresses"
+                    values={form.emails}
+                    onChange={(emails) => setForm({ ...form, emails })}
+                    type="email"
+                    placeholder="name@example.com"
+                    addLabel="Add email"
+                  />
+                  <PartnerValueList
+                    label="Phone numbers"
+                    values={form.phones}
+                    onChange={(phones) => setForm({ ...form, phones })}
+                    type="tel"
+                    placeholder="(704) 555-0100"
+                    addLabel="Add phone"
+                  />
+                  <div className="border-t pt-3">
+                    <PartnerContactsEditor
+                      contacts={form.contacts}
+                      onChange={(contacts) => setForm({ ...form, contacts })}
+                      title="People"
+                      addLabel="Add person"
+                      embedded
+                    />
+                  </div>
+                </>
+              )}
             </CollapsibleModalCard>
 
             <CollapsibleModalCard title="Notes" summary={notesSummary(form.notes)}>

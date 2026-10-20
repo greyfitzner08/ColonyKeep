@@ -48,7 +48,7 @@ export function PartnerContactsEditor({
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-2">
-        <p className="text-sm font-medium">{title}</p>
+        {title ? <p className="text-sm font-medium">{title}</p> : <span />}
         <Button type="button" variant="outline" size="sm" onClick={addContact}>
           {addLabel}
         </Button>

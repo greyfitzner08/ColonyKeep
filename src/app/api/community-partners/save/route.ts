@@ -7,6 +7,7 @@ import {
   parseGcaaMemberStatus,
 } from "@/lib/community-partners/constants";
 import {
+  contactFieldsFromPeople,
   normalizeContactInputs,
   normalizePartnerEmails,
   normalizePartnerPhones,
@@ -21,10 +22,18 @@ export async function POST(request: NextRequest) {
 
   const body = await request.json();
   const service = await createServiceClient();
-  const emails = normalizePartnerEmails(body.emails ?? body.email);
-  const phones = normalizePartnerPhones(body.phones ?? body.phone);
+  const contacts = normalizeContactInputs(
+    (Array.isArray(body.contacts) ? body.contacts : []) as PartnerContactInput[]
+  );
   const organizationType = body.organization_type ?? "other";
   const isGcaa = isGcaaPartner(organizationType);
+  const fromPeople = contactFieldsFromPeople(contacts);
+  const emails = isGcaa
+    ? fromPeople.emails
+    : normalizePartnerEmails(body.emails ?? body.email);
+  const phones = isGcaa
+    ? fromPeople.phones
+    : normalizePartnerPhones(body.phones ?? body.phone);
   const memberStatus = isGcaa ? parseGcaaMemberStatus(body.gcaa_member_status) : null;
   const isActive = isGcaa
     ? memberStatus
@@ -58,10 +67,6 @@ export async function POST(request: NextRequest) {
       { status: 400 }
     );
   }
-
-  const contacts = normalizeContactInputs(
-    (Array.isArray(body.contacts) ? body.contacts : []) as PartnerContactInput[]
-  );
 
   const query = body.id
     ? service.from("community_partners").update(payload).eq("id", body.id)

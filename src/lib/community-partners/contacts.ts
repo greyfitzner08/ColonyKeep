@@ -63,6 +63,41 @@ export function contactsFromPartner(partner: CommunityPartner): PartnerContactIn
   }));
 }
 
+/** If there are no people yet, fold organization emails/phones into contact rows. */
+export function mergeOrganizationIntoContacts(
+  contacts: PartnerContactInput[],
+  emails: string[],
+  phones: string[]
+): PartnerContactInput[] {
+  if (contacts.some(partnerHasContactDetails)) {
+    return contacts.length > 0 ? contacts : [emptyPartnerContactInput()];
+  }
+
+  const emailList = normalizePartnerEmails(emails);
+  const phoneList = normalizePartnerPhones(phones);
+  if (emailList.length === 0 && phoneList.length === 0) {
+    return contacts.length > 0 ? contacts : [emptyPartnerContactInput()];
+  }
+
+  const count = Math.max(emailList.length, phoneList.length);
+  return Array.from({ length: count }, (_, index) => ({
+    ...emptyPartnerContactInput(),
+    email: emailList[index] ?? "",
+    phone: phoneList[index] ?? "",
+    is_primary: index === 0,
+  }));
+}
+
+export function contactFieldsFromPeople(contacts: PartnerContactInput[]): {
+  emails: string[];
+  phones: string[];
+} {
+  return {
+    emails: normalizePartnerEmails(contacts.map((contact) => contact.email)),
+    phones: normalizePartnerPhones(contacts.map((contact) => contact.phone)),
+  };
+}
+
 export function normalizeContactInputs(contacts: PartnerContactInput[]): PartnerContactInput[] {
   const filled = contacts.filter(partnerHasContactDetails);
   if (filled.length === 0) return [];
