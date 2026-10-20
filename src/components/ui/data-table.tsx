@@ -61,8 +61,8 @@ export interface DataTableProps<T> {
 }
 
 function columnMenuLabel<T>(column: DataTableColumn<T>): string {
-  if (column.labelText) return column.labelText;
-  if (typeof column.label === "string") return column.label;
+  if (column.labelText?.trim()) return column.labelText.trim();
+  if (typeof column.label === "string" && column.label.trim()) return column.label.trim();
   return column.id
     .replace(/[_-]+/g, " ")
     .replace(/\b\w/g, (char) => char.toUpperCase());
