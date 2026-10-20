@@ -181,7 +181,7 @@ export function TrapEquipmentManager({
   const [rowError, setRowError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [scanNotice, setScanNotice] = useState<string | null>(null);
-  const [sortKey, setSortKey] = useState<EquipmentSortKey>("assigned");
+  const [sortKey, setSortKey] = useState<EquipmentSortKey>("item");
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
   const [filterTeamId, setFilterTeamId] = useState("all");
   const [filterType, setFilterType] = useState("all");
@@ -471,6 +471,10 @@ export function TrapEquipmentManager({
     return equipmentTypeLabel(item.equipment_type);
   }
 
+  function compareEquipmentLabels(left: string, right: string) {
+    return left.localeCompare(right, undefined, { numeric: true, sensitivity: "base" });
+  }
+
   const teamLabel = useCallback(
     (item: TrapEquipmentItem) => {
       if (!item.team_id) return item.team_name ?? "—";
@@ -537,32 +541,29 @@ export function TrapEquipmentManager({
 
       switch (sortKey) {
         case "item":
-          comparison = itemTitle(a).localeCompare(itemTitle(b), undefined, { sensitivity: "base" });
+          comparison = compareEquipmentLabels(itemTitle(a), itemTitle(b));
           break;
         case "status":
-          comparison = equipmentStatusLabel(a.status).localeCompare(
-            equipmentStatusLabel(b.status),
-            undefined,
-            { sensitivity: "base" }
+          comparison = compareEquipmentLabels(
+            equipmentStatusLabel(a.status),
+            equipmentStatusLabel(b.status)
           );
           break;
         case "assigned": {
           const aAssigned = `${custodianLabel(a)} ${teamLabel(a)} ${a.location ?? ""}`;
           const bAssigned = `${custodianLabel(b)} ${teamLabel(b)} ${b.location ?? ""}`;
-          comparison = aAssigned.localeCompare(bAssigned, undefined, { sensitivity: "base" });
+          comparison = compareEquipmentLabels(aAssigned, bAssigned);
           break;
         }
         case "loaned":
-          comparison = (a.borrower_name ?? "").localeCompare(b.borrower_name ?? "", undefined, {
-            sensitivity: "base",
-          });
+          comparison = compareEquipmentLabels(a.borrower_name ?? "", b.borrower_name ?? "");
           break;
         default:
           comparison = 0;
       }
 
       if (comparison === 0) {
-        comparison = itemTitle(a).localeCompare(itemTitle(b), undefined, { sensitivity: "base" });
+        comparison = compareEquipmentLabels(itemTitle(a), itemTitle(b));
       }
 
       return comparison * direction;
