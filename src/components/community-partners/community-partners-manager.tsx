@@ -7,6 +7,7 @@ import { CommunityPartnerImporter } from "@/components/community-partners/partne
 import { PartnerContactsEditor } from "@/components/community-partners/partner-contacts-editor";
 import { PartnerValueList } from "@/components/community-partners/partner-value-list";
 import { AddressAutocomplete } from "@/components/forms/address-autocomplete";
+import { CollapsibleModalCard } from "@/components/layout/modal-sections";
 import { ControlSearch, PageControlBar } from "@/components/layout/page-control-bar";
 import {
   AlertDialog,
@@ -21,7 +22,13 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -47,6 +54,7 @@ import {
   normalizePartnerEmails,
   normalizePartnerPhones,
   partnerEmailList,
+  partnerHasContactDetails,
   partnerPhoneList,
   primaryPartnerContact,
   sortPartnerContacts,
@@ -162,6 +170,50 @@ function partnerAddress(partner: CommunityPartner): string {
   );
 }
 
+function joinSummary(parts: Array<string | null | undefined>, empty: string): string {
+  const values = parts.map((part) => part?.trim()).filter((part): part is string => Boolean(part));
+  return values.length > 0 ? values.join(" · ") : empty;
+}
+
+function facilitySummary(partner: {
+  address?: string | null;
+  city?: string | null;
+  state?: string | null;
+  zip?: string | null;
+  website?: string | null;
+}): string {
+  return joinSummary(
+    [
+      formatSingleLineAddress([partner.address, partner.city, partner.state, partner.zip]),
+      partner.website,
+    ],
+    "Address & website"
+  );
+}
+
+function contactSummary(partner: {
+  emails: string[];
+  phones: string[];
+  contacts: Array<{ name?: string | null; email?: string | null; phone?: string | null }>;
+}): string {
+  const emails = normalizePartnerEmails(partner.emails);
+  const phones = normalizePartnerPhones(partner.phones);
+  const people = partner.contacts.filter(partnerHasContactDetails);
+  return joinSummary(
+    [
+      emails[0],
+      phones[0],
+      people.length > 0 ? `${people.length} ${people.length === 1 ? "person" : "people"}` : "",
+    ],
+    "Emails, phones & people"
+  );
+}
+
+function notesSummary(notes: string | null | undefined): string {
+  const firstLine = notes?.trim().split("\n")[0] ?? "";
+  return firstLine || "Notes";
+}
+
 function DetailBlock({
   label,
   value,
@@ -189,9 +241,15 @@ function PartnerDetailView({
   const isGcaa = isGcaaPartner(partner.organization_type);
   const emails = partnerEmailList(partner);
   const phones = partnerPhoneList(partner);
+  const address = formatSingleLineAddress([
+    partner.address,
+    partner.city,
+    partner.state,
+    partner.zip,
+  ]);
 
   return (
-    <div className="space-y-4 text-sm">
+    <div className="space-y-3 text-sm">
       <div className="flex flex-wrap items-center gap-2">
         {isGcaa ? (
           <Badge variant={partner.is_active ? "default" : "secondary"}>
@@ -214,93 +272,114 @@ function PartnerDetailView({
         {!isGcaa && !partner.is_active && <Badge variant="secondary">Inactive</Badge>}
       </div>
 
-      <div className="space-y-3">
-        {formatSingleLineAddress([partner.address, partner.city, partner.state, partner.zip]) && (
-          <DetailBlock
-            label="Address"
-            value={formatSingleLineAddress([
-              partner.address,
-              partner.city,
-              partner.state,
-              partner.zip,
-            ])}
-          />
-        )}
-        {partner.website?.trim() && (
-          <div>
-            <p className="font-medium">Website</p>
-            <a
-              href={partnerWebsiteHref(partner.website)}
-              target="_blank"
-              rel="noreferrer"
-              className="text-primary hover:underline break-all"
-            >
-              {partner.website}
-            </a>
-          </div>
-        )}
-        {phones.length > 0 && (
-          <div>
-            <p className="font-medium">{isGcaa ? "Phone numbers" : "Organization phone"}</p>
-            {phones.map((phone) => (
-              <a key={phone} href={`tel:${phone}`} className="block text-primary hover:underline">
-                {phone}
-              </a>
-            ))}
-          </div>
-        )}
-        {emails.length > 0 && (
-          <div>
-            <p className="font-medium">{isGcaa ? "Email addresses" : "Organization email"}</p>
-            {emails.map((email) => (
+      <CollapsibleModalCard
+        title="Facility"
+        summary={facilitySummary(partner)}
+      >
+        <div className="space-y-3">
+          <DetailBlock label="Address" value={address} />
+          {partner.website?.trim() ? (
+            <div>
+              <p className="font-medium">Website</p>
               <a
-                key={email}
-                href={`mailto:${email}`}
-                className="block text-primary hover:underline break-all"
+                href={partnerWebsiteHref(partner.website)}
+                target="_blank"
+                rel="noreferrer"
+                className="text-primary hover:underline break-all"
               >
-                {email}
+                {partner.website}
               </a>
-            ))}
-          </div>
-        )}
-        <DetailBlock label={isGcaa ? "Notes" : "Organization notes"} value={partner.notes} />
-      </div>
-
-      <div className="space-y-3">
-        <p className="font-medium">{isGcaa ? "Points of contact" : "Contacts"}</p>
-        {contacts.length === 0 ? (
-          <p className="text-muted-foreground">No contacts on file.</p>
-        ) : (
-          contacts.map((contact) => (
-            <div key={contact.id} className="rounded-lg border bg-muted/30 p-3 space-y-1.5">
-              <div className="flex flex-wrap items-center gap-2">
-                <p className="font-medium">{contact.name?.trim() || "Unnamed contact"}</p>
-                {contact.is_primary && contacts.length > 1 ? (
-                  <Badge variant="secondary" className="text-xs font-normal">
-                    Primary
-                  </Badge>
-                ) : null}
-              </div>
-              {contact.title?.trim() && (
-                <p className="text-muted-foreground">{contact.title.trim()}</p>
-              )}
-              {contact.email?.trim() && (
-                <a href={`mailto:${contact.email}`} className="block text-primary hover:underline break-all">
-                  {contact.email.trim()}
-                </a>
-              )}
-              {contact.phone?.trim() && (
-                <a href={`tel:${contact.phone}`} className="block text-primary hover:underline">
-                  {contact.phone.trim()}
-                </a>
-              )}
-              {contact.notes?.trim() && (
-                <p className="text-muted-foreground whitespace-pre-wrap pt-1">{contact.notes.trim()}</p>
-              )}
             </div>
-          ))
+          ) : null}
+          {!address && !partner.website?.trim() ? (
+            <p className="text-muted-foreground">No facility details on file.</p>
+          ) : null}
+        </div>
+      </CollapsibleModalCard>
+
+      <CollapsibleModalCard
+        title="Contact info"
+        summary={contactSummary({
+          emails,
+          phones,
+          contacts,
+        })}
+      >
+        <div className="space-y-3">
+          {phones.length > 0 ? (
+            <div>
+              <p className="font-medium">Phone numbers</p>
+              {phones.map((phone) => (
+                <a key={phone} href={`tel:${phone}`} className="block text-primary hover:underline">
+                  {phone}
+                </a>
+              ))}
+            </div>
+          ) : null}
+          {emails.length > 0 ? (
+            <div>
+              <p className="font-medium">Email addresses</p>
+              {emails.map((email) => (
+                <a
+                  key={email}
+                  href={`mailto:${email}`}
+                  className="block text-primary hover:underline break-all"
+                >
+                  {email}
+                </a>
+              ))}
+            </div>
+          ) : null}
+          <div className="space-y-3">
+            <p className="font-medium">{isGcaa ? "Points of contact" : "People"}</p>
+            {contacts.length === 0 ? (
+              <p className="text-muted-foreground">No contacts on file.</p>
+            ) : (
+              contacts.map((contact) => (
+                <div key={contact.id} className="rounded-lg border bg-muted/30 p-3 space-y-1.5">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="font-medium">{contact.name?.trim() || "Unnamed contact"}</p>
+                    {contact.is_primary && contacts.length > 1 ? (
+                      <Badge variant="secondary" className="text-xs font-normal">
+                        Primary
+                      </Badge>
+                    ) : null}
+                  </div>
+                  {contact.title?.trim() && (
+                    <p className="text-muted-foreground">{contact.title.trim()}</p>
+                  )}
+                  {contact.email?.trim() && (
+                    <a
+                      href={`mailto:${contact.email}`}
+                      className="block text-primary hover:underline break-all"
+                    >
+                      {contact.email.trim()}
+                    </a>
+                  )}
+                  {contact.phone?.trim() && (
+                    <a href={`tel:${contact.phone}`} className="block text-primary hover:underline">
+                      {contact.phone.trim()}
+                    </a>
+                  )}
+                  {contact.notes?.trim() && (
+                    <p className="text-muted-foreground whitespace-pre-wrap pt-1">
+                      {contact.notes.trim()}
+                    </p>
+                  )}
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      </CollapsibleModalCard>
+
+      <CollapsibleModalCard title="Notes" summary={notesSummary(partner.notes)}>
+        {partner.notes?.trim() ? (
+          <p className="text-muted-foreground whitespace-pre-wrap">{partner.notes.trim()}</p>
+        ) : (
+          <p className="text-muted-foreground">No notes on file.</p>
         )}
-      </div>
+      </CollapsibleModalCard>
 
       <Button type="button" variant="outline" className="w-full" onClick={onEdit}>
         <Pencil className="mr-2 h-4 w-4" />
@@ -635,7 +714,7 @@ export function CommunityPartnersManager({ partners: initial }: CommunityPartner
       />
 
       <Dialog open={viewingPartner != null} onOpenChange={(open) => !open && setViewingPartner(null)}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
           {viewingPartner && (
             <>
               <DialogHeader>
@@ -655,7 +734,7 @@ export function CommunityPartnersManager({ partners: initial }: CommunityPartner
       </Dialog>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
               {isGcaaForm
@@ -666,17 +745,25 @@ export function CommunityPartnersManager({ partners: initial }: CommunityPartner
                   ? "Edit partner"
                   : "Add partner"}
             </DialogTitle>
+            <DialogDescription>
+              {isGcaaForm
+                ? "Keep apartment community details, contact info, and notes in one place."
+                : "Keep facility details, contact info, and notes grouped so the record is easy to scan."}
+            </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label>{isGcaaForm ? "Apartment community name" : "Organization name"}</Label>
+          <div key={editing?.id ?? "new"} className="space-y-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="partner-name">
+                {isGcaaForm ? "Apartment community name" : "Organization name"}
+              </Label>
               <Input
+                id="partner-name"
                 value={form.name}
                 onChange={(event) => setForm({ ...form, name: event.target.value })}
               />
             </div>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-1.5">
                 <Label>Organization type</Label>
                 <Select
                   value={form.organization_type}
@@ -699,7 +786,7 @@ export function CommunityPartnersManager({ partners: initial }: CommunityPartner
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 <Label>Is active</Label>
                 <Select
                   value={form.is_active ? "yes" : "no"}
@@ -716,7 +803,7 @@ export function CommunityPartnersManager({ partners: initial }: CommunityPartner
               </div>
             </div>
             {!isGcaaForm ? (
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 <Label>Partnership status</Label>
                 <Select
                   value={form.partnership_status}
@@ -740,103 +827,126 @@ export function CommunityPartnersManager({ partners: initial }: CommunityPartner
                 </Select>
               </div>
             ) : null}
-            <div className="space-y-2">
-              <Label>Website</Label>
-              <Input
-                value={form.website}
-                onChange={(event) => setForm({ ...form, website: event.target.value })}
-                placeholder="https://"
-              />
-            </div>
-            <AddressAutocomplete
-              label="Address"
-              defaultValue={form.address}
-              onAddressChange={(address) => setForm({ ...form, address })}
-              onSelect={(parts) =>
-                setForm({
-                  ...form,
-                  address: parts.address,
-                  city: parts.city,
-                  state: parts.state,
-                  zip: parts.zip,
-                })
-              }
-            />
-            <div className="grid gap-4 sm:grid-cols-3">
-              <div className="space-y-2">
-                <Label>City</Label>
-                <Input
-                  value={form.city}
-                  onChange={(event) => setForm({ ...form, city: event.target.value })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>State</Label>
-                <Input
-                  value={form.state}
-                  onChange={(event) => setForm({ ...form, state: event.target.value })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>ZIP</Label>
-                <Input
-                  value={form.zip}
-                  onChange={(event) => setForm({ ...form, zip: event.target.value })}
-                />
-              </div>
-            </div>
-            <PartnerValueList
-              label={isGcaaForm ? "Email addresses" : "Organization emails"}
-              values={form.emails}
-              onChange={(emails) => setForm({ ...form, emails })}
-              type="email"
-              placeholder="name@example.com"
-              addLabel="Add email"
-            />
-            <PartnerValueList
-              label={isGcaaForm ? "Phone numbers" : "Organization phones"}
-              values={form.phones}
-              onChange={(phones) => setForm({ ...form, phones })}
-              type="tel"
-              placeholder="(704) 555-0100"
-              addLabel="Add phone"
-            />
 
-            <PartnerContactsEditor
-              contacts={form.contacts}
-              onChange={(contacts) => setForm({ ...form, contacts })}
-              title={isGcaaForm ? "Points of contact" : "Contacts"}
+            <CollapsibleModalCard title="Facility" summary={facilitySummary(form)}>
+              <div className="space-y-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="partner-website">Website</Label>
+                  <Input
+                    id="partner-website"
+                    value={form.website}
+                    onChange={(event) => setForm({ ...form, website: event.target.value })}
+                    placeholder="https://"
+                  />
+                </div>
+                <AddressAutocomplete
+                  label="Address"
+                  defaultValue={form.address}
+                  onAddressChange={(address) => setForm({ ...form, address })}
+                  onSelect={(parts) =>
+                    setForm({
+                      ...form,
+                      address: parts.address,
+                      city: parts.city,
+                      state: parts.state,
+                      zip: parts.zip,
+                    })
+                  }
+                />
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <div className="space-y-1.5">
+                    <Label>City</Label>
+                    <Input
+                      value={form.city}
+                      onChange={(event) => setForm({ ...form, city: event.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>State</Label>
+                    <Input
+                      value={form.state}
+                      onChange={(event) => setForm({ ...form, state: event.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>ZIP</Label>
+                    <Input
+                      value={form.zip}
+                      onChange={(event) => setForm({ ...form, zip: event.target.value })}
+                    />
+                  </div>
+                </div>
+              </div>
+            </CollapsibleModalCard>
+
+            <CollapsibleModalCard
+              title="Contact info"
+              summary={contactSummary(form)}
               description={
                 isGcaaForm
-                  ? "Add property managers, leasing staff, or other people at this apartment community."
-                  : "Add as many people as you need. Mark one as primary for quick reference in the table and exports."
+                  ? "Apartment community emails, phones, and points of contact."
+                  : "Organization emails, phones, and people at this partner."
               }
-              addLabel={isGcaaForm ? "Add point of contact" : "Add contact"}
-            />
-
-            <div className="space-y-2">
-              <Label>{isGcaaForm ? "Notes" : "Organization notes"}</Label>
-              <Textarea
-                value={form.notes}
-                onChange={(event) => setForm({ ...form, notes: event.target.value })}
-                placeholder={
-                  isGcaaForm
-                    ? "Gate codes, colony history, or how this community works with TNVR…"
-                    : "Partnership history, preferences, how you work together…"
-                }
-                rows={4}
+            >
+              <PartnerValueList
+                label="Email addresses"
+                values={form.emails}
+                onChange={(emails) => setForm({ ...form, emails })}
+                type="email"
+                placeholder="name@example.com"
+                addLabel="Add email"
               />
-            </div>
+              <PartnerValueList
+                label="Phone numbers"
+                values={form.phones}
+                onChange={(phones) => setForm({ ...form, phones })}
+                type="tel"
+                placeholder="(704) 555-0100"
+                addLabel="Add phone"
+              />
+              <div className="border-t pt-3">
+                <PartnerContactsEditor
+                  contacts={form.contacts}
+                  onChange={(contacts) => setForm({ ...form, contacts })}
+                  title={isGcaaForm ? "Points of contact" : "People"}
+                  addLabel={isGcaaForm ? "Add point of contact" : "Add person"}
+                  embedded
+                />
+              </div>
+            </CollapsibleModalCard>
+
+            <CollapsibleModalCard title="Notes" summary={notesSummary(form.notes)}>
+              <div className="space-y-1.5">
+                <Label htmlFor="partner-notes">Notes</Label>
+                <Textarea
+                  id="partner-notes"
+                  value={form.notes}
+                  onChange={(event) => setForm({ ...form, notes: event.target.value })}
+                  placeholder={
+                    isGcaaForm
+                      ? "Gate codes, colony history, or how this community works with TNVR…"
+                      : "Partnership history, preferences, how you work together…"
+                  }
+                  rows={4}
+                />
+              </div>
+            </CollapsibleModalCard>
+
             {saveError && <p className="text-sm text-destructive">{saveError}</p>}
-            <Button onClick={save} className="w-full" disabled={saving}>
-              {saving
-                ? "Saving..."
-                : editing
-                  ? "Save changes"
-                  : isGcaaForm
-                    ? "Add apartment community"
-                    : "Add partner"}
-            </Button>
+            <div className="flex justify-end gap-2 border-t pt-4">
+              <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={save} disabled={saving || !form.name.trim()}>
+                {saving
+                  ? "Saving..."
+                  : editing
+                    ? "Save changes"
+                    : isGcaaForm
+                      ? "Add apartment community"
+                      : "Add partner"}
+              </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>

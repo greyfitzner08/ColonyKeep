@@ -17,14 +17,16 @@ interface PartnerContactsEditorProps {
   title?: string;
   description?: string;
   addLabel?: string;
+  embedded?: boolean;
 }
 
 export function PartnerContactsEditor({
   contacts,
   onChange,
-  title = "Contacts",
+  title = "People",
   description = "Add as many people as you need. Mark one as primary for quick reference in the table and exports.",
   addLabel = "Add contact",
+  embedded = false,
 }: PartnerContactsEditorProps) {
   function updateContact(index: number, patch: Partial<PartnerContactInput>) {
     onChange(contacts.map((contact, contactIndex) => (contactIndex === index ? { ...contact, ...patch } : contact)));
@@ -51,7 +53,7 @@ export function PartnerContactsEditor({
           {addLabel}
         </Button>
       </div>
-      <p className="text-xs text-muted-foreground">{description}</p>
+      {embedded ? null : <p className="text-xs text-muted-foreground">{description}</p>}
 
       {contacts.map((contact, index) => (
         <div key={contact.id ?? `new-${index}`} className="rounded-lg border bg-muted/30 p-4 space-y-4">
