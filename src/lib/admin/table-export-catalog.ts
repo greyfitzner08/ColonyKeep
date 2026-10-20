@@ -208,6 +208,7 @@ export const EXPORTABLE_TABLES: ExportableTable[] = [
       { id: "address", label: "address" },
       { id: "phone", label: "phone" },
       { id: "operating_days", label: "operating days" },
+      { id: "hours_by_day", label: "hours by day" },
       { id: "slots_per_day", label: "slots per day" },
       { id: "slots_by_day", label: "slots by day" },
       { id: "included_services", label: "included services" },

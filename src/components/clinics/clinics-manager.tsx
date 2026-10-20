@@ -16,11 +16,21 @@ import {
 } from "@/components/ui/dialog";
 import { ClinicPartnersTable } from "@/components/clinics/clinic-partners-table";
 import { ClinicPackagesEditor } from "@/components/clinics/clinic-packages-editor";
+import { ClinicHoursEditor, initialSameHours } from "@/components/clinics/clinic-hours-editor";
 import { ServiceCatalogEditor } from "@/components/clinics/service-catalog-editor";
 import {
   AddressAutocomplete,
   formatAddressPartsLine,
 } from "@/components/forms/address-autocomplete";
+import {
+  CLINIC_WEEKDAYS,
+  applySameClinicHours,
+  normalizeClinicHours,
+  orderedClinicDays,
+  pruneClinicHours,
+  sharedClinicHours,
+  type ClinicHoursByDay,
+} from "@/lib/clinics/hours";
 import {
   hasVisibleClinicPackages,
   normalizeServiceCatalog,
@@ -29,8 +39,6 @@ import { APPOINTMENTS_UI_ENABLED } from "@/lib/features";
 import type { Clinic, ClinicPackage, ClinicServiceOption } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { ChevronDown, ChevronRight, Plus } from "lucide-react";
-
-const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
 interface ClinicsManagerProps {
   clinics: Clinic[];
@@ -106,6 +114,7 @@ const emptyClinic = {
   address: "",
   phone: "",
   operating_days: [] as string[],
+  hours_by_day: {} as ClinicHoursByDay,
   slots_per_day: 10,
   slots_by_day: {} as Record<string, number>,
   service_catalog: [] as ClinicServiceOption[],
@@ -120,12 +129,14 @@ export function ClinicsManager({ clinics: initial }: ClinicsManagerProps) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Clinic | null>(null);
   const [form, setForm] = useState(emptyClinic);
+  const [sameHours, setSameHours] = useState(true);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   function openNew() {
     setEditing(null);
     setForm(emptyClinic);
+    setSameHours(true);
     setSaveError(null);
     setDialogOpen(true);
   }
@@ -136,7 +147,8 @@ export function ClinicsManager({ clinics: initial }: ClinicsManagerProps) {
       name: clinic.name,
       address: clinic.address,
       phone: clinic.phone,
-      operating_days: clinic.operating_days,
+      operating_days: orderedClinicDays(clinic.operating_days),
+      hours_by_day: normalizeClinicHours(clinic.hours_by_day),
       slots_per_day: clinic.slots_per_day,
       slots_by_day: clinic.slots_by_day,
       service_catalog: normalizeServiceCatalog(
@@ -149,6 +161,7 @@ export function ClinicsManager({ clinics: initial }: ClinicsManagerProps) {
       notes: clinic.notes ?? "",
       is_active: clinic.is_active,
     });
+    setSameHours(initialSameHours(clinic.operating_days, normalizeClinicHours(clinic.hours_by_day)));
     setSaveError(null);
     setDialogOpen(true);
   }
@@ -179,11 +192,20 @@ export function ClinicsManager({ clinics: initial }: ClinicsManagerProps) {
   }
 
   function toggleDay(day: string) {
+    const operating_days = orderedClinicDays(
+      form.operating_days.includes(day)
+        ? form.operating_days.filter((d) => d !== day)
+        : [...form.operating_days, day]
+    );
+    let hours_by_day = pruneClinicHours(operating_days, form.hours_by_day);
+    if (sameHours) {
+      const shared = sharedClinicHours(form.operating_days, form.hours_by_day);
+      hours_by_day = applySameClinicHours(operating_days, shared.open, shared.close);
+    }
     setForm({
       ...form,
-      operating_days: form.operating_days.includes(day)
-        ? form.operating_days.filter((d) => d !== day)
-        : [...form.operating_days, day],
+      operating_days,
+      hours_by_day,
     });
   }
 
@@ -250,11 +272,11 @@ export function ClinicsManager({ clinics: initial }: ClinicsManagerProps) {
             </CollapsibleModalCard>
 
             <ModalSection
-              title="Days open"
-              description="Which days this partner typically operates."
+              title="Days and hours"
+              description="Which days this partner typically operates, and the hours for those days."
             >
               <div className="flex flex-wrap gap-2">
-                {DAYS.map((day) => (
+                {CLINIC_WEEKDAYS.map((day) => (
                   <Button
                     key={day}
                     type="button"
@@ -266,6 +288,13 @@ export function ClinicsManager({ clinics: initial }: ClinicsManagerProps) {
                   </Button>
                 ))}
               </div>
+              <ClinicHoursEditor
+                days={form.operating_days}
+                hours={form.hours_by_day}
+                sameHours={sameHours}
+                onSameHoursChange={setSameHours}
+                onHoursChange={(hours_by_day) => setForm({ ...form, hours_by_day })}
+              />
               {APPOINTMENTS_UI_ENABLED ? (
                 <div className="max-w-[12rem] space-y-1.5 pt-1">
                   <Label htmlFor="clinic-slots">Slots per day</Label>

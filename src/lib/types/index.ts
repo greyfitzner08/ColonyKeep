@@ -274,6 +274,7 @@ export interface Clinic {
   address: string;
   phone: string;
   operating_days: string[];
+  hours_by_day?: Record<string, { open: string; close: string }>;
   slots_per_day: number;
   slots_by_day: Record<string, number>;
   included_services: string[];

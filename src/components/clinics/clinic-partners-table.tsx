@@ -20,6 +20,10 @@ import {
   hasVisibleClinicPackages,
   normalizeServiceCatalog,
 } from "@/lib/clinics/service-catalog";
+import {
+  formatClinicHoursSummary,
+  normalizeClinicHours,
+} from "@/lib/clinics/hours";
 import { APPOINTMENTS_UI_ENABLED } from "@/lib/features";
 import type { Clinic } from "@/lib/types";
 import { formatCurrency } from "@/lib/utils";
@@ -49,6 +53,16 @@ function matchesSearch(clinic: Clinic, query: string): boolean {
 function formatOperatingDays(days: string[]): string {
   if (days.length === 0) return "—";
   return days.map((day) => day.slice(0, 3)).join(", ");
+}
+
+function clinicScheduleLines(clinic: Clinic): { days: string; hours: string } {
+  return {
+    days: formatOperatingDays(clinic.operating_days),
+    hours: formatClinicHoursSummary(
+      clinic.operating_days,
+      normalizeClinicHours(clinic.hours_by_day)
+    ),
+  };
 }
 
 function PackagesSummary({ clinic }: { clinic: Clinic }) {
@@ -138,14 +152,20 @@ export function ClinicPartnersTable({ clinics, onEdit }: ClinicPartnersTableProp
         label: "Schedule",
         defaultWidth: 140,
         wrap: true,
-        render: (clinic) => (
-          <div className="text-sm">
-            <p>{formatOperatingDays(clinic.operating_days)}</p>
-            {APPOINTMENTS_UI_ENABLED ? (
-              <p className="text-muted-foreground">{clinic.slots_per_day} slots/day</p>
-            ) : null}
-          </div>
-        ),
+        render: (clinic) => {
+          const schedule = clinicScheduleLines(clinic);
+          return (
+            <div className="text-sm">
+              <p>{schedule.days}</p>
+              {schedule.hours ? (
+                <p className="text-muted-foreground">{schedule.hours}</p>
+              ) : null}
+              {APPOINTMENTS_UI_ENABLED ? (
+                <p className="text-muted-foreground">{clinic.slots_per_day} slots/day</p>
+              ) : null}
+            </div>
+          );
+        },
       },
       {
         id: "packages",
@@ -256,6 +276,12 @@ export function ClinicPartnersTable({ clinics, onEdit }: ClinicPartnersTableProp
                     <span className="font-medium">Days open:</span>{" "}
                     {viewingClinic.operating_days.join(", ") || "Not set"}
                   </p>
+                  {clinicScheduleLines(viewingClinic).hours ? (
+                    <p>
+                      <span className="font-medium">Hours:</span>{" "}
+                      {clinicScheduleLines(viewingClinic).hours}
+                    </p>
+                  ) : null}
                   {APPOINTMENTS_UI_ENABLED ? (
                     <p>
                       <span className="font-medium">Slots per day:</span>{" "}
