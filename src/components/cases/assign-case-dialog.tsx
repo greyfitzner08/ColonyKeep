@@ -157,17 +157,14 @@ export function AssignCaseDialog({
                           type="button"
                           disabled={saving}
                           onClick={() => setAssigneeId(person.id)}
-                          className={`flex w-full flex-col items-start px-3 py-2 text-left text-sm hover:bg-accent ${
+                          className={`flex w-full items-center px-3 py-2 text-left text-sm hover:bg-accent ${
                             selected ? "bg-accent" : ""
                           }`}
                         >
-                          <span>
-                            {caseAssigneeDisplayName(person)}
-                            {preferredTeamId && person.team_id === preferredTeamId
-                              ? " · case team"
-                              : ""}
-                          </span>
-                          <span className="text-xs text-muted-foreground">{person.email}</span>
+                          {caseAssigneeDisplayName(person)}
+                          {preferredTeamId && person.team_id === preferredTeamId
+                            ? " · case team"
+                            : ""}
                         </button>
                       );
                     })
