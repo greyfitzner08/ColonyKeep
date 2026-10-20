@@ -12,9 +12,10 @@ import {
   hotspotColonyMarkerColor,
 } from "@/lib/cases/status-marker-colors";
 import { getStatusLabel, isHotspotColonyStatus } from "@/lib/cases/statuses";
-import { VOLUNTEER_ROLES } from "@/lib/constants";
 import {
+  HOTSPOT_VOLUNTEER_ROLES,
   filterHotspotVolunteersByRole,
+  hotspotVolunteerRoles,
   volunteerRoleLabel,
   type HotspotMapVolunteer,
 } from "@/lib/hotspots/volunteer-role-filter";
@@ -75,6 +76,41 @@ function colonyAddress(hr: HelpRequest): string {
       hr.colony_zip,
       hr.colony_county,
     ]) ?? "Address not available"
+  );
+}
+
+function VolunteerMarkerPopup({ volunteer }: { volunteer: HotspotMapVolunteer }) {
+  const visibleRoles = hotspotVolunteerRoles(volunteer.volunteer_roles);
+
+  return (
+    <div className="space-y-1.5 text-sm max-w-[min(280px,70vw)] w-full">
+      <p className="font-semibold">{volunteer.full_name ?? "Team member"}</p>
+      {visibleRoles.length > 0 ? (
+        <div className="flex flex-wrap gap-1">
+          {visibleRoles.map((role) => (
+            <Badge key={role} variant="secondary" className="text-xs font-normal">
+              {volunteerRoleLabel(role)}
+            </Badge>
+          ))}
+        </div>
+      ) : (
+        volunteer.role && (
+          <p className="text-xs uppercase tracking-wide text-muted-foreground">
+            {volunteer.role.replace(/_/g, " ")}
+          </p>
+        )
+      )}
+      <p className="text-muted-foreground">{volunteer.email}</p>
+      {volunteer.phone && (
+        <p>
+          <span className="text-muted-foreground">Phone:</span>{" "}
+          <a href={`tel:${volunteer.phone}`} className="text-primary hover:underline">
+            {volunteer.phone}
+          </a>
+        </p>
+      )}
+      {volunteer.address && <p className="text-muted-foreground">{volunteer.address}</p>}
+    </div>
   );
 }
 
@@ -284,7 +320,7 @@ export function HotspotsMap({
                 other volunteers. Leave all unchecked to show everyone who opted in.
               </p>
               <div className="grid max-h-48 gap-2 overflow-y-auto pr-1 sm:grid-cols-2 lg:grid-cols-3">
-                {VOLUNTEER_ROLES.map((role) => (
+                {HOTSPOT_VOLUNTEER_ROLES.map((role) => (
                   <label
                     key={role.value}
                     htmlFor={`hotspot-role-${role.value}`}
@@ -365,36 +401,7 @@ export function HotspotsMap({
                 }}
               >
                 <Popup>
-                  <div className="space-y-1.5 text-sm max-w-[min(280px,70vw)] w-full">
-                    <p className="font-semibold">{volunteer.full_name ?? "Team member"}</p>
-                    {volunteer.volunteer_roles.length > 0 ? (
-                      <div className="flex flex-wrap gap-1">
-                        {volunteer.volunteer_roles.map((role) => (
-                          <Badge key={role} variant="secondary" className="text-xs font-normal">
-                            {volunteerRoleLabel(role)}
-                          </Badge>
-                        ))}
-                      </div>
-                    ) : (
-                      volunteer.role && (
-                        <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                          {volunteer.role.replace(/_/g, " ")}
-                        </p>
-                      )
-                    )}
-                    <p className="text-muted-foreground">{volunteer.email}</p>
-                    {volunteer.phone && (
-                      <p>
-                        <span className="text-muted-foreground">Phone:</span>{" "}
-                        <a href={`tel:${volunteer.phone}`} className="text-primary hover:underline">
-                          {volunteer.phone}
-                        </a>
-                      </p>
-                    )}
-                    {volunteer.address && (
-                      <p className="text-muted-foreground">{volunteer.address}</p>
-                    )}
-                  </div>
+                  <VolunteerMarkerPopup volunteer={volunteer} />
                 </Popup>
               </CircleMarker>
             ))}
