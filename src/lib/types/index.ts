@@ -604,6 +604,8 @@ export type CommunityPartnerStatus =
   | "past"
   | "do_not_contact";
 
+export type GcaaMemberStatus = "active" | "pending" | "expired" | "no";
+
 export interface CommunityPartnerContact {
   id: string;
   partner_id: string;
@@ -633,6 +635,7 @@ export interface CommunityPartner {
   phones?: string[];
   notes: string | null;
   partnership_status: CommunityPartnerStatus;
+  gcaa_member_status?: GcaaMemberStatus | null;
   is_active: boolean;
   created_at: string;
   updated_at: string;

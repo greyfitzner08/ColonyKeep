@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireCommunityPartnerManager } from "@/lib/api/auth";
-import { isGcaaPartner } from "@/lib/community-partners/constants";
+import {
+  gcaaMemberIsActive,
+  gcaaPartnershipStatus,
+  isGcaaPartner,
+  parseGcaaMemberStatus,
+} from "@/lib/community-partners/constants";
 import {
   normalizeContactInputs,
   normalizePartnerEmails,
@@ -20,7 +25,12 @@ export async function POST(request: NextRequest) {
   const phones = normalizePartnerPhones(body.phones ?? body.phone);
   const organizationType = body.organization_type ?? "other";
   const isGcaa = isGcaaPartner(organizationType);
-  const isActive = body.is_active ?? true;
+  const memberStatus = isGcaa ? parseGcaaMemberStatus(body.gcaa_member_status) : null;
+  const isActive = isGcaa
+    ? memberStatus
+      ? gcaaMemberIsActive(memberStatus)
+      : true
+    : Boolean(body.is_active ?? true);
 
   const payload = {
     name: String(body.name ?? "").trim(),
@@ -36,10 +46,9 @@ export async function POST(request: NextRequest) {
     email: emails[0] ?? null,
     notes: body.notes?.trim() || null,
     partnership_status: isGcaa
-      ? isActive
-        ? "active"
-        : "past"
+      ? gcaaPartnershipStatus(memberStatus ?? "active")
       : (body.partnership_status ?? "active"),
+    gcaa_member_status: memberStatus,
     is_active: isActive,
   };
 

@@ -259,6 +259,7 @@ export const EXPORTABLE_TABLES: ExportableTable[] = [
       { id: "emails", label: "emails" },
       { id: "notes", label: "notes" },
       { id: "partnership_status", label: "partnership status" },
+      { id: "gcaa_member_status", label: "gcaa member status" },
       { id: "is_active", label: "is active" },
       { id: "created_at", label: "created at" },
       { id: "updated_at", label: "updated at" },

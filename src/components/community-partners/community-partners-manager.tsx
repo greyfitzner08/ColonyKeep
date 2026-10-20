@@ -42,10 +42,15 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   COMMUNITY_PARTNER_ORGANIZATION_TYPES,
   COMMUNITY_PARTNER_STATUSES,
+  GCAA_MEMBER_STATUSES,
+  gcaaMemberBadgeVariant,
+  gcaaMemberIsActive,
+  gcaaMemberStatusLabel,
   isGcaaPartner,
   organizationTypeLabel,
   partnershipStatusLabel,
   partnerWebsiteHref,
+  resolvedGcaaMemberStatus,
 } from "@/lib/community-partners/constants";
 import {
   contactsFromPartner,
@@ -66,6 +71,7 @@ import type {
   CommunityPartner,
   CommunityPartnerOrganizationType,
   CommunityPartnerStatus,
+  GcaaMemberStatus,
 } from "@/lib/types";
 
 interface CommunityPartnersManagerProps {
@@ -84,6 +90,7 @@ type PartnerForm = {
   phones: string[];
   notes: string;
   partnership_status: CommunityPartnerStatus;
+  gcaa_member_status: GcaaMemberStatus;
   is_active: boolean;
   contacts: PartnerContactInput[];
 };
@@ -102,6 +109,7 @@ const emptyPartner = (
   phones: [""],
   notes: "",
   partnership_status: "active",
+  gcaa_member_status: "active",
   is_active: true,
   contacts: [emptyPartnerContactInput()],
 });
@@ -120,6 +128,9 @@ function matchesSearch(partner: CommunityPartner, query: string): boolean {
     partner.organization_type,
     organizationTypeLabel(partner.organization_type),
     partnershipStatusLabel(partner.partnership_status),
+    isGcaaPartner(partner.organization_type)
+      ? gcaaMemberStatusLabel(resolvedGcaaMemberStatus(partner))
+      : "",
     partner.website,
     partner.address,
     partner.city,
@@ -154,7 +165,12 @@ function uniquePartnerEmails(partners: CommunityPartner[]): string[] {
   }
 
   for (const partner of partners) {
-    if (partner.partnership_status === "do_not_contact" || !partner.is_active) continue;
+    if (partner.partnership_status === "do_not_contact") continue;
+    if (isGcaaPartner(partner.organization_type)) {
+      if (!gcaaMemberIsActive(resolvedGcaaMemberStatus(partner))) continue;
+    } else if (!partner.is_active) {
+      continue;
+    }
     for (const email of partnerEmailList(partner)) add(email);
     for (const contact of partner.contacts ?? []) {
       add(contact.email);
@@ -252,8 +268,8 @@ function PartnerDetailView({
     <div className="space-y-3 text-sm">
       <div className="flex flex-wrap items-center gap-2">
         {isGcaa ? (
-          <Badge variant={partner.is_active ? "default" : "secondary"}>
-            {partner.is_active ? "Active" : "Inactive"}
+          <Badge variant={gcaaMemberBadgeVariant(resolvedGcaaMemberStatus(partner))}>
+            {gcaaMemberStatusLabel(resolvedGcaaMemberStatus(partner))}
           </Badge>
         ) : (
           <Badge
@@ -451,6 +467,7 @@ export function CommunityPartnersManager({ partners: initial }: CommunityPartner
       phones: formListFromValues(partner.phones, partner.phone),
       notes: partner.notes ?? "",
       partnership_status: partner.partnership_status,
+      gcaa_member_status: resolvedGcaaMemberStatus(partner),
       is_active: partner.is_active,
       contacts: contactsFromPartner(partner),
     });
@@ -589,13 +606,14 @@ export function CommunityPartnersManager({ partners: initial }: CommunityPartner
       },
       {
         id: "status",
-        label: "Status",
+        label: typeFilter === "gcaa" ? "Member status" : "Status",
         defaultWidth: 120,
         render: (partner) => {
           if (isGcaaPartner(partner.organization_type)) {
+            const status = resolvedGcaaMemberStatus(partner);
             return (
-              <Badge variant={partner.is_active ? "default" : "secondary"}>
-                {partner.is_active ? "Active" : "Inactive"}
+              <Badge variant={gcaaMemberBadgeVariant(status)}>
+                {gcaaMemberStatusLabel(status)}
               </Badge>
             );
           }
@@ -767,12 +785,16 @@ export function CommunityPartnersManager({ partners: initial }: CommunityPartner
                 <Label>Organization type</Label>
                 <Select
                   value={form.organization_type}
-                  onValueChange={(value) =>
+                  onValueChange={(value) => {
+                    const organizationType = value as CommunityPartnerOrganizationType;
                     setForm({
                       ...form,
-                      organization_type: value as CommunityPartnerOrganizationType,
-                    })
-                  }
+                      organization_type: organizationType,
+                      is_active: isGcaaPartner(organizationType)
+                        ? gcaaMemberIsActive(form.gcaa_member_status)
+                        : form.is_active,
+                    });
+                  }}
                 >
                   <SelectTrigger>
                     <SelectValue />
@@ -786,21 +808,48 @@ export function CommunityPartnersManager({ partners: initial }: CommunityPartner
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-1.5">
-                <Label>Is active</Label>
-                <Select
-                  value={form.is_active ? "yes" : "no"}
-                  onValueChange={(value) => setForm({ ...form, is_active: value === "yes" })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="yes">Yes</SelectItem>
-                    <SelectItem value="no">No</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+              {isGcaaForm ? (
+                <div className="space-y-1.5">
+                  <Label>Member status</Label>
+                  <Select
+                    value={form.gcaa_member_status}
+                    onValueChange={(value) =>
+                      setForm({
+                        ...form,
+                        gcaa_member_status: value as GcaaMemberStatus,
+                        is_active: gcaaMemberIsActive(value as GcaaMemberStatus),
+                      })
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {GCAA_MEMBER_STATUSES.map((entry) => (
+                        <SelectItem key={entry.value} value={entry.value}>
+                          {entry.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              ) : (
+                <div className="space-y-1.5">
+                  <Label>Is active</Label>
+                  <Select
+                    value={form.is_active ? "yes" : "no"}
+                    onValueChange={(value) => setForm({ ...form, is_active: value === "yes" })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="yes">Yes</SelectItem>
+                      <SelectItem value="no">No</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
             </div>
             {!isGcaaForm ? (
               <div className="space-y-1.5">

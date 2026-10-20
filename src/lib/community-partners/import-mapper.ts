@@ -1,4 +1,8 @@
 import {
+  gcaaMemberIsActive,
+  gcaaPartnershipStatus,
+  isGcaaPartner,
+  parseGcaaMemberStatus,
   parseOrganizationType,
   parsePartnershipStatus,
 } from "@/lib/community-partners/constants";
@@ -7,7 +11,11 @@ import {
   normalizePartnerPhones,
 } from "@/lib/community-partners/contacts";
 import { COMMUNITY_PARTNER_EXPORT_HEADERS } from "@/lib/community-partners/export-csv";
-import type { CommunityPartnerOrganizationType, CommunityPartnerStatus } from "@/lib/types";
+import type {
+  CommunityPartnerOrganizationType,
+  CommunityPartnerStatus,
+  GcaaMemberStatus,
+} from "@/lib/types";
 
 export const COMMUNITY_PARTNER_IMPORT_HEADERS = COMMUNITY_PARTNER_EXPORT_HEADERS;
 
@@ -24,6 +32,9 @@ const HEADER_ALIASES: Record<string, string> = {
   category: "organization_type",
   partnership_status: "partnership_status",
   status: "partnership_status",
+  member_status: "gcaa_member_status",
+  membership_status: "gcaa_member_status",
+  gcaa_member_status: "gcaa_member_status",
   website: "website",
   url: "website",
   address: "address",
@@ -107,6 +118,7 @@ export type CommunityPartnerImportPayload = {
     phones: string[];
     notes: string | null;
     is_active: boolean;
+    gcaa_member_status: GcaaMemberStatus | null;
   };
   contact: {
     name: string | null;
@@ -131,6 +143,14 @@ export function mapCommunityPartnerImportRow(raw: Record<string, unknown>): {
 
   const emails = normalizePartnerEmails(row.emails);
   const phones = normalizePartnerPhones(row.phones);
+  const organizationType = parseOrganizationType(row.organization_type);
+  const isGcaa = isGcaaPartner(organizationType);
+  const memberStatus = isGcaa
+    ? parseGcaaMemberStatus(
+        row.gcaa_member_status ?? row.partnership_status ?? row.is_active,
+        parseBoolean(row.is_active, true) ? "active" : "no"
+      )
+    : null;
 
   const contact =
     row.contact_name || row.contact_email || row.contact_phone || row.contact_title
@@ -148,8 +168,10 @@ export function mapCommunityPartnerImportRow(raw: Record<string, unknown>): {
     record: {
       partner: {
         name,
-        organization_type: parseOrganizationType(row.organization_type),
-        partnership_status: parsePartnershipStatus(row.partnership_status),
+        organization_type: organizationType,
+        partnership_status: isGcaa
+          ? gcaaPartnershipStatus(memberStatus ?? "active")
+          : parsePartnershipStatus(row.partnership_status),
         website: row.website ?? null,
         address: row.address ?? null,
         city: row.city ?? null,
@@ -160,7 +182,8 @@ export function mapCommunityPartnerImportRow(raw: Record<string, unknown>): {
         phone: phones[0] ?? null,
         email: emails[0] ?? null,
         notes: row.notes ?? null,
-        is_active: parseBoolean(row.is_active),
+        is_active: isGcaa ? gcaaMemberIsActive(memberStatus ?? "active") : parseBoolean(row.is_active),
+        gcaa_member_status: memberStatus,
       },
       contact,
     },

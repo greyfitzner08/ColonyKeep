@@ -1,6 +1,9 @@
 import {
+  gcaaMemberStatusLabel,
+  isGcaaPartner,
   organizationTypeLabel,
   partnershipStatusLabel,
+  resolvedGcaaMemberStatus,
 } from "@/lib/community-partners/constants";
 import {
   partnerEmailList,
@@ -15,6 +18,7 @@ export const COMMUNITY_PARTNER_EXPORT_HEADERS = [
   "Organization Name",
   "Organization Type",
   "Partnership Status",
+  "Member Status",
   "Website",
   "Address",
   "City",
@@ -41,6 +45,9 @@ function partnerOrgCells(partner: CommunityPartner): string[] {
     partner.name,
     organizationTypeLabel(partner.organization_type),
     partnershipStatusLabel(partner.partnership_status),
+    isGcaaPartner(partner.organization_type)
+      ? gcaaMemberStatusLabel(resolvedGcaaMemberStatus(partner))
+      : "",
     partner.website ?? "",
     partner.address ?? "",
     partner.city ?? "",
