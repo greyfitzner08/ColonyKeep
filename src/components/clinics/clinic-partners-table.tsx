@@ -20,6 +20,7 @@ import {
   hasVisibleClinicPackages,
   normalizeServiceCatalog,
 } from "@/lib/clinics/service-catalog";
+import { clinicWebsiteHref, normalizeClinicEmails } from "@/lib/clinics/contact";
 import {
   formatClinicHoursSummary,
   normalizeClinicHours,
@@ -38,6 +39,8 @@ function matchesSearch(clinic: Clinic, query: string): boolean {
     clinic.name,
     clinic.address,
     clinic.phone,
+    ...(clinic.emails ?? []),
+    clinic.website,
     clinic.operating_days.join(" "),
     clinic.check_in_details,
     clinic.notes,
@@ -126,12 +129,19 @@ export function ClinicPartnersTable({ clinics, onEdit }: ClinicPartnersTableProp
         defaultWidth: 220,
         wrap: true,
         sortValue: (clinic) => clinic.name,
-        render: (clinic) => (
-          <div>
-            <p className="font-medium">{clinic.name}</p>
-            <p className="text-sm text-muted-foreground">{clinic.address || "—"}</p>
-          </div>
-        ),
+        render: (clinic) => {
+          const emails = normalizeClinicEmails(clinic.emails);
+          return (
+            <div>
+              <p className="font-medium">{clinic.name}</p>
+              <p className="text-sm text-muted-foreground">{clinic.address || "—"}</p>
+              {emails[0] ? <p className="text-sm text-muted-foreground">{emails[0]}</p> : null}
+              {clinic.website?.trim() ? (
+                <p className="text-sm text-muted-foreground">{clinic.website.trim()}</p>
+              ) : null}
+            </div>
+          );
+        },
       },
       {
         id: "phone",
@@ -265,10 +275,29 @@ export function ClinicPartnersTable({ clinics, onEdit }: ClinicPartnersTableProp
                 <div className="space-y-1">
                   <p className="text-muted-foreground">{viewingClinic.address || "No address on file"}</p>
                   {viewingClinic.phone && (
-                    <a href={`tel:${viewingClinic.phone}`} className="text-primary hover:underline">
+                    <a href={`tel:${viewingClinic.phone}`} className="block text-primary hover:underline">
                       {viewingClinic.phone}
                     </a>
                   )}
+                  {normalizeClinicEmails(viewingClinic.emails).map((email) => (
+                    <a
+                      key={email}
+                      href={`mailto:${email}`}
+                      className="block text-primary hover:underline"
+                    >
+                      {email}
+                    </a>
+                  ))}
+                  {viewingClinic.website?.trim() ? (
+                    <a
+                      href={clinicWebsiteHref(viewingClinic.website)}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="block text-primary hover:underline"
+                    >
+                      {viewingClinic.website.trim()}
+                    </a>
+                  ) : null}
                 </div>
 
                 <div>

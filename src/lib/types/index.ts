@@ -273,6 +273,8 @@ export interface Clinic {
   name: string;
   address: string;
   phone: string;
+  emails?: string[];
+  website?: string;
   operating_days: string[];
   hours_by_day?: Record<string, { open: string; close: string }>;
   slots_per_day: number;

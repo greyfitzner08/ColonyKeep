@@ -18,6 +18,7 @@ import { ClinicPartnersTable } from "@/components/clinics/clinic-partners-table"
 import { ClinicPackagesEditor } from "@/components/clinics/clinic-packages-editor";
 import { ClinicHoursEditor, initialSameHours } from "@/components/clinics/clinic-hours-editor";
 import { ServiceCatalogEditor } from "@/components/clinics/service-catalog-editor";
+import { normalizeClinicEmails, normalizeClinicWebsite } from "@/lib/clinics/contact";
 import {
   AddressAutocomplete,
   formatAddressPartsLine,
@@ -38,7 +39,7 @@ import {
 import { APPOINTMENTS_UI_ENABLED } from "@/lib/features";
 import type { Clinic, ClinicPackage, ClinicServiceOption } from "@/lib/types";
 import { cn } from "@/lib/utils";
-import { ChevronDown, ChevronRight, Plus } from "lucide-react";
+import { ChevronDown, ChevronRight, Plus, Trash2 } from "lucide-react";
 
 interface ClinicsManagerProps {
   clinics: Clinic[];
@@ -113,6 +114,8 @@ const emptyClinic = {
   name: "",
   address: "",
   phone: "",
+  emails: [""] as string[],
+  website: "",
   operating_days: [] as string[],
   hours_by_day: {} as ClinicHoursByDay,
   slots_per_day: 10,
@@ -147,6 +150,11 @@ export function ClinicsManager({ clinics: initial }: ClinicsManagerProps) {
       name: clinic.name,
       address: clinic.address,
       phone: clinic.phone,
+      emails: (() => {
+        const emails = normalizeClinicEmails(clinic.emails);
+        return emails.length > 0 ? emails : [""];
+      })(),
+      website: clinic.website ?? "",
       operating_days: orderedClinicDays(clinic.operating_days),
       hours_by_day: normalizeClinicHours(clinic.hours_by_day),
       slots_per_day: clinic.slots_per_day,
@@ -170,6 +178,8 @@ export function ClinicsManager({ clinics: initial }: ClinicsManagerProps) {
     const payload = {
       id: editing?.id,
       ...form,
+      emails: normalizeClinicEmails(form.emails),
+      website: normalizeClinicWebsite(form.website),
     };
 
     setSaveError(null);
@@ -245,7 +255,16 @@ export function ClinicsManager({ clinics: initial }: ClinicsManagerProps) {
 
             <CollapsibleModalCard
               title="Clinic details"
-              summary={[form.phone.trim(), form.address.trim()].filter(Boolean).join(" · ") || "Phone & address"}
+              summary={
+                [
+                  form.phone.trim(),
+                  normalizeClinicEmails(form.emails)[0],
+                  form.website.trim(),
+                  form.address.trim(),
+                ]
+                  .filter(Boolean)
+                  .join(" · ") || "Phone, email, website & address"
+              }
             >
               <div className="space-y-3">
                 <div className="space-y-1.5">
@@ -255,6 +274,57 @@ export function ClinicsManager({ clinics: initial }: ClinicsManagerProps) {
                     value={form.phone}
                     onChange={(e) => setForm({ ...form, phone: e.target.value })}
                     placeholder="Optional"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Email addresses</Label>
+                  {form.emails.map((email, index) => (
+                    <div key={`clinic-email-${index}`} className="flex gap-2">
+                      <Input
+                        type="email"
+                        value={email}
+                        onChange={(event) => {
+                          const emails = [...form.emails];
+                          emails[index] = event.target.value;
+                          setForm({ ...form, emails });
+                        }}
+                        placeholder="clinic@example.com"
+                      />
+                      {form.emails.length > 1 ? (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          aria-label={`Remove email ${index + 1}`}
+                          onClick={() =>
+                            setForm({
+                              ...form,
+                              emails: form.emails.filter((_, emailIndex) => emailIndex !== index),
+                            })
+                          }
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      ) : null}
+                    </div>
+                  ))}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setForm({ ...form, emails: [...form.emails, ""] })}
+                  >
+                    Add email
+                  </Button>
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="clinic-website">Website</Label>
+                  <Input
+                    id="clinic-website"
+                    type="url"
+                    value={form.website}
+                    onChange={(e) => setForm({ ...form, website: e.target.value })}
+                    placeholder="https://example.com"
                   />
                 </div>
                 <AddressAutocomplete

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireClinicManager } from "@/lib/api/auth";
+import { normalizeClinicEmails, normalizeClinicWebsite } from "@/lib/clinics/contact";
 import { normalizeClinicHours, pruneClinicHours } from "@/lib/clinics/hours";
 import { catalogToLegacyFields } from "@/lib/clinics/service-catalog";
 import { createServiceClient } from "@/lib/supabase/server";
@@ -18,6 +19,8 @@ export async function POST(request: NextRequest) {
     name: body.name,
     address: typeof body.address === "string" ? body.address.trim() : "",
     phone: typeof body.phone === "string" ? body.phone.trim() : "",
+    emails: normalizeClinicEmails(body.emails),
+    website: normalizeClinicWebsite(body.website),
     operating_days: body.operating_days ?? [],
     hours_by_day: pruneClinicHours(
       Array.isArray(body.operating_days) ? body.operating_days : [],
