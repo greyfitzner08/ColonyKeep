@@ -12,8 +12,9 @@ export function isDuplicateClosedCase(hr: {
 
 /**
  * Closed outcomes where intake “cats reported” should not inflate org reports.
- * Partial TNVR and referred-elsewhere cases are no longer active caseload;
- * duplicates are already dropped from most report sets but also return 0 here.
+ * Referred-elsewhere cases are no longer this org’s caseload; duplicates are
+ * already dropped from most report sets but also return 0 here. Partial TNVR
+ * still counts the cats that were reported.
  */
 export function omitsReportedCatsFromReports(hr: {
   status?: string | null;
@@ -21,11 +22,7 @@ export function omitsReportedCatsFromReports(hr: {
 }): boolean {
   if (hr.status !== "closed") return false;
   const outcome = closedOutcome(hr);
-  return (
-    outcome === "partial_tnvr" ||
-    outcome === "referred_elsewhere" ||
-    outcome === "duplicate"
-  );
+  return outcome === "referred_elsewhere" || outcome === "duplicate";
 }
 
 function closedOutcome(hr: { outcome?: string | null }): string {
