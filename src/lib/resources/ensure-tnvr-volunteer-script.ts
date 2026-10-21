@@ -4,11 +4,15 @@ import { TNVR_VOLUNTEER_SCRIPT_MARKDOWN } from "@/lib/resources/tnvr-volunteer-s
 const TITLE = "TNVR Volunteer Script";
 const SECTION = "Handbook";
 const DESCRIPTION =
-  "Start-to-finish case work for TNVR Team volunteers: claim, trap, log clinic results, and close. Download as PDF.";
+  "Start-to-finish case work for TNVR Team volunteers: claim, trap, log clinic results, and close.";
 
-function needsScriptRefresh(body: string | null | undefined): boolean {
+function needsScriptRefresh(
+  body: string | null | undefined,
+  description: string | null | undefined
+): boolean {
   if (!body?.trim()) return true;
   if (body.includes("tnvr-script-version:")) return true;
+  if ((description ?? "").trim() !== DESCRIPTION) return true;
   return body.trim() !== TNVR_VOLUNTEER_SCRIPT_MARKDOWN.trim();
 }
 
@@ -18,13 +22,13 @@ export async function ensureTnvrVolunteerScriptDocument(): Promise<void> {
 
   const { data: existing } = await service
     .from("library_documents")
-    .select("id, body_markdown")
+    .select("id, body_markdown, description")
     .eq("title", TITLE)
     .eq("section", SECTION)
     .maybeSingle();
 
   if (existing?.id) {
-    if (needsScriptRefresh(existing.body_markdown)) {
+    if (needsScriptRefresh(existing.body_markdown, existing.description)) {
       await service
         .from("library_documents")
         .update({
