@@ -5,6 +5,7 @@ import { LibraryManager } from "@/components/resources/library-manager";
 import { PageHeader } from "@/components/layout/page-header";
 import { PlatformTutorialTrigger } from "@/components/platform-tutorial/platform-tutorial-trigger";
 import { ensurePlatformUserFlowsDocument } from "@/lib/resources/ensure-platform-user-flows";
+import { ensureTnvrVolunteerScriptDocument } from "@/lib/resources/ensure-tnvr-volunteer-script";
 import type { LibraryDocument } from "@/lib/types";
 
 export default async function ResourcesPage() {
@@ -12,7 +13,7 @@ export default async function ResourcesPage() {
   const profile = await getAppProfile();
 
   try {
-    await ensurePlatformUserFlowsDocument();
+    await Promise.all([ensurePlatformUserFlowsDocument(), ensureTnvrVolunteerScriptDocument()]);
   } catch {
     // Column may not exist yet on a fresh preview; page still loads other docs.
   }

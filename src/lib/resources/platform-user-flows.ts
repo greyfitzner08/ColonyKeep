@@ -1,5 +1,5 @@
 /** Default handbook content for the Platform User Flows resource (seeded into library_documents). */
-export const PLATFORM_USER_FLOWS_DOC_VERSION = "2026-10-16a";
+export const PLATFORM_USER_FLOWS_DOC_VERSION = "2026-10-21a";
 
 export const PLATFORM_USER_FLOWS_MARKDOWN = `<!-- flows-doc-version: ${PLATFORM_USER_FLOWS_DOC_VERSION} -->
 # ColonyKeep user flows — start to finish
@@ -109,6 +109,7 @@ Dashboard shows team cases and personally claimed cases. Sidebar includes Trap Q
 4. **Hotspots** for route/colony planning (teammate pins only if they opted in; duplicate-closed colonies are not double-pinned).
 5. **Equipment** — check traps in/out (doesn’t auto-return when a case closes).
 6. **Events** for the shared calendar; **Team Directory** for teammates who shared contact info.
+7. Printable case-work steps: **Resources → TNVR Volunteer Script** (Open guide or Download PDF).
 
 ### Caseload management
 - Team scope via **assigned trap team** + personal claims / admin assignments.
