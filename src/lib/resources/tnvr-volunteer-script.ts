@@ -1,5 +1,5 @@
 /** Seeded handbook: start-to-finish TNVR case work. Downloadable as PDF from Resources. */
-export const TNVR_VOLUNTEER_SCRIPT_DOC_VERSION = "2026-10-21b";
+export const TNVR_VOLUNTEER_SCRIPT_DOC_VERSION = "2026-10-21c";
 
 export const TNVR_VOLUNTEER_SCRIPT_MARKDOWN = `<!-- tnvr-script-version: ${TNVR_VOLUNTEER_SCRIPT_DOC_VERSION} -->
 # TNVR volunteer script — start to finish
@@ -116,17 +116,7 @@ If you are not finishing it:
 
 ---
 
-## 9. Every week, in this order
-
-1. **Trap Queue → My Cases** — touch every claimed case (note, clinic log, or unclaim).
-2. **All Cases** — pick up new work you can actually do.
-3. **Equipment** — traps still out.
-4. **Team Feed** — announcements.
-5. **Events** — shared calendar (shift sign-up rows are currently hidden).
-
----
-
-## 10. Rules that keep the queue honest
+## 9. Rules that keep the queue honest
 
 - Claim before you edit.
 - Notes after every contact.
