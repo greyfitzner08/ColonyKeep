@@ -31,6 +31,9 @@ interface PlatformTutorialModalProps {
   /** When true, closing the dialog marks the tutorial complete (first sign-in flow). */
   markCompleteOnClose?: boolean;
   onCompleted?: () => void;
+  /** Persist step across route changes when provided by the app-shell host. */
+  stepIndex?: number;
+  onStepIndexChange?: (index: number) => void;
 }
 
 export function PlatformTutorialModal({
@@ -41,6 +44,8 @@ export function PlatformTutorialModal({
   mode = "quick",
   markCompleteOnClose = false,
   onCompleted,
+  stepIndex: controlledStepIndex,
+  onStepIndexChange,
 }: PlatformTutorialModalProps) {
   const router = useRouter();
   const appName = useAppName();
@@ -52,14 +57,24 @@ export function PlatformTutorialModal({
     () => tutorialStepsForMode(mode, profile, quickSteps),
     [mode, profile, quickSteps]
   );
-  const [stepIndex, setStepIndex] = useState(0);
+  const isStepControlled = controlledStepIndex != null && onStepIndexChange != null;
+  const [uncontrolledStepIndex, setUncontrolledStepIndex] = useState(0);
+  const stepIndex = isStepControlled ? controlledStepIndex : uncontrolledStepIndex;
   const [completing, setCompleting] = useState(false);
 
-  const step = steps[stepIndex];
+  const lastStepIndex = Math.max(0, steps.length - 1);
+  const safeStepIndex = Math.min(stepIndex, lastStepIndex);
+  const step = steps[safeStepIndex];
   const stepTitle =
     step?.id === "welcome" ? `Welcome to ${appName}` : (step?.title ?? "");
-  const isFirst = stepIndex === 0;
-  const isLast = stepIndex === steps.length - 1;
+  const isFirst = safeStepIndex === 0;
+  const isLast = safeStepIndex >= lastStepIndex;
+
+  function goToStep(index: number) {
+    const next = Math.min(lastStepIndex, Math.max(0, index));
+    if (isStepControlled) onStepIndexChange?.(next);
+    else setUncontrolledStepIndex(next);
+  }
   const description = step ? stepDescription(step, permissions) : "";
   const tourLabel =
     mode === "advanced"
@@ -71,8 +86,8 @@ export function PlatformTutorialModal({
   }, []);
 
   useEffect(() => {
-    if (open) setStepIndex(0);
-  }, [open, mode]);
+    if (open && !isStepControlled) setUncontrolledStepIndex(0);
+  }, [open, mode, isStepControlled]);
 
   useEffect(() => {
     setTourActive(open);
@@ -204,7 +219,7 @@ export function PlatformTutorialModal({
           )}
         </div>
 
-        <StepIndicators steps={steps} activeIndex={stepIndex} />
+        <StepIndicators steps={steps} activeIndex={safeStepIndex} />
 
         <div className="flex items-center justify-between gap-3 border-t px-5 py-3">
           <Button
@@ -223,7 +238,7 @@ export function PlatformTutorialModal({
               variant="outline"
               size="icon"
               disabled={isFirst || completing}
-              onClick={() => setStepIndex((index) => Math.max(0, index - 1))}
+              onClick={() => goToStep(safeStepIndex - 1)}
               aria-label="Previous step"
             >
               <ChevronLeft className="h-4 w-4" />
@@ -237,7 +252,7 @@ export function PlatformTutorialModal({
                 type="button"
                 size="sm"
                 disabled={completing}
-                onClick={() => setStepIndex((index) => Math.min(steps.length - 1, index + 1))}
+                onClick={() => goToStep(safeStepIndex + 1)}
               >
                 Next
                 <ChevronRight className="ml-1 h-4 w-4" />

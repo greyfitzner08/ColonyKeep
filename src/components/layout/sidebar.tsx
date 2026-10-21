@@ -220,10 +220,18 @@ export function Sidebar({
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, true>>({});
-  const [walkthroughChooserOpen, setWalkthroughChooserOpen] = useState(false);
-  const [walkthroughTourOpen, setWalkthroughTourOpen] = useState(false);
-  const [walkthroughMode, setWalkthroughMode] = useState<TutorialMode>("quick");
-  const { highlightedNav, tourActive } = useTutorialNavigation();
+  const {
+    highlightedNav,
+    tourActive,
+    chooserOpen,
+    setChooserOpen,
+    tourOpen,
+    tourMode,
+    stepIndex,
+    setStepIndex,
+    startTour,
+    setTourOpen,
+  } = useTutorialNavigation();
   const showTeamFeedIndicator = useTeamFeedNavIndicator(teamFeedActivity, profile?.id);
   const showAdoptionApplicationsIndicator = useAdoptionApplicationsNavIndicator(
     adoptionApplicationsActivity,
@@ -259,14 +267,12 @@ export function Sidebar({
 
   function openWalkthroughChooser() {
     setMobileOpen(false);
-    setWalkthroughChooserOpen(true);
+    setChooserOpen(true);
   }
 
   function startWalkthrough(mode: TutorialMode) {
     setMobileOpen(false);
-    setWalkthroughMode(mode);
-    setWalkthroughChooserOpen(false);
-    setWalkthroughTourOpen(true);
+    startTour(mode);
   }
 
   function renderNav() {
@@ -461,12 +467,14 @@ export function Sidebar({
       <PlatformTutorialSidebarHost
         profile={profile}
         userName={userName}
-        chooserOpen={walkthroughChooserOpen}
-        onChooserOpenChange={setWalkthroughChooserOpen}
-        tourOpen={walkthroughTourOpen}
-        onTourOpenChange={setWalkthroughTourOpen}
-        mode={walkthroughMode}
+        chooserOpen={chooserOpen}
+        onChooserOpenChange={setChooserOpen}
+        tourOpen={tourOpen}
+        onTourOpenChange={setTourOpen}
+        mode={tourMode}
         onSelectTour={startWalkthrough}
+        stepIndex={stepIndex}
+        onStepIndexChange={setStepIndex}
       />
     </>
   );

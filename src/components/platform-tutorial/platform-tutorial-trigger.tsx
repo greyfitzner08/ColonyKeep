@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { Compass, Route } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,6 +12,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { PlatformTutorialModal } from "@/components/platform-tutorial/platform-tutorial-modal";
+import { useTutorialNavigation } from "@/components/platform-tutorial/tutorial-navigation-context";
 import { advancedTrackForProfile } from "@/lib/platform-tutorial/tracks";
 import type { TutorialMode } from "@/lib/platform-tutorial/tracks";
 import { cn } from "@/lib/utils";
@@ -48,6 +49,8 @@ export function PlatformTutorialSidebarHost({
   onTourOpenChange,
   mode,
   onSelectTour,
+  stepIndex,
+  onStepIndexChange,
 }: {
   profile: Profile | null;
   userName?: string | null;
@@ -57,6 +60,8 @@ export function PlatformTutorialSidebarHost({
   onTourOpenChange: (open: boolean) => void;
   mode: TutorialMode;
   onSelectTour: (mode: TutorialMode) => void;
+  stepIndex: number;
+  onStepIndexChange: (index: number) => void;
 }) {
   const advancedTrack = useMemo(() => advancedTrackForProfile(profile), [profile]);
 
@@ -76,6 +81,8 @@ export function PlatformTutorialSidebarHost({
         profile={profile}
         userName={userName}
         mode={mode}
+        stepIndex={stepIndex}
+        onStepIndexChange={onStepIndexChange}
       />
     </>
   );
@@ -89,20 +96,12 @@ interface PlatformTutorialTriggerProps {
 
 export function PlatformTutorialTrigger({
   profile,
-  userName,
   className,
 }: PlatformTutorialTriggerProps) {
-  const [tourOpen, setTourOpen] = useState(false);
-  const [mode, setMode] = useState<TutorialMode>("quick");
+  const { startTour } = useTutorialNavigation();
   const advancedTrack = useMemo(() => advancedTrackForProfile(profile), [profile]);
 
-  function startTour(nextMode: TutorialMode) {
-    setMode(nextMode);
-    setTourOpen(true);
-  }
-
   return (
-    <>
       <Card className={cn("border-primary/20 bg-primary/5", className)} id="platform-walkthrough">
         <CardHeader className="pb-3">
           <div className="flex items-start gap-3">
@@ -135,15 +134,6 @@ export function PlatformTutorialTrigger({
           </CardContent>
         )}
       </Card>
-
-      <PlatformTutorialModal
-        open={tourOpen}
-        onOpenChange={setTourOpen}
-        profile={profile}
-        userName={userName}
-        mode={mode}
-      />
-    </>
   );
 }
 
