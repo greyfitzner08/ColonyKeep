@@ -1,5 +1,5 @@
 /** Seeded handbook: start-to-finish TNVR case work. Downloadable as PDF from Resources. */
-export const TNVR_VOLUNTEER_SCRIPT_DOC_VERSION = "2026-10-21a";
+export const TNVR_VOLUNTEER_SCRIPT_DOC_VERSION = "2026-10-21b";
 
 export const TNVR_VOLUNTEER_SCRIPT_MARKDOWN = `<!-- tnvr-script-version: ${TNVR_VOLUNTEER_SCRIPT_DOC_VERSION} -->
 # TNVR volunteer script — start to finish
@@ -48,8 +48,6 @@ If the sidebar dot on Trap Queue is pink, you have a claimed case with **no upda
 1. In **All Cases**, open a card that matches your team, ZIP, or Trap School capacity.
 2. Click **Claim case** (or **Claim to edit**). You must claim before you can edit.
 3. The case moves to **My Cases**. You are now the owner until you finish it or unclaim it.
-
-Do not claim a stack you cannot work this week.
 
 If you cannot take it after all, click **Unclaim**. Do not leave it sitting in your name.
 
