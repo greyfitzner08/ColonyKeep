@@ -87,6 +87,9 @@ export interface ReportHelpRequest {
 }
 
 export type ReportType =
+  | "queue_cats_by_zip"
+  | "queue_cats_by_team"
+  | "queue_cats_by_month"
   | "inquiries_by_zip"
   | "inquiries_by_team"
   | "cases_by_trapper"
@@ -283,6 +286,114 @@ function groupCount(
   return Array.from(map.values()).sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
 }
 
+function isOpenQueueCase(hr: ReportHelpRequest): boolean {
+  return hr.status !== "closed" && hr.status !== "completed";
+}
+
+function monthKeyFromIso(iso: string): { key: string; label: string } {
+  const key = iso.slice(0, 7);
+  if (!/^\d{4}-\d{2}$/.test(key)) return { key: "unknown", label: "Unknown month" };
+  const [year, month] = key.split("-").map(Number);
+  const date = new Date(year, month - 1, 1);
+  return {
+    key,
+    label: date.toLocaleString("en-US", { month: "short", year: "numeric" }),
+  };
+}
+
+function clinicFixCountsForRequests(
+  clinicFixes: ReportClinicFix[],
+  requestIds: Set<string>,
+  reportableIds: Set<string>
+): Map<string, number> {
+  const counts = new Map<string, number>();
+  for (const fix of clinicFixes) {
+    if (!reportableIds.has(fix.help_request_id)) continue;
+    if (!requestIds.has(fix.help_request_id)) continue;
+    counts.set(fix.help_request_id, (counts.get(fix.help_request_id) ?? 0) + 1);
+  }
+  return counts;
+}
+
+function groupRemainingVsFixed(
+  items: { key: string; label: string; sublabel?: string; remaining: number; fixed: number }[],
+  sort: "activity" | "month"
+): ReportRow[] {
+  const map = new Map<string, ReportRow>();
+  for (const item of items) {
+    const existing = map.get(item.key);
+    if (existing) {
+      existing.count += 1;
+      existing.extra = {
+        remaining: Number(existing.extra?.remaining ?? 0) + item.remaining,
+        fixed: Number(existing.extra?.fixed ?? 0) + item.fixed,
+      };
+    } else {
+      map.set(item.key, {
+        key: item.key,
+        label: item.label,
+        sublabel: item.sublabel,
+        count: 1,
+        extra: { remaining: item.remaining, fixed: item.fixed },
+      });
+    }
+  }
+
+  const rows = Array.from(map.values());
+  if (sort === "month") {
+    return rows.sort((a, b) => a.key.localeCompare(b.key) || a.label.localeCompare(b.label));
+  }
+
+  return rows.sort((a, b) => {
+    const aWork = Number(a.extra?.remaining ?? 0) + Number(a.extra?.fixed ?? 0);
+    const bWork = Number(b.extra?.remaining ?? 0) + Number(b.extra?.fixed ?? 0);
+    return bWork - aWork || b.count - a.count || a.label.localeCompare(b.label);
+  });
+}
+
+function remainingVsFixedResult(
+  title: string,
+  description: string,
+  groupLabel: string,
+  queue: ReportHelpRequest[],
+  clinicFixes: ReportClinicFix[],
+  reportableIds: Set<string>,
+  groupOf: (hr: ReportHelpRequest) => { key: string; label: string; sublabel?: string },
+  sort: "activity" | "month",
+  includeSublabel = false
+): ReportResult {
+  const requestIds = new Set(queue.map((hr) => hr.id));
+  const fixCounts = clinicFixCountsForRequests(clinicFixes, requestIds, reportableIds);
+  const rows = groupRemainingVsFixed(
+    queue.map((hr) => ({
+      ...groupOf(hr),
+      remaining: catCount(hr),
+      fixed: fixCounts.get(hr.id) ?? 0,
+    })),
+    sort
+  );
+  const remaining = rows.reduce((sum, row) => sum + Number(row.extra?.remaining ?? 0), 0);
+  const fixed = rows.reduce((sum, row) => sum + Number(row.extra?.fixed ?? 0), 0);
+
+  return {
+    title,
+    description,
+    columns: [
+      { key: "label", label: groupLabel },
+      ...(includeSublabel ? [{ key: "sublabel", label: "County" }] : []),
+      { key: "count", label: "Open cases" },
+      { key: "extra.remaining", label: "Not fixed" },
+      { key: "extra.fixed", label: "Fixed" },
+    ],
+    rows,
+    totals: [
+      { label: "Open cases", value: queue.length },
+      { label: "Not fixed", value: remaining },
+      { label: "Fixed", value: fixed },
+    ],
+  };
+}
+
 function filterClinicFixes(
   fixes: ReportClinicFix[],
   filters: ReportFilters,
@@ -432,6 +543,54 @@ export function runReport(
   );
 
   switch (type) {
+    case "queue_cats_by_zip":
+    case "queue_cats_by_team":
+    case "queue_cats_by_month": {
+      const queue = filtered.filter(isOpenQueueCase);
+      if (type === "queue_cats_by_zip") {
+        return remainingVsFixedResult(
+          "Queue cats remaining vs fixed by ZIP",
+          "Open cases only. Not fixed is remaining adults and kittens on the case. Fixed is clinic outcomes logged on those same cases.",
+          "ZIP code",
+          queue,
+          clinicFixes,
+          reportableIds,
+          (hr) => ({
+            key: normalizeZip(hr.colony_zip) || "unknown",
+            label: normalizeZip(hr.colony_zip) || "Unknown ZIP",
+            sublabel: hr.colony_county || undefined,
+          }),
+          "activity",
+          true
+        );
+      }
+      if (type === "queue_cats_by_team") {
+        return remainingVsFixedResult(
+          "Queue cats remaining vs fixed by team",
+          "Open cases only. Not fixed is remaining adults and kittens on the case. Fixed is clinic outcomes logged on those same cases.",
+          "Trap team",
+          queue,
+          clinicFixes,
+          reportableIds,
+          (hr) => {
+            const team = teamForRequest(hr, teams);
+            return { key: team?.id ?? "unassigned", label: team?.name ?? "Unassigned" };
+          },
+          "activity"
+        );
+      }
+      return remainingVsFixedResult(
+        "Queue cats remaining vs fixed by month",
+        "Open cases grouped by the month the case was created. Not fixed is remaining adults and kittens. Fixed is clinic outcomes on those same cases.",
+        "Month",
+        queue,
+        clinicFixes,
+        reportableIds,
+        (hr) => monthKeyFromIso(hr.created_at),
+        "month"
+      );
+    }
+
     case "inquiries_by_zip": {
       const rows = groupCount(
         filtered.map((hr) => ({

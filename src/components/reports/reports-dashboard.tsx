@@ -44,76 +44,133 @@ import {
 } from "@/lib/reports/visibility";
 import { cn } from "@/lib/utils";
 
-const REPORT_TYPES: { value: ReportType; label: string; hint: string }[] = [
+type ReportGroupId = "queue_cats" | "inquiries_cases" | "tnvr_work" | "adoption";
+
+const REPORT_GROUPS: { id: ReportGroupId; label: string; description: string }[] = [
+  {
+    id: "queue_cats",
+    label: "Trap queue cats",
+    description: "Open cases: remaining unfixed cats versus cats already logged as clinic-fixed.",
+  },
+  {
+    id: "inquiries_cases",
+    label: "Inquiries & cases",
+    description: "Inquiry volume and trap-case caseload.",
+  },
+  {
+    id: "tnvr_work",
+    label: "Clinic & foster",
+    description: "Where trap-case cats went for clinic or foster care.",
+  },
+  {
+    id: "adoption",
+    label: "Adoption",
+    description: "Adoptable cats and applications. Not assigned to a trap team.",
+  },
+];
+
+const REPORT_TYPES: { value: ReportType; label: string; hint: string; group: ReportGroupId }[] = [
+  {
+    value: "queue_cats_by_zip",
+    label: "Remaining vs fixed by ZIP",
+    hint: "Open-case cats still unfixed versus already fixed, grouped by colony ZIP.",
+    group: "queue_cats",
+  },
+  {
+    value: "queue_cats_by_team",
+    label: "Remaining vs fixed by team",
+    hint: "Open-case cats still unfixed versus already fixed, grouped by trap team.",
+    group: "queue_cats",
+  },
+  {
+    value: "queue_cats_by_month",
+    label: "Remaining vs fixed by month",
+    hint: "Open-case cats still unfixed versus already fixed, grouped by the month the case was created.",
+    group: "queue_cats",
+  },
   {
     value: "inquiries_by_zip",
     label: "Inquiries by ZIP",
     hint: "How many inquiry forms came from each colony ZIP code.",
+    group: "inquiries_cases",
   },
   {
     value: "inquiries_by_team",
     label: "Inquiries by team",
     hint: "Inquiry volume per trap team (assigned or ZIP-mapped).",
+    group: "inquiries_cases",
   },
   {
     value: "cases_by_trapper",
     label: "Cases by trapper",
     hint: "Trap work grouped by trapper, trap loaner, or case worker.",
+    group: "inquiries_cases",
   },
   {
     value: "cases_by_team",
     label: "Cases by team",
     hint: "Case volume per trap team including completed field work.",
-  },
-  {
-    value: "cats_by_clinic",
-    label: "Cats by clinic",
-    hint: "TNVR case cats linked to each clinic. Adoptable Cats are not included.",
-  },
-  {
-    value: "cats_by_foster_facility",
-    label: "TNVR foster totals",
-    hint: "Trap-case cats sent to foster or a facility. Adoptable Cats are not included and have no trap team.",
-  },
-  {
-    value: "foster_placements_detail",
-    label: "TNVR foster detail",
-    hint: "Each trap-case cat sent to foster or a facility, with that case’s trap team.",
-  },
-  {
-    value: "clinic_usage",
-    label: "Clinic appointments",
-    hint: "Appointment counts per clinic in the filtered date range.",
+    group: "inquiries_cases",
   },
   {
     value: "case_status_summary",
     label: "Cases by status",
     hint: "Status breakdown for the filtered case set.",
+    group: "inquiries_cases",
   },
   {
     value: "case_detail",
     label: "Case detail list",
     hint: "Exportable row-level list of cases matching filters.",
+    group: "inquiries_cases",
+  },
+  {
+    value: "cats_by_clinic",
+    label: "Cats by clinic",
+    hint: "TNVR case cats linked to each clinic. Adoptable Cats are not included.",
+    group: "tnvr_work",
+  },
+  {
+    value: "cats_by_foster_facility",
+    label: "TNVR foster totals",
+    hint: "Trap-case cats sent to foster or a facility. Adoptable Cats are not included and have no trap team.",
+    group: "tnvr_work",
+  },
+  {
+    value: "foster_placements_detail",
+    label: "TNVR foster detail",
+    hint: "Each trap-case cat sent to foster or a facility, with that case’s trap team.",
+    group: "tnvr_work",
+  },
+  {
+    value: "clinic_usage",
+    label: "Clinic appointments",
+    hint: "Appointment counts per clinic in the filtered date range.",
+    group: "tnvr_work",
   },
   {
     value: "adoptable_cats_by_status",
     label: "Adoptable cats by status",
     hint: "Cats on the Adoption list, grouped by status. Not assigned to a trap team.",
+    group: "adoption",
   },
   {
     value: "adoptable_cats_detail",
     label: "Adoptable cats list",
     hint: "Each Adoptable Cat, with foster and pet store from that profile.",
+    group: "adoption",
   },
   {
     value: "adoption_applications_by_status",
     label: "Applications by status",
     hint: "Adoption applications grouped by review status.",
+    group: "adoption",
   },
   {
     value: "adoption_applications_detail",
     label: "Applications list",
     hint: "Each application from a person who wants to adopt.",
+    group: "adoption",
   },
 ];
 
@@ -153,7 +210,7 @@ export function ReportsDashboard({
   adoptionApplications,
 }: ReportsDashboardProps) {
   const [filters, setFilters] = useState<ReportFilters>(DEFAULT_REPORT_FILTERS);
-  const [reportType, setReportType] = useState<ReportType>("inquiries_by_zip");
+  const [reportType, setReportType] = useState<ReportType>("queue_cats_by_zip");
   const [setupOpen, setSetupOpen] = useState(false);
 
   const visibleReportTypes = useMemo(
@@ -211,7 +268,13 @@ export function ReportsDashboard({
     return result.columns.map((column) => ({
       id: column.key,
       label: column.label,
-      defaultWidth: column.key === "count" || column.key === "cats" ? 100 : 180,
+      defaultWidth:
+        column.key === "count" ||
+        column.key === "cats" ||
+        column.key === "extra.remaining" ||
+        column.key === "extra.fixed"
+          ? 110
+          : 180,
       render: (row) => cellValue(row, column.key),
       sortValue: (row) => {
         if (column.key.startsWith("extra.")) {
@@ -283,7 +346,7 @@ export function ReportsDashboard({
       <div className="print:hidden">
         <PageHeader
           title="Reports"
-          description="Build pivot tables, run quick operational reports, and export any table."
+          description="Click a ready-made report, or build a custom pivot and export any table."
         />
       </div>
 
@@ -318,6 +381,47 @@ export function ReportsDashboard({
           </div>
 
       <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-lg">Choose a report</CardTitle>
+          <CardDescription>
+            Click a report to run it. Use filters below only if you need a narrower slice.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {REPORT_GROUPS.map((group) => {
+            const entries = visibleReportTypes.filter((entry) => entry.group === group.id);
+            if (entries.length === 0) return null;
+            return (
+              <div key={group.id} className="space-y-3">
+                <div>
+                  <p className="text-sm font-medium">{group.label}</p>
+                  <p className="text-xs text-muted-foreground">{group.description}</p>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+                  {entries.map((entry) => (
+                    <button
+                      key={entry.value}
+                      type="button"
+                      onClick={() => selectReportType(entry.value)}
+                      className={cn(
+                        "rounded-lg border p-3 text-left transition-colors",
+                        reportType === entry.value
+                          ? "border-primary bg-primary/5"
+                          : "hover:bg-muted/50"
+                      )}
+                    >
+                      <p className="font-medium text-sm">{entry.label}</p>
+                      <p className="text-xs text-muted-foreground mt-1">{entry.hint}</p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </CardContent>
+      </Card>
+
+      <Card>
         <CardHeader
           className="pb-3 cursor-pointer select-none"
           onClick={() => setSetupOpen((open) => !open)}
@@ -326,13 +430,13 @@ export function ReportsDashboard({
             <div>
               <CardTitle className="text-lg flex items-center gap-2">
                 <Filter className="h-4 w-4" />
-                Report setup
+                Filters
               </CardTitle>
               <CardDescription>
                 {setupOpen
-                  ? "Choose a report type and refine with filters. Leave dates blank for all time."
-                  : `${activeReport?.label ?? "Inquiries by ZIP"}${
-                      activeFilterCount() > 0 ? ` · ${activeFilterCount()} filter${activeFilterCount() === 1 ? "" : "s"} active` : ""
+                  ? "Leave dates blank for all time. Status filter still applies to open-queue reports."
+                  : `${activeReport?.label ?? "Remaining vs fixed by ZIP"}${
+                      activeFilterCount() > 0 ? ` · ${activeFilterCount()} filter${activeFilterCount() === 1 ? "" : "s"} active` : " · all time"
                     }`}
               </CardDescription>
             </div>
@@ -346,34 +450,9 @@ export function ReportsDashboard({
         </CardHeader>
         {setupOpen && (
           <CardContent className="space-y-6">
-            <div className="space-y-3">
+            <div className="space-y-4">
               <div>
-                <p className="text-sm font-medium">Report type</p>
-                <p className="text-xs text-muted-foreground">Choose which report to run.</p>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
-                {visibleReportTypes.map((entry) => (
-                  <button
-                    key={entry.value}
-                    type="button"
-                    onClick={() => selectReportType(entry.value)}
-                    className={cn(
-                      "rounded-lg border p-3 text-left transition-colors",
-                      reportType === entry.value
-                        ? "border-primary bg-primary/5"
-                        : "hover:bg-muted/50"
-                    )}
-                  >
-                    <p className="font-medium text-sm">{entry.label}</p>
-                    <p className="text-xs text-muted-foreground mt-1">{entry.hint}</p>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="space-y-4 border-t pt-6">
-              <div>
-                <p className="text-sm font-medium">Filters</p>
+                <p className="text-sm font-medium">Narrow this report</p>
                 <p className="text-xs text-muted-foreground">
                   {adoptionReport
                     ? "Narrow this Adoption report by date or status. Trap team, clinic, and ZIP filters apply to TNVR cases only."

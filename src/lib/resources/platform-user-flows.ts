@@ -82,7 +82,7 @@ Dashboard shows org-wide work; sidebar includes everything (queues, clinics, vol
 3. **Clinics / Clinic Events** — partner clinics (days open, packages / optional add-ons for Clinic Events pricing, visit info) and public booking days.
 4. **Events** — shared team calendar (shift sign-up rows are hidden while that feature is off).
 5. **Admin → Inquiry form custom fields** — About us intro, donate button, and after-submit resource paths (Criteria + Thank-you content).
-6. **Team Feed / Reports / Admin** — communicate, measure, brand/settings/teams. Reports skip duplicate-closed cases by default.
+6. **Team Feed / Reports / Admin** — communicate, measure, brand/settings/teams. Reports skip duplicate-closed cases by default. Quick reports include remaining vs clinic-fixed queue cats by ZIP, team, and month.
 
 ### Caseload
 Not a personal queue; they supervise and fix access. Work history still appears under **My Impact** / dashboard when they touch cases.
@@ -161,6 +161,6 @@ Community/event participation, not trap cases. Interests help organizers know wh
 5. **Idle claims** (21+ days without updates) surface as a Trap Queue follow-up banner + sidebar dot for the claimant.
 6. **Events** is the shared calendar path for all volunteers (shift sign-ups optional when enabled).
 7. **Contact sharing** is opt-in on My Profile (everything starts hidden).
-8. **Reports** omit duplicate-closed cases so cats are not double-counted; Referred Elsewhere closed cases keep case counts but drop intake cats reported. Partial TNVR still counts reported cats.
+8. **Reports** omit duplicate-closed cases so cats are not double-counted; Referred Elsewhere closed cases keep case counts but drop intake cats reported. Partial TNVR still counts reported cats. Click **Remaining vs fixed** quick reports for open-queue cats still unfixed versus clinic-fixed, by ZIP, team, or month.
 9. **Dashboard** summarizes; **queues/calendars** are where work happens.
 `;
