@@ -1,8 +1,5 @@
 /** Seeded handbook: start-to-finish TNVR case work. Downloadable as PDF from Resources. */
-export const TNVR_VOLUNTEER_SCRIPT_DOC_VERSION = "2026-10-21c";
-
-export const TNVR_VOLUNTEER_SCRIPT_MARKDOWN = `<!-- tnvr-script-version: ${TNVR_VOLUNTEER_SCRIPT_DOC_VERSION} -->
-# TNVR volunteer script — start to finish
+export const TNVR_VOLUNTEER_SCRIPT_MARKDOWN = `# TNVR volunteer script — start to finish
 
 This is for people with the **TNVR Team** role. They can open Trap Queue and work cases. A regular **Volunteer** login does not get Trap Queue; those accounts use Events, Team Feed, Resources, and Profile only.
 

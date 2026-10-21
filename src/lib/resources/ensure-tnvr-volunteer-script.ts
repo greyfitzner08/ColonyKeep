@@ -1,8 +1,5 @@
 import { createServiceClient } from "@/lib/supabase/server";
-import {
-  TNVR_VOLUNTEER_SCRIPT_DOC_VERSION,
-  TNVR_VOLUNTEER_SCRIPT_MARKDOWN,
-} from "@/lib/resources/tnvr-volunteer-script";
+import { TNVR_VOLUNTEER_SCRIPT_MARKDOWN } from "@/lib/resources/tnvr-volunteer-script";
 
 const TITLE = "TNVR Volunteer Script";
 const SECTION = "Handbook";
@@ -11,7 +8,8 @@ const DESCRIPTION =
 
 function needsScriptRefresh(body: string | null | undefined): boolean {
   if (!body?.trim()) return true;
-  return !body.includes(`tnvr-script-version: ${TNVR_VOLUNTEER_SCRIPT_DOC_VERSION}`);
+  if (body.includes("tnvr-script-version:")) return true;
+  return body.trim() !== TNVR_VOLUNTEER_SCRIPT_MARKDOWN.trim();
 }
 
 /** Ensures the printable TNVR volunteer script exists and matches the current seed. */
