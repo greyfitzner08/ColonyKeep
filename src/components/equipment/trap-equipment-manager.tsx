@@ -17,6 +17,16 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -24,7 +34,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ControlSearch, PageControlBar } from "@/components/layout/page-control-bar";
-import { parseEquipmentQrPayload } from "@/lib/equipment/qr-parse";
+import {
+  findEquipmentByScannedCode,
+  parseEquipmentQrPayload,
+  scannedCodeSummary,
+} from "@/lib/equipment/qr-parse";
 import { sortTrapTeams } from "@/lib/trap-teams/sort-teams";
 import { volunteerDisplayName } from "@/lib/equipment/volunteers";
 import {
@@ -181,6 +195,7 @@ export function TrapEquipmentManager({
   const [rowError, setRowError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [scanNotice, setScanNotice] = useState<string | null>(null);
+  const [unknownScanPayload, setUnknownScanPayload] = useState<string | null>(null);
   const [sortKey, setSortKey] = useState<EquipmentSortKey>("item");
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
   const [filterTeamId, setFilterTeamId] = useState("all");
@@ -346,11 +361,32 @@ export function TrapEquipmentManager({
     setScanNotice("QR code scanned — review the fields below and save.");
   }, []);
 
+  function openNewFromScan(payload: string) {
+    const parsed = parseEquipmentQrPayload(payload);
+    setEditing(null);
+    setForm({
+      ...emptyForm,
+      team_id: defaultTeamId ?? "",
+      equipment_type: parsed.equipment_type ?? emptyForm.equipment_type,
+      description: parsed.description ?? "",
+      location: parsed.location ?? "",
+      notes: parsed.notes ?? "",
+      is_labeled: parsed.is_labeled ?? Boolean(parsed.equipment_label),
+      equipment_label: parsed.equipment_label ?? "",
+      qr_code_data: parsed.qr_code_data,
+    });
+    setOpenSections(NEW_EQUIPMENT_OPEN_SECTIONS);
+    setSaveError(null);
+    setScanNotice("Code scanned — review the fields below and save to add this item.");
+    setDialogOpen(true);
+  }
+
   async function claimScannedEquipment(payload: string) {
     const scanned = payload.trim();
-    const match = rows.find((item) => item.qr_code_data?.trim() === scanned);
+    const match = findEquipmentByScannedCode(rows, scanned);
     if (!match) {
-      setScanNotice("No logged equipment matches that QR code.");
+      setScanNotice(null);
+      setUnknownScanPayload(scanned);
       return;
     }
 
@@ -810,8 +846,8 @@ export function TrapEquipmentManager({
           </div>
           <Card>
             <CardContent className="py-10 text-center text-muted-foreground">
-              No equipment logged yet. Scan a trap QR code or add traps, scanners, and other field
-              gear for your team.
+              No equipment logged yet. Scan a QR code or barcode to claim or add an item, or log
+              traps, scanners, and other field gear for your team.
             </CardContent>
           </Card>
         </>
@@ -941,6 +977,34 @@ export function TrapEquipmentManager({
           onScan={handleQrScan}
         />
       )}
+
+      <AlertDialog
+        open={unknownScanPayload != null}
+        onOpenChange={(open) => {
+          if (!open) setUnknownScanPayload(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Add this item to inventory?</AlertDialogTitle>
+            <AlertDialogDescription>
+              No equipment in inventory matches “
+              {unknownScanPayload ? scannedCodeSummary(unknownScanPayload) : "that code"}
+              ”. Would you like to add it as a new item?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Not now</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (unknownScanPayload) openNewFromScan(unknownScanPayload);
+              }}
+            >
+              Add item
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">

@@ -131,6 +131,27 @@ function parseUrlPayload(raw: string): ParsedEquipmentQr | null {
   }
 }
 
+export function findEquipmentByScannedCode<T extends { qr_code_data: string | null }>(
+  items: T[],
+  payload: string
+): T | undefined {
+  const scanned = payload.trim();
+  if (!scanned) return undefined;
+  const exact = items.find((item) => item.qr_code_data?.trim() === scanned);
+  if (exact) return exact;
+  const lower = scanned.toLowerCase();
+  return items.find((item) => item.qr_code_data?.trim().toLowerCase() === lower);
+}
+
+export function scannedCodeSummary(payload: string): string {
+  const parsed = parseEquipmentQrPayload(payload);
+  const label = parsed.equipment_label?.trim();
+  if (label) return label;
+  const trimmed = payload.trim();
+  if (trimmed.length <= 64) return trimmed;
+  return `${trimmed.slice(0, 61)}…`;
+}
+
 /** Parse scanned QR/barcode text into equipment form fields. */
 export function parseEquipmentQrPayload(raw: string): ParsedEquipmentQr {
   const trimmed = raw.trim();

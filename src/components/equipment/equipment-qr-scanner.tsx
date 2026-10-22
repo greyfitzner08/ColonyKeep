@@ -21,7 +21,11 @@ type Html5QrcodeInstance = {
   isScanning: boolean;
   start: (
     cameraIdOrConfig: string | MediaTrackConstraints,
-    configuration: { fps: number; qrbox: { width: number; height: number } },
+    configuration: {
+      fps: number;
+      qrbox: { width: number; height: number };
+      formatsToSupport?: number[];
+    },
     onSuccess: (decoded: string) => void,
     onError: () => void
   ) => Promise<null>;
@@ -70,7 +74,7 @@ export function EquipmentQrScanner({ open, onOpenChange, onScan }: EquipmentQrSc
           return;
         }
 
-        const { Html5Qrcode } = await import("html5-qrcode");
+        const { Html5Qrcode, Html5QrcodeSupportedFormats } = await import("html5-qrcode");
         if (cancelled) return;
 
         const scanner = new Html5Qrcode(regionId) as Html5QrcodeInstance;
@@ -78,7 +82,20 @@ export function EquipmentQrScanner({ open, onOpenChange, onScan }: EquipmentQrSc
 
         await scanner.start(
           { facingMode: "environment" },
-          { fps: 10, qrbox: { width: 250, height: 250 } },
+          {
+            fps: 10,
+            qrbox: { width: 250, height: 250 },
+            formatsToSupport: [
+              Html5QrcodeSupportedFormats.QR_CODE,
+              Html5QrcodeSupportedFormats.CODE_128,
+              Html5QrcodeSupportedFormats.CODE_39,
+              Html5QrcodeSupportedFormats.EAN_13,
+              Html5QrcodeSupportedFormats.EAN_8,
+              Html5QrcodeSupportedFormats.UPC_A,
+              Html5QrcodeSupportedFormats.ITF,
+              Html5QrcodeSupportedFormats.CODABAR,
+            ],
+          },
           (decoded) => {
             onScanRef.current(decoded);
             onOpenChangeRef.current(false);
@@ -120,11 +137,11 @@ export function EquipmentQrScanner({ open, onOpenChange, onScan }: EquipmentQrSc
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Camera className="h-5 w-5" />
-            Scan Equipment QR Code
+            Scan equipment code
           </DialogTitle>
           <DialogDescription>
-            Point your camera at the trap&apos;s QR label. Type, label, and description will fill
-            in automatically when recognized.
+            Point your camera at the item&apos;s QR code or barcode. Type, label, and description
+            will fill in automatically when recognized.
           </DialogDescription>
         </DialogHeader>
 
