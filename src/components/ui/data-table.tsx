@@ -58,6 +58,11 @@ export interface DataTableProps<T> {
   searchPlaceholder?: string;
   /** Custom searchable text. Defaults to values from column sortValue functions. */
   getSearchText?: (row: T) => string;
+  /**
+   * Replace the default table toolbar. Use this to put Columns next to page
+   * search/filters instead of a second bar.
+   */
+  renderToolbar?: (parts: { columnMenu: ReactNode }) => ReactNode;
 }
 
 function columnMenuLabel<T>(column: DataTableColumn<T>): string {
@@ -86,6 +91,7 @@ export function DataTable<T>({
   enableColumnVisibility = true,
   searchPlaceholder = "Search table…",
   getSearchText,
+  renderToolbar,
 }: DataTableProps<T>) {
   const isFixedSizing = columnSizing === "fixed";
   const [sort, setSort] = useState<{ columnId: string; direction: SortDirection } | null>(
@@ -315,15 +321,80 @@ export function DataTable<T>({
   const searchActive = enableSearch && deferredSearchQuery.trim().length > 0;
   const showingCount = sortedRows.length;
   const totalCount = rows.length;
-  const showToolbar = enableSearch || enableColumnVisibility;
+  const showDefaultToolbar = !renderToolbar && (enableSearch || enableColumnVisibility);
 
-  if (rows.length === 0) {
-    return <p className="py-12 text-center text-muted-foreground">{emptyMessage}</p>;
-  }
+  const columnMenu =
+    enableColumnVisibility ? (
+      <div className="relative" ref={columnsMenuRef}>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className={cn(renderToolbar && "h-9 w-9 px-0")}
+          onClick={() => setColumnsMenuOpen((open) => !open)}
+          aria-expanded={columnsMenuOpen}
+          aria-haspopup="menu"
+          aria-label="Columns"
+        >
+          <Columns3 className="h-4 w-4" />
+          {renderToolbar ? null : "Columns"}
+        </Button>
+        {columnsMenuOpen && (
+          <div
+            role="menu"
+            className={cn(
+              "absolute z-20 mt-2 w-72 max-h-80 overflow-y-auto rounded-md border bg-popover p-3 text-popover-foreground shadow-md",
+              renderToolbar ? "right-0" : "left-0"
+            )}
+          >
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Show columns
+              </p>
+              {hiddenColumnIds.length > 0 && (
+                <button
+                  type="button"
+                  className="text-xs text-primary hover:underline"
+                  onClick={showAllColumns}
+                >
+                  Show all
+                </button>
+              )}
+            </div>
+            <div className="space-y-2">
+              {orderedColumnIds.map((columnId) => {
+                const column = columnById.get(columnId);
+                if (!column) return null;
+                const hideable = column.hideable !== false;
+                const checked = !hiddenSet.has(column.id);
+                const onlyVisible = checked && orderedColumns.length === 1;
+                return (
+                  <div key={column.id} className="flex items-center gap-2">
+                    <Checkbox
+                      id={`${tableId}-col-${column.id}`}
+                      checked={checked}
+                      disabled={!hideable || onlyVisible}
+                      onCheckedChange={(value) => setColumnHidden(column.id, value !== true)}
+                    />
+                    <Label htmlFor={`${tableId}-col-${column.id}`} className="font-normal">
+                      {columnMenuLabel(column)}
+                    </Label>
+                  </div>
+                );
+              })}
+            </div>
+            <p className="mt-3 text-xs text-muted-foreground">
+              Drag header edges to resize. The last column fills leftover space. Drag the grip to
+              reorder.
+            </p>
+          </div>
+        )}
+      </div>
+    ) : null;
 
-  return (
-    <div className="space-y-3">
-      {showToolbar && (
+  const toolbar = renderToolbar
+    ? renderToolbar({ columnMenu: columnMenu ?? <></> })
+    : showDefaultToolbar ? (
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex flex-1 flex-col gap-2 sm:flex-row sm:items-center">
             {enableSearch && (
@@ -340,74 +411,7 @@ export function DataTable<T>({
                 />
               </div>
             )}
-            {enableColumnVisibility && (
-              <div className="relative" ref={columnsMenuRef}>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setColumnsMenuOpen((open) => !open)}
-                  aria-expanded={columnsMenuOpen}
-                  aria-haspopup="menu"
-                >
-                  <Columns3 className="h-4 w-4" />
-                  Columns
-                </Button>
-                {columnsMenuOpen && (
-                  <div
-                    role="menu"
-                    className="absolute left-0 z-20 mt-2 w-72 max-h-80 overflow-y-auto rounded-md border bg-popover p-3 text-popover-foreground shadow-md"
-                  >
-                    <div className="mb-2 flex items-center justify-between gap-2">
-                      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                        Show columns
-                      </p>
-                      {hiddenColumnIds.length > 0 && (
-                        <button
-                          type="button"
-                          className="text-xs text-primary hover:underline"
-                          onClick={showAllColumns}
-                        >
-                          Show all
-                        </button>
-                      )}
-                    </div>
-                    <div className="space-y-2">
-                      {orderedColumnIds.map((columnId) => {
-                        const column = columnById.get(columnId);
-                        if (!column) return null;
-                        const hideable = column.hideable !== false;
-                        const checked = !hiddenSet.has(column.id);
-                        const onlyVisible =
-                          checked && orderedColumns.length === 1;
-                        return (
-                          <div key={column.id} className="flex items-center gap-2">
-                            <Checkbox
-                              id={`${tableId}-col-${column.id}`}
-                              checked={checked}
-                              disabled={!hideable || onlyVisible}
-                              onCheckedChange={(value) =>
-                                setColumnHidden(column.id, value !== true)
-                              }
-                            />
-                            <Label
-                              htmlFor={`${tableId}-col-${column.id}`}
-                              className="font-normal"
-                            >
-                              {columnMenuLabel(column)}
-                            </Label>
-                          </div>
-                        );
-                      })}
-                    </div>
-                    <p className="mt-3 text-xs text-muted-foreground">
-                      Drag header edges to resize. The last column fills leftover space. Drag the
-                      grip to reorder.
-                    </p>
-                  </div>
-                )}
-              </div>
-            )}
+            {columnMenu}
           </div>
           {searchActive && (
             <p className="text-sm text-muted-foreground">
@@ -415,14 +419,24 @@ export function DataTable<T>({
             </p>
           )}
         </div>
-      )}
+      ) : null;
+
+  if (rows.length === 0 && !toolbar) {
+    return <p className="py-12 text-center text-muted-foreground">{emptyMessage}</p>;
+  }
+
+  return (
+    <div className="space-y-3">
+      {toolbar}
 
       {orderedColumns.length === 0 ? (
         <p className="py-12 text-center text-muted-foreground">
           All columns are hidden. Use Columns to show some again.
         </p>
       ) : sortedRows.length === 0 ? (
-        <p className="py-12 text-center text-muted-foreground">{noSearchMatchMessage}</p>
+        <p className="py-12 text-center text-muted-foreground">
+          {rows.length === 0 ? emptyMessage : noSearchMatchMessage}
+        </p>
       ) : (
         <div
           ref={setScrollContainerEl}

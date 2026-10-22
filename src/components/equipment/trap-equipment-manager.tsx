@@ -853,120 +853,115 @@ export function TrapEquipmentManager({
         </>
       ) : (
         <div className="space-y-3">
-          <PageControlBar
-            activeFilterCount={
-              (filterTeamId !== "all" ? 1 : 0) +
-              (filterType !== "all" ? 1 : 0) +
-              (filterStatus !== "all" ? 1 : 0)
-            }
-            search={
-              <ControlSearch
-                id="equipment-search"
-                placeholder="Search label, location, volunteer, borrower…"
-                value={searchQuery}
-                onChange={(event) => setSearchQuery(event.target.value)}
-                aria-label="Search equipment"
+          <DataTable
+            tableId="trap-equipment-v2"
+            columns={equipmentColumns}
+            rows={displayRows}
+            getRowKey={(item) => item.id}
+            getRowClassName={(item) => (savingRowId === item.id ? "opacity-70" : undefined)}
+            emptyMessage="No equipment matches your filters. Open Filters to clear."
+            noSearchMatchMessage="No equipment matches your filters. Open Filters to clear."
+            minTableWidth={760}
+            enableSearch={false}
+            clipCellContent
+            renderToolbar={({ columnMenu }) => (
+              <PageControlBar
+                aria-label="Equipment controls"
+                filterCollapse="all"
+                className="p-2 sm:p-3"
+                activeFilterCount={
+                  (filterTeamId !== "all" ? 1 : 0) +
+                  (filterType !== "all" ? 1 : 0) +
+                  (filterStatus !== "all" ? 1 : 0)
+                }
+                search={
+                  <ControlSearch
+                    id="equipment-search"
+                    placeholder="Search equipment…"
+                    value={searchQuery}
+                    onChange={(event) => setSearchQuery(event.target.value)}
+                    aria-label="Search equipment"
+                  />
+                }
+                filters={
+                  <>
+                    {isAdmin && teams.length > 0 ? (
+                      <Select value={filterTeamId} onValueChange={setFilterTeamId}>
+                        <SelectTrigger className="h-9 w-full sm:w-[150px]">
+                          <SelectValue placeholder="All teams" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All teams</SelectItem>
+                          {sortTrapTeams(teams).map((team) => (
+                            <SelectItem key={team.id} value={team.id}>
+                              {team.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    ) : null}
+                    <Select value={filterType} onValueChange={setFilterType}>
+                      <SelectTrigger className="h-9 w-full sm:w-[150px]">
+                        <SelectValue placeholder="All types" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All types</SelectItem>
+                        {TRAP_EQUIPMENT_TYPES.map((entry) => (
+                          <SelectItem key={entry.value} value={entry.value}>
+                            {entry.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Select value={filterStatus} onValueChange={setFilterStatus}>
+                      <SelectTrigger className="h-9 w-full sm:w-[140px]">
+                        <SelectValue placeholder="All statuses" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All statuses</SelectItem>
+                        {TRAP_EQUIPMENT_STATUSES.map((entry) => (
+                          <SelectItem key={entry.value} value={entry.value}>
+                            {entry.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {filtersActive ? (
+                      <Button variant="ghost" size="sm" className="h-9" onClick={clearFilters}>
+                        Clear
+                      </Button>
+                    ) : null}
+                  </>
+                }
+                actions={
+                  <>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setScannerPurpose("claim");
+                        setScannerOpen(true);
+                      }}
+                    >
+                      <QrCode className="mr-1.5 h-4 w-4" />
+                      Scan to claim
+                    </Button>
+                    <Button size="sm" onClick={openNew}>
+                      <Plus className="mr-1.5 h-4 w-4" />
+                      Add item
+                    </Button>
+                    {columnMenu}
+                  </>
+                }
+                meta={
+                  <>
+                    {displayRows.length} of {rows.length}
+                    {filtersActive ? " · filtered" : ""}
+                  </>
+                }
               />
-            }
-            filters={
-              <>
-                {isAdmin && teams.length > 0 ? (
-                  <Select value={filterTeamId} onValueChange={setFilterTeamId}>
-                    <SelectTrigger className="h-9 w-full sm:w-[150px]">
-                      <SelectValue placeholder="All teams" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All teams</SelectItem>
-                      {sortTrapTeams(teams).map((team) => (
-                        <SelectItem key={team.id} value={team.id}>
-                          {team.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                ) : null}
-                <Select value={filterType} onValueChange={setFilterType}>
-                  <SelectTrigger className="h-9 w-full sm:w-[150px]">
-                    <SelectValue placeholder="All types" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All types</SelectItem>
-                    {TRAP_EQUIPMENT_TYPES.map((entry) => (
-                      <SelectItem key={entry.value} value={entry.value}>
-                        {entry.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Select value={filterStatus} onValueChange={setFilterStatus}>
-                  <SelectTrigger className="h-9 w-full sm:w-[140px]">
-                    <SelectValue placeholder="All statuses" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All statuses</SelectItem>
-                    {TRAP_EQUIPMENT_STATUSES.map((entry) => (
-                      <SelectItem key={entry.value} value={entry.value}>
-                        {entry.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {filtersActive ? (
-                  <Button variant="ghost" size="sm" className="h-9" onClick={clearFilters}>
-                    Clear
-                  </Button>
-                ) : null}
-              </>
-            }
-            primaryActions={
-              <Button size="sm" onClick={openNew}>
-                <Plus className="mr-1.5 h-4 w-4" />
-                Add item
-              </Button>
-            }
-            actions={
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => {
-                  setScannerPurpose("claim");
-                  setScannerOpen(true);
-                }}
-              >
-                <QrCode className="mr-1.5 h-4 w-4" />
-                Scan to claim
-              </Button>
-            }
-            meta={
-              <>
-                {displayRows.length} of {rows.length} items
-                {filtersActive ? " · filtered" : ""}
-              </>
-            }
+            )}
           />
-
-          {displayRows.length === 0 ? (
-            <Card>
-              <CardContent className="py-8 text-center text-muted-foreground">
-                No equipment matches your filters.{" "}
-                <button type="button" className="text-primary underline" onClick={clearFilters}>
-                  Clear filters
-                </button>
-              </CardContent>
-            </Card>
-          ) : (
-            <DataTable
-              tableId="trap-equipment-v2"
-              columns={equipmentColumns}
-              rows={displayRows}
-              getRowKey={(item) => item.id}
-              getRowClassName={(item) => (savingRowId === item.id ? "opacity-70" : undefined)}
-              emptyMessage="No equipment matches your filters."
-              minTableWidth={760}
-              enableSearch={false}
-              clipCellContent
-            />
-          )}
         </div>
       )}
 
