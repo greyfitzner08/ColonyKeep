@@ -841,13 +841,13 @@ export function TrapEquipmentManager({
             </Button>
             <Button size="sm" onClick={openNew}>
               <Plus className="mr-1.5 h-4 w-4" />
-              Log equipment
+              Add item
             </Button>
           </div>
           <Card>
             <CardContent className="py-10 text-center text-muted-foreground">
-              No equipment logged yet. Scan a QR code or barcode to claim or add an item, or log
-              traps, scanners, and other field gear for your team.
+              Nothing in inventory yet. Use Add item for new gear, or Scan to claim if the item
+              already has a code.
             </CardContent>
           </Card>
         </>
@@ -921,7 +921,7 @@ export function TrapEquipmentManager({
             primaryActions={
               <Button size="sm" onClick={openNew}>
                 <Plus className="mr-1.5 h-4 w-4" />
-                Log equipment
+                Add item
               </Button>
             }
             actions={
@@ -1009,7 +1009,7 @@ export function TrapEquipmentManager({
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{editing ? "Edit Equipment" : "Log Equipment"}</DialogTitle>
+            <DialogTitle>{editing ? "Edit equipment" : "Add equipment"}</DialogTitle>
           </DialogHeader>
           <div className="space-y-5">
             <EquipmentDialogSection
@@ -1321,7 +1321,7 @@ export function TrapEquipmentManager({
                 Cancel
               </Button>
               <Button onClick={saveDialog} disabled={saving}>
-                {saving ? "Saving…" : editing ? "Save Changes" : "Log Equipment"}
+                {saving ? "Saving…" : editing ? "Save changes" : "Add item"}
               </Button>
             </div>
           </div>

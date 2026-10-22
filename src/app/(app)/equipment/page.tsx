@@ -72,8 +72,8 @@ export default async function EquipmentPage() {
         title="Trap Equipment"
         description={
           userTeam
-            ? `Track traps, scanners, and field gear for ${userTeam.name}. Scan a trap QR code to claim it, or record borrower contact when gear is loaned out.`
-            : "Track traps, scanners, and field gear. Scan a trap QR code to claim it, or record borrower contact when gear is loaned out."
+            ? `Inventory for ${userTeam.name}. Add item puts new gear in the list. Scan to claim checks it out to you. Open an item to return it or change who has it.`
+            : "Add item puts new gear in inventory. Scan to claim checks it out to you. Open an item to return it or change who has it."
         }
       />
       <TrapEquipmentManager

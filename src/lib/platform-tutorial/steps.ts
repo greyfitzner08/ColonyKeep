@@ -113,7 +113,7 @@ export const PLATFORM_TUTORIAL_STEPS: PlatformTutorialStep[] = [
     id: "equipment",
     title: "Equipment",
     description:
-      "Log trap loans and returns, scan QR labels, and track who has field gear checked out.",
+      "Add new gear with Add item. Scan to claim checks a coded trap out to you. Open an item to return it or change who has it.",
     icon: Package,
     navHref: "/equipment",
     visible: (p) => p.routes.includes("/equipment"),

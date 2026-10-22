@@ -195,7 +195,7 @@ const TRAP_LEAD_TRACK: AdvancedTutorialTrack = {
       id: "adv-trap-equipment",
       title: "Track gear in Equipment",
       description:
-        "Log trap loans and returns so the team knows what’s in the field. Equipment checkout is independent of case status but should match real-world loans.",
+        "Add item puts new gear in inventory. Scan to claim checks a coded trap out to you. Open an item to return it or change who has it. Checkout is independent of case status.",
       icon: Package,
       navHref: "/equipment",
       flowNote: "Case progress ≠ automatic equipment return — check both out.",
