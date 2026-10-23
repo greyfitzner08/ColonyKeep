@@ -2,8 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import Image from "next/image";
 import { Check, ChevronDown, Copy, Trash2, X } from "lucide-react";
+import { AdoptableCatAvatar } from "@/components/adoption/adoptable-cat-avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -635,12 +635,11 @@ function ApplicationCard({
             </Button>
           ) : null}
           {application.cat?.profile_photo_url ? (
-            <Image
+            <AdoptableCatAvatar
               src={application.cat.profile_photo_url}
               alt={application.cat_interest_name}
-              width={56}
-              height={56}
-              className="hidden h-14 w-14 rounded-full object-cover sm:block"
+              size="md"
+              className="hidden sm:block"
             />
           ) : null}
         </div>

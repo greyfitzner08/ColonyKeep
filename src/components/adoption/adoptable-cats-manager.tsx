@@ -2,8 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import Image from "next/image";
 import Link from "next/link";
+import { AdoptableCatAvatar } from "@/components/adoption/adoptable-cat-avatar";
 import { ChevronDown, ExternalLink, Pencil, Trash2, Upload } from "lucide-react";
 import { AdoptableCatImporter } from "@/components/adoption/adoptable-cat-importer";
 import { FieldControl } from "@/components/adoption/entrance-application-form";
@@ -251,19 +251,7 @@ export function AdoptableCatsManager({
           const details = [age, gender].filter(Boolean).join(" · ");
           return (
             <div className="flex items-center gap-3">
-              {row.profile_photo_url ? (
-                <Image
-                  src={row.profile_photo_url}
-                  alt={row.name}
-                  width={40}
-                  height={40}
-                  className="h-10 w-10 rounded-full object-cover"
-                />
-              ) : (
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted text-xs text-muted-foreground">
-                  —
-                </div>
-              )}
+              <AdoptableCatAvatar src={row.profile_photo_url} alt={row.name} size="sm" />
               <div>
                 <p className="font-medium">{record?.answers.new_name || row.name}</p>
                 <p className="text-xs text-muted-foreground">
@@ -660,19 +648,7 @@ export function AdoptableCatsManager({
             return (
               <Card key={row.id} className="overflow-hidden">
                 <CardHeader className="flex flex-row items-start gap-3 space-y-0 pb-3">
-                  {row.profile_photo_url ? (
-                    <Image
-                      src={row.profile_photo_url}
-                      alt={row.name}
-                      width={56}
-                      height={56}
-                      className="h-14 w-14 shrink-0 rounded-full object-cover"
-                    />
-                  ) : (
-                    <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-muted text-xs text-muted-foreground">
-                      —
-                    </div>
-                  )}
+                  <AdoptableCatAvatar src={row.profile_photo_url} alt={row.name} size="md" />
                   <div className="min-w-0 flex-1 space-y-1">
                     <CardTitle className="text-base leading-tight">
                       {record?.answers.new_name || row.name}
@@ -727,19 +703,12 @@ export function AdoptableCatsManager({
           {editing && answers && editingRecord && section ? (
             <div className="space-y-5">
               <div className="flex items-center gap-4">
-                {photoUrl ? (
-                  <Image
-                    src={photoUrl}
-                    alt={editing.name}
-                    width={64}
-                    height={64}
-                    className="h-16 w-16 rounded-full object-cover"
-                  />
-                ) : (
-                  <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted text-xs text-muted-foreground">
-                    No photo
-                  </div>
-                )}
+                <AdoptableCatAvatar
+                  src={photoUrl}
+                  alt={editing.name}
+                  size="lg"
+                  emptyLabel="No photo"
+                />
                 <div className="space-y-2">
                   <input
                     ref={photoInputRef}
