@@ -11,13 +11,68 @@ import { Label } from "@/components/ui/label";
 import { NumberInput } from "@/components/ui/number-input";
 import { Textarea } from "@/components/ui/textarea";
 import { getApiErrorMessage } from "@/lib/api/errors";
-import type { PublicProgressSummary } from "@/lib/cases/public-progress-update";
+import {
+  previewPublicOutcomeDeltas,
+  type PublicProgressSummary,
+} from "@/lib/cases/public-progress-update";
 
 type Step = "verify" | "update" | "done";
 type CountValue = number | "";
 
 function countOrZero(value: CountValue): number {
   return typeof value === "number" ? value : 0;
+}
+
+function PublicProgressPreview({
+  summary,
+  tnvrAdults,
+  tnvrKittens,
+  acc,
+  foster,
+  other,
+  additionalAdults,
+  additionalKittens,
+}: {
+  summary: PublicProgressSummary;
+  tnvrAdults: number;
+  tnvrKittens: number;
+  acc: number;
+  foster: number;
+  other: number;
+  additionalAdults: number;
+  additionalKittens: number;
+}) {
+  if (
+    tnvrAdults + tnvrKittens + acc + foster + other + additionalAdults + additionalKittens <=
+    0
+  ) {
+    return null;
+  }
+
+  const preview = previewPublicOutcomeDeltas(summary, {
+    tnvrAdults,
+    tnvrKittens,
+    acc,
+    foster,
+    other,
+    additionalAdults,
+    additionalKittens,
+  });
+  if ("error" in preview) {
+    return <p className="text-sm text-destructive">{preview.error}</p>;
+  }
+
+  return (
+    <p className="rounded-md border bg-background px-3 py-2 text-sm">
+      After save:{" "}
+      <span className="font-medium">{preview.summary.remainingTotal}</span> still need TNR
+      <span className="text-muted-foreground">
+        {" "}
+        ({preview.summary.remainingAdults} over 8 weeks, {preview.summary.remainingKittens}{" "}
+        kittens)
+      </span>
+    </p>
+  );
 }
 
 export function PublicCaseProgressForm() {
@@ -31,6 +86,8 @@ export function PublicCaseProgressForm() {
   const [acc, setAcc] = useState<CountValue>("");
   const [foster, setFoster] = useState<CountValue>("");
   const [other, setOther] = useState<CountValue>("");
+  const [additionalAdults, setAdditionalAdults] = useState<CountValue>("");
+  const [additionalKittens, setAdditionalKittens] = useState<CountValue>("");
   const [yourName, setYourName] = useState("");
   const [notes, setNotes] = useState("");
   const [busy, setBusy] = useState(false);
@@ -83,6 +140,8 @@ export function PublicCaseProgressForm() {
           acc: countOrZero(acc),
           foster: countOrZero(foster),
           other: countOrZero(other),
+          additional_adults: countOrZero(additionalAdults),
+          additional_kittens: countOrZero(additionalKittens),
           your_name: yourName,
           notes,
         }),
@@ -109,6 +168,8 @@ export function PublicCaseProgressForm() {
     setAcc("");
     setFoster("");
     setOther("");
+    setAdditionalAdults("");
+    setAdditionalKittens("");
     setNotes("");
     setError(null);
   }
@@ -123,7 +184,7 @@ export function PublicCaseProgressForm() {
           <h1 className="text-xl font-bold sm:text-2xl">Update colony progress</h1>
           <p className="mt-1 text-muted-foreground">
             Verify your case with the case number and colony location, then tell us how many cats
-            have been TNR’d or otherwise removed. No account needed.
+            were TNR’d and how many still need it. No account needed.
           </p>
         </div>
 
@@ -149,8 +210,10 @@ export function PublicCaseProgressForm() {
                   ) : null}
                 </p>
                 <p className="text-muted-foreground">
-                  Recorded outcomes — TNR {summary.outcomeTnvr}, ACC {summary.outcomeAcc}, foster{" "}
-                  {summary.outcomeFoster}, other {summary.outcomeOther}
+                  Recorded — TNR {summary.outcomeTnvr}, still need TNR {summary.remainingTotal}
+                  {summary.outcomeAcc + summary.outcomeFoster + summary.outcomeOther > 0
+                    ? `, ACC ${summary.outcomeAcc}, foster ${summary.outcomeFoster}, no longer need TNR ${summary.outcomeOther}`
+                    : ""}
                 </p>
               </div>
               <div className="flex flex-wrap justify-center gap-2">
@@ -248,10 +311,8 @@ export function PublicCaseProgressForm() {
 
               <form onSubmit={(event) => void submitUpdate(event)} className="space-y-4">
                 <p className="text-sm text-muted-foreground">
-                  Enter how many cats were handled{" "}
-                  <span className="font-medium">since your last update</span>. You can include cats
-                  that weren’t on the original report (for example a kitten found later). Extra cats
-                  are added to the case totals and counted as handled.
+                  Enter what happened <span className="font-medium">since your last update</span>.
+                  Cats still waiting for TNR should not be entered as an outcome.
                 </p>
 
                 <div className="grid gap-4 sm:grid-cols-2">
@@ -308,7 +369,7 @@ export function PublicCaseProgressForm() {
                     />
                   </div>
                   <div className="space-y-2 sm:col-span-2">
-                    <Label htmlFor="other">Other outcome (rehomed, moved, etc.)</Label>
+                    <Label htmlFor="other">No longer need TNR (died, moved, or rehomed)</Label>
                     <NumberInput
                       id="other"
                       integer
@@ -319,8 +380,62 @@ export function PublicCaseProgressForm() {
                       clearZeroOnFocus
                       onValueChange={setOther}
                     />
+                    <p className="text-xs text-muted-foreground">
+                      Do not use this for cats still at the colony waiting to be trapped.
+                    </p>
                   </div>
                 </div>
+
+                <div className="space-y-3 rounded-lg border bg-muted/20 p-4">
+                  <div>
+                    <p className="text-sm font-medium">More cats found that still need TNR</p>
+                    <p className="text-xs text-muted-foreground">
+                      Use this if the colony is larger than originally reported. These cats stay in
+                      still need fixing.
+                    </p>
+                  </div>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="additional-adults">Additional over 8 weeks</Label>
+                      <NumberInput
+                        id="additional-adults"
+                        integer
+                        min={0}
+                        value={additionalAdults}
+                        placeholder="0"
+                        allowEmpty
+                        clearZeroOnFocus
+                        onValueChange={setAdditionalAdults}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="additional-kittens">Additional kittens</Label>
+                      <NumberInput
+                        id="additional-kittens"
+                        integer
+                        min={0}
+                        value={additionalKittens}
+                        placeholder="0"
+                        allowEmpty
+                        clearZeroOnFocus
+                        onValueChange={setAdditionalKittens}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {summary ? (
+                  <PublicProgressPreview
+                    summary={summary}
+                    tnvrAdults={countOrZero(tnvrAdults)}
+                    tnvrKittens={countOrZero(tnvrKittens)}
+                    acc={countOrZero(acc)}
+                    foster={countOrZero(foster)}
+                    other={countOrZero(other)}
+                    additionalAdults={countOrZero(additionalAdults)}
+                    additionalKittens={countOrZero(additionalKittens)}
+                  />
+                ) : null}
 
                 <div className="space-y-2">
                   <Label htmlFor="your-name">Your name (optional)</Label>

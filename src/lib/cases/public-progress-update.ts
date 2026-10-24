@@ -37,6 +37,8 @@ export interface PublicOutcomeDeltas {
   acc: number;
   foster: number;
   other: number;
+  additionalAdults: number;
+  additionalKittens: number;
 }
 
 export interface PublicProgressSummary {
@@ -46,6 +48,8 @@ export interface PublicProgressSummary {
   remainingAdults: number;
   remainingKittens: number;
   remainingTotal: number;
+  reportedAdults: number;
+  reportedKittens: number;
   outcomeTnvr: number;
   outcomeAcc: number;
   outcomeFoster: number;
@@ -101,14 +105,30 @@ export function parsePublicOutcomeDeltas(
   if (typeof acc === "object") return acc;
   const foster = parseNonNegativeInt(body.foster ?? body.outcome_foster, "Foster count");
   if (typeof foster === "object") return foster;
-  const other = parseNonNegativeInt(body.other ?? body.outcome_other, "Other outcome count");
+  const other = parseNonNegativeInt(body.other ?? body.outcome_other, "No longer need TNR count");
   if (typeof other === "object") return other;
+  const additionalAdults = parseNonNegativeInt(
+    body.additional_adults ?? body.additionalAdults,
+    "Additional cats over 8 weeks"
+  );
+  if (typeof additionalAdults === "object") return additionalAdults;
+  const additionalKittens = parseNonNegativeInt(
+    body.additional_kittens ?? body.additionalKittens,
+    "Additional kittens under 8 weeks"
+  );
+  if (typeof additionalKittens === "object") return additionalKittens;
 
-  if (tnvrAdults + tnvrKittens + acc + foster + other <= 0) {
-    return { error: "Enter at least one cat that was TNR’d, taken to ACC, fostered, or otherwise removed." };
+  if (
+    tnvrAdults + tnvrKittens + acc + foster + other + additionalAdults + additionalKittens <=
+    0
+  ) {
+    return {
+      error:
+        "Enter at least one cat that was TNR’d, removed, or found and still needs TNR.",
+    };
   }
 
-  return { tnvrAdults, tnvrKittens, acc, foster, other };
+  return { tnvrAdults, tnvrKittens, acc, foster, other, additionalAdults, additionalKittens };
 }
 
 export function verificationMatches(
@@ -154,11 +174,72 @@ export function toPublicProgressSummary(row: PublicProgressCaseRow): PublicProgr
     remainingAdults,
     remainingKittens,
     remainingTotal: remainingAdults + remainingKittens,
+    reportedAdults: Math.max(0, row.reported_cats_over_8_weeks ?? remainingAdults),
+    reportedKittens: Math.max(0, row.reported_kittens_under_8_weeks ?? remainingKittens),
     outcomeTnvr: Math.max(0, row.outcome_tnvr_count ?? 0),
     outcomeAcc: Math.max(0, row.outcome_acc_count ?? 0),
     outcomeFoster: Math.max(0, row.outcome_foster_count ?? 0),
     outcomeOther: Math.max(0, row.outcome_other_count ?? 0),
   };
+}
+
+function takeFromRemaining(
+  adults: number,
+  kittens: number,
+  amount: number
+): { adults: number; kittens: number; applied: number; leftover: number } {
+  let nextAdults = adults;
+  let nextKittens = kittens;
+  let remaining = Math.max(0, amount);
+  const fromAdults = Math.min(nextAdults, remaining);
+  nextAdults -= fromAdults;
+  remaining -= fromAdults;
+  const fromKittens = Math.min(nextKittens, remaining);
+  nextKittens -= fromKittens;
+  remaining -= fromKittens;
+  return {
+    adults: nextAdults,
+    kittens: nextKittens,
+    applied: amount - remaining,
+    leftover: remaining,
+  };
+}
+
+export function previewPublicOutcomeDeltas(
+  summary: Pick<
+    PublicProgressSummary,
+    | "remainingAdults"
+    | "remainingKittens"
+    | "reportedAdults"
+    | "reportedKittens"
+    | "outcomeTnvr"
+    | "outcomeAcc"
+    | "outcomeFoster"
+    | "outcomeOther"
+  >,
+  deltas: PublicOutcomeDeltas
+) {
+  return applyPublicOutcomeDeltas(
+    {
+      id: "preview",
+      case_number: "preview",
+      status: "claimed",
+      colony_address: "",
+      colony_city: "",
+      colony_zip: "",
+      cats_over_8_weeks: summary.remainingAdults,
+      kittens_under_8_weeks: summary.remainingKittens,
+      reported_cats_over_8_weeks: summary.reportedAdults,
+      reported_kittens_under_8_weeks: summary.reportedKittens,
+      outcome_tnvr_count: summary.outcomeTnvr,
+      outcome_acc_count: summary.outcomeAcc,
+      outcome_foster_count: summary.outcomeFoster,
+      outcome_other_count: summary.outcomeOther,
+      cats_remaining: summary.remainingAdults + summary.remainingKittens,
+      history_log: [],
+    } as PublicProgressCaseRow,
+    deltas
+  );
 }
 
 export function applyPublicOutcomeDeltas(
@@ -176,10 +257,11 @@ export function applyPublicOutcomeDeltas(
   }
 
   const tnvr = deltas.tnvrAdults + deltas.tnvrKittens;
+  const additional = deltas.additionalAdults + deltas.additionalKittens;
   const totalRemoval = tnvr + deltas.acc + deltas.foster + deltas.other;
-  if (totalRemoval <= 0) {
+  if (totalRemoval + additional <= 0) {
     return {
-      error: "Enter at least one cat that was TNR’d, taken to ACC, fostered, or otherwise removed.",
+      error: "Enter at least one cat that was TNR’d, removed, or found and still needs TNR.",
     };
   }
 
@@ -189,11 +271,12 @@ export function applyPublicOutcomeDeltas(
   let reportedAdults = Math.max(0, row.reported_cats_over_8_weeks ?? remainingAdults);
   let reportedKittens = Math.max(0, row.reported_kittens_under_8_weeks ?? remainingKittens);
 
-  let adults = remainingAdults;
-  let kittens = remainingKittens;
+  let adults = remainingAdults + deltas.additionalAdults;
+  let kittens = remainingKittens + deltas.additionalKittens;
+  reportedAdults += deltas.additionalAdults;
+  reportedKittens += deltas.additionalKittens;
 
-  // Allow reporting newly found cats: anything beyond current remaining
-  // increases the originally-reported baseline so colony counts stay consistent.
+  // TNR beyond the current remaining of that age is a newly found cat that was TNR’d.
   if (deltas.tnvrAdults > adults) {
     reportedAdults += deltas.tnvrAdults - adults;
     adults = 0;
@@ -208,15 +291,21 @@ export function applyPublicOutcomeDeltas(
     kittens -= deltas.tnvrKittens;
   }
 
-  let leftover = deltas.acc + deltas.foster + deltas.other;
-  const fromAdults = Math.min(adults, leftover);
-  adults -= fromAdults;
-  leftover -= fromAdults;
-  const fromKittens = Math.min(kittens, leftover);
-  kittens -= fromKittens;
-  leftover -= fromKittens;
-  if (leftover > 0) {
-    reportedAdults += leftover;
+  const accTaken = takeFromRemaining(adults, kittens, deltas.acc);
+  adults = accTaken.adults;
+  kittens = accTaken.kittens;
+  const fosterTaken = takeFromRemaining(adults, kittens, deltas.foster);
+  adults = fosterTaken.adults;
+  kittens = fosterTaken.kittens;
+  const otherTaken = takeFromRemaining(adults, kittens, deltas.other);
+  adults = otherTaken.adults;
+  kittens = otherTaken.kittens;
+
+  // Overflow ACC/foster/other is extra cats still needing TNR, not a completed outcome.
+  const extraUnfixed = accTaken.leftover + fosterTaken.leftover + otherTaken.leftover;
+  if (extraUnfixed > 0) {
+    reportedAdults += extraUnfixed;
+    adults += extraUnfixed;
   }
 
   const next: PublicProgressCaseRow = {
@@ -224,9 +313,9 @@ export function applyPublicOutcomeDeltas(
     reported_cats_over_8_weeks: reportedAdults,
     reported_kittens_under_8_weeks: reportedKittens,
     outcome_tnvr_count: Math.max(0, row.outcome_tnvr_count ?? 0) + tnvr,
-    outcome_acc_count: Math.max(0, row.outcome_acc_count ?? 0) + deltas.acc,
-    outcome_foster_count: Math.max(0, row.outcome_foster_count ?? 0) + deltas.foster,
-    outcome_other_count: Math.max(0, row.outcome_other_count ?? 0) + deltas.other,
+    outcome_acc_count: Math.max(0, row.outcome_acc_count ?? 0) + accTaken.applied,
+    outcome_foster_count: Math.max(0, row.outcome_foster_count ?? 0) + fosterTaken.applied,
+    outcome_other_count: Math.max(0, row.outcome_other_count ?? 0) + otherTaken.applied,
     cats_over_8_weeks: adults,
     kittens_under_8_weeks: kittens,
     cats_remaining: adults + kittens,
@@ -235,19 +324,34 @@ export function applyPublicOutcomeDeltas(
   const parts: string[] = [];
   if (deltas.tnvrAdults) parts.push(`${deltas.tnvrAdults} adult TNR’d`);
   if (deltas.tnvrKittens) parts.push(`${deltas.tnvrKittens} kitten TNR’d`);
-  if (deltas.acc) parts.push(`${deltas.acc} to ACC`);
-  if (deltas.foster) parts.push(`${deltas.foster} to foster`);
-  if (deltas.other) parts.push(`${deltas.other} other outcome`);
+  if (accTaken.applied) parts.push(`${accTaken.applied} to ACC`);
+  if (fosterTaken.applied) parts.push(`${fosterTaken.applied} to foster`);
+  if (otherTaken.applied) parts.push(`${otherTaken.applied} no longer need TNR`);
+  if (deltas.additionalAdults || deltas.additionalKittens || extraUnfixed) {
+    const foundAdults = deltas.additionalAdults + extraUnfixed;
+    const foundParts: string[] = [];
+    if (foundAdults) foundParts.push(`${foundAdults} adult${foundAdults === 1 ? "" : "s"}`);
+    if (deltas.additionalKittens) {
+      foundParts.push(
+        `${deltas.additionalKittens} kitten${deltas.additionalKittens === 1 ? "" : "s"}`
+      );
+    }
+    parts.push(`found ${foundParts.join(" and ")} still needing TNR`);
+  }
 
-  const addedAdults = Math.max(0, reportedAdults - Math.max(0, row.reported_cats_over_8_weeks ?? remainingAdults));
-  const addedKittens = Math.max(
+  const tnvrExtraAdults = Math.max(0, deltas.tnvrAdults - (remainingAdults + deltas.additionalAdults));
+  const tnvrExtraKittens = Math.max(
     0,
-    reportedKittens - Math.max(0, row.reported_kittens_under_8_weeks ?? remainingKittens)
+    deltas.tnvrKittens - (remainingKittens + deltas.additionalKittens)
   );
-  if (addedAdults || addedKittens) {
+  if (tnvrExtraAdults || tnvrExtraKittens) {
     const addedParts: string[] = [];
-    if (addedAdults) addedParts.push(`${addedAdults} adult${addedAdults === 1 ? "" : "s"}`);
-    if (addedKittens) addedParts.push(`${addedKittens} kitten${addedKittens === 1 ? "" : "s"}`);
+    if (tnvrExtraAdults) {
+      addedParts.push(`${tnvrExtraAdults} TNR’d adult${tnvrExtraAdults === 1 ? "" : "s"}`);
+    }
+    if (tnvrExtraKittens) {
+      addedParts.push(`${tnvrExtraKittens} TNR’d kitten${tnvrExtraKittens === 1 ? "" : "s"}`);
+    }
     parts.push(`added ${addedParts.join(" and ")} to originally reported`);
   }
 

@@ -15,7 +15,7 @@ import type { Cat, ClinicFix, HelpRequest } from "@/lib/types";
 import { Info, Plus } from "lucide-react";
 
 const CAT_COUNTS_HELP =
-  "Counts track how many cats still need spay/neuter, not how many are physically at the colony. Fixed cats — including those reported on the public update form — are removed from the still-need-fixing total whether they return to the colony or go to foster/facility.";
+  "Originally reported is the intake count. Still need fixing is cats not yet TNR’d. Other / no longer need TNR is only cats that died, moved, or were rehomed — not the cats left to trap.";
 
 function CatCountsInfoTip() {
   const [open, setOpen] = useState(false);

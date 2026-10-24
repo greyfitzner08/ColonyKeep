@@ -124,8 +124,13 @@ export function summarizeCatCounts(
     clinicUnfixedKittens,
     nonClinicRemovals
   );
-  const unfixedAdults = reduced.adults;
-  const unfixedKittens = reduced.kittens;
+  // Prefer the stored remaining age split when it matches the computed total so
+  // public TNR of kittens is not dumped onto adults.
+  const storedAdults = Math.max(0, hr.cats_over_8_weeks ?? reduced.adults);
+  const storedKittens = Math.max(0, hr.kittens_under_8_weeks ?? reduced.kittens);
+  const useStoredSplit = storedAdults + storedKittens === reduced.adults + reduced.kittens;
+  const unfixedAdults = useStoredSplit ? storedAdults : reduced.adults;
+  const unfixedKittens = useStoredSplit ? storedKittens : reduced.kittens;
 
   // Attribute public TNR extras to adult/kitten for the Fixed row.
   const adultsRemovedOutsideClinic = Math.max(0, clinicUnfixedAdults - unfixedAdults);

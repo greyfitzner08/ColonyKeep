@@ -49,7 +49,7 @@ export function CatCountSummaryDisplay({ counts, pregnantCount }: CatCountSummar
           {counts.outcomeOther > 0 && (
             <>
               {" · "}
-              {counts.outcomeOther} other outcome
+              {counts.outcomeOther} no longer need TNR
             </>
           )}
         </p>
@@ -152,7 +152,10 @@ export function CatCountSummaryDisplay({ counts, pregnantCount }: CatCountSummar
             {counts.outcomeOther > 0 && (
               <tr className="border-b">
                 <th className="px-4 py-2.5 text-left font-medium" scope="row">
-                  Other outcomes
+                  No longer need TNR
+                  <span className="mt-0.5 block text-xs font-normal text-muted-foreground">
+                    Died, moved, or rehomed — not cats still waiting
+                  </span>
                 </th>
                 <CountCell value={counts.outcomeOther} />
                 <CountCell value={0} />
@@ -172,9 +175,9 @@ export function CatCountSummaryDisplay({ counts, pregnantCount }: CatCountSummar
       </div>
 
       <p className="border-t px-4 py-2 text-xs text-muted-foreground">
-        Originally reported and suspected pregnant counts are set at intake and stay fixed. Fixed
-        cats — whether logged at clinic or reported on the public update form — no longer count
-        toward still need fixing.
+        Originally reported stays as the intake count unless more cats are found. Fixed cats
+        (clinic or public TNR) and cats that died, moved, or were rehomed no longer count toward
+        still need fixing. Cats still waiting for TNR are not an “other” outcome.
       </p>
 
       {pregnantCount !== undefined && pregnantCount > 0 && (
