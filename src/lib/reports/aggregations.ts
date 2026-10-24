@@ -78,6 +78,7 @@ export interface ReportHelpRequest {
   colony_zip: string;
   kittens_under_8_weeks: number;
   cats_over_8_weeks: number;
+  outcome_tnvr_count?: number | null;
   assigned_team_id: string | null;
   assigned_team_name: string | null;
   claimed_by_email: string | null;
@@ -315,6 +316,14 @@ function clinicFixCountsForRequests(
   return counts;
 }
 
+/** Clinic-logged fixes plus public/manual TNR on the case, without double-counting. */
+export function caseFixedCount(
+  hr: Pick<ReportHelpRequest, "id" | "outcome_tnvr_count">,
+  clinicFixCount: number
+): number {
+  return Math.max(clinicFixCount, hr.outcome_tnvr_count ?? 0);
+}
+
 function groupRemainingVsFixed(
   items: { key: string; label: string; sublabel?: string; remaining: number; fixed: number }[],
   sort: "activity" | "month"
@@ -368,7 +377,7 @@ function remainingVsFixedResult(
     queue.map((hr) => ({
       ...groupOf(hr),
       remaining: catCount(hr),
-      fixed: fixCounts.get(hr.id) ?? 0,
+      fixed: caseFixedCount(hr, fixCounts.get(hr.id) ?? 0),
     })),
     sort
   );
@@ -550,7 +559,7 @@ export function runReport(
       if (type === "queue_cats_by_zip") {
         return remainingVsFixedResult(
           "Queue cats remaining vs fixed by ZIP",
-          "Open cases only. Not fixed is remaining adults and kittens on the case. Fixed is clinic outcomes logged on those same cases.",
+          "Open cases only. Not fixed is remaining adults and kittens on the case. Fixed is clinic-logged and public TNR on those same cases.",
           "ZIP code",
           queue,
           clinicFixes,
@@ -567,7 +576,7 @@ export function runReport(
       if (type === "queue_cats_by_team") {
         return remainingVsFixedResult(
           "Queue cats remaining vs fixed by team",
-          "Open cases only. Not fixed is remaining adults and kittens on the case. Fixed is clinic outcomes logged on those same cases.",
+          "Open cases only. Not fixed is remaining adults and kittens on the case. Fixed is clinic-logged and public TNR on those same cases.",
           "Trap team",
           queue,
           clinicFixes,
@@ -581,7 +590,7 @@ export function runReport(
       }
       return remainingVsFixedResult(
         "Queue cats remaining vs fixed by month",
-        "Open cases grouped by the month the case was created. Not fixed is remaining adults and kittens. Fixed is clinic outcomes on those same cases.",
+        "Open cases grouped by the month the case was created. Not fixed is remaining adults and kittens. Fixed is clinic-logged and public TNR on those same cases.",
         "Month",
         queue,
         clinicFixes,

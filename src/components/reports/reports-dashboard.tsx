@@ -50,7 +50,7 @@ const REPORT_GROUPS: { id: ReportGroupId; label: string; description: string }[]
   {
     id: "queue_cats",
     label: "Trap queue cats",
-    description: "Open cases: remaining unfixed cats versus cats already logged as clinic-fixed.",
+    description: "Open cases: remaining unfixed cats versus cats already TNR’d (clinic or public update).",
   },
   {
     id: "inquiries_cases",
@@ -73,19 +73,19 @@ const REPORT_TYPES: { value: ReportType; label: string; hint: string; group: Rep
   {
     value: "queue_cats_by_zip",
     label: "Remaining vs fixed by ZIP",
-    hint: "Open-case cats still unfixed versus already fixed, grouped by colony ZIP.",
+    hint: "Open-case cats still unfixed versus already TNR’d (clinic or public update), grouped by colony ZIP.",
     group: "queue_cats",
   },
   {
     value: "queue_cats_by_team",
     label: "Remaining vs fixed by team",
-    hint: "Open-case cats still unfixed versus already fixed, grouped by trap team.",
+    hint: "Open-case cats still unfixed versus already TNR’d (clinic or public update), grouped by trap team.",
     group: "queue_cats",
   },
   {
     value: "queue_cats_by_month",
     label: "Remaining vs fixed by month",
-    hint: "Open-case cats still unfixed versus already fixed, grouped by the month the case was created.",
+    hint: "Open-case cats still unfixed versus already TNR’d (clinic or public update), grouped by the month the case was created.",
     group: "queue_cats",
   },
   {

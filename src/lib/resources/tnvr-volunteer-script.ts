@@ -74,7 +74,7 @@ After surgery, open the same case and **log a clinic fix** for each cat that was
 - adult or kitten
 - whether they went to foster / a facility
 
-That clinic log is how the case (and Reports) know the cat is **fixed**. If you skip this step, the cat still looks unfixed in the queue.
+That clinic log is how the case (and Reports) know the cat is **fixed**. Public colony updates also count as TNR’d. If neither is recorded, the cat still looks unfixed in the queue.
 
 If a cat went to foster, record the facility on that same clinic log.
 

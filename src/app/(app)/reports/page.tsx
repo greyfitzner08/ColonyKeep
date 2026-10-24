@@ -17,7 +17,7 @@ import type {
 } from "@/lib/reports/aggregations";
 
 const HELP_REQUEST_REPORT_FIELDS =
-  "id, case_number, status, outcome, contact_name, contact_email, colony_city, colony_county, colony_zip, kittens_under_8_weeks, cats_over_8_weeks, assigned_team_id, assigned_team_name, claimed_by_email, claimed_by_name, trapper_trap_loaner, created_at";
+  "id, case_number, status, outcome, contact_name, contact_email, colony_city, colony_county, colony_zip, kittens_under_8_weeks, cats_over_8_weeks, outcome_tnvr_count, assigned_team_id, assigned_team_name, claimed_by_email, claimed_by_name, trapper_trap_loaner, created_at";
 
 export default async function ReportsPage() {
   const profile = await getAppProfile();
