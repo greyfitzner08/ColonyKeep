@@ -22,6 +22,9 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     title: `${branding.app_name} — Colony Management`,
     description: "Trap-Neuter-Vaccinate-Return cat colony management platform",
+    verification: {
+      google: "NjVMYcRagc1R4aOMHNAV_-aNyOg3WN1AVGKuHVnr3mo",
+    },
     icons: branding.logo_url
       ? {
           icon: [{ url: branding.logo_url }],
