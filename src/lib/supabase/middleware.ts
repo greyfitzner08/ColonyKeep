@@ -55,11 +55,25 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
+  const host = request.headers.get("host") ?? "";
+  const proto = request.headers.get("x-forwarded-proto")?.split(",")[0]?.trim();
+  if (
+    proto === "http" &&
+    host &&
+    !host.startsWith("localhost") &&
+    !host.startsWith("127.0.0.1")
+  ) {
+    const httpsUrl = request.nextUrl.clone();
+    httpsUrl.protocol = "https:";
+    return NextResponse.redirect(httpsUrl, 308);
+  }
+
   const pathname = request.nextUrl.pathname;
   const isPublic = PUBLIC_ROUTES.some(
     (route) => pathname === route || pathname.startsWith(route + "/")
   );
   const isApi = pathname.startsWith("/api/");
+  const isPublicHome = pathname === "/";
 
   // Public pages and APIs handle their own access rules — never redirect to the dashboard.
   if (isPublic || isApi) {
@@ -67,6 +81,10 @@ export async function updateSession(request: NextRequest) {
   }
 
   if (!user) {
+    // Logged-out homepage is an org landing page, not a password form.
+    if (isPublicHome) {
+      return supabaseResponse;
+    }
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     url.searchParams.set("redirect", pathname);

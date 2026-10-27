@@ -14,6 +14,7 @@ import {
   isVolunteerLoginBlockedStatus,
 } from "@/lib/volunteers/login-access";
 import Link from "next/link";
+import { OrgIdentity, OrgJsonLd } from "@/components/public/org-identity";
 
 export function LoginForm() {
   const [email, setEmail] = useState("");
@@ -80,19 +81,30 @@ export function LoginForm() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-muted/30 p-4">
-      <Card className="w-full max-w-md">
+      <OrgJsonLd />
+      <div className="w-full max-w-md space-y-6">
+      <Card>
         <CardHeader className="text-center">
           <Link href="/" className="mb-2 inline-flex justify-center text-primary">
             <BrandMark nameClassName="text-xl text-primary" />
           </Link>
-          <CardTitle>Volunteer Login</CardTitle>
-          <CardDescription>Sign in to access the volunteer portal</CardDescription>
+          <CardTitle>Volunteer sign in</CardTitle>
+          <CardDescription>
+            For approved Friends of Feral Felines volunteers only. This is not a bank, store, or
+            password-reset page for any other company.
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleLogin} className="space-y-4">
             <div className="space-y-2">
-              <Label>Email</Label>
-              <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+              <Label>Volunteer email</Label>
+              <Input
+                type="email"
+                autoComplete="username"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
             </div>
             <div className="space-y-2">
               <div className="flex items-center justify-between gap-2">
@@ -104,7 +116,12 @@ export function LoginForm() {
                   Forgot password?
                 </Link>
               </div>
-              <PasswordInput value={password} onChange={(e) => setPassword(e.target.value)} required />
+              <PasswordInput
+                autoComplete="current-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+              />
             </div>
             {(error || urlError === "inactive") && (
               <p className="text-sm text-destructive">
@@ -122,6 +139,8 @@ export function LoginForm() {
           </p>
         </CardContent>
       </Card>
+      <OrgIdentity />
+      </div>
     </div>
   );
 }

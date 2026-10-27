@@ -4,6 +4,7 @@ import { Inter } from "next/font/google";
 import { BrandingProvider } from "@/components/branding/branding-provider";
 import { brandingThemeStyle } from "@/lib/branding";
 import { getPlatformBranding } from "@/lib/branding-server";
+import { APP_PUBLIC_URL } from "@/lib/org";
 import "./globals.css";
 
 const inter = Inter({
@@ -20,8 +21,11 @@ export const viewport: Viewport = {
 export async function generateMetadata(): Promise<Metadata> {
   const branding = await getPlatformBranding();
   return {
+    metadataBase: new URL(APP_PUBLIC_URL),
     title: `${branding.app_name} — Colony Management`,
-    description: "Trap-Neuter-Vaccinate-Return cat colony management platform",
+    description:
+      "Official ColonyKeep volunteer portal for Friends of Feral Felines, a Charlotte nonprofit helping community cats through TNVR.",
+    alternates: { canonical: "/" },
     verification: {
       google: "NjVMYcRagc1R4aOMHNAV_-aNyOg3WN1AVGKuHVnr3mo",
     },

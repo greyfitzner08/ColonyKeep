@@ -1,4 +1,4 @@
-import { getSessionProfiles } from "@/lib/auth";
+import { getCurrentUser, getSessionProfiles } from "@/lib/auth";
 import { rolePreviewLabel } from "@/lib/admin/role-preview";
 import { VolunteerGate } from "@/components/layout/volunteer-gate";
 import { VolunteerApplicationGate } from "@/components/layout/volunteer-application-gate";
@@ -30,6 +30,11 @@ import type { RoleDescription, VolunteerApplication } from "@/lib/types";
 export async function AppShell({ children }: { children: React.ReactNode }) {
   if (!hasSupabaseServerConfig()) {
     return <SupabaseConfigGate />;
+  }
+
+  const user = await getCurrentUser();
+  if (!user) {
+    return <>{children}</>;
   }
 
   const { actualProfile: profile, effectiveProfile, previewKey } = await getSessionProfiles();

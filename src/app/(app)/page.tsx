@@ -3,6 +3,7 @@ import { getAppProfile } from "@/lib/auth";
 import { SupabaseConfigGate } from "@/components/layout/supabase-config-gate";
 import { hasSupabaseServerConfig, hasSupabaseAdminConfig } from "@/lib/supabase/env";
 import { ConfigurableDashboard } from "@/components/dashboard/configurable-dashboard";
+import { PublicPortalHome } from "@/components/public/public-portal-home";
 import { fetchCommunityStats } from "@/components/dashboard/community-stats-card";
 import { fetchTrapTeamDashboardData } from "@/lib/dashboard/trap-team-data";
 import { fetchPendingClinicResults } from "@/lib/appointments/pending-clinic-results";
@@ -34,7 +35,7 @@ export default async function DashboardPage() {
   const profile = await getAppProfile();
 
   if (!profile?.id) {
-    return null;
+    return <PublicPortalHome />;
   }
 
   const service = hasSupabaseAdminConfig() ? await createServiceClient() : null;
