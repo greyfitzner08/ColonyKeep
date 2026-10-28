@@ -19,7 +19,7 @@ import { hasActiveMedicalFlag } from "@/lib/medical-flags";
 import { CaseFollowUpIndicator } from "@/components/cases/case-follow-up-indicator";
 import { ClaimantReviewFlag } from "@/components/cases/claimant-review-flag";
 import type { HelpRequest } from "@/lib/types";
-import { cn } from "@/lib/utils";
+import { cn, formatDate } from "@/lib/utils";
 
 interface CaseCardProps {
   helpRequest: HelpRequest;
@@ -67,42 +67,55 @@ export function CaseCard({
   const lockOpenUntilClaim = claimBeforeReview && showClaimButton;
   const caseHref = `/case/${hr.id}`;
   const lifecycle = toCaseLifecycleStatus(hr);
+  const isTrapQueueCard = statusDisplay === "workflow";
+  const showWorkflowStatus = isTrapQueueCard && hr.status !== "routed_to_trap_team";
   const statusBadge =
     statusDisplay === "lifecycle" ? (
       <Badge className={cn("text-xs", LIFECYCLE_STATUS_COLORS[lifecycle])}>
         {getCaseLifecycleLabel(hr)}
       </Badge>
-    ) : (
+    ) : showWorkflowStatus ? (
       <Badge className={cn("text-xs", STATUS_COLORS[hr.status])}>
         {getStatusLabel(hr.status, "trap")}
       </Badge>
-    );
+    ) : null;
+  const submittedOn = formatDate(hr.created_at);
 
   const summary = (
     <>
       <CardHeader className="pb-2">
         <div className="flex items-start justify-between gap-2">
           <CardTitle className="text-base font-semibold">{hr.case_number}</CardTitle>
-          <div className="flex items-center gap-1">
-            <CaseFollowUpIndicator helpRequest={hr} />
-            <ClaimantReviewFlag helpRequest={hr} />
-            {medical && (
-              <Badge variant="destructive" className="gap-1">
-                <AlertTriangle className="h-3 w-3" />
-                Medical
-              </Badge>
-            )}
-            {hr.trap_school_eligible ? (
-              <Badge variant="outline" className="text-xs whitespace-nowrap">
-                Trap School
-              </Badge>
+          <div className="flex min-w-0 flex-col items-end gap-1">
+            {isTrapQueueCard && submittedOn ? (
+              <time
+                dateTime={hr.created_at}
+                className="text-xs text-muted-foreground whitespace-nowrap"
+              >
+                {submittedOn}
+              </time>
             ) : null}
-            {isMine ? (
-              <Badge className="bg-emerald-600 text-xs text-white hover:bg-emerald-600">
-                Yours
-              </Badge>
-            ) : null}
-            {statusBadge}
+            <div className="flex flex-wrap items-center justify-end gap-1">
+              <CaseFollowUpIndicator helpRequest={hr} />
+              <ClaimantReviewFlag helpRequest={hr} />
+              {medical && (
+                <Badge variant="destructive" className="gap-1">
+                  <AlertTriangle className="h-3 w-3" />
+                  Medical
+                </Badge>
+              )}
+              {hr.trap_school_eligible ? (
+                <Badge variant="outline" className="text-xs whitespace-nowrap">
+                  Trap School
+                </Badge>
+              ) : null}
+              {isMine ? (
+                <Badge className="bg-emerald-600 text-xs text-white hover:bg-emerald-600">
+                  Yours
+                </Badge>
+              ) : null}
+              {statusBadge}
+            </div>
           </div>
         </div>
       </CardHeader>
