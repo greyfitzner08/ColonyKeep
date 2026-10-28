@@ -173,8 +173,7 @@ export async function POST(request: NextRequest) {
         ...(fixedAtClinic && {
           trapped_status: "Trapped",
           appointment_status: "Complete",
-          age_category:
-            ageCategory === "adult" || ageCategory === "kitten" ? ageCategory : null,
+          age_category: ageCategory === "kitten" ? "kitten" : "adult",
         }),
       })
       .select("*")

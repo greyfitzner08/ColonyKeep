@@ -48,11 +48,20 @@ export function reportedKittens(hr: HelpRequest): number {
   return hr.reported_kittens_under_8_weeks ?? hr.kittens_under_8_weeks ?? 0;
 }
 
+/** Clinic logs without an age still count as a fix; treat them as adults. */
+export function clinicFixAgeBucket(
+  age: string | null | undefined
+): "adult" | "kitten" {
+  return age === "kitten" ? "kitten" : "adult";
+}
+
 function fosterCountsFromFixes(fixes: FosterFix[]) {
   const fosterFixes = fixes.filter((fix) => fix.went_to_foster_facility);
   return {
-    fosterAdults: fosterFixes.filter((fix) => fix.age_category === "adult").length,
-    fosterKittens: fosterFixes.filter((fix) => fix.age_category === "kitten").length,
+    fosterAdults: fosterFixes.filter((fix) => clinicFixAgeBucket(fix.age_category) === "adult")
+      .length,
+    fosterKittens: fosterFixes.filter((fix) => clinicFixAgeBucket(fix.age_category) === "kitten")
+      .length,
     fixCatIds: new Set(
       fosterFixes.map((fix) => fix.cat_id).filter((id): id is string => Boolean(id))
     ),
@@ -90,8 +99,10 @@ export function summarizeCatCounts(
   fixes: FosterFix[] = [],
   cats: FosterCat[] = []
 ): CatCountSummary {
-  const clinicFixedAdults = fixes.filter((fix) => fix.age_category === "adult").length;
-  const clinicFixedKittens = fixes.filter((fix) => fix.age_category === "kitten").length;
+  const clinicFixedKittens = fixes.filter(
+    (fix) => clinicFixAgeBucket(fix.age_category) === "kitten"
+  ).length;
+  const clinicFixedAdults = Math.max(0, fixes.length - clinicFixedKittens);
   const clinicFixedTotal = clinicFixedAdults + clinicFixedKittens;
 
   const reportedAdultsCount =

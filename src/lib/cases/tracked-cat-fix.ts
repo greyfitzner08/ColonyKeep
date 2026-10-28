@@ -1,4 +1,4 @@
-import { summarizeCatCounts } from "@/lib/cases/cat-counts";
+import { clinicFixAgeBucket, summarizeCatCounts } from "@/lib/cases/cat-counts";
 import { fosterFieldsFromCat } from "@/lib/cases/tracked-cat-foster";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Cat } from "@/lib/types";
@@ -168,7 +168,7 @@ export async function syncTrackedCatFixesForCase(
           const { error } = await service
             .from("clinic_fixes")
             .update({
-              age_category: cat.age_category,
+              age_category: clinicFixAgeBucket(cat.age_category),
               gender: parseTrackedCatGender(cat.gender),
               clinic_name: cat.clinic_name,
               fix_date: fixDateFromCat(cat),
@@ -186,7 +186,7 @@ export async function syncTrackedCatFixesForCase(
           help_request_id: helpRequestId,
           cat_id: cat.id,
           appointment_id: cat.appointment_id,
-          age_category: cat.age_category,
+          age_category: clinicFixAgeBucket(cat.age_category),
           gender: parseTrackedCatGender(cat.gender),
           clinic_name: cat.clinic_name,
           fix_date: fixDateFromCat(cat),
