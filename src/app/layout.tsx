@@ -27,7 +27,10 @@ export async function generateMetadata(): Promise<Metadata> {
       "Official ColonyKeep volunteer portal for Friends of Feral Felines, a Charlotte nonprofit helping community cats through TNVR.",
     alternates: { canonical: "/" },
     verification: {
-      google: "NjVMYcRagc1R4aOMHNAV_-aNyOg3WN1AVGKuHVnr3mo",
+      google: [
+        "NjVMYcRagc1R4aOMHNAV_-aNyOg3WN1AVGKuHVnr3mo",
+        "Ce7OT4gEfO-gpqGnW91LdeuyVqGkYuTR1BP6bt1mRs4",
+      ],
     },
     icons: branding.logo_url
       ? {
