@@ -10,7 +10,9 @@ import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
@@ -38,141 +40,222 @@ import {
 import { ADOPTABLE_CAT_STATUSES } from "@/lib/adoption/constants";
 import { ADOPTION_APPLICATION_STATUSES } from "@/lib/adoption/application";
 import { downloadCsv, reportToCsv } from "@/lib/reports/export-csv";
-import {
-  isAppointmentTiedReportType,
-  showAppointmentTiedReports,
-} from "@/lib/reports/visibility";
+import { showAppointmentTiedReports } from "@/lib/reports/visibility";
 import { cn } from "@/lib/utils";
 
-type ReportGroupId = "queue_cats" | "inquiries_cases" | "tnvr_work" | "adoption";
+type ReportFamilyId =
+  | "remaining_vs_fixed"
+  | "inquiries"
+  | "cases"
+  | "cats_by_clinic"
+  | "tnvr_foster"
+  | "clinic_usage"
+  | "adoptable_cats"
+  | "adoption_applications";
 
-const REPORT_GROUPS: { id: ReportGroupId; label: string; description: string }[] = [
-  {
-    id: "queue_cats",
-    label: "Trap queue cats",
-    description: "Open cases: remaining unfixed cats versus cats already TNR’d (clinic or public update).",
-  },
-  {
-    id: "inquiries_cases",
-    label: "Inquiries & cases",
-    description: "Inquiry volume and trap-case caseload.",
-  },
-  {
-    id: "tnvr_work",
-    label: "Clinic & foster",
-    description: "Where trap-case cats went for clinic or foster care.",
-  },
-  {
-    id: "adoption",
-    label: "Adoption",
-    description: "Adoptable cats and applications. Not assigned to a trap team.",
-  },
-];
+type ReportBreakdown =
+  | "zip"
+  | "team"
+  | "month"
+  | "trapper"
+  | "status"
+  | "clinic"
+  | "totals"
+  | "detail";
 
-const REPORT_TYPES: { value: ReportType; label: string; hint: string; group: ReportGroupId }[] = [
+interface ReportBreakdownOption {
+  value: ReportBreakdown;
+  label: string;
+  type: ReportType;
+  hint: string;
+}
+
+interface ReportFamily {
+  id: ReportFamilyId;
+  label: string;
+  group: string;
+  hint: string;
+  appointmentTied?: boolean;
+  breakdowns: ReportBreakdownOption[];
+}
+
+const REPORT_FAMILIES: ReportFamily[] = [
   {
-    value: "queue_cats_by_zip",
-    label: "Remaining vs fixed by ZIP",
-    hint: "Open-case cats still unfixed versus already TNR’d (clinic or public update), grouped by colony ZIP.",
-    group: "queue_cats",
+    id: "remaining_vs_fixed",
+    label: "Remaining vs fixed",
+    group: "Trap queue",
+    hint: "Open-case cats still unfixed versus already TNR’d (clinic or public update).",
+    breakdowns: [
+      {
+        value: "zip",
+        label: "ZIP",
+        type: "queue_cats_by_zip",
+        hint: "Grouped by colony ZIP.",
+      },
+      {
+        value: "team",
+        label: "Team",
+        type: "queue_cats_by_team",
+        hint: "Grouped by trap team.",
+      },
+      {
+        value: "month",
+        label: "Month",
+        type: "queue_cats_by_month",
+        hint: "Grouped by the month the case was created.",
+      },
+    ],
   },
   {
-    value: "queue_cats_by_team",
-    label: "Remaining vs fixed by team",
-    hint: "Open-case cats still unfixed versus already TNR’d (clinic or public update), grouped by trap team.",
-    group: "queue_cats",
+    id: "inquiries",
+    label: "Inquiries",
+    group: "Inquiries & cases",
+    hint: "How many inquiry forms came in.",
+    breakdowns: [
+      {
+        value: "zip",
+        label: "ZIP",
+        type: "inquiries_by_zip",
+        hint: "Grouped by colony ZIP.",
+      },
+      {
+        value: "team",
+        label: "Team",
+        type: "inquiries_by_team",
+        hint: "Grouped by trap team (assigned or ZIP-mapped).",
+      },
+    ],
   },
   {
-    value: "queue_cats_by_month",
-    label: "Remaining vs fixed by month",
-    hint: "Open-case cats still unfixed versus already TNR’d (clinic or public update), grouped by the month the case was created.",
-    group: "queue_cats",
+    id: "cases",
+    label: "Cases",
+    group: "Inquiries & cases",
+    hint: "Trap-case volume and caseload.",
+    breakdowns: [
+      {
+        value: "team",
+        label: "Team",
+        type: "cases_by_team",
+        hint: "Case volume per trap team.",
+      },
+      {
+        value: "trapper",
+        label: "Trapper",
+        type: "cases_by_trapper",
+        hint: "Grouped by trapper, trap loaner, or case worker.",
+      },
+      {
+        value: "status",
+        label: "Status",
+        type: "case_status_summary",
+        hint: "Status breakdown for the filtered cases.",
+      },
+      {
+        value: "detail",
+        label: "List",
+        type: "case_detail",
+        hint: "One row per matching case.",
+      },
+    ],
   },
   {
-    value: "inquiries_by_zip",
-    label: "Inquiries by ZIP",
-    hint: "How many inquiry forms came from each colony ZIP code.",
-    group: "inquiries_cases",
-  },
-  {
-    value: "inquiries_by_team",
-    label: "Inquiries by team",
-    hint: "Inquiry volume per trap team (assigned or ZIP-mapped).",
-    group: "inquiries_cases",
-  },
-  {
-    value: "cases_by_trapper",
-    label: "Cases by trapper",
-    hint: "Trap work grouped by trapper, trap loaner, or case worker.",
-    group: "inquiries_cases",
-  },
-  {
-    value: "cases_by_team",
-    label: "Cases by team",
-    hint: "Case volume per trap team including completed field work.",
-    group: "inquiries_cases",
-  },
-  {
-    value: "case_status_summary",
-    label: "Cases by status",
-    hint: "Status breakdown for the filtered case set.",
-    group: "inquiries_cases",
-  },
-  {
-    value: "case_detail",
-    label: "Case detail list",
-    hint: "Exportable row-level list of cases matching filters.",
-    group: "inquiries_cases",
-  },
-  {
-    value: "cats_by_clinic",
+    id: "cats_by_clinic",
     label: "Cats by clinic",
-    hint: "TNVR case cats linked to each clinic. Adoptable Cats are not included.",
-    group: "tnvr_work",
+    group: "Clinic & foster",
+    hint: "TNVR case cats linked to each clinic. Adoptable cats are not included.",
+    breakdowns: [
+      {
+        value: "clinic",
+        label: "Clinic",
+        type: "cats_by_clinic",
+        hint: "TNVR case cats linked to each clinic.",
+      },
+    ],
   },
   {
-    value: "cats_by_foster_facility",
-    label: "TNVR foster totals",
-    hint: "Trap-case cats sent to foster or a facility. Adoptable Cats are not included and have no trap team.",
-    group: "tnvr_work",
+    id: "tnvr_foster",
+    label: "TNVR foster",
+    group: "Clinic & foster",
+    hint: "Trap-case cats sent to foster or a facility.",
+    breakdowns: [
+      {
+        value: "totals",
+        label: "Totals",
+        type: "cats_by_foster_facility",
+        hint: "Totals by foster or facility.",
+      },
+      {
+        value: "detail",
+        label: "List",
+        type: "foster_placements_detail",
+        hint: "One row per trap-case cat sent to foster or a facility.",
+      },
+    ],
   },
   {
-    value: "foster_placements_detail",
-    label: "TNVR foster detail",
-    hint: "Each trap-case cat sent to foster or a facility, with that case’s trap team.",
-    group: "tnvr_work",
-  },
-  {
-    value: "clinic_usage",
+    id: "clinic_usage",
     label: "Clinic appointments",
+    group: "Clinic & foster",
     hint: "Appointment counts per clinic in the filtered date range.",
-    group: "tnvr_work",
+    appointmentTied: true,
+    breakdowns: [
+      {
+        value: "clinic",
+        label: "Clinic",
+        type: "clinic_usage",
+        hint: "Appointment counts per clinic.",
+      },
+    ],
   },
   {
-    value: "adoptable_cats_by_status",
-    label: "Adoptable cats by status",
-    hint: "Cats on the Adoption list, grouped by status. Not assigned to a trap team.",
-    group: "adoption",
+    id: "adoptable_cats",
+    label: "Adoptable cats",
+    group: "Adoption",
+    hint: "Cats on the Adoption list. Not assigned to a trap team.",
+    breakdowns: [
+      {
+        value: "status",
+        label: "Status",
+        type: "adoptable_cats_by_status",
+        hint: "Grouped by adoptable-cat status.",
+      },
+      {
+        value: "detail",
+        label: "List",
+        type: "adoptable_cats_detail",
+        hint: "One row per adoptable cat, with foster and pet store.",
+      },
+    ],
   },
   {
-    value: "adoptable_cats_detail",
-    label: "Adoptable cats list",
-    hint: "Each Adoptable Cat, with foster and pet store from that profile.",
-    group: "adoption",
-  },
-  {
-    value: "adoption_applications_by_status",
-    label: "Applications by status",
-    hint: "Adoption applications grouped by review status.",
-    group: "adoption",
-  },
-  {
-    value: "adoption_applications_detail",
-    label: "Applications list",
-    hint: "Each application from a person who wants to adopt.",
-    group: "adoption",
+    id: "adoption_applications",
+    label: "Adoption applications",
+    group: "Adoption",
+    hint: "People who applied to adopt.",
+    breakdowns: [
+      {
+        value: "status",
+        label: "Status",
+        type: "adoption_applications_by_status",
+        hint: "Grouped by application review status.",
+      },
+      {
+        value: "detail",
+        label: "List",
+        type: "adoption_applications_detail",
+        hint: "One row per application.",
+      },
+    ],
   },
 ];
+
+function familyMatchesType(family: ReportFamily, type: ReportType) {
+  return family.breakdowns.some((entry) => entry.type === type);
+}
+
+function breakdownForType(family: ReportFamily, type: ReportType) {
+  return family.breakdowns.find((entry) => entry.type === type) ?? family.breakdowns[0];
+}
 
 interface ReportsDashboardProps {
   helpRequests: ReportHelpRequest[];
@@ -211,21 +294,38 @@ export function ReportsDashboard({
 }: ReportsDashboardProps) {
   const [filters, setFilters] = useState<ReportFilters>(DEFAULT_REPORT_FILTERS);
   const [reportType, setReportType] = useState<ReportType>("queue_cats_by_zip");
-  const [setupOpen, setSetupOpen] = useState(false);
+  const [moreFiltersOpen, setMoreFiltersOpen] = useState(false);
 
-  const visibleReportTypes = useMemo(
+  const visibleFamilies = useMemo(
     () =>
-      REPORT_TYPES.filter(
-        (entry) => showAppointmentTiedReports() || !isAppointmentTiedReportType(entry.value)
+      REPORT_FAMILIES.filter(
+        (family) => showAppointmentTiedReports() || !family.appointmentTied
       ),
     []
   );
 
+  const familyGroups = useMemo(() => {
+    const groups: { label: string; families: ReportFamily[] }[] = [];
+    for (const family of visibleFamilies) {
+      const existing = groups.find((group) => group.label === family.group);
+      if (existing) existing.families.push(family);
+      else groups.push({ label: family.group, families: [family] });
+    }
+    return groups;
+  }, [visibleFamilies]);
+
+  const activeFamily =
+    visibleFamilies.find((family) => familyMatchesType(family, reportType)) ??
+    visibleFamilies[0];
+  const activeBreakdown = activeFamily
+    ? breakdownForType(activeFamily, reportType)
+    : undefined;
+
   useEffect(() => {
-    if (visibleReportTypes.some((entry) => entry.value === reportType)) return;
-    const fallback = visibleReportTypes[0];
-    if (fallback) setReportType(fallback.value);
-  }, [reportType, visibleReportTypes]);
+    if (visibleFamilies.some((family) => familyMatchesType(family, reportType))) return;
+    const fallback = visibleFamilies[0]?.breakdowns[0];
+    if (fallback) setReportType(fallback.type);
+  }, [reportType, visibleFamilies]);
 
   const options = useMemo(
     () => reportFilterOptions(helpRequests, teams, clinics),
@@ -259,10 +359,6 @@ export function ReportsDashboard({
       adoptionApplications,
     ]
   );
-
-  const activeReport =
-    visibleReportTypes.find((entry) => entry.value === reportType) ??
-    REPORT_TYPES.find((entry) => entry.value === reportType);
 
   const reportTableColumns = useMemo((): DataTableColumn<(typeof result.rows)[number]>[] => {
     return result.columns.map((column) => ({
@@ -310,6 +406,20 @@ export function ReportsDashboard({
     });
   }
 
+  function selectFamily(familyId: ReportFamilyId) {
+    const family = visibleFamilies.find((entry) => entry.id === familyId);
+    if (!family) return;
+    const currentBreakdown = activeBreakdown?.value;
+    const next =
+      family.breakdowns.find((entry) => entry.value === currentBreakdown) ?? family.breakdowns[0];
+    if (next) selectReportType(next.type);
+  }
+
+  function selectBreakdown(value: ReportBreakdown) {
+    const next = activeFamily?.breakdowns.find((entry) => entry.value === value);
+    if (next) selectReportType(next.type);
+  }
+
   const adoptionReport = isAdoptionProgramReport(reportType);
   const statusOptions = adoptionReport
     ? reportType.startsWith("adoption_application")
@@ -326,27 +436,17 @@ export function ReportsDashboard({
     downloadCsv(`tnvr-report-${slug}.csv`, reportToCsv(result));
   }
 
-  function activeFilterCount() {
-    let count = 0;
-    if (filters.dateFrom) count += 1;
-    if (filters.dateTo) count += 1;
-    if (filters.status) count += 1;
-    if (!adoptionReport) {
-      if (filters.zip) count += 1;
-      if (filters.teamId) count += 1;
-      if (filters.clinicId) count += 1;
-      if (filters.trapper.trim()) count += 1;
-      if (filters.intakeOnly) count += 1;
-    }
-    return count;
-  }
+  const extraCriteria = adoptionReport
+    ? 0
+    : [filters.clinicId, filters.trapper.trim(), filters.status, filters.intakeOnly].filter(Boolean)
+        .length;
 
   return (
     <div className="space-y-6">
       <div className="print:hidden">
         <PageHeader
           title="Reports"
-          description="Click a ready-made report, or build a custom pivot and export any table."
+          description="Run a quick report with criteria, or open the pivot builder for a custom table."
         />
       </div>
 
@@ -373,231 +473,285 @@ export function ReportsDashboard({
         </TabsContent>
 
         <TabsContent value="quick" className="mt-0 space-y-4 print:hidden">
-          <div className="flex justify-end">
-            <Button variant="outline" onClick={exportReport} disabled={result.rows.length === 0}>
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <CardTitle className="text-lg">Quick report</CardTitle>
+              <CardDescription>
+                Choose what to measure, how to break it down, then set criteria. Leave dates blank
+                for all time.
+              </CardDescription>
+            </div>
+            <Button
+              variant="outline"
+              onClick={exportReport}
+              disabled={result.rows.length === 0}
+              className="shrink-0"
+            >
               <Download className="h-4 w-4 mr-2" />
               Export CSV
             </Button>
           </div>
-
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-lg">Choose a report</CardTitle>
-          <CardDescription>
-            Click a report to run it. Use filters below only if you need a narrower slice.
-          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          {REPORT_GROUPS.map((group) => {
-            const entries = visibleReportTypes.filter((entry) => entry.group === group.id);
-            if (entries.length === 0) return null;
-            return (
-              <div key={group.id} className="space-y-3">
-                <div>
-                  <p className="text-sm font-medium">{group.label}</p>
-                  <p className="text-xs text-muted-foreground">{group.description}</p>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
-                  {entries.map((entry) => (
-                    <button
+          <div className="grid gap-4 lg:grid-cols-[minmax(0,20rem)_1fr]">
+            <div className="space-y-2">
+              <Label htmlFor="quick-report-family">Report</Label>
+              <Select
+                value={activeFamily?.id}
+                onValueChange={(value) => selectFamily(value as ReportFamilyId)}
+              >
+                <SelectTrigger id="quick-report-family">
+                  <SelectValue placeholder="Choose a report" />
+                </SelectTrigger>
+                <SelectContent>
+                  {familyGroups.map((group) => (
+                    <SelectGroup key={group.label}>
+                      <SelectLabel>{group.label}</SelectLabel>
+                      {group.families.map((family) => (
+                        <SelectItem key={family.id} value={family.id}>
+                          {family.label}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  ))}
+                </SelectContent>
+              </Select>
+              {activeFamily ? (
+                <p className="text-xs text-muted-foreground">{activeFamily.hint}</p>
+              ) : null}
+            </div>
+            {activeFamily && activeFamily.breakdowns.length > 1 ? (
+              <div className="space-y-2">
+                <Label>Break down by</Label>
+                <div
+                  className="flex flex-wrap gap-2"
+                  role="group"
+                  aria-label="Break down by"
+                >
+                  {activeFamily.breakdowns.map((entry) => (
+                    <Button
                       key={entry.value}
                       type="button"
-                      onClick={() => selectReportType(entry.value)}
-                      className={cn(
-                        "rounded-lg border p-3 text-left transition-colors",
-                        reportType === entry.value
-                          ? "border-primary bg-primary/5"
-                          : "hover:bg-muted/50"
-                      )}
+                      size="sm"
+                      variant={activeBreakdown?.value === entry.value ? "default" : "outline"}
+                      onClick={() => selectBreakdown(entry.value)}
                     >
-                      <p className="font-medium text-sm">{entry.label}</p>
-                      <p className="text-xs text-muted-foreground mt-1">{entry.hint}</p>
-                    </button>
+                      {entry.label}
+                    </Button>
                   ))}
                 </div>
+                {activeBreakdown ? (
+                  <p className="text-xs text-muted-foreground">{activeBreakdown.hint}</p>
+                ) : null}
               </div>
-            );
-          })}
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader
-          className="pb-3 cursor-pointer select-none"
-          onClick={() => setSetupOpen((open) => !open)}
-        >
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Filter className="h-4 w-4" />
-                Filters
-              </CardTitle>
-              <CardDescription>
-                {setupOpen
-                  ? "Leave dates blank for all time. Status filter still applies to open-queue reports."
-                  : `${activeReport?.label ?? "Remaining vs fixed by ZIP"}${
-                      activeFilterCount() > 0 ? ` · ${activeFilterCount()} filter${activeFilterCount() === 1 ? "" : "s"} active` : " · all time"
-                    }`}
-              </CardDescription>
-            </div>
-            <ChevronDown
-              className={cn(
-                "h-5 w-5 shrink-0 text-muted-foreground transition-transform",
-                setupOpen && "rotate-180"
-              )}
-            />
+            ) : null}
           </div>
-        </CardHeader>
-        {setupOpen && (
-          <CardContent className="space-y-6">
-            <div className="space-y-4">
-              <div>
-                <p className="text-sm font-medium">Narrow this report</p>
-                <p className="text-xs text-muted-foreground">
-                  {adoptionReport
-                    ? "Narrow this Adoption report by date or status. Trap team, clinic, and ZIP filters apply to TNVR cases only."
-                    : "Narrow results by date, location, team, clinic, trapper, or status."}
-                </p>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="report-date-from">From date</Label>
-              <Input
-                id="report-date-from"
-                type="date"
-                value={filters.dateFrom}
-                onChange={(event) => updateFilter("dateFrom", event.target.value)}
-              />
+
+          <div className="space-y-3">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-sm font-medium">Criteria</p>
+              <Button type="button" variant="ghost" size="sm" onClick={resetFilters}>
+                <RotateCcw className="h-4 w-4 mr-2" />
+                Reset
+              </Button>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="report-date-to">To date</Label>
-              <Input
-                id="report-date-to"
-                type="date"
-                value={filters.dateTo}
-                onChange={(event) => updateFilter("dateTo", event.target.value)}
-              />
-            </div>
-            {adoptionReport ? null : (
-            <>
-            <div className="space-y-2">
-              <Label>ZIP code</Label>
-              <Select
-                value={filters.zip || "all"}
-                onValueChange={(value) => updateFilter("zip", value === "all" ? "" : value)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="All ZIP codes" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All ZIP codes</SelectItem>
-                  {options.zips.map((zip) => (
-                    <SelectItem key={zip} value={zip}>
-                      {zip}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Trap team</Label>
-              <Select
-                value={filters.teamId || "all"}
-                onValueChange={(value) => updateFilter("teamId", value === "all" ? "" : value)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="All teams" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All teams</SelectItem>
-                  {options.teams.map((team) => (
-                    <SelectItem key={team.id} value={team.id}>
-                      {team.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Clinic</Label>
-              <Select
-                value={filters.clinicId || "all"}
-                onValueChange={(value) => updateFilter("clinicId", value === "all" ? "" : value)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="All clinics" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All clinics</SelectItem>
-                  {options.clinics.map((clinic) => (
-                    <SelectItem key={clinic.id} value={clinic.id}>
-                      {clinic.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="report-trapper">Trapper / worker</Label>
-              <Input
-                id="report-trapper"
-                placeholder="Search trapper name or email"
-                value={filters.trapper}
-                onChange={(event) => updateFilter("trapper", event.target.value)}
-              />
-            </div>
-            </>
-            )}
-            <div className="space-y-2">
-              <Label>{adoptionReport ? (reportType.startsWith("adoption_application") ? "Application status" : "Cat status") : "Case status"}</Label>
-              <Select
-                value={filters.status || "all"}
-                onValueChange={(value) => updateFilter("status", value === "all" ? "" : value)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="All statuses" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All statuses</SelectItem>
-                  {statusOptions.map((status) => (
-                    <SelectItem key={status.value} value={status.value}>
-                      {status.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            {adoptionReport ? null : (
-            <div className="flex items-end">
-              <div className="flex items-center gap-2 rounded-md border px-3 py-2 w-full">
-                <Checkbox
-                  id="report-intake-only"
-                  checked={filters.intakeOnly}
-                  onCheckedChange={(value) => updateFilter("intakeOnly", !!value)}
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+              <div className="space-y-2">
+                <Label htmlFor="report-date-from">From date</Label>
+                <Input
+                  id="report-date-from"
+                  type="date"
+                  value={filters.dateFrom}
+                  onChange={(event) => updateFilter("dateFrom", event.target.value)}
                 />
-                <Label htmlFor="report-intake-only" className="text-sm font-normal">
-                  New inquiry forms only
-                </Label>
               </div>
+              <div className="space-y-2">
+                <Label htmlFor="report-date-to">To date</Label>
+                <Input
+                  id="report-date-to"
+                  type="date"
+                  value={filters.dateTo}
+                  onChange={(event) => updateFilter("dateTo", event.target.value)}
+                />
+              </div>
+              {adoptionReport ? (
+                <div className="space-y-2">
+                  <Label>
+                    {reportType.startsWith("adoption_application")
+                      ? "Application status"
+                      : "Cat status"}
+                  </Label>
+                  <Select
+                    value={filters.status || "all"}
+                    onValueChange={(value) => updateFilter("status", value === "all" ? "" : value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="All statuses" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All statuses</SelectItem>
+                      {statusOptions.map((status) => (
+                        <SelectItem key={status.value} value={status.value}>
+                          {status.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              ) : (
+                <>
+                  <div className="space-y-2">
+                    <Label>ZIP code</Label>
+                    <Select
+                      value={filters.zip || "all"}
+                      onValueChange={(value) => updateFilter("zip", value === "all" ? "" : value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="All ZIP codes" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All ZIP codes</SelectItem>
+                        {options.zips.map((zip) => (
+                          <SelectItem key={zip} value={zip}>
+                            {zip}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Trap team</Label>
+                    <Select
+                      value={filters.teamId || "all"}
+                      onValueChange={(value) =>
+                        updateFilter("teamId", value === "all" ? "" : value)
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="All teams" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All teams</SelectItem>
+                        {options.teams.map((team) => (
+                          <SelectItem key={team.id} value={team.id}>
+                            {team.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </>
+              )}
+            </div>
+
+            {adoptionReport ? null : (
+            <div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="-ml-2"
+                onClick={() => setMoreFiltersOpen((open) => !open)}
+                aria-expanded={moreFiltersOpen}
+              >
+                <Filter className="h-4 w-4 mr-2" />
+                More criteria
+                {extraCriteria > 0 ? (
+                  <span className="ml-2 text-xs text-muted-foreground">
+                    {extraCriteria} extra
+                  </span>
+                ) : null}
+                <ChevronDown
+                  className={cn(
+                    "ml-1 h-4 w-4 text-muted-foreground transition-transform",
+                    moreFiltersOpen && "rotate-180"
+                  )}
+                />
+              </Button>
             </div>
             )}
-          </div>
 
-              <div className="flex justify-end">
-                <Button type="button" variant="ghost" size="sm" onClick={resetFilters}>
-                  <RotateCcw className="h-4 w-4 mr-2" />
-                  Reset filters
-                </Button>
+            {moreFiltersOpen && !adoptionReport ? (
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+                    <div className="space-y-2">
+                      <Label>Clinic</Label>
+                      <Select
+                        value={filters.clinicId || "all"}
+                        onValueChange={(value) =>
+                          updateFilter("clinicId", value === "all" ? "" : value)
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="All clinics" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All clinics</SelectItem>
+                          {options.clinics.map((clinic) => (
+                            <SelectItem key={clinic.id} value={clinic.id}>
+                              {clinic.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="report-trapper">Trapper / worker</Label>
+                      <Input
+                        id="report-trapper"
+                        placeholder="Search trapper name or email"
+                        value={filters.trapper}
+                        onChange={(event) => updateFilter("trapper", event.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Case status</Label>
+                      <Select
+                        value={filters.status || "all"}
+                        onValueChange={(value) =>
+                          updateFilter("status", value === "all" ? "" : value)
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="All statuses" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All statuses</SelectItem>
+                          {statusOptions.map((status) => (
+                            <SelectItem key={status.value} value={status.value}>
+                              {status.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="flex items-end">
+                      <div className="flex w-full items-center gap-2 rounded-md border px-3 py-2">
+                        <Checkbox
+                          id="report-intake-only"
+                          checked={filters.intakeOnly}
+                          onCheckedChange={(value) => updateFilter("intakeOnly", !!value)}
+                        />
+                        <Label htmlFor="report-intake-only" className="text-sm font-normal">
+                          New inquiry forms only
+                        </Label>
+                      </div>
+                    </div>
               </div>
-            </div>
-          </CardContent>
-        )}
+            ) : null}
+          </div>
+        </CardContent>
       </Card>
 
       <Card>
         <CardHeader>
           <CardTitle>{result.title}</CardTitle>
-          <CardDescription>{activeReport?.hint ?? result.description}</CardDescription>
+          <CardDescription>
+            {activeFamily
+              ? `${activeFamily.hint}${activeBreakdown ? ` ${activeBreakdown.hint}` : ""}`
+              : result.description}
+          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex flex-wrap gap-4">
