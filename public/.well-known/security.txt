@@ -1,4 +1,4 @@
 Contact: mailto:connect@friendsofferalfelines.org
-Canonical: https://colony-keep.vercel.app/.well-known/security.txt
+Canonical: https://friendsofferalfelines.app/.well-known/security.txt
 Policy: https://www.friendsofferalfelines.org/
 Preferred-Languages: en

@@ -6,6 +6,7 @@ import {
   getSupabaseUrl,
 } from "@/lib/supabase/env";
 import { canAccessRoute } from "@/lib/permissions";
+import { APP_PUBLIC_HOST, LEGACY_APP_HOSTS } from "@/lib/org";
 import {
   getVolunteerApplicationStatusByEmail,
   isVolunteerLoginBlockedStatus,
@@ -26,6 +27,14 @@ const PUBLIC_ROUTES = [
 ];
 
 export async function updateSession(request: NextRequest) {
+  const host = (request.headers.get("host") ?? "").split(":")[0];
+  if (LEGACY_APP_HOSTS.includes(host)) {
+    const canonicalUrl = request.nextUrl.clone();
+    canonicalUrl.protocol = "https:";
+    canonicalUrl.host = APP_PUBLIC_HOST;
+    return NextResponse.redirect(canonicalUrl, 308);
+  }
+
   let supabaseResponse = NextResponse.next({ request });
   const supabaseUrl = getSupabaseUrl();
   const publishableKey = getSupabasePublishableKey();
@@ -55,7 +64,6 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const host = request.headers.get("host") ?? "";
   const proto = request.headers.get("x-forwarded-proto")?.split(",")[0]?.trim();
   if (
     proto === "http" &&
@@ -65,6 +73,7 @@ export async function updateSession(request: NextRequest) {
   ) {
     const httpsUrl = request.nextUrl.clone();
     httpsUrl.protocol = "https:";
+    httpsUrl.host = host;
     return NextResponse.redirect(httpsUrl, 308);
   }
 

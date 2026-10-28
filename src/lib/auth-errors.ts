@@ -1,3 +1,5 @@
+import { APP_PUBLIC_URL } from "@/lib/org";
+
 export function formatAuthError(error: unknown, redirectTo?: string): string {
   if (!error || typeof error !== "object") {
     return "Authentication service returned an unknown error.";
@@ -16,7 +18,7 @@ export function formatAuthError(error: unknown, redirectTo?: string): string {
   }
 
   if (authError.status === 422) {
-    return `Supabase rejected the login redirect URL${redirectTo ? `: ${redirectTo}` : ""}. Add https://colony-keep.vercel.app/** under Supabase → Authentication → URL Configuration → Redirect URLs.`;
+    return `Supabase rejected the login redirect URL${redirectTo ? `: ${redirectTo}` : ""}. Add ${APP_PUBLIC_URL}/** under Supabase → Authentication → URL Configuration → Redirect URLs.`;
   }
 
   if (authError.status === 500) {
