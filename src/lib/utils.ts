@@ -9,17 +9,22 @@ export function formatCaseNumber(seq: number): string {
   return `CASE-${String(seq).padStart(5, "0")}`;
 }
 
-/** Parse calendar dates as local days so YYYY-MM-DD is not shifted by timezone. */
+/**
+ * Parse calendar dates as local days so YYYY-MM-DD is not shifted by timezone.
+ * Full timestamps keep their instant so evening Eastern submissions are not shown
+ * as the next UTC calendar day.
+ */
 function toDisplayDate(date: string | Date): Date {
   if (date instanceof Date) return date;
-  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(date.trim());
-  if (match) {
-    const year = Number(match[1]);
-    const month = Number(match[2]) - 1;
-    const day = Number(match[3]);
+  const trimmed = date.trim();
+  const dateOnly = /^(\d{4})-(\d{2})-(\d{2})$/.exec(trimmed);
+  if (dateOnly) {
+    const year = Number(dateOnly[1]);
+    const month = Number(dateOnly[2]) - 1;
+    const day = Number(dateOnly[3]);
     return new Date(year, month, day);
   }
-  return new Date(date);
+  return new Date(trimmed);
 }
 
 function pad2(value: number): string {
