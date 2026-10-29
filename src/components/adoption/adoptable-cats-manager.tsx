@@ -73,9 +73,7 @@ function genderLabel(value: string | null | undefined): string {
   return "";
 }
 
-const DEFAULT_STATUS_FILTERS = new Set(
-  ADOPTABLE_CAT_STATUSES.filter((entry) => entry.value !== "adopted").map((entry) => entry.value)
-);
+const DEFAULT_STATUS_FILTERS = new Set<AdoptableCatStatus>(["available"]);
 
 function StatusFilterDropdown({
   selected,
