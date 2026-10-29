@@ -28,8 +28,9 @@ export function PartnerValueList({
     <div className="space-y-2">
       <Label>{label}</Label>
       {items.map((value, index) => (
-        <div key={`${label}-${index}`} className="flex gap-2">
+        <div key={`${label}-${index}`} className="flex min-w-0 items-center gap-2">
           <Input
+            className="min-w-0 flex-1"
             type={type}
             value={value}
             placeholder={placeholder}

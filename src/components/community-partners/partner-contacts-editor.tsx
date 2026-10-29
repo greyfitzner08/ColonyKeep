@@ -46,21 +46,27 @@ export function PartnerContactsEditor({
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between gap-2">
-        {title ? <p className="text-sm font-medium">{title}</p> : <span />}
-        <Button type="button" variant="outline" size="sm" onClick={addContact}>
+    <div className="min-w-0 space-y-4">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        {title ? <p className="text-sm font-medium">{title}</p> : null}
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="w-full shrink-0 sm:ml-auto sm:w-auto"
+          onClick={addContact}
+        >
           {addLabel}
         </Button>
       </div>
       {embedded ? null : <p className="text-xs text-muted-foreground">{description}</p>}
 
       {contacts.map((contact, index) => (
-        <div key={contact.id ?? `new-${index}`} className="rounded-lg border bg-muted/30 p-4 space-y-4">
-          <div className="flex items-center justify-between gap-2">
+        <div key={contact.id ?? `new-${index}`} className="min-w-0 space-y-4 rounded-lg border bg-muted/30 p-3 sm:p-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <p className="text-sm font-medium">Contact {index + 1}</p>
             <div className="flex items-center gap-2">
-              <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
+              <label className="flex cursor-pointer items-center gap-2 text-xs text-muted-foreground">
                 <input
                   type="radio"
                   name="primary-contact"
@@ -83,35 +89,39 @@ export function PartnerContactsEditor({
             </div>
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
+          <div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="min-w-0 space-y-2">
               <Label>Name</Label>
               <Input
+                className="min-w-0"
                 value={contact.name}
                 onChange={(event) => updateContact(index, { name: event.target.value })}
               />
             </div>
-            <div className="space-y-2">
+            <div className="min-w-0 space-y-2">
               <Label>Title / role</Label>
               <Input
+                className="min-w-0"
                 value={contact.title}
                 onChange={(event) => updateContact(index, { title: event.target.value })}
               />
             </div>
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
+          <div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="min-w-0 space-y-2">
               <Label>Email</Label>
               <Input
+                className="min-w-0"
                 type="email"
                 value={contact.email}
                 onChange={(event) => updateContact(index, { email: event.target.value })}
               />
             </div>
-            <div className="space-y-2">
+            <div className="min-w-0 space-y-2">
               <Label>Phone</Label>
               <Input
+                className="min-w-0"
                 value={contact.phone}
                 onChange={(event) => updateContact(index, { phone: event.target.value })}
               />
@@ -121,6 +131,7 @@ export function PartnerContactsEditor({
           <div className="space-y-2">
             <Label>Contact notes</Label>
             <Textarea
+              className="min-w-0"
               value={contact.notes}
               onChange={(event) => updateContact(index, { notes: event.target.value })}
               placeholder="Best time to reach them, preferred channel, etc."

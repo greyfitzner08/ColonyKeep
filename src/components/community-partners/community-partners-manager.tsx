@@ -260,9 +260,9 @@ function DetailBlock({
 }) {
   if (!value?.trim()) return null;
   return (
-    <div>
+    <div className="min-w-0">
       <p className="font-medium">{label}</p>
-      <p className="text-muted-foreground whitespace-pre-wrap">{value.trim()}</p>
+      <p className="whitespace-pre-wrap break-words text-muted-foreground">{value.trim()}</p>
     </div>
   );
 }
@@ -286,7 +286,7 @@ function PartnerDetailView({
   ]);
 
   return (
-    <div className="space-y-3 text-sm">
+    <div className="min-w-0 space-y-3 overflow-x-hidden text-sm">
       <div className="flex flex-wrap items-center gap-2">
         {isGcaa ? (
           <Badge variant={gcaaMemberBadgeVariant(resolvedGcaaMemberStatus(partner))}>
@@ -322,7 +322,7 @@ function PartnerDetailView({
                 href={partnerWebsiteHref(partner.website)}
                 target="_blank"
                 rel="noreferrer"
-                className="text-primary hover:underline break-all"
+                className="break-all text-primary hover:underline"
               >
                 {partner.website}
               </a>
@@ -399,9 +399,9 @@ function PartnerDetailView({
               )
             ) : (
               contacts.map((contact) => (
-                <div key={contact.id} className="rounded-lg border bg-muted/30 p-3 space-y-1.5">
+                <div key={contact.id} className="min-w-0 space-y-1.5 rounded-lg border bg-muted/30 p-3">
                   <div className="flex flex-wrap items-center gap-2">
-                    <p className="font-medium">{contact.name?.trim() || "Unnamed contact"}</p>
+                    <p className="break-words font-medium">{contact.name?.trim() || "Unnamed contact"}</p>
                     {contact.is_primary && contacts.length > 1 ? (
                       <Badge variant="secondary" className="text-xs font-normal">
                         Primary
@@ -409,7 +409,7 @@ function PartnerDetailView({
                     ) : null}
                   </div>
                   {contact.title?.trim() && (
-                    <p className="text-muted-foreground">{contact.title.trim()}</p>
+                    <p className="break-words text-muted-foreground">{contact.title.trim()}</p>
                   )}
                   {contact.email?.trim() && (
                     <a
@@ -425,7 +425,7 @@ function PartnerDetailView({
                     </a>
                   )}
                   {contact.notes?.trim() && (
-                    <p className="text-muted-foreground whitespace-pre-wrap pt-1">
+                    <p className="whitespace-pre-wrap break-words pt-1 text-muted-foreground">
                       {contact.notes.trim()}
                     </p>
                   )}
@@ -438,7 +438,7 @@ function PartnerDetailView({
 
       <CollapsibleModalCard title="Notes" summary={notesSummary(partner.notes)}>
         {partner.notes?.trim() ? (
-          <p className="text-muted-foreground whitespace-pre-wrap">{partner.notes.trim()}</p>
+          <p className="whitespace-pre-wrap break-words text-muted-foreground">{partner.notes.trim()}</p>
         ) : (
           <p className="text-muted-foreground">No notes on file.</p>
         )}
@@ -785,7 +785,7 @@ export function CommunityPartnersManager({ partners: initial }: CommunityPartner
       />
 
       <Dialog open={viewingPartner != null} onOpenChange={(open) => !open && setViewingPartner(null)}>
-        <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
+        <DialogContent className="max-h-[min(90dvh,100%)] w-[calc(100vw-1.5rem)] max-w-2xl overflow-x-hidden overflow-y-auto sm:w-[calc(100vw-2rem)]">
           {viewingPartner && (
             <>
               <DialogHeader>
@@ -805,7 +805,7 @@ export function CommunityPartnersManager({ partners: initial }: CommunityPartner
       </Dialog>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
+        <DialogContent className="max-h-[min(90dvh,100%)] w-[calc(100vw-1.5rem)] max-w-2xl overflow-x-hidden overflow-y-auto sm:w-[calc(100vw-2rem)]">
           <DialogHeader>
             <DialogTitle>
               {isGcaaForm
@@ -822,7 +822,7 @@ export function CommunityPartnersManager({ partners: initial }: CommunityPartner
                 : "Keep facility details, contact info, and notes grouped so the record is easy to scan."}
             </DialogDescription>
           </DialogHeader>
-          <div key={editing?.id ?? "new"} className="space-y-3">
+          <div key={editing?.id ?? "new"} className="min-w-0 space-y-3 overflow-x-hidden">
             <div className="space-y-1.5">
               <Label htmlFor="partner-name">
                 {isGcaaForm ? "Apartment community name" : "Organization name"}
@@ -833,8 +833,8 @@ export function CommunityPartnersManager({ partners: initial }: CommunityPartner
                 onChange={(event) => setForm({ ...form, name: event.target.value })}
               />
             </div>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div className="space-y-1.5">
+            <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="min-w-0 space-y-1.5">
                 <Label>Organization type</Label>
                 <Select
                   value={form.organization_type}
@@ -864,7 +864,7 @@ export function CommunityPartnersManager({ partners: initial }: CommunityPartner
                     });
                   }}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="w-full min-w-0">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -877,7 +877,7 @@ export function CommunityPartnersManager({ partners: initial }: CommunityPartner
                 </Select>
               </div>
               {isGcaaForm ? (
-                <div className="space-y-1.5">
+                <div className="min-w-0 space-y-1.5">
                   <Label>Member status</Label>
                   <Select
                     value={form.gcaa_member_status}
@@ -889,7 +889,7 @@ export function CommunityPartnersManager({ partners: initial }: CommunityPartner
                       })
                     }
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className="w-full min-w-0">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -902,13 +902,13 @@ export function CommunityPartnersManager({ partners: initial }: CommunityPartner
                   </Select>
                 </div>
               ) : (
-                <div className="space-y-1.5">
+                <div className="min-w-0 space-y-1.5">
                   <Label>Is active</Label>
                   <Select
                     value={form.is_active ? "yes" : "no"}
                     onValueChange={(value) => setForm({ ...form, is_active: value === "yes" })}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className="w-full min-w-0">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -931,7 +931,7 @@ export function CommunityPartnersManager({ partners: initial }: CommunityPartner
                     })
                   }
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="w-full min-w-0">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -970,24 +970,27 @@ export function CommunityPartnersManager({ partners: initial }: CommunityPartner
                     })
                   }
                 />
-                <div className="grid gap-3 sm:grid-cols-3">
-                  <div className="space-y-1.5">
+                <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3">
+                  <div className="min-w-0 space-y-1.5 sm:col-span-2 md:col-span-1">
                     <Label>City</Label>
                     <Input
+                      className="min-w-0"
                       value={form.city}
                       onChange={(event) => setForm({ ...form, city: event.target.value })}
                     />
                   </div>
-                  <div className="space-y-1.5">
+                  <div className="min-w-0 space-y-1.5">
                     <Label>State</Label>
                     <Input
+                      className="min-w-0"
                       value={form.state}
                       onChange={(event) => setForm({ ...form, state: event.target.value })}
                     />
                   </div>
-                  <div className="space-y-1.5">
+                  <div className="min-w-0 space-y-1.5">
                     <Label>ZIP</Label>
                     <Input
+                      className="min-w-0"
                       value={form.zip}
                       onChange={(event) => setForm({ ...form, zip: event.target.value })}
                     />
@@ -1062,11 +1065,20 @@ export function CommunityPartnersManager({ partners: initial }: CommunityPartner
             </CollapsibleModalCard>
 
             {saveError && <p className="text-sm text-destructive">{saveError}</p>}
-            <div className="flex justify-end gap-2 border-t pt-4">
-              <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
+            <div className="flex flex-col-reverse gap-2 border-t pt-4 sm:flex-row sm:justify-end">
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full sm:w-auto"
+                onClick={() => setDialogOpen(false)}
+              >
                 Cancel
               </Button>
-              <Button onClick={save} disabled={saving || !form.name.trim()}>
+              <Button
+                className="w-full sm:w-auto"
+                onClick={save}
+                disabled={saving || !form.name.trim()}
+              >
                 {saving
                   ? "Saving..."
                   : editing
