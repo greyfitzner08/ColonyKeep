@@ -105,6 +105,7 @@ export function BirthdayCalendarDialog({
   );
 
   const listGroups = useMemo(() => upcomingBirthdayDayGroups(people, today), [people, today]);
+  const partnerCount = people.filter(isPartnerBirthday).length;
 
   function shiftMonth(delta: number) {
     setMonthCursor((current) => new Date(current.getFullYear(), current.getMonth() + delta, 1));
@@ -135,9 +136,8 @@ export function BirthdayCalendarDialog({
             Team birthdays
           </DialogTitle>
           <DialogDescription>
-            Month and day only — birth years stay private. Pink pills are team volunteers. Blue
-            pills are community partners as Name | Organization, after a birthday is saved on that
-            person. List shows only days with birthdays; month and week show the full calendar.
+            Month and day only — birth years stay private. Team volunteers are pink. Community
+            partners with a saved birthday are blue as Name | Organization.
           </DialogDescription>
         </DialogHeader>
 
@@ -171,14 +171,6 @@ export function BirthdayCalendarDialog({
               Week
             </Button>
           </div>
-          <p className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-            <span className="inline-flex items-center rounded-md border border-pink-100 bg-pink-50 px-1.5 py-0.5 font-medium text-pink-950">
-              Team
-            </span>
-            <span className="inline-flex items-center rounded-md border border-sky-200 bg-sky-50 px-1.5 py-0.5 font-medium text-sky-950">
-              Partner
-            </span>
-          </p>
 
           {view !== "list" && (
             <div className="flex items-center gap-2">
@@ -221,6 +213,9 @@ export function BirthdayCalendarDialog({
                 <p className="text-xs text-muted-foreground">
                   {listGroups.reduce((sum, group) => sum + group.people.length, 0)} upcoming
                   birthday{listGroups.length === 1 ? "" : "s"} · next 12 months
+                  {partnerCount > 0
+                    ? ` · ${partnerCount} community partner${partnerCount === 1 ? "" : "s"}`
+                    : " · save a birthday on a community partner contact to see blue Name | Organization pills"}
                 </p>
                 {listGroups.map((group) => (
                   <div
