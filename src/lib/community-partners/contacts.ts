@@ -93,7 +93,12 @@ export function normalizeContactBirthday(value: unknown): string | null {
 
   const monthDay = /^(\d{1,2})[/-](\d{1,2})$/.exec(trimmed);
   if (monthDay) {
-    return monthDayToStoredBirthday(Number(monthDay[1]), Number(monthDay[2]));
+    const first = Number(monthDay[1]);
+    const second = Number(monthDay[2]);
+    const monthFirst = monthDayToStoredBirthday(first, second);
+    if (monthFirst) return monthFirst;
+    // 15/03 is day/month when the first number cannot be a month.
+    return monthDayToStoredBirthday(second, first);
   }
 
   const named = /^([A-Za-z]+)\s+(\d{1,2})$/.exec(trimmed);
@@ -129,6 +134,12 @@ export function contactBirthdayFromParts(month: string, day: string): string {
   if (!month) return "";
   if (!day) return month;
   return monthDayToStoredBirthday(Number(month), Number(day)) ?? month;
+}
+
+export function formatContactBirthdayInput(value: string | null | undefined): string {
+  const { month, day } = parseContactBirthdayParts(value);
+  if (!month || !day) return "";
+  return `${month}/${day}`;
 }
 
 export interface PartnerContactInput {

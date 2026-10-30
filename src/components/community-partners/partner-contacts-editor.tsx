@@ -1,23 +1,15 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  contactBirthdayFromParts,
-  daysInPartnerBirthdayMonth,
   emptyPartnerContactInput,
-  parseContactBirthdayParts,
-  PARTNER_BIRTHDAY_MONTHS,
+  formatContactBirthdayInput,
+  normalizeContactBirthday,
   setPrimaryContact,
   type PartnerContactInput,
 } from "@/lib/community-partners/contacts";
@@ -44,65 +36,55 @@ function PartnerBirthdayFields({
   birthday: string;
   onChange: (birthday: string) => void;
 }) {
-  const { month, day } = parseContactBirthdayParts(birthday);
-  const dayCount = month ? daysInPartnerBirthdayMonth(Number(month)) : 31;
+  const [text, setText] = useState(() => formatContactBirthdayInput(birthday));
+
+  useEffect(() => {
+    setText(formatContactBirthdayInput(birthday));
+  }, [birthday]);
+
+  function commit() {
+    if (!text.trim()) {
+      setText("");
+      onChange("");
+      return;
+    }
+    const iso = normalizeContactBirthday(text);
+    if (iso) {
+      setText(formatContactBirthdayInput(iso));
+      onChange(iso);
+    }
+  }
 
   return (
     <div className="min-w-0 space-y-2">
-      <p className="text-sm font-medium leading-none">Birthday (optional)</p>
-      <div className="grid min-w-0 grid-cols-2 gap-3 sm:max-w-md">
-        <div className="min-w-0 space-y-2">
-          <Label htmlFor={`partner-contact-birthday-month-${index}`}>Month</Label>
-          <Select
-            value={month || "none"}
-            onValueChange={(value) => {
-              const nextMonth = value === "none" ? "" : value;
-              const maxDay = nextMonth ? daysInPartnerBirthdayMonth(Number(nextMonth)) : 0;
-              const nextDay = day && Number(day) > maxDay ? String(maxDay).padStart(2, "0") : day;
-              onChange(contactBirthdayFromParts(nextMonth, nextMonth ? nextDay : ""));
-            }}
-          >
-            <SelectTrigger id={`partner-contact-birthday-month-${index}`} className="w-full min-w-0">
-              <SelectValue placeholder="Month" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="none">Not set</SelectItem>
-              {PARTNER_BIRTHDAY_MONTHS.map((entry) => (
-                <SelectItem key={entry.value} value={entry.value}>
-                  {entry.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="min-w-0 space-y-2">
-          <Label htmlFor={`partner-contact-birthday-day-${index}`}>Day</Label>
-          <Select
-            value={day || "none"}
-            disabled={!month}
-            onValueChange={(value) =>
-              onChange(contactBirthdayFromParts(month, value === "none" ? "" : value))
-            }
-          >
-            <SelectTrigger id={`partner-contact-birthday-day-${index}`} className="w-full min-w-0">
-              <SelectValue placeholder="Day" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="none">Not set</SelectItem>
-              {Array.from({ length: dayCount }, (_, dayIndex) => {
-                const value = String(dayIndex + 1).padStart(2, "0");
-                return (
-                  <SelectItem key={value} value={value}>
-                    {dayIndex + 1}
-                  </SelectItem>
-                );
-              })}
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
+      <Label htmlFor={`partner-contact-birthday-${index}`}>Birthday (optional)</Label>
+      <Input
+        id={`partner-contact-birthday-${index}`}
+        className="min-w-0 sm:max-w-xs"
+        type="text"
+        autoComplete="off"
+        placeholder="MM/DD"
+        value={text}
+        onChange={(event) => {
+          const next = event.target.value;
+          setText(next);
+          if (!next.trim()) {
+            onChange("");
+            return;
+          }
+          const iso = normalizeContactBirthday(next);
+          if (iso) onChange(iso);
+        }}
+        onBlur={commit}
+        onKeyDown={(event) => {
+          if (event.key === "Enter") {
+            event.preventDefault();
+            commit();
+          }
+        }}
+      />
       <p className="text-xs text-muted-foreground">
-        Month and day only — we don&apos;t ask for a year. Shows on Team Feed as a blue pill: Name |
+        Type month and day only, like 03/15. No year. Shows on Team Feed as a blue pill: Name |
         Organization.
       </p>
     </div>
