@@ -6,11 +6,13 @@ import {
   resolvedGcaaMemberStatus,
 } from "@/lib/community-partners/constants";
 import {
+  normalizeContactBirthday,
   partnerEmailList,
   partnerPhoneList,
   primaryPartnerContact,
   sortPartnerContacts,
 } from "@/lib/community-partners/contacts";
+import { formatBirthdayMonthDay } from "@/lib/team-feed/birthdays";
 import { downloadCsv } from "@/lib/reports/export-csv";
 import type { CommunityPartner } from "@/lib/types";
 
@@ -74,7 +76,7 @@ function exportRowsForPartner(partner: CommunityPartner): string[][] {
     contact.title ?? "",
     contact.email ?? "",
     contact.phone ?? "",
-    contact.birthday ?? "",
+    formatBirthdayMonthDay(normalizeContactBirthday(contact.birthday) ?? ""),
     contact.notes ?? "",
     contact.is_primary ? "Yes" : "No",
     ...tail,

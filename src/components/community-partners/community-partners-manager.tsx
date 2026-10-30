@@ -427,7 +427,7 @@ function PartnerDetailView({
                   )}
                   {contact.birthday?.trim() ? (
                     <p className="text-muted-foreground">
-                      Birthday · {formatBirthdayMonthDay(contact.birthday)}
+                      Birthday · {formatBirthdayMonthDay(contact.birthday, { month: "long" })}
                     </p>
                   ) : null}
                   {contact.notes?.trim() && (
