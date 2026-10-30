@@ -11,9 +11,13 @@ import {
   type PartnerContactInput,
 } from "@/lib/community-partners/contacts";
 
+type ContactsUpdater =
+  | PartnerContactInput[]
+  | ((current: PartnerContactInput[]) => PartnerContactInput[]);
+
 interface PartnerContactsEditorProps {
   contacts: PartnerContactInput[];
-  onChange: (contacts: PartnerContactInput[]) => void;
+  onChange: (contacts: ContactsUpdater) => void;
   title?: string;
   description?: string;
   addLabel?: string;
@@ -29,20 +33,26 @@ export function PartnerContactsEditor({
   embedded = false,
 }: PartnerContactsEditorProps) {
   function updateContact(index: number, patch: Partial<PartnerContactInput>) {
-    onChange(contacts.map((contact, contactIndex) => (contactIndex === index ? { ...contact, ...patch } : contact)));
+    onChange((current) =>
+      current.map((contact, contactIndex) =>
+        contactIndex === index ? { ...contact, ...patch } : contact
+      )
+    );
   }
 
   function addContact() {
-    onChange([...contacts, emptyPartnerContactInput()]);
+    onChange((current) => [...current, emptyPartnerContactInput()]);
   }
 
   function removeContact(index: number) {
-    const next = contacts.filter((_, contactIndex) => contactIndex !== index);
-    onChange(next.length > 0 ? next : [emptyPartnerContactInput()]);
+    onChange((current) => {
+      const next = current.filter((_, contactIndex) => contactIndex !== index);
+      return next.length > 0 ? next : [emptyPartnerContactInput()];
+    });
   }
 
   function markPrimary(index: number) {
-    onChange(setPrimaryContact(contacts, index));
+    onChange((current) => setPrimaryContact(current, index));
   }
 
   return (
@@ -103,8 +113,11 @@ export function PartnerContactsEditor({
               id={`partner-contact-birthday-${index}`}
               className="min-w-0 sm:max-w-xs"
               type="date"
-              value={contact.birthday.slice(0, 10)}
+              value={(contact.birthday ?? "").slice(0, 10)}
               onChange={(event) => updateContact(index, { birthday: event.target.value })}
+              onInput={(event) =>
+                updateContact(index, { birthday: (event.target as HTMLInputElement).value })
+              }
             />
             <p className="text-xs text-muted-foreground">
               Leave blank if unknown. Month and day show on Team Feed as a blue pill: Name |

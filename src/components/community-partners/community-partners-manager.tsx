@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Eye, Pencil, Plus, Trash2 } from "lucide-react";
 import { CommunityPartnerImporter } from "@/components/community-partners/partner-importer";
@@ -465,6 +465,33 @@ export function CommunityPartnersManager({ partners: initial }: CommunityPartner
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<CommunityPartner | null>(null);
   const [form, setForm] = useState<PartnerForm>(emptyPartner());
+  const formRef = useRef(form);
+  formRef.current = form;
+
+  function replaceForm(next: PartnerForm) {
+    formRef.current = next;
+    setForm(next);
+  }
+
+  function patchForm(patch: Partial<PartnerForm>) {
+    setForm((current) => {
+      const next = { ...current, ...patch };
+      formRef.current = next;
+      return next;
+    });
+  }
+
+  function patchContacts(
+    contacts: PartnerContactInput[] | ((current: PartnerContactInput[]) => PartnerContactInput[])
+  ) {
+    setForm((current) => {
+      const nextContacts = typeof contacts === "function" ? contacts(current.contacts) : contacts;
+      const next = { ...current, contacts: nextContacts };
+      formRef.current = next;
+      return next;
+    });
+  }
+
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<CommunityPartner | null>(null);
@@ -497,7 +524,7 @@ export function CommunityPartnersManager({ partners: initial }: CommunityPartner
 
   function openNew() {
     setEditing(null);
-    setForm(
+    replaceForm(
       emptyPartner(
         typeFilter !== "all" ? (typeFilter as CommunityPartnerOrganizationType) : "other"
       )
@@ -508,7 +535,7 @@ export function CommunityPartnersManager({ partners: initial }: CommunityPartner
 
   function openEdit(partner: CommunityPartner) {
     setEditing(partner);
-    setForm({
+    replaceForm({
       name: partner.name,
       organization_type: partner.organization_type,
       website: partner.website ?? "",
@@ -535,6 +562,7 @@ export function CommunityPartnersManager({ partners: initial }: CommunityPartner
   }
 
   async function save() {
+    const current = formRef.current;
     setSaving(true);
     setSaveError(null);
 
@@ -542,9 +570,9 @@ export function CommunityPartnersManager({ partners: initial }: CommunityPartner
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        ...form,
-        emails: normalizePartnerEmails(form.emails),
-        phones: normalizePartnerPhones(form.phones),
+        ...current,
+        emails: normalizePartnerEmails(current.emails),
+        phones: normalizePartnerPhones(current.phones),
         id: editing?.id,
       }),
     });
@@ -836,7 +864,7 @@ export function CommunityPartnersManager({ partners: initial }: CommunityPartner
               <Input
                 id="partner-name"
                 value={form.name}
-                onChange={(event) => setForm({ ...form, name: event.target.value })}
+                onChange={(event) => patchForm({ name: event.target.value })}
               />
             </div>
             <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
@@ -847,26 +875,34 @@ export function CommunityPartnersManager({ partners: initial }: CommunityPartner
                   onValueChange={(value) => {
                     const organizationType = value as CommunityPartnerOrganizationType;
                     const nextIsGcaa = isGcaaPartner(organizationType);
-                    const people = form.contacts.filter(partnerHasContactDetails);
-                    setForm({
-                      ...form,
-                      organization_type: organizationType,
-                      is_active: nextIsGcaa
-                        ? gcaaMemberIsActive(form.gcaa_member_status)
-                        : form.is_active,
-                      contacts: nextIsGcaa
-                        ? mergeOrganizationIntoContacts(form.contacts, form.emails, form.phones)
-                        : form.contacts,
-                      emails: nextIsGcaa
-                        ? form.emails
-                        : form.emails.some((email) => email.trim())
-                          ? form.emails
-                          : formListFromValues(people.map((contact) => contact.email)),
-                      phones: nextIsGcaa
-                        ? form.phones
-                        : form.phones.some((phone) => phone.trim())
-                          ? form.phones
-                          : formListFromValues(people.map((contact) => contact.phone)),
+                    setForm((current) => {
+                      const people = current.contacts.filter(partnerHasContactDetails);
+                      const next = {
+                        ...current,
+                        organization_type: organizationType,
+                        is_active: nextIsGcaa
+                          ? gcaaMemberIsActive(current.gcaa_member_status)
+                          : current.is_active,
+                        contacts: nextIsGcaa
+                          ? mergeOrganizationIntoContacts(
+                              current.contacts,
+                              current.emails,
+                              current.phones
+                            )
+                          : current.contacts,
+                        emails: nextIsGcaa
+                          ? current.emails
+                          : current.emails.some((email) => email.trim())
+                            ? current.emails
+                            : formListFromValues(people.map((contact) => contact.email)),
+                        phones: nextIsGcaa
+                          ? current.phones
+                          : current.phones.some((phone) => phone.trim())
+                            ? current.phones
+                            : formListFromValues(people.map((contact) => contact.phone)),
+                      };
+                      formRef.current = next;
+                      return next;
                     });
                   }}
                 >
@@ -888,8 +924,7 @@ export function CommunityPartnersManager({ partners: initial }: CommunityPartner
                   <Select
                     value={form.gcaa_member_status}
                     onValueChange={(value) =>
-                      setForm({
-                        ...form,
+                      patchForm({
                         gcaa_member_status: value as GcaaMemberStatus,
                         is_active: gcaaMemberIsActive(value as GcaaMemberStatus),
                       })
@@ -912,7 +947,7 @@ export function CommunityPartnersManager({ partners: initial }: CommunityPartner
                   <Label>Is active</Label>
                   <Select
                     value={form.is_active ? "yes" : "no"}
-                    onValueChange={(value) => setForm({ ...form, is_active: value === "yes" })}
+                    onValueChange={(value) => patchForm({ is_active: value === "yes" })}
                   >
                     <SelectTrigger className="w-full min-w-0">
                       <SelectValue />
@@ -930,12 +965,11 @@ export function CommunityPartnersManager({ partners: initial }: CommunityPartner
                 <Label>Partnership status</Label>
                 <Select
                   value={form.partnership_status}
-                  onValueChange={(value) =>
-                    setForm({
-                      ...form,
-                      partnership_status: value as CommunityPartnerStatus,
-                    })
-                  }
+                    onValueChange={(value) =>
+                      patchForm({
+                        partnership_status: value as CommunityPartnerStatus,
+                      })
+                    }
                 >
                   <SelectTrigger className="w-full min-w-0">
                     <SelectValue />
@@ -958,17 +992,16 @@ export function CommunityPartnersManager({ partners: initial }: CommunityPartner
                   <Input
                     id="partner-website"
                     value={form.website}
-                    onChange={(event) => setForm({ ...form, website: event.target.value })}
+                    onChange={(event) => patchForm({ website: event.target.value })}
                     placeholder="https://"
                   />
                 </div>
                 <AddressAutocomplete
                   label="Address"
                   defaultValue={form.address}
-                  onAddressChange={(address) => setForm({ ...form, address })}
+                  onAddressChange={(address) => patchForm({ address })}
                   onSelect={(parts) =>
-                    setForm({
-                      ...form,
+                    patchForm({
                       address: parts.address,
                       city: parts.city,
                       state: parts.state,
@@ -982,7 +1015,7 @@ export function CommunityPartnersManager({ partners: initial }: CommunityPartner
                     <Input
                       className="min-w-0"
                       value={form.city}
-                      onChange={(event) => setForm({ ...form, city: event.target.value })}
+                      onChange={(event) => patchForm({ city: event.target.value })}
                     />
                   </div>
                   <div className="min-w-0 space-y-1.5">
@@ -990,7 +1023,7 @@ export function CommunityPartnersManager({ partners: initial }: CommunityPartner
                     <Input
                       className="min-w-0"
                       value={form.state}
-                      onChange={(event) => setForm({ ...form, state: event.target.value })}
+                      onChange={(event) => patchForm({ state: event.target.value })}
                     />
                   </div>
                   <div className="min-w-0 space-y-1.5">
@@ -998,7 +1031,7 @@ export function CommunityPartnersManager({ partners: initial }: CommunityPartner
                     <Input
                       className="min-w-0"
                       value={form.zip}
-                      onChange={(event) => setForm({ ...form, zip: event.target.value })}
+                      onChange={(event) => patchForm({ zip: event.target.value })}
                     />
                   </div>
                 </div>
@@ -1018,7 +1051,7 @@ export function CommunityPartnersManager({ partners: initial }: CommunityPartner
               {isGcaaForm ? (
                 <PartnerContactsEditor
                   contacts={form.contacts}
-                  onChange={(contacts) => setForm({ ...form, contacts })}
+                  onChange={patchContacts}
                   title=""
                   addLabel="Add point of contact"
                   embedded
@@ -1028,7 +1061,7 @@ export function CommunityPartnersManager({ partners: initial }: CommunityPartner
                   <PartnerValueList
                     label="Email addresses"
                     values={form.emails}
-                    onChange={(emails) => setForm({ ...form, emails })}
+                    onChange={(emails) => patchForm({ emails })}
                     type="email"
                     placeholder="name@example.com"
                     addLabel="Add email"
@@ -1036,7 +1069,7 @@ export function CommunityPartnersManager({ partners: initial }: CommunityPartner
                   <PartnerValueList
                     label="Phone numbers"
                     values={form.phones}
-                    onChange={(phones) => setForm({ ...form, phones })}
+                    onChange={(phones) => patchForm({ phones })}
                     type="tel"
                     placeholder="(704) 555-0100"
                     addLabel="Add phone"
@@ -1044,7 +1077,7 @@ export function CommunityPartnersManager({ partners: initial }: CommunityPartner
                   <div className="border-t pt-3">
                     <PartnerContactsEditor
                       contacts={form.contacts}
-                      onChange={(contacts) => setForm({ ...form, contacts })}
+                      onChange={patchContacts}
                       title="People"
                       addLabel="Add person"
                       embedded
@@ -1060,7 +1093,7 @@ export function CommunityPartnersManager({ partners: initial }: CommunityPartner
                 <Textarea
                   id="partner-notes"
                   value={form.notes}
-                  onChange={(event) => setForm({ ...form, notes: event.target.value })}
+                  onChange={(event) => patchForm({ notes: event.target.value })}
                   placeholder={
                     isGcaaForm
                       ? "Gate codes, colony history, or how this community works with TNVR…"
