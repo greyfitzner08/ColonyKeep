@@ -1,7 +1,14 @@
+export type BirthdayPersonSource = "volunteer" | "partner";
+
 export interface BirthdayPerson {
   full_name: string;
   birthday: string;
   organization?: string | null;
+  source?: BirthdayPersonSource;
+}
+
+export function isPartnerBirthday(person: BirthdayPerson): boolean {
+  return person.source === "partner" || Boolean(person.organization?.trim());
 }
 
 export function birthdayDisplayName(person: BirthdayPerson): string {

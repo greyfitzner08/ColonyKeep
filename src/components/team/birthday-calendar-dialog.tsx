@@ -18,6 +18,7 @@ import {
   formatBirthdayMonthDay,
   getMonthGrid,
   getWeekDays,
+  isPartnerBirthday,
   startOfWeekSunday,
   upcomingBirthdayDayGroups,
   type BirthdayPerson,
@@ -35,23 +36,33 @@ interface BirthdayCalendarDialogProps {
 const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 function BirthdayNameChip({
-  name,
+  person,
+  label,
+  wrap = false,
   className,
 }: {
-  name: string;
+  person: BirthdayPerson;
+  label?: string;
+  wrap?: boolean;
   className?: string;
 }) {
+  const partner = isPartnerBirthday(person);
+  const name = label ?? birthdayDisplayName(person);
+
   return (
     <span
-      title={name}
+      title={partner ? `Community partner · ${name}` : name}
       className={cn(
-        "inline-flex max-w-full items-center rounded-md border border-pink-100 bg-pink-50 px-2 py-0.5",
-        "text-xs font-medium leading-snug text-pink-950",
-        "whitespace-nowrap",
+        "inline-flex max-w-full items-center rounded-md border px-2 py-0.5",
+        "text-xs font-medium leading-snug",
+        partner
+          ? "border-sky-200 bg-sky-50 text-sky-950"
+          : "border-pink-100 bg-pink-50 text-pink-950",
+        wrap ? "whitespace-normal text-left" : "whitespace-nowrap",
         className
       )}
     >
-      <span className="truncate">{name}</span>
+      <span className={wrap ? "break-words" : "truncate"}>{name}</span>
     </span>
   );
 }
@@ -124,9 +135,9 @@ export function BirthdayCalendarDialog({
             Team birthdays
           </DialogTitle>
           <DialogDescription>
-            Month and day only — birth years stay private. Community partners appear as
-            Name | Organization. List shows only days with birthdays; month and week show the full
-            calendar.
+            Month and day only — birth years stay private. Team volunteers are pink; community
+            partners are blue as Name | Organization. List shows only days with birthdays; month
+            and week show the full calendar.
           </DialogDescription>
         </DialogHeader>
 
@@ -160,6 +171,14 @@ export function BirthdayCalendarDialog({
               Week
             </Button>
           </div>
+          <p className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+            <span className="inline-flex items-center rounded-md border border-pink-100 bg-pink-50 px-1.5 py-0.5 font-medium text-pink-950">
+              Team
+            </span>
+            <span className="inline-flex items-center rounded-md border border-sky-200 bg-sky-50 px-1.5 py-0.5 font-medium text-sky-950">
+              Partner
+            </span>
+          </p>
 
           {view !== "list" && (
             <div className="flex items-center gap-2">
@@ -230,7 +249,7 @@ export function BirthdayCalendarDialog({
                     >
                       {group.people.map((person) => (
                         <li key={birthdayPersonKey(person)} className="min-w-0 max-w-full">
-                          <BirthdayNameChip name={birthdayDisplayName(person)} />
+                          <BirthdayNameChip person={person} wrap />
                         </li>
                       ))}
                     </ul>
@@ -265,7 +284,7 @@ export function BirthdayCalendarDialog({
                       {dayBirthdays.slice(0, 2).map((person) => (
                         <BirthdayNameChip
                           key={birthdayPersonKey(person)}
-                          name={birthdayDisplayName(person)}
+                          person={person}
                           className="px-1 py-0 text-[10px]"
                         />
                       ))}
@@ -287,7 +306,9 @@ export function BirthdayCalendarDialog({
                   {monthBirthdays.map((person) => (
                     <BirthdayNameChip
                       key={birthdayPersonKey(person)}
-                      name={`${birthdayDisplayName(person)} · ${formatBirthdayMonthDay(person.birthday)}`}
+                      person={person}
+                      label={`${birthdayDisplayName(person)} · ${formatBirthdayMonthDay(person.birthday)}`}
+                      wrap
                       className="rounded-full px-2.5 py-1"
                     />
                   ))}
@@ -327,7 +348,7 @@ export function BirthdayCalendarDialog({
                             key={birthdayPersonKey(person)}
                             className="min-w-0 max-w-full"
                           >
-                            <BirthdayNameChip name={birthdayDisplayName(person)} />
+                            <BirthdayNameChip person={person} wrap />
                           </li>
                         ))}
                       </ul>

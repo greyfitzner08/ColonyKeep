@@ -36,6 +36,7 @@ export async function loadBirthdayPeople(service: SupabaseClient): Promise<Birth
     .map((person) => ({
       full_name: person.full_name as string,
       birthday: person.birthday as string,
+      source: "volunteer" as const,
     }));
 
   const partners: BirthdayPerson[] = (partnerContacts ?? [])
@@ -44,6 +45,7 @@ export async function loadBirthdayPeople(service: SupabaseClient): Promise<Birth
       full_name: contact.name as string,
       birthday: contact.birthday as string,
       organization: nestedPartnerName(contact.community_partners),
+      source: "partner" as const,
     }));
 
   return [...volunteers, ...partners].sort((a, b) =>
