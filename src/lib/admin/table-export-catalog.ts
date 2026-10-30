@@ -235,6 +235,7 @@ export const EXPORTABLE_TABLES: ExportableTable[] = [
       { id: "email", label: "email" },
       { id: "phone", label: "phone" },
       { id: "notes", label: "notes" },
+      { id: "birthday", label: "birthday" },
       { id: "is_primary", label: "is primary" },
       { id: "sort_order", label: "sort order" },
       { id: "created_at", label: "created at" },

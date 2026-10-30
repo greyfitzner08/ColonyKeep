@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
+  normalizeContactBirthday,
   normalizeContactInputs,
   partnerHasContactDetails,
   type PartnerContactInput,
@@ -30,6 +31,7 @@ export async function syncCommunityPartnerContacts(
     email: contact.email.trim() || null,
     phone: contact.phone.trim() || null,
     notes: contact.notes.trim() || null,
+    birthday: normalizeContactBirthday(contact.birthday),
     is_primary: contact.is_primary,
     sort_order: index,
   }));
@@ -48,6 +50,7 @@ export function contactFromImportRow(row: Record<string, string>) {
     email: row.contact_email ?? "",
     phone: row.contact_phone ?? "",
     notes: row.contact_notes ?? "",
+    birthday: normalizeContactBirthday(row.contact_birthday) ?? "",
     is_primary: false,
   };
 

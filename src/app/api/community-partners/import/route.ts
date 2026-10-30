@@ -91,6 +91,7 @@ export async function POST(request: NextRequest) {
         email: contact.email,
         phone: contact.phone,
         notes: contact.notes,
+        birthday: contact.birthday,
         is_primary: shouldBePrimary,
         sort_order: count ?? 0,
       });

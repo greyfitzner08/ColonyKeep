@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,6 +21,17 @@ interface PartnerContactsEditorProps {
   embedded?: boolean;
 }
 
+function todayIsoDate(): string {
+  const today = new Date();
+  const month = String(today.getMonth() + 1).padStart(2, "0");
+  const day = String(today.getDate()).padStart(2, "0");
+  return `${today.getFullYear()}-${month}-${day}`;
+}
+
+function contactKey(contact: PartnerContactInput, index: number): string {
+  return contact.id ?? `draft-${index}`;
+}
+
 export function PartnerContactsEditor({
   contacts,
   onChange,
@@ -28,6 +40,8 @@ export function PartnerContactsEditor({
   addLabel = "Add contact",
   embedded = false,
 }: PartnerContactsEditorProps) {
+  const [birthdayOpen, setBirthdayOpen] = useState<Record<string, boolean>>({});
+
   function updateContact(index: number, patch: Partial<PartnerContactInput>) {
     onChange(contacts.map((contact, contactIndex) => (contactIndex === index ? { ...contact, ...patch } : contact)));
   }
@@ -45,20 +59,13 @@ export function PartnerContactsEditor({
     onChange(setPrimaryContact(contacts, index));
   }
 
+  function showBirthdayField(contact: PartnerContactInput, index: number): boolean {
+    return Boolean(contact.birthday.trim()) || Boolean(birthdayOpen[contactKey(contact, index)]);
+  }
+
   return (
     <div className="min-w-0 space-y-4">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        {title ? <p className="text-sm font-medium">{title}</p> : null}
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className="w-full shrink-0 sm:ml-auto sm:w-auto"
-          onClick={addContact}
-        >
-          {addLabel}
-        </Button>
-      </div>
+      {title ? <p className="text-sm font-medium">{title}</p> : null}
       {embedded ? null : <p className="text-xs text-muted-foreground">{description}</p>}
 
       {contacts.map((contact, index) => (
@@ -138,8 +145,65 @@ export function PartnerContactsEditor({
               rows={2}
             />
           </div>
+
+          {showBirthdayField(contact, index) ? (
+            <div className="min-w-0 space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <Label htmlFor={`partner-contact-birthday-${index}`}>Birthday</Label>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 px-2 text-muted-foreground"
+                  onClick={() => {
+                    const key = contactKey(contact, index);
+                    setBirthdayOpen((current) => ({ ...current, [key]: false }));
+                    updateContact(index, { birthday: "" });
+                  }}
+                >
+                  Remove
+                </Button>
+              </div>
+              <Input
+                id={`partner-contact-birthday-${index}`}
+                className="min-w-0"
+                type="date"
+                max={todayIsoDate()}
+                value={contact.birthday}
+                onChange={(event) => updateContact(index, { birthday: event.target.value })}
+              />
+              <p className="text-xs text-muted-foreground">
+                Optional. Month and day appear on the team birthday calendar as Name | Organization.
+              </p>
+            </div>
+          ) : (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-8 px-0 text-muted-foreground"
+              onClick={() =>
+                setBirthdayOpen((current) => ({
+                  ...current,
+                  [contactKey(contact, index)]: true,
+                }))
+              }
+            >
+              Add birthday
+            </Button>
+          )}
         </div>
       ))}
+
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        className="w-full sm:w-auto"
+        onClick={addContact}
+      >
+        {addLabel}
+      </Button>
     </div>
   );
 }

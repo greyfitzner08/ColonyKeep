@@ -1,4 +1,5 @@
-import { birthdaysWithinDays, type BirthdayPerson } from "@/lib/team-feed/birthdays";
+import { birthdaysWithinDays } from "@/lib/team-feed/birthdays";
+import { loadBirthdayPeople } from "@/lib/team-feed/load-birthday-people";
 import { announcementVisibleToProfile } from "@/lib/team-feed/visibility";
 import type { Profile, TeamAnnouncement } from "@/lib/types";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -13,28 +14,17 @@ export async function fetchTeamFeedActivity(
   service: SupabaseClient,
   profile: Profile
 ): Promise<TeamFeedActivity> {
-  const [{ data: announcementsRaw }, { data: profilesWithBirthdays }] = await Promise.all([
+  const [{ data: announcementsRaw }, birthdayPeople] = await Promise.all([
     supabase
       .from("team_announcements")
       .select("created_at, audience, team_id, team_ids, view_roles")
       .order("created_at", { ascending: false }),
-    service
-      .from("profiles")
-      .select("full_name, birthday")
-      .not("birthday", "is", null)
-      .not("full_name", "is", null),
+    loadBirthdayPeople(service),
   ]);
 
   const visible = ((announcementsRaw ?? []) as TeamAnnouncement[]).filter((post) =>
     announcementVisibleToProfile(post, profile)
   );
-
-  const birthdayPeople: BirthdayPerson[] = (profilesWithBirthdays ?? [])
-    .filter((person) => person.full_name && person.birthday)
-    .map((person) => ({
-      full_name: person.full_name as string,
-      birthday: person.birthday as string,
-    }));
 
   return {
     latestPostAt: visible[0]?.created_at ?? null,

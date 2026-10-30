@@ -11,6 +11,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
+  birthdayDisplayName,
+  birthdayPersonKey,
   birthdaysInMonth,
   birthdaysOnCalendarDay,
   formatBirthdayMonthDay,
@@ -122,8 +124,9 @@ export function BirthdayCalendarDialog({
             Team birthdays
           </DialogTitle>
           <DialogDescription>
-            Month and day only — birth years stay private. List shows only days with birthdays;
-            month and week show the full calendar.
+            Month and day only — birth years stay private. Community partners appear as
+            Name | Organization. List shows only days with birthdays; month and week show the full
+            calendar.
           </DialogDescription>
         </DialogHeader>
 
@@ -191,8 +194,8 @@ export function BirthdayCalendarDialog({
           <div className="space-y-2">
             {listGroups.length === 0 ? (
               <p className="py-6 text-center text-sm text-muted-foreground">
-                No team birthdays on file yet. They appear here as volunteers add or update their
-                birthday.
+                No birthdays on file yet. They appear here as volunteers add theirs, or when a
+                community partner contact has a birthday.
               </p>
             ) : (
               <>
@@ -226,8 +229,8 @@ export function BirthdayCalendarDialog({
                       aria-label={`Birthdays on ${formatDate(group.date)}`}
                     >
                       {group.people.map((person) => (
-                        <li key={`${person.full_name}-${person.birthday}`} className="min-w-0 max-w-full">
-                          <BirthdayNameChip name={person.full_name} />
+                        <li key={birthdayPersonKey(person)} className="min-w-0 max-w-full">
+                          <BirthdayNameChip name={birthdayDisplayName(person)} />
                         </li>
                       ))}
                     </ul>
@@ -261,8 +264,8 @@ export function BirthdayCalendarDialog({
                     <div className="mt-1 flex flex-col gap-0.5">
                       {dayBirthdays.slice(0, 2).map((person) => (
                         <BirthdayNameChip
-                          key={`${person.full_name}-${person.birthday}`}
-                          name={person.full_name}
+                          key={birthdayPersonKey(person)}
+                          name={birthdayDisplayName(person)}
                           className="px-1 py-0 text-[10px]"
                         />
                       ))}
@@ -283,8 +286,8 @@ export function BirthdayCalendarDialog({
                 <div className="flex flex-wrap gap-2">
                   {monthBirthdays.map((person) => (
                     <BirthdayNameChip
-                      key={`${person.full_name}-${person.birthday}`}
-                      name={`${person.full_name} · ${formatBirthdayMonthDay(person.birthday)}`}
+                      key={birthdayPersonKey(person)}
+                      name={`${birthdayDisplayName(person)} · ${formatBirthdayMonthDay(person.birthday)}`}
                       className="rounded-full px-2.5 py-1"
                     />
                   ))}
@@ -321,10 +324,10 @@ export function BirthdayCalendarDialog({
                       <ul className="flex flex-wrap gap-1.5" aria-label={`Birthdays on ${formatDate(day)}`}>
                         {dayBirthdays.map((person) => (
                           <li
-                            key={`${person.full_name}-${person.birthday}`}
+                            key={birthdayPersonKey(person)}
                             className="min-w-0 max-w-full"
                           >
-                            <BirthdayNameChip name={person.full_name} />
+                            <BirthdayNameChip name={birthdayDisplayName(person)} />
                           </li>
                         ))}
                       </ul>

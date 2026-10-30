@@ -30,6 +30,7 @@ export const COMMUNITY_PARTNER_EXPORT_HEADERS = [
   "Contact Title",
   "Contact Email",
   "Contact Phone",
+  "Contact Birthday",
   "Contact Notes",
   "Primary Contact",
   "Organization Notes",
@@ -64,7 +65,7 @@ function exportRowsForPartner(partner: CommunityPartner): string[][] {
   const tail = [partner.notes ?? "", partner.is_active ? "Yes" : "No"];
 
   if (contacts.length === 0) {
-    return [[...orgCells, "", "", "", "", "", "No", ...tail]];
+    return [[...orgCells, "", "", "", "", "", "", "No", ...tail]];
   }
 
   return contacts.map((contact) => [
@@ -73,6 +74,7 @@ function exportRowsForPartner(partner: CommunityPartner): string[][] {
     contact.title ?? "",
     contact.email ?? "",
     contact.phone ?? "",
+    contact.birthday ?? "",
     contact.notes ?? "",
     contact.is_primary ? "Yes" : "No",
     ...tail,

@@ -68,6 +68,7 @@ import {
 } from "@/lib/community-partners/contacts";
 import { exportPartnersCsv } from "@/lib/community-partners/export-csv";
 import { formatSingleLineAddress } from "@/lib/cases/colony-notes";
+import { formatBirthdayMonthDay } from "@/lib/team-feed/birthdays";
 import type {
   CommunityPartner,
   CommunityPartnerOrganizationType,
@@ -424,6 +425,11 @@ function PartnerDetailView({
                       {contact.phone.trim()}
                     </a>
                   )}
+                  {contact.birthday?.trim() ? (
+                    <p className="text-muted-foreground">
+                      Birthday · {formatBirthdayMonthDay(contact.birthday)}
+                    </p>
+                  ) : null}
                   {contact.notes?.trim() && (
                     <p className="whitespace-pre-wrap break-words pt-1 text-muted-foreground">
                       {contact.notes.trim()}

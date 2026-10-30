@@ -614,6 +614,7 @@ export interface CommunityPartnerContact {
   email: string | null;
   phone: string | null;
   notes: string | null;
+  birthday: string | null;
   is_primary: boolean;
   sort_order: number;
   created_at: string;

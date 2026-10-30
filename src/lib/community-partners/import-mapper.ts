@@ -7,6 +7,7 @@ import {
   parsePartnershipStatus,
 } from "@/lib/community-partners/constants";
 import {
+  normalizeContactBirthday,
   normalizePartnerEmails,
   normalizePartnerPhones,
 } from "@/lib/community-partners/contacts";
@@ -61,6 +62,8 @@ const HEADER_ALIASES: Record<string, string> = {
   role: "contact_title",
   contact_email: "contact_email",
   contact_phone: "contact_phone",
+  contact_birthday: "contact_birthday",
+  birthday: "contact_birthday",
   contact_notes: "contact_notes",
   notes: "notes",
   organization_notes: "notes",
@@ -126,6 +129,7 @@ export type CommunityPartnerImportPayload = {
     email: string | null;
     phone: string | null;
     notes: string | null;
+    birthday: string | null;
     is_primary: boolean;
   } | null;
 };
@@ -153,13 +157,18 @@ export function mapCommunityPartnerImportRow(raw: Record<string, unknown>): {
     : null;
 
   const contact =
-    row.contact_name || row.contact_email || row.contact_phone || row.contact_title
+    row.contact_name ||
+    row.contact_email ||
+    row.contact_phone ||
+    row.contact_title ||
+    row.contact_birthday
       ? {
           name: row.contact_name ?? null,
           title: row.contact_title ?? null,
           email: row.contact_email ?? null,
           phone: row.contact_phone ?? null,
           notes: row.contact_notes ?? null,
+          birthday: normalizeContactBirthday(row.contact_birthday),
           is_primary: parseBoolean(row.is_primary_contact, true),
         }
       : null;

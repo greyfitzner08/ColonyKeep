@@ -1,4 +1,5 @@
 import type { CommunityPartner, CommunityPartnerContact } from "@/lib/types";
+import { parseDisplayDate } from "@/lib/utils";
 
 export function sortPartnerContacts(contacts: CommunityPartnerContact[]): CommunityPartnerContact[] {
   return [...contacts].sort((a, b) => {
@@ -20,14 +21,30 @@ export function partnerHasContactDetails(contact: {
   email?: string | null;
   phone?: string | null;
   notes?: string | null;
+  birthday?: string | null;
 }): boolean {
   return Boolean(
     contact.name?.trim() ||
       contact.title?.trim() ||
       contact.email?.trim() ||
       contact.phone?.trim() ||
-      contact.notes?.trim()
+      contact.notes?.trim() ||
+      contact.birthday?.trim()
   );
+}
+
+export function normalizeContactBirthday(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  const iso = /^\d{4}-\d{2}-\d{2}$/.test(trimmed) ? trimmed : parseDisplayDate(trimmed);
+  if (!iso) return null;
+  const date = new Date(`${iso}T12:00:00`);
+  if (Number.isNaN(date.getTime())) return null;
+  const today = new Date();
+  today.setHours(23, 59, 59, 999);
+  if (date > today) return null;
+  return iso;
 }
 
 export interface PartnerContactInput {
@@ -37,6 +54,7 @@ export interface PartnerContactInput {
   email: string;
   phone: string;
   notes: string;
+  birthday: string;
   is_primary: boolean;
 }
 
@@ -46,6 +64,7 @@ export const emptyPartnerContactInput = (): PartnerContactInput => ({
   email: "",
   phone: "",
   notes: "",
+  birthday: "",
   is_primary: false,
 });
 
@@ -59,6 +78,7 @@ export function contactsFromPartner(partner: CommunityPartner): PartnerContactIn
     email: contact.email ?? "",
     phone: contact.phone ?? "",
     notes: contact.notes ?? "",
+    birthday: normalizeContactBirthday(contact.birthday) ?? "",
     is_primary: contact.is_primary,
   }));
 }
@@ -105,6 +125,7 @@ export function normalizeContactInputs(contacts: PartnerContactInput[]): Partner
   const primaryIndex = filled.findIndex((contact) => contact.is_primary);
   return filled.map((contact, index) => ({
     ...contact,
+    birthday: normalizeContactBirthday(contact.birthday) ?? "",
     is_primary: primaryIndex === -1 ? index === 0 : index === primaryIndex,
   }));
 }

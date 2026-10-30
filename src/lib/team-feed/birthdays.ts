@@ -1,6 +1,17 @@
 export interface BirthdayPerson {
   full_name: string;
   birthday: string;
+  organization?: string | null;
+}
+
+export function birthdayDisplayName(person: BirthdayPerson): string {
+  const organization = person.organization?.trim();
+  if (!organization) return person.full_name;
+  return `${person.full_name} | ${organization}`;
+}
+
+export function birthdayPersonKey(person: BirthdayPerson): string {
+  return `${person.full_name}|${person.organization?.trim() ?? ""}|${person.birthday}`;
 }
 
 function startOfDay(date: Date): Date {

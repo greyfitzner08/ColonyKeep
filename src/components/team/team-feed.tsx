@@ -20,6 +20,7 @@ import { createClient } from "@/lib/supabase/client";
 import { cn, formatDateTime } from "@/lib/utils";
 import { VOLUNTEER_ROLES } from "@/lib/constants";
 import {
+  birthdayDisplayName,
   birthdaysWithinDays,
   upcomingBirthdayLabel,
   type BirthdayPerson,
@@ -298,7 +299,10 @@ export function TeamFeed({
               <p className="min-w-0 flex-1 leading-snug">
                 <span className="font-medium">Birthdays this week:</span>{" "}
                 {birthdaysSoon
-                  .map((person) => `${person.full_name} (${upcomingBirthdayLabel(person.birthday)})`)
+                  .map(
+                    (person) =>
+                      `${birthdayDisplayName(person)} (${upcomingBirthdayLabel(person.birthday)})`
+                  )
                   .join(" · ")}
               </p>
               <Button
