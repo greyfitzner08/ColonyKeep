@@ -1007,6 +1007,7 @@ export function CommunityPartnersManager({ partners: initial }: CommunityPartner
 
             <CollapsibleModalCard
               title={isGcaaForm ? "Points of contact" : "Contact info"}
+              defaultOpen={form.contacts.some(partnerHasContactDetails)}
               summary={contactSummary(form, isGcaaForm)}
               description={
                 isGcaaForm

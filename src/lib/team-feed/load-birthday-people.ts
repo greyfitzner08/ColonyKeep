@@ -1,24 +1,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { type BirthdayPerson } from "@/lib/team-feed/birthdays";
 
-function nestedPartnerName(value: unknown): string | null {
-  if (Array.isArray(value)) {
-    const first = value[0];
-    if (first && typeof first === "object" && "name" in first) {
-      const name = (first as { name?: unknown }).name;
-      return typeof name === "string" ? name.trim() || null : null;
-    }
-    return null;
-  }
-  if (value && typeof value === "object" && "name" in value) {
-    const name = (value as { name?: unknown }).name;
-    return typeof name === "string" ? name.trim() || null : null;
-  }
-  return null;
-}
-
 export async function loadBirthdayPeople(service: SupabaseClient): Promise<BirthdayPerson[]> {
-  const [{ data: profiles }, { data: partnerContacts }] = await Promise.all([
+  const [{ data: profiles }, contactsResult, partnersResult] = await Promise.all([
     service
       .from("profiles")
       .select("full_name, birthday")
@@ -26,25 +10,30 @@ export async function loadBirthdayPeople(service: SupabaseClient): Promise<Birth
       .not("full_name", "is", null),
     service
       .from("community_partner_contacts")
-      .select("name, birthday, community_partners(name)")
+      .select("name, birthday, partner_id")
       .not("birthday", "is", null)
       .not("name", "is", null),
+    service.from("community_partners").select("id, name"),
   ]);
+
+  const organizationById = new Map(
+    (partnersResult.data ?? []).map((partner) => [partner.id as string, String(partner.name ?? "").trim()])
+  );
 
   const volunteers: BirthdayPerson[] = (profiles ?? [])
     .filter((person) => person.full_name && person.birthday)
     .map((person) => ({
       full_name: person.full_name as string,
-      birthday: person.birthday as string,
+      birthday: String(person.birthday).slice(0, 10),
       source: "volunteer" as const,
     }));
 
-  const partners: BirthdayPerson[] = (partnerContacts ?? [])
+  const partners: BirthdayPerson[] = (contactsResult.data ?? [])
     .filter((contact) => contact.name && contact.birthday)
     .map((contact) => ({
       full_name: contact.name as string,
-      birthday: contact.birthday as string,
-      organization: nestedPartnerName(contact.community_partners),
+      birthday: String(contact.birthday).slice(0, 10),
+      organization: organizationById.get(contact.partner_id as string) || null,
       source: "partner" as const,
     }));
 

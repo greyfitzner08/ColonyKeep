@@ -34,16 +34,17 @@ export function partnerHasContactDetails(contact: {
 }
 
 export function normalizeContactBirthday(value: unknown): string | null {
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, "0")}-${String(value.getDate()).padStart(2, "0")}`;
+  }
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
   if (!trimmed) return null;
-  const iso = /^\d{4}-\d{2}-\d{2}$/.test(trimmed) ? trimmed : parseDisplayDate(trimmed);
+  const dateOnly = trimmed.slice(0, 10);
+  const iso = /^\d{4}-\d{2}-\d{2}$/.test(dateOnly) ? dateOnly : parseDisplayDate(trimmed);
   if (!iso) return null;
   const date = new Date(`${iso}T12:00:00`);
   if (Number.isNaN(date.getTime())) return null;
-  const today = new Date();
-  today.setHours(23, 59, 59, 999);
-  if (date > today) return null;
   return iso;
 }
 
