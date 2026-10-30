@@ -135,9 +135,9 @@ export function BirthdayCalendarDialog({
             Team birthdays
           </DialogTitle>
           <DialogDescription>
-            Month and day only — birth years stay private. Team volunteers are pink; community
-            partners are blue as Name | Organization. List shows only days with birthdays; month
-            and week show the full calendar.
+            Month and day only — birth years stay private. Pink pills are team volunteers. Blue
+            pills are community partners as Name | Organization, after a birthday is saved on that
+            person. List shows only days with birthdays; month and week show the full calendar.
           </DialogDescription>
         </DialogHeader>
 

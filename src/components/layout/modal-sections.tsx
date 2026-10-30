@@ -61,12 +61,10 @@ export function CollapsibleModalCard({
           ) : null}
         </span>
       </button>
-      {open ? (
-        <div className="space-y-3 border-t px-3 py-4">
-          {description ? <p className="text-sm text-muted-foreground">{description}</p> : null}
-          {children}
-        </div>
-      ) : null}
+      <div className={cn("space-y-3 border-t px-3 py-4", !open && "hidden")}>
+        {description ? <p className="text-sm text-muted-foreground">{description}</p> : null}
+        {children}
+      </div>
     </div>
   );
 }

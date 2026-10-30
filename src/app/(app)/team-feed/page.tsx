@@ -7,6 +7,8 @@ import { loadBirthdayPeople } from "@/lib/team-feed/load-birthday-people";
 import { announcementVisibleToProfile } from "@/lib/team-feed/visibility";
 import type { TeamAnnouncement } from "@/lib/types";
 
+export const dynamic = "force-dynamic";
+
 export default async function TeamFeedPage() {
   const supabase = await createClient();
   const service = await createServiceClient();

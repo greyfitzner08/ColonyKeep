@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,10 +20,6 @@ interface PartnerContactsEditorProps {
   embedded?: boolean;
 }
 
-function contactKey(contact: PartnerContactInput, index: number): string {
-  return contact.id ?? `draft-${index}`;
-}
-
 export function PartnerContactsEditor({
   contacts,
   onChange,
@@ -33,8 +28,6 @@ export function PartnerContactsEditor({
   addLabel = "Add contact",
   embedded = false,
 }: PartnerContactsEditorProps) {
-  const [birthdayOpen, setBirthdayOpen] = useState<Record<string, boolean>>({});
-
   function updateContact(index: number, patch: Partial<PartnerContactInput>) {
     onChange(contacts.map((contact, contactIndex) => (contactIndex === index ? { ...contact, ...patch } : contact)));
   }
@@ -50,10 +43,6 @@ export function PartnerContactsEditor({
 
   function markPrimary(index: number) {
     onChange(setPrimaryContact(contacts, index));
-  }
-
-  function showBirthdayField(contact: PartnerContactInput, index: number): boolean {
-    return Boolean(contact.birthday.trim()) || Boolean(birthdayOpen[contactKey(contact, index)]);
   }
 
   return (
@@ -108,52 +97,20 @@ export function PartnerContactsEditor({
             </div>
           </div>
 
-          {showBirthdayField(contact, index) ? (
-            <div className="min-w-0 space-y-2">
-              <div className="flex items-center justify-between gap-2">
-                <Label htmlFor={`partner-contact-birthday-${index}`}>Birthday</Label>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 px-2 text-muted-foreground"
-                  onClick={() => {
-                    const key = contactKey(contact, index);
-                    setBirthdayOpen((current) => ({ ...current, [key]: false }));
-                    updateContact(index, { birthday: "" });
-                  }}
-                >
-                  Remove
-                </Button>
-              </div>
-              <Input
-                id={`partner-contact-birthday-${index}`}
-                className="min-w-0 sm:max-w-xs"
-                type="date"
-                value={contact.birthday.slice(0, 10)}
-                onChange={(event) => updateContact(index, { birthday: event.target.value })}
-              />
-              <p className="text-xs text-muted-foreground">
-                Optional. Month and day appear on the team birthday calendar as a blue pill: Name |
-                Organization. Year is not shown.
-              </p>
-            </div>
-          ) : (
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="h-8 w-fit px-0 text-muted-foreground"
-              onClick={() =>
-                setBirthdayOpen((current) => ({
-                  ...current,
-                  [contactKey(contact, index)]: true,
-                }))
-              }
-            >
-              Add birthday
-            </Button>
-          )}
+          <div className="min-w-0 space-y-2">
+            <Label htmlFor={`partner-contact-birthday-${index}`}>Birthday (optional)</Label>
+            <Input
+              id={`partner-contact-birthday-${index}`}
+              className="min-w-0 sm:max-w-xs"
+              type="date"
+              value={contact.birthday.slice(0, 10)}
+              onChange={(event) => updateContact(index, { birthday: event.target.value })}
+            />
+            <p className="text-xs text-muted-foreground">
+              Leave blank if unknown. Month and day show on Team Feed as a blue pill: Name |
+              Organization.
+            </p>
+          </div>
 
           <div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="min-w-0 space-y-2">
