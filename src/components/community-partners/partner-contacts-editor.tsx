@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -37,8 +37,10 @@ function PartnerBirthdayFields({
   onChange: (birthday: string) => void;
 }) {
   const [text, setText] = useState(() => formatContactBirthdayInput(birthday));
+  const focusedRef = useRef(false);
 
   useEffect(() => {
+    if (focusedRef.current) return;
     setText(formatContactBirthdayInput(birthday));
   }, [birthday]);
 
@@ -49,10 +51,7 @@ function PartnerBirthdayFields({
       return;
     }
     const iso = normalizeContactBirthday(text);
-    if (iso) {
-      setText(formatContactBirthdayInput(iso));
-      onChange(iso);
-    }
+    if (iso) onChange(iso);
   }
 
   return (
@@ -65,6 +64,9 @@ function PartnerBirthdayFields({
         autoComplete="off"
         placeholder="MM/DD"
         value={text}
+        onFocus={() => {
+          focusedRef.current = true;
+        }}
         onChange={(event) => {
           const next = event.target.value;
           setText(next);
@@ -75,7 +77,10 @@ function PartnerBirthdayFields({
           const iso = normalizeContactBirthday(next);
           if (iso) onChange(iso);
         }}
-        onBlur={commit}
+        onBlur={() => {
+          focusedRef.current = false;
+          commit();
+        }}
         onKeyDown={(event) => {
           if (event.key === "Enter") {
             event.preventDefault();
@@ -84,7 +89,7 @@ function PartnerBirthdayFields({
         }}
       />
       <p className="text-xs text-muted-foreground">
-        Type month and day only, like 03/15. No year. Shows on Team Feed as a blue pill: Name |
+        Type month and day only, like 3/15. No year. Shows on Team Feed as a blue pill: Name |
         Organization.
       </p>
     </div>

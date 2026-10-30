@@ -139,7 +139,7 @@ export function contactBirthdayFromParts(month: string, day: string): string {
 export function formatContactBirthdayInput(value: string | null | undefined): string {
   const { month, day } = parseContactBirthdayParts(value);
   if (!month || !day) return "";
-  return `${month}/${day}`;
+  return `${Number(month)}/${Number(day)}`;
 }
 
 export interface PartnerContactInput {
