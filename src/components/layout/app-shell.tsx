@@ -25,6 +25,10 @@ import {
 } from "@/lib/cases/idle-claim-follow-up";
 import { canAccessAdoptions, getProfilePermissions } from "@/lib/permissions";
 import { fetchTeamFeedActivity, type TeamFeedActivity } from "@/lib/team-feed/activity";
+import {
+  fetchVolunteerApplicationsActivity,
+  type VolunteerApplicationsActivity,
+} from "@/lib/volunteers/activity";
 import type { RoleDescription, VolunteerApplication } from "@/lib/types";
 
 export async function AppShell({ children }: { children: React.ReactNode }) {
@@ -115,16 +119,21 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
 
   let teamFeedActivity: TeamFeedActivity | null = null;
   let adoptionApplicationsActivity: AdoptionApplicationsActivity | null = null;
+  let volunteerApplicationsActivity: VolunteerApplicationsActivity | null = null;
   let idleClaimFollowUpActivity: IdleClaimFollowUpActivity | null = null;
   if (effectiveProfile) {
     try {
       const supabase = await createClient();
       const service = await createServiceClient();
+      const permissions = getProfilePermissions(effectiveProfile);
       teamFeedActivity = await fetchTeamFeedActivity(supabase, service, effectiveProfile);
       if (canAccessAdoptions(effectiveProfile)) {
         adoptionApplicationsActivity = await fetchAdoptionApplicationsActivity(service);
       }
-      if (getProfilePermissions(effectiveProfile)?.canViewTrapQueue && effectiveProfile.email) {
+      if (permissions?.canManageVolunteers) {
+        volunteerApplicationsActivity = await fetchVolunteerApplicationsActivity(service);
+      }
+      if (permissions?.canViewTrapQueue && effectiveProfile.email) {
         idleClaimFollowUpActivity = await fetchIdleClaimFollowUpActivity(
           supabase,
           effectiveProfile.email
@@ -133,6 +142,7 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
     } catch {
       teamFeedActivity = null;
       adoptionApplicationsActivity = null;
+      volunteerApplicationsActivity = null;
       idleClaimFollowUpActivity = null;
     }
   }
@@ -148,6 +158,7 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
       showPlatformTutorial={showPlatformTutorial}
       teamFeedActivity={teamFeedActivity}
       adoptionApplicationsActivity={adoptionApplicationsActivity}
+      volunteerApplicationsActivity={volunteerApplicationsActivity}
       idleClaimFollowUpActivity={idleClaimFollowUpActivity}
     >
       {children}

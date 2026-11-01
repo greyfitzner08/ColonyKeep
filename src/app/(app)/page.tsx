@@ -15,8 +15,13 @@ import {
   canClaimShifts,
   canManageAppointments,
   canViewTrapTeamSection,
+  getProfilePermissions,
   isCaseWorker,
 } from "@/lib/permissions";
+import {
+  fetchVolunteerApplicationQueueSummary,
+  type VolunteerApplicationQueueSummary,
+} from "@/lib/volunteers/activity";
 import { APPOINTMENTS_UI_ENABLED } from "@/lib/features";
 import type { HelpRequest, Shift } from "@/lib/types";
 
@@ -166,6 +171,15 @@ export default async function DashboardPage() {
     }
   }
 
+  let volunteerApplicationQueue: VolunteerApplicationQueueSummary | null = null;
+  if (getProfilePermissions(profile)?.canManageVolunteers) {
+    try {
+      volunteerApplicationQueue = await fetchVolunteerApplicationQueueSummary(service ?? supabase);
+    } catch {
+      volunteerApplicationQueue = null;
+    }
+  }
+
   const trapTeamDescription = profile.team_id
     ? "Field cases for trapping and transport: assigned to your trap team or personally claimed by you."
     : "Trap and transport cases you personally claimed. Join a trap team to also see team-assigned cases.";
@@ -208,6 +222,7 @@ export default async function DashboardPage() {
       appointmentsScope={showProgramAppointments ? "program" : "mine"}
       pendingClinicResults={pendingClinicResults}
       communityStats={communityStats}
+      volunteerApplicationQueue={volunteerApplicationQueue}
     />
   );
 }

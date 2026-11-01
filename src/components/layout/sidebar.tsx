@@ -42,7 +42,9 @@ import { PlatformTutorialSidebarButton, PlatformTutorialSidebarHost } from "@/co
 import type { TutorialMode } from "@/lib/platform-tutorial/tracks";
 import { useAdoptionApplicationsNavIndicator } from "@/components/layout/use-adoption-applications-nav-indicator";
 import { useTeamFeedNavIndicator } from "@/components/layout/use-team-feed-nav-indicator";
+import { useVolunteerApplicationsNavIndicator } from "@/components/layout/use-volunteer-applications-nav-indicator";
 import type { AdoptionApplicationsActivity } from "@/lib/adoption/activity";
+import type { VolunteerApplicationsActivity } from "@/lib/volunteers/activity";
 import {
   shouldShowIdleClaimFollowUpIndicator,
   type IdleClaimFollowUpActivity,
@@ -204,6 +206,7 @@ interface SidebarProps {
   roleDescriptions?: RoleDescription[];
   teamFeedActivity?: TeamFeedActivity | null;
   adoptionApplicationsActivity?: AdoptionApplicationsActivity | null;
+  volunteerApplicationsActivity?: VolunteerApplicationsActivity | null;
   idleClaimFollowUpActivity?: IdleClaimFollowUpActivity | null;
 }
 
@@ -215,6 +218,7 @@ export function Sidebar({
   roleDescriptions = [],
   teamFeedActivity = null,
   adoptionApplicationsActivity = null,
+  volunteerApplicationsActivity = null,
   idleClaimFollowUpActivity = null,
 }: SidebarProps) {
   const pathname = usePathname();
@@ -235,6 +239,10 @@ export function Sidebar({
   const showTeamFeedIndicator = useTeamFeedNavIndicator(teamFeedActivity, profile?.id);
   const showAdoptionApplicationsIndicator = useAdoptionApplicationsNavIndicator(
     adoptionApplicationsActivity,
+    profile?.id
+  );
+  const showVolunteerApplicationsIndicator = useVolunteerApplicationsNavIndicator(
+    volunteerApplicationsActivity,
     profile?.id
   );
   const showIdleClaimFollowUpIndicator =
@@ -310,6 +318,7 @@ export function Sidebar({
               (item) =>
                 (item.href === "/team-feed" && showTeamFeedIndicator) ||
                 (item.href === "/adoption/applications" && showAdoptionApplicationsIndicator) ||
+                (item.href === "/volunteers" && showVolunteerApplicationsIndicator) ||
                 (item.href === "/trap-queue" && showIdleClaimFollowUpIndicator)
             );
 
@@ -373,6 +382,12 @@ export function Sidebar({
                               aria-label="New adoption application"
                             />
                           )}
+                        {item.href === "/volunteers" && showVolunteerApplicationsIndicator && (
+                          <span
+                            className="h-1.5 w-1.5 shrink-0 rounded-full bg-pink-400/75"
+                            aria-label="New volunteer application"
+                          />
+                        )}
                         {item.href === "/trap-queue" && showIdleClaimFollowUpIndicator && (
                           <span
                             className="h-1.5 w-1.5 shrink-0 rounded-full bg-pink-400/75"

@@ -10,6 +10,7 @@ import type { Profile, RoleDescription } from "@/lib/types";
 import type { AdoptionApplicationsActivity } from "@/lib/adoption/activity";
 import type { IdleClaimFollowUpActivity } from "@/lib/cases/idle-claim-follow-up";
 import type { TeamFeedActivity } from "@/lib/team-feed/activity";
+import type { VolunteerApplicationsActivity } from "@/lib/volunteers/activity";
 
 interface AppShellFrameProps {
   children: React.ReactNode;
@@ -22,6 +23,7 @@ interface AppShellFrameProps {
   showPlatformTutorial: boolean;
   teamFeedActivity: TeamFeedActivity | null;
   adoptionApplicationsActivity: AdoptionApplicationsActivity | null;
+  volunteerApplicationsActivity: VolunteerApplicationsActivity | null;
   idleClaimFollowUpActivity: IdleClaimFollowUpActivity | null;
 }
 
@@ -36,6 +38,7 @@ export function AppShellFrame({
   showPlatformTutorial,
   teamFeedActivity,
   adoptionApplicationsActivity,
+  volunteerApplicationsActivity,
   idleClaimFollowUpActivity,
 }: AppShellFrameProps) {
   const previewActive = Boolean(previewKey && previewLabel);
@@ -63,6 +66,7 @@ export function AppShellFrame({
           userName={effectiveProfile.full_name ?? effectiveProfile.email}
           teamFeedActivity={teamFeedActivity}
           adoptionApplicationsActivity={adoptionApplicationsActivity}
+          volunteerApplicationsActivity={volunteerApplicationsActivity}
           idleClaimFollowUpActivity={idleClaimFollowUpActivity}
         />
         <main

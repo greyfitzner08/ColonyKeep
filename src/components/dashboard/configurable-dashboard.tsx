@@ -12,6 +12,8 @@ import { CommunityStatsDisplay, type CommunityStats } from "@/components/dashboa
 import { TrapTeamPanel } from "@/components/dashboard/trap-team-panel";
 import { DashboardSectionShell } from "@/components/dashboard/dashboard-section-shell";
 import { PendingClinicResultsBanner } from "@/components/appointments/pending-clinic-results-banner";
+import { StaleVolunteerApplicationsBanner } from "@/components/dashboard/stale-volunteer-applications-banner";
+import type { VolunteerApplicationQueueSummary } from "@/lib/volunteers/activity";
 import type { ClinicResultAppointment } from "@/components/appointments/log-clinic-result-dialog";
 import { PageHeader } from "@/components/layout/page-header";
 import { formatDate } from "@/lib/utils";
@@ -60,6 +62,7 @@ interface ConfigurableDashboardProps {
   appointmentsScope: "program" | "mine";
   pendingClinicResults: ClinicResultAppointment[];
   communityStats: CommunityStats | null;
+  volunteerApplicationQueue: VolunteerApplicationQueueSummary | null;
 }
 
 const QUICK_LINKS = [
@@ -109,6 +112,7 @@ export function ConfigurableDashboard({
   appointmentsScope,
   pendingClinicResults,
   communityStats,
+  volunteerApplicationQueue,
 }: ConfigurableDashboardProps) {
   const visibleSectionIds = useMemo(() => {
     const ids: DashboardSectionId[] = [];
@@ -338,6 +342,9 @@ export function ConfigurableDashboard({
       />
 
       <PendingClinicResultsBanner appointments={pendingClinicResults} />
+      {volunteerApplicationQueue ? (
+        <StaleVolunteerApplicationsBanner summary={volunteerApplicationQueue} />
+      ) : null}
 
       <div className="space-y-4">
         {order

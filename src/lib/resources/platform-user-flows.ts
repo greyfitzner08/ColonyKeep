@@ -77,7 +77,7 @@ Public / community inquiry form (/request)
 Dashboard shows org-wide work; sidebar includes everything (queues, clinics, volunteers, reports, admin).
 
 ### Typical loop
-1. **Volunteers** — approve applicants, assign interests/teams, set platform role, merge duplicates, reopen inactive. Minimize or **Snooze today** on pending role-change requests when the list is long.
+1. **Volunteers** — approve applicants, assign interests/teams, set platform role, merge duplicates, reopen inactive. A pink dot on Volunteers means a new application arrived since you last opened the page. Applications waiting **5+ days** also show a dashboard banner. Minimize or **Snooze today** on pending role-change requests when the list is long.
 2. **Trap Queue / Hotspots / Equipment** — support field ops; share the public request form from Trap Queue. Use **Assign** / **Reassign** to give a case to a TNVR team member (they see it under **My Cases**).
 3. **Clinics / Clinic Events** — partner clinics (days open, packages / optional add-ons for Clinic Events pricing, visit info) and public booking days.
 4. **Events** — shared team calendar (shift sign-up rows are hidden while that feature is off).

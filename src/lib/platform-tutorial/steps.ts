@@ -122,7 +122,7 @@ export const PLATFORM_TUTORIAL_STEPS: PlatformTutorialStep[] = [
     id: "volunteers",
     title: "Volunteers",
     description:
-      "Review applications, approve roles, and handle pending role-change requests. Minimize or snooze that panel when you need the rest of the page.",
+      "Review applications, approve roles, and handle pending role-change requests. A pink dot means a new application is waiting. Minimize or snooze that panel when you need the rest of the page.",
     icon: Users,
     navHref: "/volunteers",
     visible: (p) => p.canManageVolunteers,

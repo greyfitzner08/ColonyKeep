@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { getAppProfile } from "@/lib/auth";
 import { PageHeader } from "@/components/layout/page-header";
+import { VolunteerApplicationsSeenTracker } from "@/components/layout/volunteer-applications-seen-tracker";
 import { VolunteersManager } from "@/components/volunteers/volunteers-manager";
 import { VolunteerRoleRequestsPanel } from "@/components/volunteers/volunteer-role-requests-panel";
 import { fetchVolunteerRoleCatalogInputs } from "@/lib/volunteers/load-role-catalog";
@@ -61,6 +62,7 @@ export default async function VolunteersPage({ searchParams }: VolunteersPagePro
 
   return (
     <div className="space-y-6">
+      {profile?.id ? <VolunteerApplicationsSeenTracker profileId={profile.id} /> : null}
       <PageHeader
         title="Volunteer Applications"
         description="Review applications, approved volunteer interests, and role expansion requests"
