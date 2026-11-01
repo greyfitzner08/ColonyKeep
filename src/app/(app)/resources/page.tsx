@@ -6,6 +6,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { PlatformTutorialTrigger } from "@/components/platform-tutorial/platform-tutorial-trigger";
 import { ensurePlatformUserFlowsDocument } from "@/lib/resources/ensure-platform-user-flows";
 import { ensureTnvrVolunteerScriptDocument } from "@/lib/resources/ensure-tnvr-volunteer-script";
+import { ensureTnvrVideoTutorialScriptDocument } from "@/lib/resources/ensure-tnvr-video-tutorial-script";
 import type { LibraryDocument } from "@/lib/types";
 
 export default async function ResourcesPage() {
@@ -13,7 +14,11 @@ export default async function ResourcesPage() {
   const profile = await getAppProfile();
 
   try {
-    await Promise.all([ensurePlatformUserFlowsDocument(), ensureTnvrVolunteerScriptDocument()]);
+    await Promise.all([
+      ensurePlatformUserFlowsDocument(),
+      ensureTnvrVolunteerScriptDocument(),
+      ensureTnvrVideoTutorialScriptDocument(),
+    ]);
   } catch {
     // Column may not exist yet on a fresh preview; page still loads other docs.
   }
