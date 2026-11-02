@@ -14,6 +14,7 @@ const MAX_CATS_PER_SAVE = 30;
 
 type CatGroupInput = {
   count?: unknown;
+  name?: unknown;
   gender?: unknown;
   clinicName?: unknown;
   medical_notes?: unknown;
@@ -39,6 +40,11 @@ function parseCatGroups(
     if (!Number.isFinite(count) || count < 1) {
       return { error: `${label}: enter how many cats.` };
     }
+    const name =
+      typeof group.name === "string" && group.name.trim() ? group.name.trim().slice(0, 80) : null;
+    if (count > 1 && name) {
+      return { error: `${label}: to name a cat, set How many to 1.` };
+    }
     const gender = typeof group.gender === "string" ? group.gender.trim().toLowerCase() : "";
     if (gender !== "male" && gender !== "female") {
       return { error: `${label}: select male or female.` };
@@ -61,6 +67,7 @@ function parseCatGroups(
         : null;
 
     const row = {
+      name,
       gender,
       medical_notes: medicalNotes,
       ...(fosterFields ?? {}),

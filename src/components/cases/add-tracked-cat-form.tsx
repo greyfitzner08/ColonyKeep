@@ -34,6 +34,7 @@ interface AddTrackedCatDialogProps {
 type CatGroup = {
   key: string;
   count: number;
+  name: string;
   gender: "" | "male" | "female";
   clinicName: string;
   wentToFoster: "" | "yes" | "no";
@@ -46,6 +47,7 @@ function newGroup(): CatGroup {
   return {
     key: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     count: 1,
+    name: "",
     gender: "",
     clinicName: "",
     wentToFoster: "",
@@ -89,6 +91,10 @@ export function AddTrackedCatDialog({
         setError(`${label}: enter how many cats.`);
         return;
       }
+      if (group.count > 1 && group.name.trim()) {
+        setError(`${label}: to name a cat, set How many to 1.`);
+        return;
+      }
       if (group.gender !== "male" && group.gender !== "female") {
         setError(`${label}: select male or female.`);
         return;
@@ -117,6 +123,7 @@ export function AddTrackedCatDialog({
         helpRequestId,
         groups: groups.map((group) => ({
           count: group.count,
+          name: group.name.trim(),
           gender: group.gender,
           clinicName: group.clinicName.trim(),
           medical_notes: group.medicalNotes.trim(),
@@ -151,7 +158,8 @@ export function AddTrackedCatDialog({
         <DialogHeader>
           <DialogTitle>Add cats</DialogTitle>
           <DialogDescription>
-            Enter cats that match as one group. A count of 8 males fixed at the same clinic is one row, not eight forms.
+            Enter cats that match as one group. A count of 8 males fixed at the same clinic is one
+            row, not eight forms. To name a cat, set How many to 1.
           </DialogDescription>
         </DialogHeader>
 
@@ -173,7 +181,7 @@ export function AddTrackedCatDialog({
                   </Button>
                 ) : null}
               </div>
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 <div className="space-y-1">
                   <Label>How many</Label>
                   <NumberInput
@@ -182,8 +190,24 @@ export function AddTrackedCatDialog({
                     max={30}
                     value={group.count}
                     onValueChange={(value) =>
-                      updateGroup(group.key, { count: typeof value === "number" ? value : 1 })
+                      updateGroup(group.key, {
+                        count: typeof value === "number" ? value : 1,
+                        name: typeof value === "number" && value > 1 ? "" : group.name,
+                      })
                     }
+                  />
+                </div>
+                <div className="space-y-1 sm:col-span-2 lg:col-span-2">
+                  <Label>Name {group.count === 1 ? "(optional)" : ""}</Label>
+                  <Input
+                    value={group.name}
+                    onChange={(event) => updateGroup(group.key, { name: event.target.value })}
+                    placeholder={
+                      group.count === 1
+                        ? "Optional name"
+                        : "Set How many to 1 to name a cat"
+                    }
+                    disabled={group.count > 1}
                   />
                 </div>
                 <div className="space-y-1">
