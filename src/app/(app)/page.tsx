@@ -22,7 +22,7 @@ import {
   fetchVolunteerApplicationQueueSummary,
   type VolunteerApplicationQueueSummary,
 } from "@/lib/volunteers/activity";
-import { APPOINTMENTS_UI_ENABLED } from "@/lib/features";
+import { APPOINTMENTS_UI_ENABLED, SHIFT_SIGNUPS_UI_ENABLED } from "@/lib/features";
 import type { HelpRequest, Shift } from "@/lib/types";
 
 const CLOSED_STATUSES = '("completed","closed")';
@@ -50,7 +50,7 @@ export default async function DashboardPage() {
   const caseWorker = isCaseWorker(profile);
   const trapWorker = profile.role === "admin" || profile.role === "trap_team_lead";
   const intakeWorker = false;
-  const showShifts = canClaimShifts(profile);
+  const showShifts = SHIFT_SIGNUPS_UI_ENABLED && canClaimShifts(profile);
   const showAppointments = APPOINTMENTS_UI_ENABLED && canManageAppointments(profile);
   const showProgramAppointments = profile.role === "admin";
   const showTrapTeam = canViewTrapTeamSection(profile);
