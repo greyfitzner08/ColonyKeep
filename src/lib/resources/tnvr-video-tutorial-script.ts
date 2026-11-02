@@ -7,9 +7,9 @@ Do not read the scene titles, the **Show** lines, or anything in parentheses. Re
 
 **Runtime:** about 9 to 11 minutes if you follow the shots.
 
-**Who this is for:** TNVR Team volunteers. Regular Volunteer logins cannot open Trap Queue — do not record this as if every login can do this work.
+**Who this is for:** TNVR Team volunteers. Regular Volunteer logins cannot open Trap Queue — do not record this as if every login can do this work. Volunteers must complete the required TNVR Team course and training before case navigation appears.
 
-**Prep:** Use a demo case you can claim, edit, log a clinic fix on, then unclaim or close. Do not use a live colony if you cannot put it back. Have Equipment ready if you will show a trap checkout.
+**Prep:** Use a demo case you can claim, edit, add fixed cats on, then unclaim or close. Do not use a live colony if you cannot put it back. Have Equipment ready if you will show a trap checkout.
 
 ---
 
@@ -17,41 +17,39 @@ Do not read the scene titles, the **Show** lines, or anything in parentheses. Re
 
 Copy this block into a teleprompter if you do not want the shot notes.
 
-Welcome to ColonyKeep, the Friends of Feral Felines volunteer portal. This video is for TNVR Team volunteers — the people who claim cases, trap, get cats to clinic, and close the work in the app. If your login is a regular Volunteer, you will not see Trap Queue. That is expected. Ask an admin to set your platform role to TNVR Team before you try this flow.
+Welcome to ColonyKeep, the Friends of Feral Felines volunteer portal. This video is for TNVR Team volunteers — the people who claim cases, trap, get cats to clinic, and close the work in the app. You will not see navigation for cases until you have completed the required TNVR Team course and training, and an admin has set your platform role to TNVR Team.
 
-After you sign in, you land on Dashboard. Open My Profile once. Add your contact info and birthday. Under Directory and map visibility, leave things hidden unless you want teammates to see your phone, email, address, or map pin. Then glance at Resources and Team Feed so you know where SOPs and announcements live. You are ready when Trap Queue, Hotspots, and Equipment are in your sidebar.
+After you sign in, you land on your Dashboard. It shows a quick overview of cases you are working, cases you have worked, cases in your team queue, and cases other teammates are working.
 
-You do not create the case. A neighbor or feeder submits the public request form. ColonyKeep assigns it to a trap team by colony ZIP. Colonies with five or fewer cats and kittens get a Trap School tag. Your job is to claim it, trap, log clinic results, and close it.
+Open My Profile once. Add or edit your personal information and preferences. Under Directory and map visibility, leave information hidden if you do not want teammates to see your phone, email, or address in the Team Directory or on the Hotspots map.
 
-Open Trap Queue. You will see two views. All Cases is open work ready to pick up, oldest first. Other people's claims stay hidden unless you turn that on in Filters. My Cases is work already on you — you claimed it, or an admin assigned it. If you already have active claims, Trap Queue opens on My Cases. Use Filters when you need your team only, Trap School only, or search by case number, name, or ZIP.
+You do not create the case. Community members submit TNVR cases through the form on our website. ColonyKeep assigns each case to a trap team by colony ZIP. Colonies with five or fewer cats and kittens get a Trap School tag, and those feeders get information on how to TNVR themselves when they are able. Your job is to claim cases you can finish — alone or with other TNVR volunteers — trap, log clinic results, and close the work.
 
-If the Trap Queue item in the sidebar has a pink dot, you have a claimed case with no update in twenty-one days or more. Open it. Do the work, add a note, or unclaim it so someone else can take it. Do not leave idle claims in your name.
+Open Trap Queue. If you already have claims, it opens on My Cases — work assigned to you by an admin, or that you claimed. Toggle to All Cases for open work ready to pick up, oldest first. Other people's claims stay hidden unless you turn that on in Filters. Use Filters for your team only, Trap School only, claimed cases, or search by case number, name, or ZIP.
 
-To start a new case, go to All Cases. Pick a card that matches your team, ZIP, or Trap School capacity. Open it. You must claim before you can edit. Click Claim case — or Claim to edit, if that is what the button says. The case moves to My Cases. You own it until you finish it or unclaim it. If you cannot take it after all, click Unclaim. Do not sit on it.
+If the Trap Queue item in the sidebar has a pink dot, you have a claimed case with no update in twenty-one days or more. Open it, do the work, add a note, or unclaim it so someone else can take it. Do not leave idle claims in your name.
 
-On the case page, read the colony location, ZIP, remaining adults and kittens, feeder or reporter contact, and any notes. Call or text the feeder. Confirm access, the trapping window, and how many cats are still out. After every real contact — even an attempt — add a note. That note is what clears the twenty-one day idle reminder.
+To start a new case, go to All Cases. Pick an unclaimed case that matches your team and capacity, then open it. You must claim before you can edit. Click Claim case — or Claim to edit, if that is what the button says. The case moves to My Cases. You own it until you finish it or unclaim it.
 
-Update remaining adult and kitten counts as the colony changes. Remaining adults plus kittens are what reports treat as not yet fixed. If you need the map, open Hotspots. Colony pins match your queue cards. Teammate pins only appear if they opted in on their profile.
+On the case page, read the colony location, ZIP, remaining adults and kittens, feeder or reporter contact, and any notes. Call or text the feeder to confirm details, access, and how many cats are still out. After every point of contact — even an attempt — add a note under Case details. Notes are what clear the twenty-one day idle reminder, and they keep the case usable if another volunteer has to step in.
 
-If you take traps, open Equipment. Add item puts new gear in inventory. Scan to claim checks a coded trap out to you. Closing the case does not return the trap for you. Check it back in when it comes home.
+Update remaining adult and kitten counts under Colony as the colony changes. Remaining adults plus kittens are what reports treat as not yet fixed. If you need the map, open Hotspots. Colony pins match your queue cards. Teammate pins only appear if they opted in on their profile.
+
+If you need equipment, open Equipment to see what is available and where it is. If you have Friends of Feral Felines gear that is not logged yet, tell a board member so it can be tagged and added to inventory. Before you take an item, contact the person listed as having it. When you physically have it, scan it or enter that it is in your possession. When you are done, return it to the original loaner and log it returned so the next person knows where it is. Closing a case does not return equipment for you.
 
 Keep the case in the trap workflow while you are in the field. Typically that means Claimed. Do not close it yet.
 
-After surgery, open the same case. For each cat that was altered, click Log clinic fix. Enter the clinic name, the fix date, adult or kitten, the cat details you have, and whether they went to foster or a facility. If they went to foster, record the facility on that same clinic log. This log is how the case — and Reports — know the cat is fixed. If you do not log it, the cat still looks unfixed in the queue. Add a short note: how many went, how many remain, and the next trap night if there is one.
+After surgery, open the same case and go to the Colony tab. Click Add cats. Enter where the cats were fixed and the gender once, then how many. Name fields appear for each cat so you do not re-enter clinic or gender. If another gender or clinic is needed, use Add Additional Cat for another set. Note whether each cat is going back to the colony or to a facility such as ACC or HSC. Save with the blue Add cats button at the bottom. Remaining counts drop as fixed cats are logged. If a cat is already on the case and needs a clinic update, use Log clinic fix on that cat instead.
 
-Same case, more trap nights, more clinic logs. Remaining counts should fall as clinic fixes go on.
+When no more cats need TNVR from this organization, open Close case at the bottom of Case details. Choose a reason. TNVR Complete means the colony is finished. Partial TNVR means some cats were done and you are stopping with cats still out there. Referred Elsewhere means another group is taking it outside Friends of Feral Felines. Colony Relocated, Unable to Assist, or Duplicate — use Duplicate only if this card is a copy. Keep the real work on the keeper case. Write closure notes if needed, then click Close case. If you still have that trap, return it in Equipment.
 
-When no more cats need TNVR from this organization, open Close case. Choose an outcome. TNVR Complete means the colony is finished. Partial TNVR means some cats were done, and you are stopping with cats still out there. Referred Elsewhere means another group is taking it. Colony Relocated, Unable to Assist, or Duplicate — use Duplicate only if this card is a copy. Keep the real work on the keeper case. Write closure notes. Then click Close case.
+If you are not finishing the case, do not close it. Add a note: what is done, what is left, who to call. Then click Unclaim. An admin can assign it to another TNVR volunteer. They will see it under My Cases.
 
-If you still have that trap, return it in Equipment.
+Remember the rules that keep the queue honest. Claim before you edit. Notes after every contact. Log equipment in and out. Log fixed cats the same day as surgery, or they still count as not fixed. Do not sit on a claim for twenty-one days. Return the trap in the app, not just in the field.
 
-If you are not finishing the case, do not close it. Add a note: what is done, what is left, who to call. Then click Unclaim. An admin can assign or reassign it to another TNVR user. They will see it under My Cases.
+The whole loop is: claim, contact, trap, log fixed cats, update remaining counts, then close — or unclaim if you cannot finish.
 
-Remember the rules that keep the queue honest. Claim before you edit. Notes after every contact. Log the clinic fix the same day as surgery, or the cat still counts as not fixed. Do not sit on a claim for twenty-one days. Duplicate-close only the extra case, not the one you are actually trapping. Return the trap in the app, not just in the field.
-
-The whole loop is: claim, contact, trap, log clinic fix, update remaining cats, then close — or unclaim if you cannot finish.
-
-That is the TNVR Team path in ColonyKeep, from a case entering the queue to a case closed. You can reopen these steps anytime under Resources, in the TNVR Volunteer Script.
+That is the TNVR Team path in ColonyKeep, from a case entering the queue to a case closed. You can reopen these steps anytime under Resources.
 
 ---
 
@@ -61,71 +59,77 @@ That is the TNVR Team path in ColonyKeep, from a case entering the queue to a ca
 
 **Show:** Volunteer sign-in page, then Dashboard after login.
 
-**Say:** Welcome to ColonyKeep, the Friends of Feral Felines volunteer portal. This video is for TNVR Team volunteers — the people who claim cases, trap, get cats to clinic, and close the work in the app. If your login is a regular Volunteer, you will not see Trap Queue. That is expected. Ask an admin to set your platform role to TNVR Team before you try this flow.
+**Say:** Welcome to ColonyKeep, the Friends of Feral Felines volunteer portal. This video is for TNVR Team volunteers — the people who claim cases, trap, get cats to clinic, and close the work in the app. You will not see navigation for cases until you have completed the required TNVR Team course and training, and an admin has set your platform role to TNVR Team.
 
-### Scene 2 — First login, once
+### Scene 2 — Dashboard
 
-**Show:** My Profile. Scroll past contact, birthday, then Directory and map visibility. Briefly open Resources and Team Feed. End on the sidebar with Trap Queue, Hotspots, and Equipment visible.
+**Show:** Dashboard sections for your cases, team queue, and teammate work if visible.
 
-**Say:** After you sign in, you land on Dashboard. Open My Profile once. Add your contact info and birthday. Under Directory and map visibility, leave things hidden unless you want teammates to see your phone, email, address, or map pin. Then glance at Resources and Team Feed so you know where SOPs and announcements live. You are ready when Trap Queue, Hotspots, and Equipment are in your sidebar.
+**Say:** After you sign in, you land on your Dashboard. It shows a quick overview of cases you are working, cases you have worked, cases in your team queue, and cases other teammates are working.
 
-### Scene 3 — Where cases come from
+### Scene 3 — My Profile
+
+**Show:** My Profile. Scroll contact and preferences, then Directory and map visibility. End on the sidebar with Trap Queue, Hotspots, and Equipment visible.
+
+**Say:** Open My Profile once. Add or edit your personal information and preferences. Under Directory and map visibility, leave information hidden if you do not want teammates to see your phone, email, or address in the Team Directory or on the Hotspots map.
+
+### Scene 4 — Where cases come from
 
 **Show:** Trap Queue, All Cases. Point at a card, ZIP, team name, and a Trap School tag if one is on screen. Do not need to open the public form.
 
-**Say:** You do not create the case. A neighbor or feeder submits the public request form. ColonyKeep assigns it to a trap team by colony ZIP. Colonies with five or fewer cats and kittens get a Trap School tag. Your job is to claim it, trap, log clinic results, and close it.
+**Say:** You do not create the case. Community members submit TNVR cases through the form on our website. ColonyKeep assigns each case to a trap team by colony ZIP. Colonies with five or fewer cats and kittens get a Trap School tag, and those feeders get information on how to TNVR themselves when they are able. Your job is to claim cases you can finish — alone or with other TNVR volunteers — trap, log clinic results, and close the work.
 
-### Scene 4 — Trap Queue layout
+### Scene 5 — Trap Queue layout
 
-**Show:** Toggle All Cases, then My Cases. Open Filters, then close them. Hover search.
+**Show:** Toggle My Cases, then All Cases. Open Filters, then close them. Hover search.
 
-**Say:** Open Trap Queue. You will see two views. All Cases is open work ready to pick up, oldest first. Other people's claims stay hidden unless you turn that on in Filters. My Cases is work already on you — you claimed it, or an admin assigned it. If you already have active claims, Trap Queue opens on My Cases. Use Filters when you need your team only, Trap School only, or search by case number, name, or ZIP.
+**Say:** Open Trap Queue. If you already have claims, it opens on My Cases — work assigned to you by an admin, or that you claimed. Toggle to All Cases for open work ready to pick up, oldest first. Other people's claims stay hidden unless you turn that on in Filters. Use Filters for your team only, Trap School only, claimed cases, or search by case number, name, or ZIP.
 
-### Scene 5 — Pink dot
+### Scene 6 — Pink dot
 
 **Show:** Sidebar Trap Queue item. If there is no pink dot, still point at the label and keep talking.
 
-**Say:** If the Trap Queue item in the sidebar has a pink dot, you have a claimed case with no update in twenty-one days or more. Open it. Do the work, add a note, or unclaim it so someone else can take it. Do not leave idle claims in your name.
+**Say:** If the Trap Queue item in the sidebar has a pink dot, you have a claimed case with no update in twenty-one days or more. Open it, do the work, add a note, or unclaim it so someone else can take it. Do not leave idle claims in your name.
 
-### Scene 6 — Claim
+### Scene 7 — Claim
 
 **Show:** All Cases. Open a card. Click Claim case or Claim to edit. Switch to My Cases so the card is there.
 
-**Say:** To start a new case, go to All Cases. Pick a card that matches your team, ZIP, or Trap School capacity. Open it. You must claim before you can edit. Click Claim case — or Claim to edit, if that is what the button says. The case moves to My Cases. You own it until you finish it or unclaim it. If you cannot take it after all, click Unclaim. Do not sit on it.
+**Say:** To start a new case, go to All Cases. Pick an unclaimed case that matches your team and capacity, then open it. You must claim before you can edit. Click Claim case — or Claim to edit, if that is what the button says. The case moves to My Cases. You own it until you finish it or unclaim it.
 
-### Scene 7 — Work the case before clinic
+### Scene 8 — Work the case before clinic
 
-**Show:** Case page. Scroll location, remaining adults and kittens, contact, notes. Type a short demo note and save. Optionally bump a remaining count. Cut to Hotspots, then back.
+**Show:** Case page. Scroll location, remaining adults and kittens, contact, Case details notes. Type a short demo note and save. Optionally bump a remaining count under Colony. Cut to Hotspots, then back.
 
-**Say:** On the case page, read the colony location, ZIP, remaining adults and kittens, feeder or reporter contact, and any notes. Call or text the feeder. Confirm access, the trapping window, and how many cats are still out. After every real contact — even an attempt — add a note. That note is what clears the twenty-one day idle reminder. Update remaining adult and kitten counts as the colony changes. Remaining adults plus kittens are what reports treat as not yet fixed. If you need the map, open Hotspots. Colony pins match your queue cards. Teammate pins only appear if they opted in on their profile.
+**Say:** On the case page, read the colony location, ZIP, remaining adults and kittens, feeder or reporter contact, and any notes. Call or text the feeder to confirm details, access, and how many cats are still out. After every point of contact — even an attempt — add a note under Case details. Notes are what clear the twenty-one day idle reminder, and they keep the case usable if another volunteer has to step in. Update remaining adult and kitten counts under Colony as the colony changes. Remaining adults plus kittens are what reports treat as not yet fixed. If you need the map, open Hotspots. Colony pins match your queue cards. Teammate pins only appear if they opted in on their profile.
 
-### Scene 8 — Equipment
+### Scene 9 — Equipment
 
-**Show:** Equipment. Point at Add item and Scan to claim. Do not need a live scan if it is awkward.
+**Show:** Equipment. Point at available items, who has them, and Scan to claim or manual possession. Do not need a live scan if it is awkward.
 
-**Say:** If you take traps, open Equipment. Add item puts new gear in inventory. Scan to claim checks a coded trap out to you. Closing the case does not return the trap for you. Check it back in when it comes home. Keep the case in the trap workflow while you are in the field. Typically that means Claimed. Do not close it yet.
+**Say:** If you need equipment, open Equipment to see what is available and where it is. If you have Friends of Feral Felines gear that is not logged yet, tell a board member so it can be tagged and added to inventory. Before you take an item, contact the person listed as having it. When you physically have it, scan it or enter that it is in your possession. When you are done, return it to the original loaner and log it returned so the next person knows where it is. Closing a case does not return equipment for you. Keep the case in the trap workflow while you are in the field. Typically that means Claimed. Do not close it yet.
 
-### Scene 9 — Clinic day
+### Scene 10 — Clinic day
 
-**Show:** Same case. Click Log clinic fix. Fill clinic name, date, adult or kitten, and foster yes or no. Save. Add a short note.
+**Show:** Same case, Colony tab. Click Add cats. Fill clinic, gender, how many, optional names, destination. Save. Optionally point at Log clinic fix on an existing tracked cat.
 
-**Say:** After surgery, open the same case. For each cat that was altered, click Log clinic fix. Enter the clinic name, the fix date, adult or kitten, the cat details you have, and whether they went to foster or a facility. If they went to foster, record the facility on that same clinic log. This log is how the case — and Reports — know the cat is fixed. If you do not log it, the cat still looks unfixed in the queue. Add a short note: how many went, how many remain, and the next trap night if there is one.
+**Say:** After surgery, open the same case and go to the Colony tab. Click Add cats. Enter where the cats were fixed and the gender once, then how many. Name fields appear for each cat so you do not re-enter clinic or gender. If another gender or clinic is needed, use Add Additional Cat for another set. Note whether each cat is going back to the colony or to a facility such as ACC or HSC. Save with the blue Add cats button at the bottom. Remaining counts drop as fixed cats are logged. If a cat is already on the case and needs a clinic update, use Log clinic fix on that cat instead.
 
-### Scene 10 — Repeat, then close
+### Scene 11 — Close
 
-**Show:** Remaining counts lower than before, if you can. Open Close case. Point at each outcome, then choose TNVR Complete on the demo only if you intend to close it. Otherwise point and do not click Close case.
+**Show:** Case details, scroll to Close case. Point at outcomes. Choose TNVR Complete on the demo only if you intend to close it. Otherwise point and do not click Close case. Optionally cut to Equipment for return.
 
-**Say:** Same case, more trap nights, more clinic logs. Remaining counts should fall as clinic fixes go on. When no more cats need TNVR from this organization, open Close case. Choose an outcome. TNVR Complete means the colony is finished. Partial TNVR means some cats were done, and you are stopping with cats still out there. Referred Elsewhere means another group is taking it. Colony Relocated, Unable to Assist, or Duplicate — use Duplicate only if this card is a copy. Keep the real work on the keeper case. Write closure notes. Then click Close case. If you still have that trap, return it in Equipment.
+**Say:** When no more cats need TNVR from this organization, open Close case at the bottom of Case details. Choose a reason. TNVR Complete means the colony is finished. Partial TNVR means some cats were done and you are stopping with cats still out there. Referred Elsewhere means another group is taking it outside Friends of Feral Felines. Colony Relocated, Unable to Assist, or Duplicate — use Duplicate only if this card is a copy. Keep the real work on the keeper case. Write closure notes if needed, then click Close case. If you still have that trap, return it in Equipment.
 
-### Scene 11 — Hand-off
+### Scene 12 — Hand-off
 
 **Show:** Unclaim on a case you are not closing. Optional: Admin Assign dialog, then My Cases for the other user.
 
-**Say:** If you are not finishing the case, do not close it. Add a note: what is done, what is left, who to call. Then click Unclaim. An admin can assign or reassign it to another TNVR user. They will see it under My Cases.
+**Say:** If you are not finishing the case, do not close it. Add a note: what is done, what is left, who to call. Then click Unclaim. An admin can assign it to another TNVR volunteer. They will see it under My Cases.
 
-### Scene 12 — Close
+### Scene 13 — Close
 
-**Show:** Sidebar. Optionally open Resources to the TNVR Volunteer Script.
+**Show:** Sidebar. Optionally open Resources to the TNVR Video Tutorial Script or TNVR Volunteer Script.
 
-**Say:** Remember the rules that keep the queue honest. Claim before you edit. Notes after every contact. Log the clinic fix the same day as surgery, or the cat still counts as not fixed. Do not sit on a claim for twenty-one days. Duplicate-close only the extra case, not the one you are actually trapping. Return the trap in the app, not just in the field. The whole loop is: claim, contact, trap, log clinic fix, update remaining cats, then close — or unclaim if you cannot finish. That is the TNVR Team path in ColonyKeep, from a case entering the queue to a case closed. You can reopen these steps anytime under Resources, in the TNVR Volunteer Script.
+**Say:** Remember the rules that keep the queue honest. Claim before you edit. Notes after every contact. Log equipment in and out. Log fixed cats the same day as surgery, or they still count as not fixed. Do not sit on a claim for twenty-one days. Return the trap in the app, not just in the field. The whole loop is: claim, contact, trap, log fixed cats, update remaining counts, then close — or unclaim if you cannot finish. That is the TNVR Team path in ColonyKeep, from a case entering the queue to a case closed. You can reopen these steps anytime under Resources.
 `;

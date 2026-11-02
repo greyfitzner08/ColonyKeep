@@ -4,7 +4,7 @@ import { TNVR_VIDEO_TUTORIAL_SCRIPT_MARKDOWN } from "@/lib/resources/tnvr-video-
 const TITLE = "TNVR Video Tutorial Script";
 const SECTION = "Handbook";
 const DESCRIPTION =
-  "Narration to read aloud for a TNVR Team screen recording: claim, trap, log clinic results, close.";
+  "Narration to read aloud for a TNVR Team screen recording: claim, contact, trap, Add cats, close.";
 
 function needsScriptRefresh(body: string | null | undefined): boolean {
   if (!body?.trim()) return true;
