@@ -26,8 +26,9 @@ type CatGroupInput = {
 
 function parseGroupNames(group: CatGroupInput, count: number): (string | null)[] {
   if (Array.isArray(group.names)) {
+    const names = group.names;
     return Array.from({ length: count }, (_, index) => {
-      const raw = group.names?.[index];
+      const raw = names[index];
       return typeof raw === "string" && raw.trim() ? raw.trim().slice(0, 80) : null;
     });
   }
