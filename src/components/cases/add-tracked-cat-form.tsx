@@ -318,7 +318,7 @@ export function AddTrackedCatDialog({
             onClick={() => setGroups((current) => [...current, newGroup()])}
           >
             <Plus className="mr-1 h-4 w-4" />
-            Add another group
+            Add Additional Cat
           </Button>
 
           {error ? <p className="text-sm text-destructive">{error}</p> : null}
