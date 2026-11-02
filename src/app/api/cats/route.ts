@@ -15,6 +15,7 @@ const MAX_CATS_PER_SAVE = 30;
 type CatGroupInput = {
   count?: unknown;
   name?: unknown;
+  names?: unknown;
   gender?: unknown;
   clinicName?: unknown;
   medical_notes?: unknown;
@@ -22,6 +23,19 @@ type CatGroupInput = {
   fosterFacility?: unknown;
   fosterFacilityOther?: unknown;
 };
+
+function parseGroupNames(group: CatGroupInput, count: number): (string | null)[] {
+  if (Array.isArray(group.names)) {
+    return Array.from({ length: count }, (_, index) => {
+      const raw = group.names?.[index];
+      return typeof raw === "string" && raw.trim() ? raw.trim().slice(0, 80) : null;
+    });
+  }
+
+  const single =
+    typeof group.name === "string" && group.name.trim() ? group.name.trim().slice(0, 80) : null;
+  return Array.from({ length: count }, (_, index) => (index === 0 ? single : null));
+}
 
 function parseCatGroups(
   groups: unknown
@@ -40,11 +54,7 @@ function parseCatGroups(
     if (!Number.isFinite(count) || count < 1) {
       return { error: `${label}: enter how many cats.` };
     }
-    const name =
-      typeof group.name === "string" && group.name.trim() ? group.name.trim().slice(0, 80) : null;
-    if (count > 1 && name) {
-      return { error: `${label}: to name a cat, set How many to 1.` };
-    }
+    const names = parseGroupNames(group, count);
     const gender = typeof group.gender === "string" ? group.gender.trim().toLowerCase() : "";
     if (gender !== "male" && gender !== "female") {
       return { error: `${label}: select male or female.` };
@@ -66,8 +76,7 @@ function parseCatGroups(
         ? group.medical_notes.trim()
         : null;
 
-    const row = {
-      name,
+    const shared = {
       gender,
       medical_notes: medicalNotes,
       ...(fosterFields ?? {}),
@@ -80,7 +89,9 @@ function parseCatGroups(
         : {}),
     };
     if (fixedAtClinic) anyFixed = true;
-    for (let i = 0; i < count; i += 1) rows.push({ ...row });
+    for (let i = 0; i < count; i += 1) {
+      rows.push({ ...shared, name: names[i] });
+    }
   }
 
   if (rows.length > MAX_CATS_PER_SAVE) {

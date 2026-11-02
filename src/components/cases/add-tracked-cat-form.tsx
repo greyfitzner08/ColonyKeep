@@ -34,7 +34,7 @@ interface AddTrackedCatDialogProps {
 type CatGroup = {
   key: string;
   count: number;
-  name: string;
+  names: string[];
   gender: "" | "male" | "female";
   clinicName: string;
   wentToFoster: "" | "yes" | "no";
@@ -43,11 +43,17 @@ type CatGroup = {
   medicalNotes: string;
 };
 
+function resizeNames(names: string[], count: number): string[] {
+  const next = names.slice(0, count);
+  while (next.length < count) next.push("");
+  return next;
+}
+
 function newGroup(): CatGroup {
   return {
     key: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     count: 1,
-    name: "",
+    names: [""],
     gender: "",
     clinicName: "",
     wentToFoster: "",
@@ -79,20 +85,36 @@ export function AddTrackedCatDialog({
   }
 
   function updateGroup(key: string, patch: Partial<CatGroup>) {
-    setGroups((current) => current.map((group) => (group.key === key ? { ...group, ...patch } : group)));
+    setGroups((current) =>
+      current.map((group) => {
+        if (group.key !== key) return group;
+        const next = { ...group, ...patch };
+        if (typeof patch.count === "number") {
+          next.names = resizeNames(patch.names ?? group.names, patch.count);
+        }
+        return next;
+      })
+    );
+  }
+
+  function updateCatName(groupKey: string, catIndex: number, name: string) {
+    setGroups((current) =>
+      current.map((group) => {
+        if (group.key !== groupKey) return group;
+        const names = [...group.names];
+        names[catIndex] = name;
+        return { ...group, names };
+      })
+    );
   }
 
   const total = groups.reduce((sum, group) => sum + (Number.isFinite(group.count) ? group.count : 0), 0);
 
   async function addCats() {
     for (const [index, group] of groups.entries()) {
-      const label = `Group ${index + 1}`;
+      const label = groups.length > 1 ? `Set ${index + 1}` : "Cats";
       if (!Number.isFinite(group.count) || group.count < 1) {
         setError(`${label}: enter how many cats.`);
-        return;
-      }
-      if (group.count > 1 && group.name.trim()) {
-        setError(`${label}: to name a cat, set How many to 1.`);
         return;
       }
       if (group.gender !== "male" && group.gender !== "female") {
@@ -123,7 +145,7 @@ export function AddTrackedCatDialog({
         helpRequestId,
         groups: groups.map((group) => ({
           count: group.count,
-          name: group.name.trim(),
+          names: resizeNames(group.names, group.count).map((name) => name.trim()),
           gender: group.gender,
           clinicName: group.clinicName.trim(),
           medical_notes: group.medicalNotes.trim(),
@@ -158,8 +180,8 @@ export function AddTrackedCatDialog({
         <DialogHeader>
           <DialogTitle>Add cats</DialogTitle>
           <DialogDescription>
-            Enter cats that match as one group. A count of 8 males fixed at the same clinic is one
-            row, not eight forms. To name a cat, set How many to 1.
+            Enter clinic and gender once, then how many cats. Name fields appear for each cat so you
+            do not re-enter clinic or gender.
           </DialogDescription>
         </DialogHeader>
 
@@ -167,14 +189,16 @@ export function AddTrackedCatDialog({
           {groups.map((group, index) => (
             <div key={group.key} className="space-y-3 rounded-lg border p-3">
               <div className="flex items-center justify-between gap-2">
-                <p className="text-sm font-medium">Group {index + 1}</p>
+                <p className="text-sm font-medium">
+                  {groups.length > 1 ? `Set ${index + 1}` : "Cat details"}
+                </p>
                 {groups.length > 1 ? (
                   <Button
                     type="button"
                     variant="ghost"
                     size="icon"
                     className="h-8 w-8 text-destructive hover:text-destructive"
-                    aria-label={`Remove group ${index + 1}`}
+                    aria-label={`Remove set ${index + 1}`}
                     onClick={() => setGroups((current) => current.filter((row) => row.key !== group.key))}
                   >
                     <Trash2 className="h-4 w-4" />
@@ -183,31 +207,11 @@ export function AddTrackedCatDialog({
               </div>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 <div className="space-y-1">
-                  <Label>How many</Label>
-                  <NumberInput
-                    integer
-                    min={1}
-                    max={30}
-                    value={group.count}
-                    onValueChange={(value) =>
-                      updateGroup(group.key, {
-                        count: typeof value === "number" ? value : 1,
-                        name: typeof value === "number" && value > 1 ? "" : group.name,
-                      })
-                    }
-                  />
-                </div>
-                <div className="space-y-1 sm:col-span-2 lg:col-span-2">
-                  <Label>Name {group.count === 1 ? "(optional)" : ""}</Label>
+                  <Label>Where fixed</Label>
                   <Input
-                    value={group.name}
-                    onChange={(event) => updateGroup(group.key, { name: event.target.value })}
-                    placeholder={
-                      group.count === 1
-                        ? "Optional name"
-                        : "Set How many to 1 to name a cat"
-                    }
-                    disabled={group.count > 1}
+                    value={group.clinicName}
+                    onChange={(event) => updateGroup(group.key, { clinicName: event.target.value })}
+                    placeholder="Clinic name, or blank"
                   />
                 </div>
                 <div className="space-y-1">
@@ -228,14 +232,20 @@ export function AddTrackedCatDialog({
                   </Select>
                 </div>
                 <div className="space-y-1">
-                  <Label>Where fixed</Label>
-                  <Input
-                    value={group.clinicName}
-                    onChange={(event) => updateGroup(group.key, { clinicName: event.target.value })}
-                    placeholder="Clinic name, or blank"
+                  <Label>How many</Label>
+                  <NumberInput
+                    integer
+                    min={1}
+                    max={30}
+                    value={group.count}
+                    onValueChange={(value) =>
+                      updateGroup(group.key, {
+                        count: typeof value === "number" ? value : 1,
+                      })
+                    }
                   />
                 </div>
-                <div className="space-y-1">
+                <div className="space-y-1 sm:col-span-2 lg:col-span-3">
                   <Label>Going to a facility?</Label>
                   <Select
                     value={group.wentToFoster || "unset"}
@@ -299,6 +309,27 @@ export function AddTrackedCatDialog({
                   ) : null}
                 </div>
               ) : null}
+              <div className="space-y-2">
+                <Label className="text-xs font-normal text-muted-foreground">
+                  Names (optional)
+                </Label>
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  {resizeNames(group.names, group.count).map((name, catIndex) => (
+                    <div key={`${group.key}-name-${catIndex}`} className="space-y-1">
+                      <Label className="text-xs text-muted-foreground">
+                        Cat {catIndex + 1}
+                      </Label>
+                      <Input
+                        value={name}
+                        onChange={(event) =>
+                          updateCatName(group.key, catIndex, event.target.value)
+                        }
+                        placeholder="Optional name"
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
               <div className="space-y-1">
                 <Label className="text-xs font-normal text-muted-foreground">Medical note (optional)</Label>
                 <Input
