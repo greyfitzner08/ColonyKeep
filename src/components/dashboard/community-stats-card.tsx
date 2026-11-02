@@ -1,9 +1,8 @@
 import { createServiceClient } from "@/lib/supabase/server";
 import { CommunityStatsDisplay, type CommunityStats } from "@/components/dashboard/community-stats-display";
 import { isDuplicateClosedCase } from "@/lib/cases/duplicate-closed";
+import { TRAP_QUEUE_STATUSES } from "@/lib/cases/statuses";
 import { caseFixedCount } from "@/lib/reports/aggregations";
-
-const CLOSED_STATUSES = '("completed","closed")';
 
 export async function fetchCommunityStats(): Promise<CommunityStats> {
   const service = await createServiceClient();
@@ -14,7 +13,7 @@ export async function fetchCommunityStats(): Promise<CommunityStats> {
       service
         .from("help_requests")
         .select("*", { count: "exact", head: true })
-        .not("status", "in", CLOSED_STATUSES),
+        .in("status", TRAP_QUEUE_STATUSES),
       service.from("help_requests").select("id, status, outcome, outcome_tnvr_count"),
       service.from("clinic_fixes").select("help_request_id"),
       service

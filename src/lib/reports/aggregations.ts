@@ -9,6 +9,7 @@ import {
   type AdoptableCatStatus,
 } from "@/lib/adoption/constants";
 import { findTrapTeamForZip, normalizeZip } from "@/lib/cases/assign-team-by-zip";
+import { isOpenTrapQueueCase } from "@/lib/cases/statuses";
 import {
   isDuplicateClosedCase,
   omitsReportedCatsFromReports,
@@ -287,10 +288,6 @@ function groupCount(
   return Array.from(map.values()).sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
 }
 
-function isOpenQueueCase(hr: ReportHelpRequest): boolean {
-  return hr.status !== "closed" && hr.status !== "completed";
-}
-
 function monthKeyFromIso(iso: string): { key: string; label: string } {
   const key = iso.slice(0, 7);
   if (!/^\d{4}-\d{2}$/.test(key)) return { key: "unknown", label: "Unknown month" };
@@ -555,11 +552,11 @@ export function runReport(
     case "queue_cats_by_zip":
     case "queue_cats_by_team":
     case "queue_cats_by_month": {
-      const queue = filtered.filter(isOpenQueueCase);
+      const queue = filtered.filter(isOpenTrapQueueCase);
       if (type === "queue_cats_by_zip") {
         return remainingVsFixedResult(
           "Queue cats remaining vs fixed by ZIP",
-          "Open cases only. Not fixed is remaining adults and kittens on the case. Fixed is clinic-logged and public TNR on those same cases.",
+          "Open Trap Queue cases only, including claimed. Not fixed is remaining adults and kittens on the case. Fixed is clinic-logged and public TNR on those same cases.",
           "ZIP code",
           queue,
           clinicFixes,
@@ -576,7 +573,7 @@ export function runReport(
       if (type === "queue_cats_by_team") {
         return remainingVsFixedResult(
           "Queue cats remaining vs fixed by team",
-          "Open cases only. Not fixed is remaining adults and kittens on the case. Fixed is clinic-logged and public TNR on those same cases.",
+          "Open Trap Queue cases only, including claimed. Not fixed is remaining adults and kittens on the case. Fixed is clinic-logged and public TNR on those same cases.",
           "Trap team",
           queue,
           clinicFixes,
@@ -590,7 +587,7 @@ export function runReport(
       }
       return remainingVsFixedResult(
         "Queue cats remaining vs fixed by month",
-        "Open cases grouped by the month the case was created. Not fixed is remaining adults and kittens. Fixed is clinic-logged and public TNR on those same cases.",
+        "Open Trap Queue cases grouped by the month the case was created, including claimed. Not fixed is remaining adults and kittens. Fixed is clinic-logged and public TNR on those same cases.",
         "Month",
         queue,
         clinicFixes,

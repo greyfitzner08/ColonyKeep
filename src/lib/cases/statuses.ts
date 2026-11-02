@@ -103,6 +103,14 @@ export const TRAP_QUEUE_STATUSES: HelpRequestStatus[] = [
   ...TRAP_KANBAN_STATUSES,
 ];
 
+/** Open trap-queue caseload — same statuses Reports and the queue itself load. */
+export function isOpenTrapQueueCase(
+  hr: Pick<HelpRequest, "status"> | HelpRequestStatus
+): boolean {
+  const status = typeof hr === "string" ? hr : hr.status;
+  return TRAP_QUEUE_STATUSES.includes(status);
+}
+
 /** Colony hotspots map — inquiry queue, active trap workflow, and closed cases. */
 export const HOTSPOT_COLONY_STATUSES: HelpRequestStatus[] = [
   ...INTAKE_QUEUE_STATUSES,

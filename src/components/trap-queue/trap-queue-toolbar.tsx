@@ -238,7 +238,7 @@ export function TrapQueueToolbar({
                 htmlFor="trap-queue-claim-visibility"
                 className="text-xs font-medium text-muted-foreground"
               >
-                Others&apos; claims
+                Claimed cases
               </Label>
               <Select
                 value={showOthersClaimed ? "show" : "hide"}
@@ -257,7 +257,7 @@ export function TrapQueueToolbar({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="hide">Hide (default)</SelectItem>
-                  <SelectItem value="show">Show others&apos; claimed cases</SelectItem>
+                  <SelectItem value="show">Show claimed cases</SelectItem>
                 </SelectContent>
               </Select>
             </div>

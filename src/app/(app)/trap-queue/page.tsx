@@ -110,18 +110,9 @@ export default async function TrapQueuePage({ searchParams }: TrapQueuePageProps
     cases = (helpRequests ?? []) as HelpRequest[];
 
     // While searching, include claimed cases so a case # lookup isn't hidden by
-    // "others' claims" being off (or by being on My Cases).
-    if (!isSearching) {
-      const emailLower = actorEmail.trim().toLowerCase();
-      if (showOthersClaimed) {
-        // Unclaimed + others' claims (your claims live under My Cases).
-        cases = cases.filter((helpRequest) => {
-          if (!isClaimedTrapCase(helpRequest)) return true;
-          return (helpRequest.claimed_by_email ?? "").trim().toLowerCase() !== emailLower;
-        });
-      } else {
-        cases = cases.filter((helpRequest) => !isClaimedTrapCase(helpRequest));
-      }
+    // claimed-case visibility being off (or by being on My Cases).
+    if (!isSearching && !showOthersClaimed) {
+      cases = cases.filter((helpRequest) => !isClaimedTrapCase(helpRequest));
     }
 
     if (trapSchoolOnly) {
@@ -137,7 +128,7 @@ export default async function TrapQueuePage({ searchParams }: TrapQueuePageProps
       : focus === "mine"
         ? "Cases you personally claimed and are working on."
         : showOthersClaimed
-          ? `Open cases and others' claims for ${teamLabel}, oldest first.`
+          ? `All open cases for ${teamLabel}, including claimed, oldest first.`
           : `Open cases for ${teamLabel}, oldest first — ready to claim.`;
 
   const canImport = isAdmin;

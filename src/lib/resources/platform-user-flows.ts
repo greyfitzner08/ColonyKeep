@@ -1,5 +1,5 @@
 /** Default handbook content for the Platform User Flows resource (seeded into library_documents). */
-export const PLATFORM_USER_FLOWS_DOC_VERSION = "2026-11-01a";
+export const PLATFORM_USER_FLOWS_DOC_VERSION = "2026-11-02a";
 
 export const PLATFORM_USER_FLOWS_MARKDOWN = `<!-- flows-doc-version: ${PLATFORM_USER_FLOWS_DOC_VERSION} -->
 # ColonyKeep user flows — start to finish
@@ -98,10 +98,10 @@ Dashboard shows team cases and personally claimed cases. Sidebar includes Trap Q
 
 ### Day-to-day
 1. **Trap Queue**
-   - **All Cases** — open cases ready to claim, oldest first (others’ claims hidden by default; use Filters to show them).
+   - **All Cases** — open cases ready to claim, oldest first (claimed cases hidden by default; use Filters to show them, including yours). Showing claimed cases is the same open-caseload count as **Reports**.
    - **My Cases** — cases you personally claimed (or that an admin assigned to you).
    - Default focus: **My Cases** if you have active claims, otherwise **All Cases**.
-   - **Filters** — team scope, show others’ claims, Trap School only, layout/sort.
+   - **Filters** — team scope, show claimed cases, Trap School only, layout/sort.
    - Columns include kitten, adult, and total counts.
    - **Follow-up banner** — if a case you claimed has not been updated in **21+ days**, Trap Queue shows a reminder with **Open case**. A pink dot on Trap Queue in the sidebar means you have at least one idle claimed case. Editing the case clears the reminder.
 2. **Claim** before editing (admins may Assign instead).

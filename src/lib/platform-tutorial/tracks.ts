@@ -76,7 +76,7 @@ const ADMIN_TRACK: AdvancedTutorialTrack = {
       id: "adv-admin-trap",
       title: "Field work lives in the Trap Queue",
       description:
-        "Teams switch between Unclaimed (oldest first, ready to claim) and My claims. The queue defaults to My claims when the user has active claims. Use Filters for team scope, others’ claims, and Trap School. Kitten, adult, and total columns help size the colony.",
+        "Teams switch between All Cases (oldest first, ready to claim) and My Cases. The queue defaults to My Cases when the user has active claims. Use Filters for team scope, claimed cases, and Trap School. Kitten, adult, and total columns help size the colony.",
       icon: Kanban,
       navHref: "/trap-queue",
       flowNote: "Unclaimed ↔ My claims · Filters for scope · Hotspots for geography.",
@@ -338,7 +338,7 @@ const CASE_VOLUNTEER_TRACK: AdvancedTutorialTrack = {
       id: "adv-case-trap",
       title: "Execute in Trap Queue",
       description:
-        "Switch Unclaimed vs My claims. Claim from Unclaimed (oldest first), then update status as you trap, transport, or recover cats. Open Filters for team scope or Trap School.",
+        "Switch All Cases vs My Cases. Claim from All Cases (oldest first), then update status as you trap, transport, or recover cats. Open Filters for team scope, claimed cases, or Trap School.",
       icon: Kanban,
       navHref: "/trap-queue",
       visible: (p) => p.canViewTrapQueue,

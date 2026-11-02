@@ -84,7 +84,7 @@ const REPORT_FAMILIES: ReportFamily[] = [
     id: "remaining_vs_fixed",
     label: "Remaining vs fixed",
     group: "Trap queue",
-    hint: "Open-case cats still unfixed versus already TNR’d (clinic or public update).",
+    hint: "Open Trap Queue cats still unfixed versus already TNR’d (clinic or public update), including claimed cases.",
     breakdowns: [
       {
         value: "zip",

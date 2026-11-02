@@ -70,7 +70,7 @@ export const PLATFORM_TUTORIAL_STEPS: PlatformTutorialStep[] = [
     id: "trap-queue",
     title: "Trap queue",
     description:
-      "New requests auto-assign by colony ZIP; colonies with 5 or fewer cats/kittens are tagged Trap School. Use Unclaimed (oldest first) or My claims — the board opens on My claims when you have active claims. Claim before editing; open Filters for team scope and Trap School.",
+      "New requests auto-assign by colony ZIP; colonies with 5 or fewer cats/kittens are tagged Trap School. Use All Cases (oldest first) or My Cases — the board opens on My Cases when you have active claims. Claim before editing; open Filters for team scope, claimed cases, and Trap School.",
     icon: Kanban,
     navHref: "/trap-queue",
     visible: (p) => p.canViewTrapQueue,
