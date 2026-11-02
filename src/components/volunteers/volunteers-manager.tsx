@@ -238,6 +238,8 @@ function applicationListBadge(
 }
 
 const ADMIN_CHECKBOX_FIELDS = [
+  { key: "liability_waiver_signed", label: "Liability waiver" },
+  { key: "policy_signed", label: "Policy Acknowledgement" },
   { key: "shadow_completed", label: "Shadow Completed" },
   { key: "intake_training", label: "Intake Training" },
   { key: "tnvr_certificate_uploaded", label: "TNVR Certificate" },
@@ -1676,10 +1678,12 @@ export function VolunteersManager({
         {showTrainingManagement && (
           <ReviewSection
             title="Training & requirements"
-            description="Liability waiver and policy are completed by the volunteer at sign-in. Check off training items here after verification."
+            description="Volunteers normally complete liability and policy at sign-in. Admins can verify or override those here, and check off training after verification."
           >
             <div className="flex flex-wrap gap-4">
               {ADMIN_CHECKBOX_FIELDS.filter(({ key }) =>
+                key === "liability_waiver_signed" ||
+                key === "policy_signed" ||
                 trainingRequirementFields.includes(key)
               ).map(({ key, label }) => {
                 const fieldKey = `${app.id}:${key}`;

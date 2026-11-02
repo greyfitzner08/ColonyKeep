@@ -4,6 +4,8 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { tryAutoAssignTrapTeamForProfile } from "@/lib/volunteers/assign-team-by-home-zip";
 
 const ALLOWED_FIELDS = [
+  "liability_waiver_signed",
+  "policy_signed",
   "shadow_completed",
   "intake_training",
   "tnvr_certificate_uploaded",
