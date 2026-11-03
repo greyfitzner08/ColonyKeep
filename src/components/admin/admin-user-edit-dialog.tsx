@@ -94,12 +94,18 @@ export function AdminUserEditDialog({
       home_county: user.home_county ?? "",
     });
     setTeamId(user.team_id ?? "none");
-    setVolunteerRoles(user.volunteer_roles ?? []);
+    // Prefer profile interests; fall back to application roles when the profile was never synced.
+    const profileRoles = user.volunteer_roles ?? [];
+    const applicationRoles = application?.roles_requested ?? [];
+    setVolunteerRoles(profileRoles.length > 0 ? profileRoles : applicationRoles);
     setAssignedOnly(Boolean(user.trap_queue_assigned_only));
     setLocalError(null);
-  }, [user]);
+  }, [user, application]);
 
-  const otherRoleActive = user?.volunteer_roles?.includes(OTHER_VOLUNTEER_ROLE) ?? false;
+  const otherRoleActive =
+    volunteerRoles.includes(OTHER_VOLUNTEER_ROLE) ||
+    (user?.volunteer_roles?.includes(OTHER_VOLUNTEER_ROLE) ?? false) ||
+    (application?.roles_requested?.includes(OTHER_VOLUNTEER_ROLE) ?? false);
 
   function toggleVolunteerRole(role: VolunteerRole) {
     setVolunteerRoles((current) =>
@@ -289,7 +295,7 @@ export function AdminUserEditDialog({
               <Select
                 value={teamId}
                 onValueChange={setTeamId}
-                disabled={platformRole === "none" || !teamEligible}
+                disabled={platformRole === "none"}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Trap team" />
@@ -303,9 +309,10 @@ export function AdminUserEditDialog({
                   ))}
                 </SelectContent>
               </Select>
-              {!teamEligible && platformRole !== "none" && (
-                <p className="text-xs text-muted-foreground">
-                  Team assignment unlocks after application approval and required training.
+              {platformRole !== "none" && !teamEligible && (
+                <p className="text-xs text-amber-800">
+                  Application approval or training is still incomplete. Admins can assign a team
+                  here anyway when promoting someone to TNVR Team.
                 </p>
               )}
             </div>
