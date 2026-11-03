@@ -32,7 +32,7 @@ export function redactHelpRequestContacts(hr: HelpRequest): HelpRequest {
     contact_zip: null,
     contact_county: null,
     // Keep city/ZIP/county + coords for map context; hide street-level address.
-    colony_address: null,
+    colony_address: "",
     feeder_name: null,
     feeder_phone: null,
     feeder_email: null,
