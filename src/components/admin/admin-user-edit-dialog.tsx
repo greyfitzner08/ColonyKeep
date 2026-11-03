@@ -28,6 +28,7 @@ import {
   volunteerRoleLabel,
 } from "@/lib/volunteers/role-catalog";
 import { cn } from "@/lib/utils";
+import { findTrapTeamForZip } from "@/lib/cases/assign-team-by-zip";
 import { sortTrapTeams } from "@/lib/trap-teams/sort-teams";
 import {
   VolunteerContactFieldsForm,
@@ -107,6 +108,24 @@ export function AdminUserEditDialog({
     (user?.volunteer_roles?.includes(OTHER_VOLUNTEER_ROLE) ?? false) ||
     (application?.roles_requested?.includes(OTHER_VOLUNTEER_ROLE) ?? false);
 
+  const suggestedTeam = useMemo(() => {
+    const zip = contact.home_zip.trim() || user?.home_zip || application?.home_zip;
+    return findTrapTeamForZip(zip, teams);
+  }, [contact.home_zip, user?.home_zip, application?.home_zip, teams]);
+
+  function applyPlatformRole(nextRole: UserRole | "none") {
+    setPlatformRole(nextRole);
+    // Promoting to TNVR Team with no team yet → prefill ZIP match (admin can still override).
+    if (
+      nextRole === "trap_team_lead" &&
+      teamId === "none" &&
+      !user?.team_id &&
+      suggestedTeam
+    ) {
+      setTeamId(suggestedTeam.id);
+    }
+  }
+
   function toggleVolunteerRole(role: VolunteerRole) {
     setVolunteerRoles((current) =>
       current.includes(role) ? current.filter((item) => item !== role) : [...current, role]
@@ -182,6 +201,8 @@ export function AdminUserEditDialog({
       payload.role = nextPlatformRole;
     }
 
+    // Send an explicit team when the admin changed it. If promoting to TNVR with no team
+    // selected, omit teamId so the API can ZIP-auto-assign (admin override still wins when set).
     if (nextTeamId !== user.team_id) {
       payload.teamId = nextTeamId;
     }
@@ -271,7 +292,7 @@ export function AdminUserEditDialog({
               <Label>Platform role</Label>
               <Select
                 value={platformRole}
-                onValueChange={(value) => setPlatformRole(value as UserRole | "none")}
+                onValueChange={(value) => applyPlatformRole(value as UserRole | "none")}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Platform role" />
@@ -309,10 +330,20 @@ export function AdminUserEditDialog({
                   ))}
                 </SelectContent>
               </Select>
-              {platformRole !== "none" && !teamEligible && (
+              {platformRole === "trap_team_lead" && teamId !== "none" && suggestedTeam?.id === teamId && (
+                <p className="text-xs text-muted-foreground">
+                  Prefills from home ZIP. Change the team anytime to override.
+                </p>
+              )}
+              {platformRole === "trap_team_lead" && teamId === "none" && !suggestedTeam && (
+                <p className="text-xs text-amber-800">
+                  No trap team matches this home ZIP. Pick a team manually or update their address.
+                </p>
+              )}
+              {platformRole !== "none" && platformRole !== "trap_team_lead" && !teamEligible && (
                 <p className="text-xs text-amber-800">
                   Application approval or training is still incomplete. Admins can assign a team
-                  here anyway when promoting someone to TNVR Team.
+                  here anyway.
                 </p>
               )}
             </div>

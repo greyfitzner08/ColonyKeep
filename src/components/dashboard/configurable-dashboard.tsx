@@ -54,6 +54,7 @@ interface ConfigurableDashboardProps {
   userEmail: string;
   intakeWorker: boolean;
   trapWorker: boolean;
+  canClaimTrapCases?: boolean;
   trapTeamDescription: string;
   trapTeams: { id: string; name: string }[];
   trapTeamData: TrapTeamDashboardData | null;
@@ -104,6 +105,7 @@ export function ConfigurableDashboard({
   userEmail,
   intakeWorker,
   trapWorker,
+  canClaimTrapCases = trapWorker,
   trapTeamDescription,
   trapTeams,
   trapTeamData,
@@ -256,7 +258,7 @@ export function ConfigurableDashboard({
             showClaimHint
             hintHref="/trap-queue"
             hintLabel="Open trap queue"
-            canClaim={trapWorker}
+            canClaim={canClaimTrapCases}
             userEmail={userEmail}
             isAdmin={isAdmin}
           />

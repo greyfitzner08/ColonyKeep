@@ -82,6 +82,8 @@ export function canViewTrapTeamSection(profile: Profile | null): boolean {
   if (!profile?.role) return false;
   if (profile.role === "admin") return true;
   if (profile.role !== "trap_team_lead") return false;
+  // Assigned-only helpers stay on their own cases even when rostered on a trap team.
+  if (isTrapQueueAssignedOnly(profile)) return false;
   return Boolean(profile.team_id);
 }
 

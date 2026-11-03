@@ -17,6 +17,7 @@ import {
   canViewTrapTeamSection,
   getProfilePermissions,
   isCaseWorker,
+  isTrapQueueAssignedOnly,
 } from "@/lib/permissions";
 import {
   fetchVolunteerApplicationQueueSummary,
@@ -49,6 +50,7 @@ export default async function DashboardPage() {
   const today = todayIsoDate();
   const caseWorker = isCaseWorker(profile);
   const trapWorker = profile.role === "admin" || profile.role === "trap_team_lead";
+  const assignedOnly = isTrapQueueAssignedOnly(profile);
   const intakeWorker = false;
   const showShifts = SHIFT_SIGNUPS_UI_ENABLED && canClaimShifts(profile);
   const showAppointments = APPOINTMENTS_UI_ENABLED && canManageAppointments(profile);
@@ -110,12 +112,13 @@ export default async function DashboardPage() {
       .order("updated_at", { ascending: false })
       .limit(12);
 
-    if (profile.team_id) {
+    // Assigned-only users only see cases claimed/assigned to them — never the full team board.
+    if (assignedOnly || !profile.team_id) {
+      teamCasesQuery = teamCasesQuery.eq("claimed_by_email", email);
+    } else {
       teamCasesQuery = teamCasesQuery.or(
         `assigned_team_id.eq.${profile.team_id},claimed_by_email.eq.${email}`
       );
-    } else {
-      teamCasesQuery = teamCasesQuery.eq("claimed_by_email", email);
     }
 
     const { data: teamCasesRaw } = await teamCasesQuery;
@@ -180,9 +183,11 @@ export default async function DashboardPage() {
     }
   }
 
-  const trapTeamDescription = profile.team_id
-    ? "Field cases for trapping and transport: assigned to your trap team or personally claimed by you."
-    : "Trap and transport cases you personally claimed. Join a trap team to also see team-assigned cases.";
+  const trapTeamDescription = assignedOnly
+    ? "Only cases assigned to you. An admin assigns work — you cannot browse other open team cases."
+    : profile.team_id
+      ? "Field cases for trapping and transport: assigned to your trap team or personally claimed by you."
+      : "Trap and transport cases you personally claimed. Join a trap team to also see team-assigned cases.";
 
   const quickLinks = {
     trap: Boolean(trapWorker),
@@ -214,6 +219,7 @@ export default async function DashboardPage() {
       userEmail={email}
       intakeWorker={intakeWorker}
       trapWorker={trapWorker}
+      canClaimTrapCases={trapWorker && !assignedOnly}
       trapTeamDescription={trapTeamDescription}
       trapTeams={trapTeams}
       trapTeamData={trapTeamData}

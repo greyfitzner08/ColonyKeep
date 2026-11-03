@@ -5,7 +5,7 @@ import {
   canAssignVolunteerToTeam,
   hasTrapTeamMemberRoles,
 } from "@/lib/volunteers/eligibility";
-import type { VolunteerApplication, VolunteerRole } from "@/lib/types";
+import type { UserRole, VolunteerApplication, VolunteerRole } from "@/lib/types";
 
 type TrainingSource = Pick<
   VolunteerApplication,
@@ -29,8 +29,14 @@ export async function loadActiveTrapTeamsForZipMatch(
 
 export function isEligibleForTrapTeamAutoAssign(
   volunteerRoles: VolunteerRole[],
-  application?: TrainingSource | null
+  application?: TrainingSource | null,
+  options?: { platformRole?: UserRole | string | null }
 ): boolean {
+  // Platform TNVR Team / admin access is enough — do not wait on volunteer-interest training gates.
+  if (options?.platformRole === "trap_team_lead" || options?.platformRole === "admin") {
+    return true;
+  }
+
   const profileLike = { volunteer_roles: volunteerRoles };
   const applicationLike: TrainingSource = {
     roles_requested: application?.roles_requested ?? volunteerRoles,
@@ -55,6 +61,7 @@ export async function autoAssignTrapTeamByHomeZip(
     currentTeamId: string | null;
     volunteerRoles: VolunteerRole[];
     application?: TrainingSource | null;
+    platformRole?: UserRole | string | null;
     onlyIfUnassigned?: boolean;
     teams?: TrapTeamZipMatch[];
   }
@@ -62,7 +69,11 @@ export async function autoAssignTrapTeamByHomeZip(
   const onlyIfUnassigned = params.onlyIfUnassigned !== false;
   if (onlyIfUnassigned && params.currentTeamId) return null;
 
-  if (!isEligibleForTrapTeamAutoAssign(params.volunteerRoles, params.application)) {
+  if (
+    !isEligibleForTrapTeamAutoAssign(params.volunteerRoles, params.application, {
+      platformRole: params.platformRole,
+    })
+  ) {
     return null;
   }
 
@@ -94,7 +105,7 @@ export async function backfillTrapTeamAssignmentsByHomeZip(
   const { data: profiles, error } = await service
     .from("profiles")
     .select(
-      "id, email, team_id, home_zip, volunteer_roles, tnvr_certificate_uploaded"
+      "id, email, role, team_id, home_zip, volunteer_roles, tnvr_certificate_uploaded"
     )
     .not("role", "is", null)
     .is("team_id", null);
@@ -135,6 +146,7 @@ export async function backfillTrapTeamAssignmentsByHomeZip(
       currentTeamId: profile.team_id,
       volunteerRoles: (profile.volunteer_roles ?? []) as VolunteerRole[],
       application,
+      platformRole: profile.role,
       teams,
       onlyIfUnassigned: true,
     });
@@ -154,7 +166,7 @@ export async function tryAutoAssignTrapTeamForProfile(
   const { data: profile, error } = await service
     .from("profiles")
     .select(
-      "id, email, team_id, home_zip, volunteer_roles, tnvr_certificate_uploaded"
+      "id, email, role, team_id, home_zip, volunteer_roles, tnvr_certificate_uploaded"
     )
     .eq("id", profileId)
     .maybeSingle();
@@ -176,6 +188,7 @@ export async function tryAutoAssignTrapTeamForProfile(
     homeZip: profile.home_zip,
     currentTeamId: profile.team_id,
     volunteerRoles: (profile.volunteer_roles ?? []) as VolunteerRole[],
+    platformRole: profile.role,
     application: application
       ? {
           roles_requested: (application.roles_requested ??

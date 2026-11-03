@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { syncProfileTeamMembership } from "@/lib/admin/team-members";
 import { requireApiRole } from "@/lib/api/auth";
 import { createServiceClient } from "@/lib/supabase/server";
 import { isHomeAddressComplete, parseVolunteerContactUpdate } from "@/lib/volunteers/contact-fields";
@@ -38,13 +39,11 @@ export async function POST(request: NextRequest) {
 
   const roleUpdates: {
     role?: UserRole;
-    team_id?: string | null;
     volunteer_roles?: VolunteerRole[];
     trap_queue_assigned_only?: boolean;
   } = {};
 
   if (role !== undefined) roleUpdates.role = role;
-  if (teamId !== undefined) roleUpdates.team_id = teamId;
   if (volunteer_roles !== undefined) roleUpdates.volunteer_roles = volunteer_roles;
   if (trapQueueAssignedOnly !== undefined) {
     roleUpdates.trap_queue_assigned_only = Boolean(trapQueueAssignedOnly);
@@ -108,7 +107,11 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  if (Object.keys(roleUpdates).length === 0 && Object.keys(contactFields).length === 0) {
+  if (
+    Object.keys(roleUpdates).length === 0 &&
+    Object.keys(contactFields).length === 0 &&
+    teamId === undefined
+  ) {
     return NextResponse.json({ error: "No profile fields to update" }, { status: 400 });
   }
 
@@ -126,15 +129,42 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  // Fill empty team from home ZIP when roles/training make them eligible
-  // (skip when admin explicitly set team_id, including clearing it).
-  if (teamId === undefined) {
+  // Explicit admin team choice wins (including clearing). Otherwise ZIP-match when unassigned.
+  let autoAssignedTeam: { teamId: string; teamName: string } | null = null;
+  if (teamId !== undefined) {
     try {
-      await tryAutoAssignTrapTeamForProfile(service, userId);
+      await syncProfileTeamMembership(
+        service,
+        {
+          id: existingProfile.id,
+          email: existingProfile.email,
+          team_id: existingProfile.team_id,
+        },
+        teamId
+      );
+    } catch (assignError) {
+      return NextResponse.json(
+        {
+          error:
+            assignError instanceof Error
+              ? assignError.message
+              : "Unable to update trap team assignment",
+        },
+        { status: 400 }
+      );
+    }
+  } else {
+    try {
+      autoAssignedTeam = await tryAutoAssignTrapTeamForProfile(service, userId);
     } catch (assignError) {
       console.warn("[admin/profiles/update] trap team auto-assign failed", assignError);
     }
   }
 
-  return NextResponse.json({ success: true });
+  return NextResponse.json({
+    success: true,
+    ...(autoAssignedTeam
+      ? { autoAssignedTeamId: autoAssignedTeam.teamId, autoAssignedTeamName: autoAssignedTeam.teamName }
+      : {}),
+  });
 }
