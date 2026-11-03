@@ -19,6 +19,10 @@ import { cn } from "@/lib/utils";
 import { canAddCaseHistoryNote } from "@/lib/cases/case-permissions";
 import { fetchCaseAssignees } from "@/lib/cases/case-assignees";
 import { normalizeHistoryLog } from "@/lib/cases/history-log";
+import {
+  canViewRestrictedCaseContacts,
+  redactHelpRequestContacts,
+} from "@/lib/hotspots/contact-privacy";
 import { isCaseWorker, isTrapQueueAssignedOnly, canManageAppointments } from "@/lib/permissions";
 import { APPOINTMENTS_UI_ENABLED } from "@/lib/features";
 import { CaseClaimActions } from "@/components/cases/case-claim-actions";
@@ -80,10 +84,14 @@ export default async function CasePage({ params }: CasePageProps) {
       : Promise.resolve([]),
   ]);
 
-  const hr = {
+  const rawHr = {
     ...(helpRequest as HelpRequest),
     history_log: normalizeHistoryLog(helpRequest.history_log),
   };
+  const actorEmail = profile?.email ?? "";
+  const canViewContacts =
+    !assignedOnly || canViewRestrictedCaseContacts(rawHr, actorEmail);
+  const hr = canViewContacts ? rawHr : redactHelpRequestContacts(rawHr);
   const medical = hasActiveMedicalFlag(
     hr.medical_flags ?? [],
     hr.medical_flag_dismissed,
@@ -92,25 +100,24 @@ export default async function CasePage({ params }: CasePageProps) {
 
   const statusLabel = getStatusLabel(hr.status, "trap");
   const statusColor = STATUS_COLORS[hr.status];
-  const actorEmail = profile?.email ?? "";
   const requiresClaim = intakeCaseRequiresClaim(profile?.role, hr.status);
   const canWorkCase = canIntakeReviewerWorkCase({
     role: profile?.role,
     status: hr.status,
-    claimedByEmail: hr.claimed_by_email,
+    claimedByEmail: rawHr.claimed_by_email,
     actorEmail,
   });
   const claimGate =
     requiresClaim && !canWorkCase
-      ? assignedOnly && !hr.claimed_by_email?.trim()
+      ? assignedOnly && !rawHr.claimed_by_email?.trim()
         ? {
             kind: "unclaimed" as const,
             message:
               "This case is not assigned to you. An admin must assign it before you can work on it.",
           }
         : intakeClaimGateMessage({
-            claimedByEmail: hr.claimed_by_email,
-            claimedByName: hr.claimed_by_name,
+            claimedByEmail: rawHr.claimed_by_email,
+            claimedByName: rawHr.claimed_by_name,
             actorEmail,
           })
       : null;
@@ -137,7 +144,7 @@ export default async function CasePage({ params }: CasePageProps) {
         }
         description={
           <p className="max-w-3xl text-muted-foreground leading-relaxed">
-            {hr.contact_name}
+            {canViewContacts ? hr.contact_name : "Contact hidden"}
             {hr.colony_zip ? ` · ${hr.colony_zip}` : ""}
             {hr.assigned_team_name ? ` · ${hr.assigned_team_name}` : ""}
           </p>
@@ -147,7 +154,7 @@ export default async function CasePage({ params }: CasePageProps) {
             <CaseClaimActions
               helpRequestId={hr.id}
               status={hr.status}
-              claimedByEmail={hr.claimed_by_email}
+              claimedByEmail={rawHr.claimed_by_email}
               userEmail={actorEmail}
               userRole={profile?.role ?? null}
               isAdmin={isAdmin}

@@ -7,11 +7,11 @@ import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import { STATUS_COLORS } from "@/lib/constants";
 import { formatSingleLineAddress } from "@/lib/cases/colony-notes";
 import { getStatusLabel, isHotspotColonyStatus } from "@/lib/cases/statuses";
-import type { HelpRequest } from "@/lib/types";
+import type { HotspotHelpRequest } from "@/lib/hotspots/contact-privacy";
 import { cn } from "@/lib/utils";
 
 interface HotspotsColoniesTableProps {
-  helpRequests: HelpRequest[];
+  helpRequests: HotspotHelpRequest[];
 }
 
 export function HotspotsColoniesTable({ helpRequests }: HotspotsColoniesTableProps) {
@@ -20,7 +20,7 @@ export function HotspotsColoniesTable({ helpRequests }: HotspotsColoniesTablePro
     [helpRequests]
   );
 
-  const columns = useMemo((): DataTableColumn<HelpRequest>[] => {
+  const columns = useMemo((): DataTableColumn<HotspotHelpRequest>[] => {
     return [
       {
         id: "case_number",
@@ -28,11 +28,14 @@ export function HotspotsColoniesTable({ helpRequests }: HotspotsColoniesTablePro
         defaultWidth: 120,
         minWidth: 100,
         sortValue: (hr) => hr.case_number,
-        render: (hr) => (
-          <Link href={`/case/${hr.id}`} className="font-medium text-primary hover:underline">
-            {hr.case_number}
-          </Link>
-        ),
+        render: (hr) =>
+          hr.details_visible === false ? (
+            <span className="font-medium">{hr.case_number}</span>
+          ) : (
+            <Link href={`/case/${hr.id}`} className="font-medium text-primary hover:underline">
+              {hr.case_number}
+            </Link>
+          ),
       },
       {
         id: "status",
@@ -52,21 +55,29 @@ export function HotspotsColoniesTable({ helpRequests }: HotspotsColoniesTablePro
         defaultWidth: 280,
         minWidth: 200,
         sortValue: (hr) =>
-          formatSingleLineAddress([
-            hr.colony_address,
-            hr.colony_city,
-            hr.colony_state,
-            hr.colony_zip,
-            hr.colony_county,
-          ]) ?? "",
+          formatSingleLineAddress(
+            hr.details_visible === false
+              ? [hr.colony_city, hr.colony_state, hr.colony_zip, hr.colony_county]
+              : [
+                  hr.colony_address,
+                  hr.colony_city,
+                  hr.colony_state,
+                  hr.colony_zip,
+                  hr.colony_county,
+                ]
+          ) ?? "",
         render: (hr) =>
-          formatSingleLineAddress([
-            hr.colony_address,
-            hr.colony_city,
-            hr.colony_state,
-            hr.colony_zip,
-            hr.colony_county,
-          ]) ?? "—",
+          formatSingleLineAddress(
+            hr.details_visible === false
+              ? [hr.colony_city, hr.colony_state, hr.colony_zip, hr.colony_county]
+              : [
+                  hr.colony_address,
+                  hr.colony_city,
+                  hr.colony_state,
+                  hr.colony_zip,
+                  hr.colony_county,
+                ]
+          ) ?? "—",
       },
       {
         id: "city",

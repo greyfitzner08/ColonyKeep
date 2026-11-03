@@ -6,6 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { HotspotsColoniesTable } from "@/components/maps/hotspots-colonies-table";
 import { HotspotsGeocodeBackfill } from "@/components/maps/hotspots-geocode-backfill";
 import type { MapFeeder } from "@/components/maps/hotspots-map";
+import type { HotspotHelpRequest } from "@/lib/hotspots/contact-privacy";
 import type { HotspotMapVolunteer } from "@/lib/hotspots/volunteer-role-filter";
 import type { HelpRequest } from "@/lib/types";
 
@@ -20,11 +21,12 @@ const HotspotsMap = dynamic(
 );
 
 interface HotspotsShellProps {
-  helpRequests: HelpRequest[];
+  helpRequests: HotspotHelpRequest[];
   feeders: MapFeeder[];
   initialVolunteers: HotspotMapVolunteer[];
   isAdmin?: boolean;
   canEditColonyAddress?: boolean;
+  assignedOnly?: boolean;
 }
 
 export function HotspotsShell({
@@ -33,6 +35,7 @@ export function HotspotsShell({
   initialVolunteers,
   isAdmin = false,
   canEditColonyAddress = false,
+  assignedOnly = false,
 }: HotspotsShellProps) {
   const [helpRequests, setHelpRequests] = useState(initialHelpRequests);
   const [volunteers, setVolunteers] = useState(initialVolunteers);
@@ -60,6 +63,12 @@ export function HotspotsShell({
     }
 
     async function loadColonies() {
+      // Assigned-only viewers keep the privacy-filtered SSR payload — do not refresh
+      // with a broader colonies response.
+      if (assignedOnly) {
+        setColoniesLoading(false);
+        return;
+      }
       setColoniesLoading(true);
       try {
         const response = await fetch("/api/hotspots/colonies");
@@ -80,7 +89,7 @@ export function HotspotsShell({
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [assignedOnly]);
 
   function handleHelpRequestUpdated(updated: HelpRequest) {
     setHelpRequests((current) =>

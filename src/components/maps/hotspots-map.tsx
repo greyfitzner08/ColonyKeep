@@ -24,6 +24,7 @@ import { HotspotsMapViewController } from "@/components/maps/hotspots-map-view-c
 import { HotspotsUnmappedColonies } from "@/components/maps/hotspots-unmapped-colonies";
 import { hasStoredColonyCoords } from "@/lib/cases/colony-address-fields";
 import { cn } from "@/lib/utils";
+import type { HotspotHelpRequest } from "@/lib/hotspots/contact-privacy";
 import type { HelpRequest, VolunteerRole } from "@/lib/types";
 
 const MapContainer = dynamic(
@@ -58,6 +59,10 @@ export interface MapFeeder {
   feeder_county: string | null;
   feeder_lat: number;
   feeder_lng: number;
+  claimed_by_email?: string | null;
+  contact_email?: string | null;
+  /** False when contact details are hidden for restricted viewers. */
+  detailsVisible?: boolean;
 }
 
 type MapLayer = "colonies" | "volunteers" | "feeders";
@@ -127,7 +132,7 @@ function feederAddress(feeder: MapFeeder): string {
 }
 
 interface HotspotsMapProps {
-  helpRequests: HelpRequest[];
+  helpRequests: HotspotHelpRequest[];
   volunteers: HotspotMapVolunteer[];
   feeders: MapFeeder[];
   defaultLayers?: Partial<Record<MapLayer, boolean>>;
@@ -371,7 +376,16 @@ export function HotspotsMap({
                 <Popup>
                   <div className="space-y-1.5 text-sm max-w-[min(280px,70vw)] w-full">
                     <p className="font-semibold">{hr.case_number}</p>
-                    <p className="text-muted-foreground">{colonyAddress(hr)}</p>
+                    <p className="text-muted-foreground">
+                      {hr.details_visible === false
+                        ? formatSingleLineAddress([
+                            hr.colony_city,
+                            hr.colony_state,
+                            hr.colony_zip,
+                            hr.colony_county,
+                          ]) ?? "Location on map"
+                        : colonyAddress(hr)}
+                    </p>
                     <p>
                       <span className="text-muted-foreground">Trap team:</span>{" "}
                       {hr.assigned_team_name?.trim() || "Unassigned"}
@@ -380,9 +394,18 @@ export function HotspotsMap({
                       <span className="text-muted-foreground">Status:</span>{" "}
                       {getStatusLabel(hr.status)}
                     </p>
-                    <a href={`/case/${hr.id}`} className="inline-block text-primary underline font-medium">
-                      View full case
-                    </a>
+                    {hr.details_visible === false ? (
+                      <p className="text-xs text-muted-foreground">
+                        Contact details hidden — this case is not assigned to you.
+                      </p>
+                    ) : (
+                      <a
+                        href={`/case/${hr.id}`}
+                        className="inline-block text-primary underline font-medium"
+                      >
+                        View full case
+                      </a>
+                    )}
                   </div>
                 </Popup>
               </CircleMarker>
@@ -420,14 +443,27 @@ export function HotspotsMap({
               >
                 <Popup>
                   <div className="space-y-1.5 text-sm max-w-[min(280px,70vw)] w-full">
-                    <p className="font-semibold">{feeder.feeder_name ?? "Colony feeder"}</p>
-                    <p className="text-muted-foreground">{feederAddress(feeder)}</p>
-                    {feeder.feeder_phone && (
+                    <p className="font-semibold">
+                      {feeder.detailsVisible === false
+                        ? "Colony feeder"
+                        : feeder.feeder_name ?? "Colony feeder"}
+                    </p>
+                    <p className="text-muted-foreground">
+                      {feeder.detailsVisible === false
+                        ? formatSingleLineAddress([
+                            feeder.feeder_city,
+                            feeder.feeder_state,
+                            feeder.feeder_zip,
+                            feeder.feeder_county,
+                          ]) ?? "Location on map"
+                        : feederAddress(feeder)}
+                    </p>
+                    {feeder.detailsVisible !== false && feeder.feeder_phone && (
                       <p>
                         <span className="text-muted-foreground">Phone:</span> {feeder.feeder_phone}
                       </p>
                     )}
-                    {feeder.feeder_email && (
+                    {feeder.detailsVisible !== false && feeder.feeder_email && (
                       <p>
                         <span className="text-muted-foreground">Email:</span> {feeder.feeder_email}
                       </p>
@@ -435,9 +471,18 @@ export function HotspotsMap({
                     <p>
                       <span className="text-muted-foreground">Case:</span> {feeder.case_number}
                     </p>
-                    <a href={`/case/${feeder.id}`} className="inline-block text-primary underline font-medium">
-                      View case
-                    </a>
+                    {feeder.detailsVisible === false ? (
+                      <p className="text-xs text-muted-foreground">
+                        Contact details hidden — this case is not assigned to you.
+                      </p>
+                    ) : (
+                      <a
+                        href={`/case/${feeder.id}`}
+                        className="inline-block text-primary underline font-medium"
+                      >
+                        View case
+                      </a>
+                    )}
                   </div>
                 </Popup>
               </CircleMarker>

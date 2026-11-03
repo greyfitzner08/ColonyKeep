@@ -6,12 +6,12 @@ import { loadHotspotVolunteers } from "@/lib/hotspots/geocode-profile-locations"
 import type { HelpRequest } from "@/lib/types";
 
 const COLONY_HOTSPOT_FIELDS =
-  "id, case_number, status, outcome, colony_address, colony_city, colony_state, colony_zip, colony_county, colony_lat, colony_lng, assigned_team_name";
+  "id, case_number, status, outcome, colony_address, colony_city, colony_state, colony_zip, colony_county, colony_lat, colony_lng, assigned_team_name, claimed_by_email, contact_email";
 
 export { COLONY_HOTSPOT_FIELDS };
 
 const FEEDER_HOTSPOT_FIELDS =
-  "feeder_name, feeder_phone, feeder_email, feeder_street, feeder_city, feeder_state, feeder_zip, feeder_county, feeder_lat, feeder_lng";
+  "feeder_name, feeder_phone, feeder_email, feeder_street, feeder_city, feeder_state, feeder_zip, feeder_county, feeder_lat, feeder_lng, claimed_by_email, contact_email";
 
 function isMissingColumnError(message: string | undefined) {
   return Boolean(message?.includes("column") && message.includes("does not exist"));
@@ -88,6 +88,9 @@ export function mapFeedersFromHelpRequests(helpRequests: HelpRequest[]): MapFeed
         feeder_county: hr.feeder_county ?? null,
         feeder_lat: hr.feeder_lat!,
         feeder_lng: hr.feeder_lng!,
+        claimed_by_email: hr.claimed_by_email ?? null,
+        contact_email: hr.contact_email ?? null,
+        detailsVisible: true,
       })
     );
 }
