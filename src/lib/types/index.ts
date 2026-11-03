@@ -132,6 +132,8 @@ export interface Profile {
   role: UserRole | null;
   volunteer_roles: VolunteerRole[];
   team_id: string | null;
+  /** TNVR Team: only My Cases — no All Cases browse / self-claim. */
+  trap_queue_assigned_only?: boolean;
   must_change_password: boolean;
   platform_tutorial_completed_at: string | null;
   birthday: string | null;

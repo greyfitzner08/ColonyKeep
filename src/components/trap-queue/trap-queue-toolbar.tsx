@@ -33,6 +33,7 @@ interface TrapQueueToolbarProps {
   searchQuery: string;
   defaultTeamScope?: TrapQueueTeamScope;
   hasMyClaims?: boolean;
+  assignedOnly?: boolean;
   onLayoutChange: (layout: CaseViewMode) => void;
   onSortChange: (sort: IntakeSortKey) => void;
   onSearchChange: (query: string) => void;
@@ -51,6 +52,7 @@ export function TrapQueueToolbar({
   searchQuery,
   defaultTeamScope = "all",
   hasMyClaims = false,
+  assignedOnly = false,
   onLayoutChange,
   onSortChange,
   onSearchChange,
@@ -70,6 +72,7 @@ export function TrapQueueToolbar({
     role: userRole,
     teamId: myTeamId,
     hasMyClaims,
+    assignedOnly,
   });
 
   const trapSchoolOnly = scope !== "history" && searchParams.get("trapSchool") === "only";
@@ -101,14 +104,14 @@ export function TrapQueueToolbar({
 
   const activeFilterCount =
     (showWorkHistory && scope !== "queue" ? 1 : 0) +
-    (scope !== "history" && teamScope !== defaultTeamScope ? 1 : 0) +
-    (scope === "queue" && focus === "needs_claim" && showOthersClaimed ? 1 : 0) +
+    (!assignedOnly && scope !== "history" && teamScope !== defaultTeamScope ? 1 : 0) +
+    (!assignedOnly && scope === "queue" && focus === "needs_claim" && showOthersClaimed ? 1 : 0) +
     (trapSchoolOnly ? 1 : 0) +
     (scope !== "closed" && layout !== "cards" ? 1 : 0) +
     (scope !== "closed" && sort !== "date_asc" ? 1 : 0);
 
   const focusToggle =
-    scope === "queue" ? (
+    scope === "queue" && !assignedOnly ? (
       <div
         className="flex h-9 w-full items-center gap-0.5 rounded-md border bg-background p-0.5 sm:w-auto"
         role="group"
@@ -194,7 +197,7 @@ export function TrapQueueToolbar({
             </div>
           ) : null}
 
-          {scope !== "history" && !(scope === "queue" && focus === "mine") ? (
+          {!assignedOnly && scope !== "history" && !(scope === "queue" && focus === "mine") ? (
             <div className="space-y-1.5 min-w-0">
               <Label htmlFor="trap-queue-team" className="text-xs font-medium text-muted-foreground">
                 Team
@@ -232,7 +235,7 @@ export function TrapQueueToolbar({
             </div>
           ) : null}
 
-          {scope === "queue" && focus === "needs_claim" ? (
+          {!assignedOnly && scope === "queue" && focus === "needs_claim" ? (
             <div className="space-y-1.5 min-w-0">
               <Label
                 htmlFor="trap-queue-claim-visibility"

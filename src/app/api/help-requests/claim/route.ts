@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireCaseWorker } from "@/lib/api/auth";
 import { canShowIntakeClaimActions } from "@/lib/cases/case-assignment";
 import { normalizeHistoryLog } from "@/lib/cases/history-log";
+import { isTrapQueueAssignedOnly } from "@/lib/permissions";
 import { createServiceClient } from "@/lib/supabase/server";
 import type { HelpRequestStatus, HistoryEntry } from "@/lib/types";
 
@@ -98,6 +99,16 @@ export async function POST(request: NextRequest) {
 
   if (existing.claimed_by_email && existing.claimed_by_email !== profile!.email) {
     return NextResponse.json({ error: "This case is already assigned to someone else" }, { status: 409 });
+  }
+
+  if (isTrapQueueAssignedOnly(profile)) {
+    return NextResponse.json(
+      {
+        error:
+          "Your account can only work cases an admin assigns to you. You cannot claim cases from the open queue.",
+      },
+      { status: 403 }
+    );
   }
 
   if (!canShowIntakeClaimActions(profile!.role, status)) {

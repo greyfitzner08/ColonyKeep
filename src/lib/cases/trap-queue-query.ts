@@ -72,11 +72,21 @@ export function resolveTrapQueueNavigation(options: {
   role?: string | null;
   teamId?: string | null;
   hasMyClaims?: boolean;
+  /** Force My Cases only — no All Cases / team browse. */
+  assignedOnly?: boolean;
 }): {
   focus: TrapQueueFocus;
   teamScope: TrapQueueTeamScope;
   showOthersClaimed: boolean;
 } {
+  if (options.assignedOnly) {
+    return {
+      focus: "mine",
+      teamScope: "all",
+      showOthersClaimed: false,
+    };
+  }
+
   const defaultTeam = defaultTrapQueueTeamScope({
     role: options.role,
     teamId: options.teamId,

@@ -63,6 +63,16 @@ export function isCaseWorker(profile: Profile | null): boolean {
   return profile.role === "admin" || profile.role === "trap_team_lead";
 }
 
+/**
+ * TNVR users limited to cases assigned/claimed to them.
+ * They can open Trap Queue and edit their own claims, but cannot browse All Cases
+ * or claim unassigned work from the queue.
+ */
+export function isTrapQueueAssignedOnly(profile: Profile | null): boolean {
+  if (!profile || profile.role !== "trap_team_lead") return false;
+  return Boolean(profile.trap_queue_assigned_only);
+}
+
 export function canManageAppointments(profile: Profile | null): boolean {
   if (!profile?.role) return false;
   return profile.role === "admin" || profile.role === "trap_team_lead";

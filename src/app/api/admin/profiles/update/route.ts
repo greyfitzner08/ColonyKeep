@@ -11,11 +11,12 @@ export async function POST(request: NextRequest) {
   if (response) return response;
 
   const body = await request.json();
-  const { userId, role, teamId, volunteer_roles } = body as {
+  const { userId, role, teamId, volunteer_roles, trapQueueAssignedOnly } = body as {
     userId?: string;
     role?: UserRole;
     teamId?: string | null;
     volunteer_roles?: VolunteerRole[];
+    trapQueueAssignedOnly?: boolean;
   };
 
   if (!userId) {
@@ -39,11 +40,15 @@ export async function POST(request: NextRequest) {
     role?: UserRole;
     team_id?: string | null;
     volunteer_roles?: VolunteerRole[];
+    trap_queue_assigned_only?: boolean;
   } = {};
 
   if (role !== undefined) roleUpdates.role = role;
   if (teamId !== undefined) roleUpdates.team_id = teamId;
   if (volunteer_roles !== undefined) roleUpdates.volunteer_roles = volunteer_roles;
+  if (trapQueueAssignedOnly !== undefined) {
+    roleUpdates.trap_queue_assigned_only = Boolean(trapQueueAssignedOnly);
+  }
 
   if (Object.keys(contactFields).length > 0) {
     if (contactFields.full_name !== undefined && !contactFields.full_name) {

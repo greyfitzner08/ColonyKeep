@@ -19,7 +19,7 @@ import { cn } from "@/lib/utils";
 import { canAddCaseHistoryNote } from "@/lib/cases/case-permissions";
 import { fetchCaseAssignees } from "@/lib/cases/case-assignees";
 import { normalizeHistoryLog } from "@/lib/cases/history-log";
-import { isCaseWorker, canManageAppointments } from "@/lib/permissions";
+import { isCaseWorker, isTrapQueueAssignedOnly, canManageAppointments } from "@/lib/permissions";
 import { APPOINTMENTS_UI_ENABLED } from "@/lib/features";
 import { CaseClaimActions } from "@/components/cases/case-claim-actions";
 import { CaseNeedsMoreInfoAction } from "@/components/cases/case-needs-more-info-action";
@@ -44,6 +44,7 @@ export default async function CasePage({ params }: CasePageProps) {
   if (!helpRequest) notFound();
 
   const isAdmin = profile?.role === "admin";
+  const assignedOnly = isTrapQueueAssignedOnly(profile);
   const [
     { data: cats },
     { data: appointments },
@@ -101,11 +102,17 @@ export default async function CasePage({ params }: CasePageProps) {
   });
   const claimGate =
     requiresClaim && !canWorkCase
-      ? intakeClaimGateMessage({
-          claimedByEmail: hr.claimed_by_email,
-          claimedByName: hr.claimed_by_name,
-          actorEmail,
-        })
+      ? assignedOnly && !hr.claimed_by_email?.trim()
+        ? {
+            kind: "unclaimed" as const,
+            message:
+              "This case is not assigned to you. An admin must assign it before you can work on it.",
+          }
+        : intakeClaimGateMessage({
+            claimedByEmail: hr.claimed_by_email,
+            claimedByName: hr.claimed_by_name,
+            actorEmail,
+          })
       : null;
 
   return (
@@ -144,8 +151,8 @@ export default async function CasePage({ params }: CasePageProps) {
               userEmail={actorEmail}
               userRole={profile?.role ?? null}
               isAdmin={isAdmin}
-              canClaim={isCaseWorker(profile)}
-              emphasizeClaim={Boolean(claimGate?.kind === "unclaimed")}
+              canClaim={isCaseWorker(profile) && !assignedOnly}
+              emphasizeClaim={Boolean(claimGate?.kind === "unclaimed") && !assignedOnly}
               caseNumber={hr.case_number}
               assignedTeamId={hr.assigned_team_id}
               assignees={assignees}

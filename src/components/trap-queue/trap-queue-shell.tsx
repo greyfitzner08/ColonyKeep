@@ -28,6 +28,7 @@ interface TrapQueueShellProps {
   defaultTeamScope?: TrapQueueTeamScope;
   hasMyClaims?: boolean;
   focus?: TrapQueueFocus;
+  assignedOnly?: boolean;
   toolbarActions?: ReactNode;
   assignees?: CaseAssigneeOption[];
 }
@@ -46,6 +47,7 @@ export function TrapQueueShell({
   defaultTeamScope = "all",
   hasMyClaims = false,
   focus = "needs_claim",
+  assignedOnly = false,
   toolbarActions,
   assignees = [],
 }: TrapQueueShellProps) {
@@ -90,6 +92,7 @@ export function TrapQueueShell({
         onSearchChange={(query) => updateParam("q", query)}
         defaultTeamScope={defaultTeamScope}
         hasMyClaims={hasMyClaims}
+        assignedOnly={assignedOnly}
         actions={toolbarActions}
       />
 

@@ -21,6 +21,7 @@ import { ShareRequestFormLink } from "@/components/cases/share-request-form-link
 import { PageHeader } from "@/components/layout/page-header";
 import { getServerAppUrl } from "@/lib/app-url";
 import { isClaimedTrapCase } from "@/lib/cases/statuses";
+import { isTrapQueueAssignedOnly } from "@/lib/permissions";
 import type { HelpRequest } from "@/lib/types";
 
 interface TrapQueuePageProps {
@@ -41,6 +42,7 @@ export default async function TrapQueuePage({ searchParams }: TrapQueuePageProps
   const profile = await getAppProfile();
   const isTrapRole = profile?.role === "admin" || profile?.role === "trap_team_lead";
   const isAdmin = profile?.role === "admin";
+  const assignedOnly = isTrapQueueAssignedOnly(profile);
   const actorEmail = profile?.email ?? "";
 
   const isHistoryScope = params.scope === "history";
@@ -76,6 +78,7 @@ export default async function TrapQueuePage({ searchParams }: TrapQueuePageProps
     role: profile?.role,
     teamId: profile?.team_id,
     hasMyClaims,
+    assignedOnly,
   });
 
   let cases: HelpRequest[] = [];
@@ -83,17 +86,27 @@ export default async function TrapQueuePage({ searchParams }: TrapQueuePageProps
   if (isHistoryScope) {
     cases = await fetchUserCaseWorkHistory(supabase, actorEmail, { limit: 100 });
   } else if (isClosedScope) {
-    const query = buildClosedCasesQuery(supabase, {
-      teamScope,
-      teamId: profile?.team_id ?? null,
-      userEmail: actorEmail,
-    });
-    const { data: helpRequests } = await query;
-    cases = (helpRequests ?? []) as HelpRequest[];
+    if (assignedOnly) {
+      const { data: helpRequests } = await supabase
+        .from("help_requests")
+        .select("*")
+        .in("status", ["closed", "completed"])
+        .eq("claimed_by_email", actorEmail)
+        .order("closed_at", { ascending: false, nullsFirst: false });
+      cases = (helpRequests ?? []) as HelpRequest[];
+    } else {
+      const query = buildClosedCasesQuery(supabase, {
+        teamScope,
+        teamId: profile?.team_id ?? null,
+        userEmail: actorEmail,
+      });
+      const { data: helpRequests } = await query;
+      cases = (helpRequests ?? []) as HelpRequest[];
+    }
     if (trapSchoolOnly) {
       cases = cases.filter((helpRequest) => Boolean(helpRequest.trap_school_eligible));
     }
-  } else if (focus === "mine" && !isSearching) {
+  } else if (assignedOnly || (focus === "mine" && !isSearching)) {
     const { data: helpRequests } = await buildMyClaimsQuery(supabase, actorEmail);
     cases = (helpRequests ?? []) as HelpRequest[];
     if (trapSchoolOnly) {
@@ -123,13 +136,15 @@ export default async function TrapQueuePage({ searchParams }: TrapQueuePageProps
   const teamLabel = trapQueueTeamScopeLabel(teamScope, teams ?? [], myTeam?.name);
   const viewDescription = isHistoryScope
     ? "Cases you have claimed, annotated, reserved appointments for, or logged clinic results on."
-    : isClosedScope
-      ? `Closed and completed cases for ${teamLabel}.`
-      : focus === "mine"
-        ? "Cases you personally claimed and are working on."
-        : showOthersClaimed
-          ? `All open cases for ${teamLabel}, including claimed, oldest first.`
-          : `Open cases for ${teamLabel}, oldest first — ready to claim.`;
+    : assignedOnly
+      ? "Only cases assigned to you. An admin assigns work — you cannot browse or claim other open cases."
+      : isClosedScope
+        ? `Closed and completed cases for ${teamLabel}.`
+        : focus === "mine"
+          ? "Cases you personally claimed and are working on."
+          : showOthersClaimed
+            ? `All open cases for ${teamLabel}, including claimed, oldest first.`
+            : `Open cases for ${teamLabel}, oldest first — ready to claim.`;
 
   const canImport = isAdmin;
   const requestFormUrl = `${await getServerAppUrl()}/request`;
@@ -143,8 +158,8 @@ export default async function TrapQueuePage({ searchParams }: TrapQueuePageProps
           <p className="text-sm font-medium text-foreground/80">
             {!isHistoryScope && !isClosedScope ? (
               <>
-                {trapQueueFocusLabel(focus)}
-                {focus === "needs_claim" ? ` · ${teamLabel}` : ""}
+                {assignedOnly ? "Assigned to you" : trapQueueFocusLabel(focus)}
+                {!assignedOnly && focus === "needs_claim" ? ` · ${teamLabel}` : ""}
                 {" · "}
               </>
             ) : null}
@@ -152,7 +167,7 @@ export default async function TrapQueuePage({ searchParams }: TrapQueuePageProps
           </p>
         }
         actions={
-          !isHistoryScope ? (
+          !isHistoryScope && !assignedOnly ? (
             <>
               <ShareRequestFormLink requestFormUrl={requestFormUrl} />
               {canImport ? (
@@ -170,7 +185,7 @@ export default async function TrapQueuePage({ searchParams }: TrapQueuePageProps
       <Suspense fallback={<div className="h-40 animate-pulse rounded-lg bg-muted" />}>
         <TrapQueueShell
           cases={cases}
-          canClaim={!isHistoryScope && !isClosedScope && isTrapRole}
+          canClaim={!assignedOnly && !isHistoryScope && !isClosedScope && isTrapRole}
           userEmail={actorEmail}
           isAdmin={isAdmin}
           teams={teams ?? []}
@@ -182,6 +197,7 @@ export default async function TrapQueuePage({ searchParams }: TrapQueuePageProps
           defaultTeamScope={defaultTeamScope}
           hasMyClaims={hasMyClaims}
           focus={focus}
+          assignedOnly={assignedOnly}
           assignees={assignees}
         />
       </Suspense>

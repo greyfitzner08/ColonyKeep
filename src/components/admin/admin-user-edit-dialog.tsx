@@ -10,6 +10,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -74,6 +75,7 @@ export function AdminUserEditDialog({
   const [contact, setContact] = useState<VolunteerContactFormValues>(emptyVolunteerContactFormValues());
   const [teamId, setTeamId] = useState<string>("none");
   const [volunteerRoles, setVolunteerRoles] = useState<VolunteerRole[]>([]);
+  const [assignedOnly, setAssignedOnly] = useState(false);
   const [saving, setSaving] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
 
@@ -93,6 +95,7 @@ export function AdminUserEditDialog({
     });
     setTeamId(user.team_id ?? "none");
     setVolunteerRoles(user.volunteer_roles ?? []);
+    setAssignedOnly(Boolean(user.trap_queue_assigned_only));
     setLocalError(null);
   }, [user]);
 
@@ -177,6 +180,11 @@ export function AdminUserEditDialog({
       payload.teamId = nextTeamId;
     }
 
+    const nextAssignedOnly = nextPlatformRole === "trap_team_lead" ? assignedOnly : false;
+    if (nextAssignedOnly !== Boolean(user.trap_queue_assigned_only)) {
+      payload.trapQueueAssignedOnly = nextAssignedOnly;
+    }
+
     const preservedOther = otherRoleActive ? [OTHER_VOLUNTEER_ROLE] : [];
     const nextVolunteerRoles = [
       ...volunteerRoles.filter((role) => role !== OTHER_VOLUNTEER_ROLE),
@@ -195,7 +203,13 @@ export function AdminUserEditDialog({
       (key) => !["userId", "role", "teamId", "volunteer_roles"].includes(key)
     );
 
-    if (!payload.role && payload.teamId === undefined && !payload.volunteer_roles && !hasContactChanges) {
+    if (
+      !payload.role &&
+      payload.teamId === undefined &&
+      !payload.volunteer_roles &&
+      payload.trapQueueAssignedOnly === undefined &&
+      !hasContactChanges
+    ) {
       onOpenChange(false);
       setSaving(false);
       return;
@@ -296,6 +310,26 @@ export function AdminUserEditDialog({
               )}
             </div>
           </div>
+
+          {platformRole === "trap_team_lead" ? (
+            <div className="flex items-start gap-3 rounded-lg border p-3">
+              <Checkbox
+                id={`assigned-only-${user.id}`}
+                checked={assignedOnly}
+                onCheckedChange={(value) => setAssignedOnly(value === true)}
+                className="mt-0.5"
+              />
+              <div className="space-y-1">
+                <Label htmlFor={`assigned-only-${user.id}`} className="text-sm font-medium">
+                  Assigned cases only
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  Can be assigned cases and work My Cases, but cannot browse All Cases or claim open
+                  queue work. Use for helpers who should only see cases given to them.
+                </p>
+              </div>
+            </div>
+          ) : null}
 
           <div className="space-y-3">
             <div>
