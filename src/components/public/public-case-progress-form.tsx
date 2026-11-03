@@ -80,6 +80,9 @@ export function PublicCaseProgressForm() {
   const [caseNumber, setCaseNumber] = useState("");
   const [colonyZip, setColonyZip] = useState("");
   const [colonyStreet, setColonyStreet] = useState("");
+  const [showFindCase, setShowFindCase] = useState(false);
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [summary, setSummary] = useState<PublicProgressSummary | null>(null);
   const [tnvrAdults, setTnvrAdults] = useState<CountValue>("");
   const [tnvrKittens, setTnvrKittens] = useState<CountValue>("");
@@ -117,6 +120,48 @@ export function PublicCaseProgressForm() {
       setStep("update");
     } catch {
       setError("Unable to verify that case.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function findCase(event: React.FormEvent) {
+    event.preventDefault();
+    setBusy(true);
+    setError(null);
+
+    try {
+      const response = await fetch("/api/public/case-progress/find", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          first_name: firstName,
+          last_name: lastName,
+          colony_zip: colonyZip,
+        }),
+      });
+      const result = await response.json().catch(() => null);
+      if (!response.ok) {
+        setError(getApiErrorMessage(result, "Unable to find that case."));
+        return;
+      }
+
+      const foundCaseNumber =
+        typeof result.case_number === "string" ? result.case_number : "";
+      const foundZip = typeof result.colony_zip === "string" ? result.colony_zip : colonyZip;
+      if (!foundCaseNumber || !result.case) {
+        setError("Unable to find that case.");
+        return;
+      }
+
+      setCaseNumber(foundCaseNumber);
+      setColonyZip(foundZip);
+      setYourName((current) => current.trim() || `${firstName.trim()} ${lastName.trim()}`.trim());
+      setSummary(result.case as PublicProgressSummary);
+      setShowFindCase(false);
+      setStep("update");
+    } catch {
+      setError("Unable to find that case.");
     } finally {
       setBusy(false);
     }
@@ -163,6 +208,7 @@ export function PublicCaseProgressForm() {
   function startOver() {
     setStep("verify");
     setSummary(null);
+    setShowFindCase(false);
     setTnvrAdults("");
     setTnvrKittens("");
     setAcc("");
@@ -268,9 +314,11 @@ export function PublicCaseProgressForm() {
                     it’s your case. We won’t show contact details or the full address.
                   </p>
                 </div>
-                {error ? <p className="text-sm text-destructive">{error}</p> : null}
+                {error && !showFindCase ? (
+                  <p className="text-sm text-destructive">{error}</p>
+                ) : null}
                 <Button type="submit" className="w-full" disabled={busy}>
-                  {busy ? (
+                  {busy && !showFindCase ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       Checking…
@@ -280,6 +328,76 @@ export function PublicCaseProgressForm() {
                   )}
                 </Button>
               </form>
+
+              <div className="border-t pt-4 space-y-3">
+                <button
+                  type="button"
+                  className="text-sm text-primary underline-offset-2 hover:underline"
+                  onClick={() => {
+                    setShowFindCase((open) => !open);
+                    setError(null);
+                  }}
+                >
+                  {showFindCase
+                    ? "Hide case number lookup"
+                    : "Don't remember your case number? Find it here"}
+                </button>
+
+                {showFindCase ? (
+                  <form onSubmit={(event) => void findCase(event)} className="space-y-4">
+                    <p className="text-sm text-muted-foreground">
+                      Enter the first and last name from your original report, plus the colony ZIP
+                      code. If we find an exact match, we’ll open your case so you can update it.
+                    </p>
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <div className="space-y-2">
+                        <Label htmlFor="find-first-name">First name</Label>
+                        <Input
+                          id="find-first-name"
+                          value={firstName}
+                          onChange={(event) => setFirstName(event.target.value)}
+                          autoComplete="given-name"
+                          required
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="find-last-name">Last name</Label>
+                        <Input
+                          id="find-last-name"
+                          value={lastName}
+                          onChange={(event) => setLastName(event.target.value)}
+                          autoComplete="family-name"
+                          required
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="find-colony-zip">Colony ZIP code</Label>
+                      <Input
+                        id="find-colony-zip"
+                        value={colonyZip}
+                        onChange={(event) => setColonyZip(event.target.value)}
+                        placeholder="28205"
+                        inputMode="numeric"
+                        autoComplete="postal-code"
+                        required
+                      />
+                    </div>
+                    {error ? <p className="text-sm text-destructive">{error}</p> : null}
+                    <Button type="submit" className="w-full" variant="secondary" disabled={busy}>
+                      {busy ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Searching…
+                        </>
+                      ) : (
+                        "Find my case"
+                      )}
+                    </Button>
+                  </form>
+                ) : null}
+              </div>
+
               <p className="text-center text-sm text-muted-foreground">
                 Need to report a new colony?{" "}
                 <Link href="/request" className="text-primary underline-offset-2 hover:underline">

@@ -5,11 +5,19 @@ import type { HelpRequest, HelpRequestStatus, HistoryEntry } from "@/lib/types";
 const VERIFY_GENERIC_ERROR =
   "We couldn’t verify that case with the details provided. Check the case number and colony ZIP or street, then try again.";
 
+const FIND_GENERIC_ERROR =
+  "We couldn’t find a case with that name and colony ZIP. Check the spelling and ZIP, or use your case number if you have it.";
+
+const FIND_AMBIGUOUS_ERROR =
+  "More than one case matches that name and ZIP. Enter your case number, or include part of the colony street on the main form.";
+
 const CLOSED_CASE_ERROR =
   "This case is already closed. Contact the team if you need to share an update.";
 
 export const PUBLIC_PROGRESS_SELECT =
   "id, case_number, status, colony_address, colony_city, colony_zip, cats_over_8_weeks, kittens_under_8_weeks, reported_cats_over_8_weeks, reported_kittens_under_8_weeks, outcome_tnvr_count, outcome_acc_count, outcome_foster_count, outcome_other_count, cats_remaining, history_log";
+
+export const PUBLIC_PROGRESS_FIND_SELECT = `${PUBLIC_PROGRESS_SELECT}, contact_name, contact_first_name, contact_last_name, contact_zip`;
 
 export type PublicProgressCaseRow = Pick<
   HelpRequest,
@@ -30,6 +38,9 @@ export type PublicProgressCaseRow = Pick<
   | "cats_remaining"
   | "history_log"
 >;
+
+export type PublicProgressFindCaseRow = PublicProgressCaseRow &
+  Pick<HelpRequest, "contact_name" | "contact_first_name" | "contact_last_name" | "contact_zip">;
 
 export interface PublicOutcomeDeltas {
   tnvrAdults: number;
@@ -77,6 +88,44 @@ function normalizeStreetFragment(raw: string): string {
     .toLowerCase()
     .replace(/[^\w\s]/g, " ")
     .replace(/\s+/g, " ");
+}
+
+function normalizePersonName(raw: string): string {
+  return raw
+    .trim()
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s'-]/gu, " ")
+    .replace(/\s+/g, " ");
+}
+
+function zipMatches(stored: string | null | undefined, inputZip: string): boolean {
+  const expected = normalizeZip(inputZip);
+  if (!expected) return false;
+  const actual = normalizeZip(stored ?? "");
+  return Boolean(actual) && actual === expected;
+}
+
+function reporterNameMatches(
+  row: Pick<
+    PublicProgressFindCaseRow,
+    "contact_name" | "contact_first_name" | "contact_last_name"
+  >,
+  firstName: string,
+  lastName: string
+): boolean {
+  const first = normalizePersonName(firstName);
+  const last = normalizePersonName(lastName);
+  if (!first || !last) return false;
+
+  const rowFirst = normalizePersonName(row.contact_first_name ?? "");
+  const rowLast = normalizePersonName(row.contact_last_name ?? "");
+  if (rowFirst && rowLast && rowFirst === first && rowLast === last) {
+    return true;
+  }
+
+  const full = normalizePersonName(row.contact_name ?? "");
+  if (!full) return false;
+  return full === `${first} ${last}` || (full.includes(first) && full.includes(last));
 }
 
 function parseNonNegativeInt(value: unknown, label: string): number | { error: string } {
@@ -454,4 +503,54 @@ export function caseNumberLookupValues(raw: string): string[] {
   return [...values];
 }
 
-export { normalizeCaseNumber, VERIFY_GENERIC_ERROR, CLOSED_CASE_ERROR };
+/**
+ * Find an open case when the reporter forgot the case number.
+ * Requires first name + last name + colony ZIP; returns at most one match.
+ */
+export function findCaseByReporterNameAndZip(options: {
+  firstName: string;
+  lastName: string;
+  zip: string;
+  rows: PublicProgressFindCaseRow[];
+}): { row: PublicProgressCaseRow } | { error: string; status: number } {
+  const firstName = options.firstName.trim();
+  const lastName = options.lastName.trim();
+  const zip = normalizeZip(options.zip);
+
+  if (!firstName || !lastName || !zip) {
+    return {
+      error: "Enter your first name, last name, and colony ZIP code.",
+      status: 400,
+    };
+  }
+
+  const matches = options.rows.filter(
+    (row) =>
+      (zipMatches(row.colony_zip, zip) || zipMatches(row.contact_zip, zip)) &&
+      reporterNameMatches(row, firstName, lastName)
+  );
+
+  if (matches.length === 0) {
+    return { error: FIND_GENERIC_ERROR, status: 404 };
+  }
+
+  const openMatches = matches.filter((row) => row.status !== ("closed" as HelpRequestStatus));
+  if (openMatches.length === 0) {
+    return { error: CLOSED_CASE_ERROR, status: 400 };
+  }
+
+  if (openMatches.length > 1) {
+    return { error: FIND_AMBIGUOUS_ERROR, status: 409 };
+  }
+
+  return { row: openMatches[0] };
+}
+
+export {
+  normalizeCaseNumber,
+  normalizeZip,
+  VERIFY_GENERIC_ERROR,
+  FIND_GENERIC_ERROR,
+  FIND_AMBIGUOUS_ERROR,
+  CLOSED_CASE_ERROR,
+};
