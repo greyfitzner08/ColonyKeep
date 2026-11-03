@@ -107,7 +107,8 @@ export function AdminRolePreviewControl({
           <DialogHeader className="border-b px-6 py-4 text-left">
             <DialogTitle>View as role</DialogTitle>
             <DialogDescription>
-              Preview navigation and page access as another platform role. Volunteer interests do not change access.
+              Preview navigation and page access as another platform role. Use assigned cases only
+              to test restricted TNVR helpers. Volunteer interests do not change access.
             </DialogDescription>
           </DialogHeader>
 
