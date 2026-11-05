@@ -2,7 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { HelpRequest, HelpRequestStatus, MedicalFlag, TeamAnnouncement } from "@/lib/types";
 
 const ASSIGNED_CASE_FIELDS =
-  "id, case_number, status, claimed_by_email, claimed_by_name, assigned_team_id, contact_name, colony_city, colony_county, colony_zip, kittens_under_8_weeks, cats_over_8_weeks, medical_flags, medical_flag_dismissed, medical_flag_forced, follow_up_due_date, updated_at";
+  "id, case_number, status, claimed_by_email, claimed_by_name, assigned_team_id, contact_name, colony_address, colony_city, colony_zip, kittens_under_8_weeks, cats_over_8_weeks, medical_flags, medical_flag_dismissed, medical_flag_forced, follow_up_due_date, updated_at";
 
 const MEMBER_CASE_FIELDS =
   "id, case_number, status, claimed_by_email, claimed_by_name, assigned_team_id";
@@ -12,8 +12,8 @@ export interface TrapTeamUnclaimedCase {
   case_number: string;
   status: HelpRequestStatus;
   contact_name: string;
+  colony_address: string;
   colony_city: string;
-  colony_county: string;
   colony_zip: string;
   kittens_under_8_weeks: number;
   cats_over_8_weeks: number;
@@ -116,8 +116,8 @@ export async function fetchTrapTeamDashboardData(
       case_number: c.case_number,
       status: c.status,
       contact_name: c.contact_name ?? "",
+      colony_address: c.colony_address ?? "",
       colony_city: c.colony_city ?? "",
-      colony_county: c.colony_county ?? "",
       colony_zip: c.colony_zip ?? "",
       kittens_under_8_weeks: c.kittens_under_8_weeks ?? 0,
       cats_over_8_weeks: c.cats_over_8_weeks ?? 0,

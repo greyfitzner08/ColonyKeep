@@ -3,6 +3,7 @@ import { AlertTriangle, Cat, MapPin } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { STATUS_COLORS } from "@/lib/constants";
+import { formatColonyCardLocation } from "@/lib/cases/colony-notes";
 import { hasActiveMedicalFlag } from "@/lib/medical-flags";
 import type { TrapTeamUnclaimedCase } from "@/lib/dashboard/trap-team-data";
 import { cn, formatDate } from "@/lib/utils";
@@ -43,7 +44,7 @@ export function UnclaimedTeamAssignments({ cases }: UnclaimedTeamAssignmentsProp
             c.medical_flag_dismissed,
             c.medical_flag_forced
           );
-          const location = [c.colony_city, c.colony_county, c.colony_zip].filter(Boolean).join(", ");
+          const location = formatColonyCardLocation(c);
           const followUpOverdue =
             c.follow_up_due_date && new Date(c.follow_up_due_date) < new Date();
 
@@ -73,7 +74,7 @@ export function UnclaimedTeamAssignments({ cases }: UnclaimedTeamAssignmentsProp
               )}
 
               <div className="mt-2 space-y-1.5 text-sm text-muted-foreground">
-                {location && (
+                {location !== "—" && (
                   <div className="flex items-start gap-1.5">
                     <MapPin className="h-3.5 w-3.5 shrink-0 mt-0.5" />
                     <span>{location}</span>

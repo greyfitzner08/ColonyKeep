@@ -15,6 +15,7 @@ import {
   LIFECYCLE_STATUS_COLORS,
   toCaseLifecycleStatus,
 } from "@/lib/cases/statuses";
+import { formatColonyCardLocation } from "@/lib/cases/colony-notes";
 import { hasActiveMedicalFlag } from "@/lib/medical-flags";
 import { CaseFollowUpIndicator } from "@/components/cases/case-follow-up-indicator";
 import { ClaimantReviewFlag } from "@/components/cases/claimant-review-flag";
@@ -123,14 +124,7 @@ export function CaseCard({
         <p className="font-medium">{hr.contact_name}</p>
         <div className="flex items-start gap-1 text-muted-foreground">
           <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-          <span>
-            {isTrapQueueCard
-              ? [hr.colony_address, hr.colony_city, hr.colony_zip]
-                  .map((part) => part?.trim())
-                  .filter(Boolean)
-                  .join(", ") || "—"
-              : `${hr.colony_city}, ${hr.colony_county} ${hr.colony_zip}`}
-          </span>
+          <span>{formatColonyCardLocation(hr)}</span>
         </div>
         <div className="flex items-center gap-1 text-muted-foreground">
           <Cat className="h-3.5 w-3.5 shrink-0" />

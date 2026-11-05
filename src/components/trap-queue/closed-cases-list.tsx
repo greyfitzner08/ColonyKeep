@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useMemo } from "react";
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import { ClaimantReviewFlag } from "@/components/cases/claimant-review-flag";
+import { formatColonyCardLocation } from "@/lib/cases/colony-notes";
 import { formatDateTime } from "@/lib/utils";
 import type { HelpRequest } from "@/lib/types";
 
@@ -14,14 +15,6 @@ function contactLabel(helpRequest: HelpRequest): string {
       .join(" ")
       .trim() || helpRequest.contact_name?.trim() || "—"
   );
-}
-
-function colonyLabel(helpRequest: HelpRequest): string {
-  const place = [helpRequest.colony_address, helpRequest.colony_city, helpRequest.colony_zip]
-    .map((part) => part?.trim())
-    .filter(Boolean)
-    .join(", ");
-  return place || "—";
 }
 
 function closedStamp(helpRequest: HelpRequest): string {
@@ -63,8 +56,8 @@ export function ClosedCasesList({
         id: "colony",
         label: "Colony",
         defaultWidth: 280,
-        sortValue: (helpRequest) => colonyLabel(helpRequest),
-        render: (helpRequest) => colonyLabel(helpRequest),
+        sortValue: (helpRequest) => formatColonyCardLocation(helpRequest),
+        render: (helpRequest) => formatColonyCardLocation(helpRequest),
       },
       {
         id: "team",

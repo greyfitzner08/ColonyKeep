@@ -68,3 +68,17 @@ export function formatSingleLineAddress(parts: Array<string | null | undefined>)
   const segments = [line1, locality, county ? `${county} County` : null].filter(Boolean);
   return segments.join(" · ") || null;
 }
+
+/** Case card / queue location: street, city, ZIP (no county). */
+export function formatColonyCardLocation(colony: {
+  colony_address?: string | null;
+  colony_city?: string | null;
+  colony_zip?: string | null;
+}): string {
+  return (
+    [colony.colony_address, colony.colony_city, colony.colony_zip]
+      .map((part) => part?.trim())
+      .filter(Boolean)
+      .join(", ") || "—"
+  );
+}

@@ -33,6 +33,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { createClient } from "@/lib/supabase/client";
+import { formatColonyCardLocation } from "@/lib/cases/colony-notes";
 import { cn, formatDate } from "@/lib/utils";
 import type { VolunteerHours, Shift, Profile, HelpRequest } from "@/lib/types";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
@@ -292,7 +293,13 @@ export function MyImpactDashboard({ hours, shifts, caseWorkHistory, profile }: M
             </p>
           ) : (
             <div className="space-y-2">
-              {caseWorkHistory.slice(0, 40).map((hr) => (
+              {caseWorkHistory.slice(0, 40).map((hr) => {
+                const location = formatColonyCardLocation(hr);
+                const subtitle =
+                  [hr.contact_name, location !== "—" ? location : null]
+                    .filter(Boolean)
+                    .join(" · ") || "Case";
+                return (
                 <Link
                   key={hr.id}
                   href={`/case/${hr.id}`}
@@ -300,10 +307,7 @@ export function MyImpactDashboard({ hours, shifts, caseWorkHistory, profile }: M
                 >
                   <div className="min-w-0">
                     <p className="font-medium truncate">{hr.case_number}</p>
-                    <p className="text-sm text-muted-foreground truncate">
-                      {hr.contact_name || hr.colony_city || "Case"}
-                      {hr.colony_zip ? ` · ${hr.colony_zip}` : ""}
-                    </p>
+                    <p className="text-sm text-muted-foreground truncate">{subtitle}</p>
                   </div>
                   <Badge
                     variant="secondary"
@@ -312,7 +316,8 @@ export function MyImpactDashboard({ hours, shifts, caseWorkHistory, profile }: M
                     {getStatusLabel(hr.status)}
                   </Badge>
                 </Link>
-              ))}
+                );
+              })}
               {caseWorkHistory.length > 40 && (
                 <p className="text-xs text-muted-foreground pt-1">
                   Showing your 40 most recent cases.

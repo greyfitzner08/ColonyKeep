@@ -19,6 +19,7 @@ import {
   toCaseLifecycleStatus,
 } from "@/lib/cases/statuses";
 import type { CaseAssigneeOption } from "@/lib/cases/case-assignees";
+import { formatColonyCardLocation } from "@/lib/cases/colony-notes";
 import { formatDateTime } from "@/lib/utils";
 import { postCaseClaim } from "@/lib/cases/case-claim-api";
 import type { HelpRequest } from "@/lib/types";
@@ -172,11 +173,10 @@ export function IntakeCaseTable({
         id: "location",
         label: "Location",
         wrap: true,
-        sortValue: (helpRequest) =>
-          `${helpRequest.colony_city}, ${helpRequest.colony_county} ${helpRequest.colony_zip}`,
+        sortValue: (helpRequest) => formatColonyCardLocation(helpRequest),
         render: (helpRequest) => (
           <span className="text-muted-foreground">
-            {helpRequest.colony_city}, {helpRequest.colony_county} {helpRequest.colony_zip}
+            {formatColonyCardLocation(helpRequest)}
           </span>
         ),
       },
