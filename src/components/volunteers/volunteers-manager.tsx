@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+import { PageHeader } from "@/components/layout/page-header";
 import { ControlSearch, PageControlBar } from "@/components/layout/page-control-bar";
 import {
   Dialog,
@@ -84,11 +85,12 @@ import {
   findDuplicateProfileGroups,
 } from "@/lib/admin/find-duplicate-profiles";
 import { VolunteerDuplicatesDialog } from "@/components/volunteers/volunteer-duplicates-dialog";
+import { VolunteerRoleRequestsPanel } from "@/components/volunteers/volunteer-role-requests-panel";
+import { VolunteersAdminMenu } from "@/components/volunteers/volunteers-admin-menu";
 import { AdminDuplicateAccountsDialog } from "@/components/admin/admin-duplicate-accounts-dialog";
 import {
   Check,
   ChevronDown,
-  Copy,
   X,
   MessageCircle,
   Trash2,
@@ -102,8 +104,6 @@ import {
 } from "lucide-react";
 
 const TNVR_FIELD_INTEREST_FILTER = "tnvr_field";
-
-type VolunteerCopyFormat = "emails" | "names" | "name_email" | "name_email_phone";
 
 function uniqueVolunteerContacts(
   applications: VolunteerApplication[],
@@ -131,27 +131,6 @@ function uniqueVolunteerContacts(
   }
 
   return contacts;
-}
-
-function formatVolunteerContacts(
-  contacts: { name: string; email: string; phone: string }[],
-  format: VolunteerCopyFormat
-): string {
-  switch (format) {
-    case "names":
-      return contacts.map((entry) => entry.name).join("\n");
-    case "name_email":
-      return contacts.map((entry) => `${entry.name} <${entry.email}>`).join("\n");
-    case "name_email_phone":
-      return contacts
-        .map((entry) =>
-          [entry.name, entry.email, entry.phone].filter(Boolean).join("\t")
-        )
-        .join("\n");
-    case "emails":
-    default:
-      return contacts.map((entry) => entry.email).join("\n");
-  }
 }
 
 interface VolunteersManagerProps {
@@ -374,7 +353,6 @@ export function VolunteersManager({
     [localDismissedProfileKeys]
   );
   const [filter, setFilter] = useState<ApplicationStatusFilter>("all");
-  const [copyFeedback, setCopyFeedback] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ApplicationViewMode>("cards");
   const [interestFilter, setInterestFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
@@ -640,23 +618,6 @@ export function VolunteersManager({
     () => uniqueVolunteerContacts(filtered, profilesByEmail),
     [filtered, profilesByEmail]
   );
-
-  async function copyFilteredContacts(format: VolunteerCopyFormat) {
-    if (filteredContacts.length === 0) return;
-    try {
-      await navigator.clipboard.writeText(formatVolunteerContacts(filteredContacts, format));
-      const label =
-        format === "emails"
-          ? `${filteredContacts.length} email${filteredContacts.length === 1 ? "" : "s"}`
-          : format === "names"
-            ? `${filteredContacts.length} name${filteredContacts.length === 1 ? "" : "s"}`
-            : `${filteredContacts.length} contact${filteredContacts.length === 1 ? "" : "s"}`;
-      setCopyFeedback(label);
-      window.setTimeout(() => setCopyFeedback(null), 2000);
-    } catch {
-      setActionError("Unable to copy to the clipboard from this browser.");
-    }
-  }
 
   function notesForApp(app: VolunteerApplication) {
     return actionNotes[app.id] ?? app.admin_notes ?? "";
@@ -2125,7 +2086,17 @@ export function VolunteersManager({
   }, [profilesByEmail, roleCatalog, roleRequests, duplicateApplicationIds]);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
+      <PageHeader
+        title="Volunteer Applications"
+        description="Review applications, approved volunteer interests, and role expansion requests"
+        actions={
+          <VolunteersAdminMenu contacts={filteredContacts} shownCount={filtered.length} />
+        }
+      />
+
+      <VolunteerRoleRequestsPanel requests={roleRequests} />
+
       {actionError && (
         <div
           className={`rounded-md border px-4 py-3 text-sm ${
@@ -2265,42 +2236,6 @@ export function VolunteersManager({
         }
         actions={
           <>
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              disabled={filteredContacts.length === 0}
-              onClick={() => void copyFilteredContacts("emails")}
-            >
-              {copyFeedback ? (
-                <>
-                  <Check className="mr-1 h-3.5 w-3.5" />
-                  Copied {copyFeedback}
-                </>
-              ) : (
-                <>
-                  <Copy className="mr-1 h-3.5 w-3.5" />
-                  Copy {filteredContacts.length} email
-                  {filteredContacts.length === 1 ? "" : "s"}
-                </>
-              )}
-            </Button>
-            <Select
-              onValueChange={(value) => {
-                void copyFilteredContacts(value as VolunteerCopyFormat);
-              }}
-              disabled={filteredContacts.length === 0}
-            >
-              <SelectTrigger className="h-9 w-full sm:w-[180px]" aria-label="Copy filtered contacts">
-                <SelectValue placeholder="Copy as…" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="emails">Emails only</SelectItem>
-                <SelectItem value="names">Names only</SelectItem>
-                <SelectItem value="name_email">Name + email</SelectItem>
-                <SelectItem value="name_email_phone">Name + email + phone</SelectItem>
-              </SelectContent>
-            </Select>
             {currentUserId ? (
               <Button
                 type="button"
@@ -2343,16 +2278,7 @@ export function VolunteersManager({
             </div>
           </>
         }
-        meta={
-          <>
-            {filtered.length} shown
-            {filteredContacts.length > 0
-              ? ` · ${filteredContacts.length} unique email${
-                  filteredContacts.length === 1 ? "" : "s"
-                }`
-              : ""}
-          </>
-        }
+        meta={<>{filtered.length} shown</>}
       />
 
       {filtered.length === 0 && (
