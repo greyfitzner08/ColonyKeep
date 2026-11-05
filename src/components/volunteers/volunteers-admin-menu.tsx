@@ -41,9 +41,18 @@ function formatVolunteerContacts(
 interface VolunteersAdminMenuProps {
   contacts: VolunteerCopyContact[];
   shownCount: number;
+  title?: string;
+  description?: string;
+  ariaLabel?: string;
 }
 
-export function VolunteersAdminMenu({ contacts, shownCount }: VolunteersAdminMenuProps) {
+export function VolunteersAdminMenu({
+  contacts,
+  shownCount,
+  title = "Volunteer admin tools",
+  description,
+  ariaLabel = "Volunteer admin tools",
+}: VolunteersAdminMenuProps) {
   const [open, setOpen] = useState(false);
   const [copiedLabel, setCopiedLabel] = useState<string | null>(null);
   const [copyError, setCopyError] = useState<string | null>(null);
@@ -51,7 +60,7 @@ export function VolunteersAdminMenu({ contacts, shownCount }: VolunteersAdminMen
   async function copyContacts(format: VolunteerCopyFormat) {
     setCopyError(null);
     if (contacts.length === 0) {
-      setCopyError("No volunteers in the current filtered list.");
+      setCopyError("No people in the current filtered list.");
       return;
     }
 
@@ -81,7 +90,8 @@ export function VolunteersAdminMenu({ contacts, shownCount }: VolunteersAdminMen
           setCopyError(null);
           setOpen(true);
         }}
-        aria-label="Volunteer admin tools"
+        aria-label={ariaLabel}
+        title={ariaLabel}
       >
         <Settings className="h-4 w-4" />
       </Button>
@@ -89,11 +99,12 @@ export function VolunteersAdminMenu({ contacts, shownCount }: VolunteersAdminMen
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>Volunteer admin tools</DialogTitle>
+            <DialogTitle>{title}</DialogTitle>
             <DialogDescription>
-              Copy contact details from the volunteers currently shown by your filters
-              ({shownCount} shown · {contacts.length} unique email
-              {contacts.length === 1 ? "" : "s"}).
+              {description ??
+                `Copy contact details from the people currently shown by your filters (${shownCount} shown · ${contacts.length} unique email${
+                  contacts.length === 1 ? "" : "s"
+                }).`}
             </DialogDescription>
           </DialogHeader>
 
@@ -101,7 +112,8 @@ export function VolunteersAdminMenu({ contacts, shownCount }: VolunteersAdminMen
             <div className="space-y-1">
               <p className="text-sm font-medium">Copy filtered contacts</p>
               <p className="text-sm text-muted-foreground">
-                Filter the list first (for example Approved + Any TNVR field role), then copy.
+                Filter the list first (for example platform role TNVR Team, or Approved + Any TNVR
+                field role), then copy.
               </p>
             </div>
             <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">

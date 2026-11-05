@@ -1,12 +1,15 @@
 "use client";
 
+import { useMemo, useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AdminUsersManager } from "@/components/admin/admin-users-manager";
 import { BrandingSettings } from "@/components/admin/branding-settings";
 import { InquiryFormCustomFieldsEditor } from "@/components/admin/inquiry-form-custom-fields-editor";
 import { RoleDescriptionsManager } from "@/components/admin/role-descriptions-manager";
 import { TrapTeamsManager } from "@/components/admin/trap-teams-manager";
+import { PageHeader } from "@/components/layout/page-header";
 import { VolunteerImporter } from "@/components/volunteers/volunteer-importer";
+import { VolunteersAdminMenu } from "@/components/volunteers/volunteers-admin-menu";
 import type { PlatformBranding } from "@/lib/branding";
 import type { Profile, TrapTeam, RoleDescription, VolunteerApplication, VolunteerRole } from "@/lib/types";
 
@@ -29,8 +32,64 @@ export function AdminPanel({
   branding,
   currentUserId,
 }: AdminPanelProps) {
+  const [tab, setTab] = useState("users");
+
+  const allUserContacts = useMemo(() => {
+    const seen = new Set<string>();
+    const contacts: { name: string; email: string; phone: string }[] = [];
+    for (const user of users) {
+      const email = user.email.trim();
+      if (!email) continue;
+      const key = email.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      contacts.push({
+        name: user.full_name?.trim() || email,
+        email,
+        phone: user.phone?.trim() || "",
+      });
+    }
+    return contacts;
+  }, [users]);
+
+  const tnvrContacts = useMemo(
+    () =>
+      allUserContacts.filter((contact) => {
+        const profile = users.find(
+          (user) => user.email.trim().toLowerCase() === contact.email.toLowerCase()
+        );
+        return profile?.role === "trap_team_lead";
+      }),
+    [allUserContacts, users]
+  );
+
   return (
-    <Tabs defaultValue="users">
+    <div className="space-y-6">
+      <PageHeader
+        title="Admin Settings"
+        description="Manage users, teams, branding, and role descriptions"
+        actions={
+          tab === "users" ? (
+            <VolunteersAdminMenu
+              contacts={tnvrContacts.length > 0 ? tnvrContacts : allUserContacts}
+              shownCount={tnvrContacts.length > 0 ? tnvrContacts.length : users.length}
+              title="User admin tools"
+              ariaLabel="User admin tools"
+              description={
+                tnvrContacts.length > 0
+                  ? `Quick copy for TNVR Team users (${tnvrContacts.length} unique email${
+                      tnvrContacts.length === 1 ? "" : "s"
+                    }). For a custom group, filter the Users table first and use the gear next to Find duplicates.`
+                  : `Copy contact details for users (${allUserContacts.length} unique email${
+                      allUserContacts.length === 1 ? "" : "s"
+                    }). Filter the Users table for a smaller group, then use the gear next to Find duplicates.`
+              }
+            />
+          ) : null
+        }
+      />
+
+    <Tabs value={tab} onValueChange={setTab}>
       <TabsList>
         <TabsTrigger value="users">Users</TabsTrigger>
         <TabsTrigger value="teams">Trap Teams</TabsTrigger>
@@ -76,5 +135,6 @@ export function AdminPanel({
         />
       </TabsContent>
     </Tabs>
+    </div>
   );
 }
