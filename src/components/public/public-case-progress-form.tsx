@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { CheckCircle, Loader2 } from "lucide-react";
 import { BrandMark } from "@/components/branding/brand-mark";
+import { CatCountSummaryDisplay } from "@/components/cases/cat-count-summary-display";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -222,7 +223,7 @@ export function PublicCaseProgressForm() {
 
   return (
     <div className="min-h-screen bg-muted/30 py-8 px-4">
-      <div className="mx-auto max-w-xl">
+      <div className="mx-auto max-w-2xl">
         <div className="mb-8 text-center">
           <Link href="/login" className="mb-4 inline-flex justify-center text-primary">
             <BrandMark nameClassName="text-xl text-primary" />
@@ -244,24 +245,7 @@ export function PublicCaseProgressForm() {
                   Thanks — your colony counts for {summary.caseNumber} were updated.
                 </p>
               </div>
-              <div className="rounded-lg border bg-muted/40 px-4 py-3 text-left text-sm space-y-1">
-                <p>
-                  <span className="text-muted-foreground">Remaining cats:</span>{" "}
-                  <span className="font-medium">{summary.remainingTotal}</span>
-                  {summary.remainingTotal > 0 ? (
-                    <span className="text-muted-foreground">
-                      {" "}
-                      ({summary.remainingAdults} over 8 weeks, {summary.remainingKittens} kittens)
-                    </span>
-                  ) : null}
-                </p>
-                <p className="text-muted-foreground">
-                  Recorded — TNR {summary.outcomeTnvr}, still need TNR {summary.remainingTotal}
-                  {summary.outcomeAcc + summary.outcomeFoster + summary.outcomeOther > 0
-                    ? `, ACC ${summary.outcomeAcc}, foster ${summary.outcomeFoster}, no longer need TNR ${summary.outcomeOther}`
-                    : ""}
-                </p>
-              </div>
+              <CatCountSummaryDisplay counts={summary.counts} />
               <div className="flex flex-wrap justify-center gap-2">
                 <Button type="button" variant="outline" onClick={startOver}>
                   Update another case
@@ -411,20 +395,15 @@ export function PublicCaseProgressForm() {
         {step === "update" && summary ? (
           <Card>
             <CardContent className="space-y-5 pt-6">
-              <div className="rounded-lg border bg-muted/40 px-4 py-3 text-sm space-y-1">
-                <p className="font-medium">{summary.caseNumber}</p>
-                <p className="text-muted-foreground">
-                  Status: {summary.statusLabel}
-                  {summary.colonyCity ? ` · Colony in ${summary.colonyCity}` : ""}
-                </p>
-                <p>
-                  Remaining:{" "}
-                  <span className="font-medium">{summary.remainingTotal}</span>
-                  <span className="text-muted-foreground">
-                    {" "}
-                    ({summary.remainingAdults} over 8 weeks, {summary.remainingKittens} kittens)
-                  </span>
-                </p>
+              <div className="space-y-3">
+                <div className="rounded-lg border bg-muted/40 px-4 py-3 text-sm space-y-1">
+                  <p className="font-medium">{summary.caseNumber}</p>
+                  <p className="text-muted-foreground">
+                    Status: {summary.statusLabel}
+                    {summary.colonyCity ? ` · Colony in ${summary.colonyCity}` : ""}
+                  </p>
+                </div>
+                <CatCountSummaryDisplay counts={summary.counts} />
               </div>
 
               <form onSubmit={(event) => void submitUpdate(event)} className="space-y-4">

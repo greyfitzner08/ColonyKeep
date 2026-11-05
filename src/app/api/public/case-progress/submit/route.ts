@@ -7,6 +7,7 @@ import {
   findCaseForPublicProgress,
   parsePublicOutcomeDeltas,
   PUBLIC_PROGRESS_SELECT,
+  toPublicProgressSummaryWithCounts,
   type PublicProgressCaseRow,
 } from "@/lib/cases/public-progress-update";
 import { createServiceClient } from "@/lib/supabase/server";
@@ -91,8 +92,13 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: updateError.message }, { status: 400 });
   }
 
+  const updatedRow: PublicProgressCaseRow = {
+    ...found.row,
+    ...(applied.update as Partial<PublicProgressCaseRow>),
+  };
+
   return NextResponse.json({
     success: true,
-    case: applied.summary,
+    case: await toPublicProgressSummaryWithCounts(service, updatedRow),
   });
 }

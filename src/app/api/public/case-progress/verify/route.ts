@@ -3,7 +3,7 @@ import {
   caseNumberLookupValues,
   findCaseForPublicProgress,
   PUBLIC_PROGRESS_SELECT,
-  toPublicProgressSummary,
+  toPublicProgressSummaryWithCounts,
   type PublicProgressCaseRow,
 } from "@/lib/cases/public-progress-update";
 import { createServiceClient } from "@/lib/supabase/server";
@@ -59,6 +59,6 @@ export async function POST(request: NextRequest) {
 
   return NextResponse.json({
     verified: true,
-    case: toPublicProgressSummary(result.row),
+    case: await toPublicProgressSummaryWithCounts(service, result.row),
   });
 }

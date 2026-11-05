@@ -1,3 +1,5 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
+import { summarizeCatCounts, type CatCountSummary } from "@/lib/cases/cat-counts";
 import { normalizeHistoryLog } from "@/lib/cases/history-log";
 import { CASE_STATUSES } from "@/lib/constants";
 import type { HelpRequest, HelpRequestStatus, HistoryEntry } from "@/lib/types";
@@ -65,6 +67,8 @@ export interface PublicProgressSummary {
   outcomeAcc: number;
   outcomeFoster: number;
   outcomeOther: number;
+  /** Same colony cat-count table used on Case → Colony. */
+  counts: CatCountSummary;
 }
 
 function normalizeCaseNumber(raw: string): string {
@@ -210,11 +214,28 @@ export function verificationMatches(
   return streetOk;
 }
 
-export function toPublicProgressSummary(row: PublicProgressCaseRow): PublicProgressSummary {
+type PublicCountFix = {
+  age_category: string | null;
+  went_to_foster_facility: boolean | null;
+  cat_id: string | null;
+};
+
+type PublicCountCat = {
+  id: string;
+  age_category: string | null;
+  went_to_foster_facility: boolean | null;
+};
+
+export function toPublicProgressSummary(
+  row: PublicProgressCaseRow,
+  fixes: PublicCountFix[] = [],
+  cats: PublicCountCat[] = []
+): PublicProgressSummary {
   const remainingAdults = Math.max(0, row.cats_over_8_weeks ?? 0);
   const remainingKittens = Math.max(0, row.kittens_under_8_weeks ?? 0);
   const statusLabel =
     CASE_STATUSES.find((entry) => entry.value === row.status)?.label ?? "In progress";
+  const counts = summarizeCatCounts(row, fixes, cats);
 
   return {
     caseNumber: row.case_number,
@@ -223,13 +244,37 @@ export function toPublicProgressSummary(row: PublicProgressCaseRow): PublicProgr
     remainingAdults,
     remainingKittens,
     remainingTotal: remainingAdults + remainingKittens,
-    reportedAdults: Math.max(0, row.reported_cats_over_8_weeks ?? remainingAdults),
-    reportedKittens: Math.max(0, row.reported_kittens_under_8_weeks ?? remainingKittens),
+    reportedAdults: counts.reportedAdults,
+    reportedKittens: counts.reportedKittens,
     outcomeTnvr: Math.max(0, row.outcome_tnvr_count ?? 0),
     outcomeAcc: Math.max(0, row.outcome_acc_count ?? 0),
     outcomeFoster: Math.max(0, row.outcome_foster_count ?? 0),
     outcomeOther: Math.max(0, row.outcome_other_count ?? 0),
+    counts,
   };
+}
+
+/** Load clinic/tracked-cat inputs so public summary matches Case → Colony. */
+export async function toPublicProgressSummaryWithCounts(
+  service: SupabaseClient,
+  row: PublicProgressCaseRow
+): Promise<PublicProgressSummary> {
+  const [{ data: fixes }, { data: cats }] = await Promise.all([
+    service
+      .from("clinic_fixes")
+      .select("age_category, went_to_foster_facility, cat_id")
+      .eq("help_request_id", row.id),
+    service
+      .from("cats")
+      .select("id, age_category, went_to_foster_facility")
+      .eq("help_request_id", row.id),
+  ]);
+
+  return toPublicProgressSummary(
+    row,
+    (fixes ?? []) as PublicCountFix[],
+    (cats ?? []) as PublicCountCat[]
+  );
 }
 
 function takeFromRemaining(

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import {
   findCaseByReporterNameAndZip,
   PUBLIC_PROGRESS_FIND_SELECT,
-  toPublicProgressSummary,
+  toPublicProgressSummaryWithCounts,
   type PublicProgressFindCaseRow,
 } from "@/lib/cases/public-progress-update";
 import { createServiceClient } from "@/lib/supabase/server";
@@ -77,7 +77,7 @@ export async function POST(request: NextRequest) {
 
   return NextResponse.json({
     found: true,
-    case: toPublicProgressSummary(result.row),
+    case: await toPublicProgressSummaryWithCounts(service, result.row),
     case_number: result.row.case_number,
     colony_zip: zipDigits,
   });
