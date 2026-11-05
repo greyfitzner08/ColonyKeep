@@ -80,13 +80,20 @@ export function TrapQueueToolbar({
   const showMyTeamOption = Boolean(isTrapRole && myTeamId);
 
   function updateParams(mutate: (params: URLSearchParams) => void) {
-    const params = new URLSearchParams(searchParams.toString());
+    // Prefer live URL so soft-synced search (`q`) is preserved across filter changes.
+    const params = new URLSearchParams(
+      typeof window !== "undefined" ? window.location.search : searchParams.toString()
+    );
+    if (searchQuery.trim()) {
+      params.set("q", searchQuery);
+    }
     mutate(params);
     // Drop legacy view= once focus/team are in use.
     if (params.has("focus") || params.has("team")) {
       params.delete("view");
     }
-    router.push(`/trap-queue?${params.toString()}`);
+    const query = params.toString();
+    router.replace(query ? `/trap-queue?${query}` : "/trap-queue", { scroll: false });
   }
 
   function setFocus(next: TrapQueueFocus) {

@@ -13,7 +13,10 @@ interface CaseQueueSearchProps {
   id?: string;
 }
 
-/** Search input that updates immediately while debouncing the parent filter. */
+/**
+ * Search input with an immediate local draft so typing stays responsive.
+ * Parent updates are debounced; external `value` syncs back when it changes.
+ */
 export function CaseQueueSearch({
   value,
   onChange,
@@ -23,17 +26,22 @@ export function CaseQueueSearch({
 }: CaseQueueSearchProps) {
   const [draft, setDraft] = useState(value);
   const onChangeRef = useRef(onChange);
+  const draftRef = useRef(draft);
   onChangeRef.current = onChange;
+  draftRef.current = draft;
 
   useEffect(() => {
-    setDraft(value);
+    // Only mirror external value when it differs from what the user is typing.
+    if (value !== draftRef.current) {
+      setDraft(value);
+    }
   }, [value]);
 
   useEffect(() => {
     if (draft === value) return;
     const handle = window.setTimeout(() => {
       onChangeRef.current(draft);
-    }, 200);
+    }, 150);
     return () => window.clearTimeout(handle);
   }, [draft, value]);
 
