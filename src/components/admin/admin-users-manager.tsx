@@ -16,7 +16,6 @@ import { AdminUserEditDialog } from "@/components/admin/admin-user-edit-dialog";
 import { AdminUserRemoveDialog } from "@/components/admin/admin-user-remove-dialog";
 import { AdminDuplicateAccountsDialog } from "@/components/admin/admin-duplicate-accounts-dialog";
 import { ControlSearch, PageControlBar } from "@/components/layout/page-control-bar";
-import { VolunteersAdminMenu } from "@/components/volunteers/volunteers-admin-menu";
 import { getApiErrorMessage } from "@/lib/api/errors";
 import { ROLE_PERMISSIONS, isKnownUserRole } from "@/lib/constants";
 import {
@@ -96,24 +95,6 @@ export function AdminUsersManager({
         .some((value) => String(value).toLowerCase().includes(query));
     });
   }, [users, search, roleFilter, teamById, roleCatalog]);
-
-  const filteredContacts = useMemo(() => {
-    const seen = new Set<string>();
-    const contacts: { name: string; email: string; phone: string }[] = [];
-    for (const user of filteredUsers) {
-      const email = user.email.trim();
-      if (!email) continue;
-      const key = email.toLowerCase();
-      if (seen.has(key)) continue;
-      seen.add(key);
-      contacts.push({
-        name: user.full_name?.trim() || email,
-        email,
-        phone: user.phone?.trim() || "",
-      });
-    }
-    return contacts;
-  }, [filteredUsers]);
 
   const updateUserRole = useCallback(
     async (userId: string, role: UserRole) => {
@@ -319,38 +300,22 @@ export function AdminUsersManager({
           </Select>
         }
         actions={
-          <>
-            <VolunteersAdminMenu
-              contacts={filteredContacts}
-              shownCount={filteredUsers.length}
-              title="User admin tools"
-              ariaLabel="User admin tools"
-              description={`Copy contact details from the users currently shown by your filters (${filteredUsers.length} shown · ${filteredContacts.length} unique email${
-                filteredContacts.length === 1 ? "" : "s"
-              }). Tip: set Platform role to TNVR Team first to copy only TNVR volunteers.`}
-            />
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                setUserError(null);
-                setDuplicatesOpen(true);
-              }}
-            >
-              <GitMerge className="mr-2 h-4 w-4" />
-              Find duplicates
-            </Button>
-          </>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              setUserError(null);
+              setDuplicatesOpen(true);
+            }}
+          >
+            <GitMerge className="mr-2 h-4 w-4" />
+            Find duplicates
+          </Button>
         }
         meta={
           <>
             {filteredUsers.length} of {users.length} users
-            {filteredContacts.length > 0
-              ? ` · ${filteredContacts.length} unique email${
-                  filteredContacts.length === 1 ? "" : "s"
-                }`
-              : ""}
           </>
         }
       />

@@ -77,12 +77,12 @@ export function AdminPanel({
               ariaLabel="User admin tools"
               description={
                 tnvrContacts.length > 0
-                  ? `Quick copy for TNVR Team users (${tnvrContacts.length} unique email${
+                  ? `Copy contact details for TNVR Team users (${tnvrContacts.length} unique email${
                       tnvrContacts.length === 1 ? "" : "s"
-                    }). For a custom group, filter the Users table first and use the gear next to Find duplicates.`
+                    }).`
                   : `Copy contact details for users (${allUserContacts.length} unique email${
                       allUserContacts.length === 1 ? "" : "s"
-                    }). Filter the Users table for a smaller group, then use the gear next to Find duplicates.`
+                    }).`
               }
             />
           ) : null
