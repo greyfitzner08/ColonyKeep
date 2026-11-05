@@ -17,7 +17,10 @@ function contactLabel(helpRequest: HelpRequest): string {
 }
 
 function colonyLabel(helpRequest: HelpRequest): string {
-  const place = [helpRequest.colony_address, helpRequest.colony_city].filter(Boolean).join(", ");
+  const place = [helpRequest.colony_address, helpRequest.colony_city, helpRequest.colony_zip]
+    .map((part) => part?.trim())
+    .filter(Boolean)
+    .join(", ");
   return place || "—";
 }
 

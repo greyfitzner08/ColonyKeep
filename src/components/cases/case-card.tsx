@@ -121,10 +121,15 @@ export function CaseCard({
       </CardHeader>
       <CardContent className="space-y-2 text-sm">
         <p className="font-medium">{hr.contact_name}</p>
-        <div className="flex items-center gap-1 text-muted-foreground">
-          <MapPin className="h-3.5 w-3.5 shrink-0" />
+        <div className="flex items-start gap-1 text-muted-foreground">
+          <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0" />
           <span>
-            {hr.colony_city}, {hr.colony_county} {hr.colony_zip}
+            {isTrapQueueCard
+              ? [hr.colony_address, hr.colony_city, hr.colony_zip]
+                  .map((part) => part?.trim())
+                  .filter(Boolean)
+                  .join(", ") || "—"
+              : `${hr.colony_city}, ${hr.colony_county} ${hr.colony_zip}`}
           </span>
         </div>
         <div className="flex items-center gap-1 text-muted-foreground">
