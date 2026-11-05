@@ -24,7 +24,9 @@ export function ApplicationCertificatePanel({
   const [error, setError] = useState<string | null>(null);
 
   const fileName = certificateUrl?.split("/").pop() ?? null;
-  const hasCert = Boolean(certificateUploaded && certificateUrl);
+  // Prefer the stored file path. An uploaded flag alone can be true from a checkbox
+  // without a file, so the path is what actually means "on file".
+  const hasCert = Boolean(certificateUrl);
 
   async function handleUpload(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -90,6 +92,10 @@ export function ApplicationCertificatePanel({
       {hasCert ? (
         <p className="text-sm text-green-700">
           Certificate on file{fileName ? `: ${fileName}` : ""}.
+        </p>
+      ) : certificateUploaded ? (
+        <p className="text-sm text-amber-700">
+          Certificate marked complete, but no file is attached yet. Upload one below.
         </p>
       ) : (
         <p className="text-sm text-amber-700">No certificate file uploaded yet.</p>

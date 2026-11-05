@@ -53,16 +53,21 @@ export async function POST(request: NextRequest) {
   }
 
   const trapRoleExpansion = requestType === "add" && includesTrapVolunteerRole(requestedRoles);
+  const existingCertUploaded = Boolean(
+    application?.tnvr_certificate_uploaded || profile!.tnvr_certificate_uploaded
+  );
+  const existingCertUrl =
+    application?.tnvr_certificate_url ?? profile!.tnvr_certificate_url ?? null;
 
   const requirementSnapshot = {
-    tnvr_certificate_uploaded: trapRoleExpansion
-      ? false
-      : (application?.tnvr_certificate_uploaded ?? profile!.tnvr_certificate_uploaded ?? false),
-    tnvr_certificate_url: trapRoleExpansion
-      ? null
-      : (application?.tnvr_certificate_url ?? profile!.tnvr_certificate_url ?? null),
+    // Keep an existing TNVR certificate on file — don't force re-upload for role expansion.
+    tnvr_certificate_uploaded: existingCertUploaded,
+    tnvr_certificate_url: existingCertUrl,
     intake_training: application?.intake_training ?? false,
-    shadow_completed: trapRoleExpansion ? false : (application?.shadow_completed ?? false),
+    // Shadow still needs admin verification for new trap-field roles.
+    shadow_completed: trapRoleExpansion
+      ? false
+      : Boolean(application?.shadow_completed),
     liability_waiver_signed: application?.liability_waiver_signed ?? false,
     policy_signed: application?.policy_signed ?? false,
     event_crash_course: application?.event_crash_course ?? false,

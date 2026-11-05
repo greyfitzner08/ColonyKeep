@@ -32,9 +32,11 @@ export function requirementSourceForRoleRequest(
     intake_training: roleRequest.intake_training || base.intake_training,
     event_crash_course: roleRequest.event_crash_course || base.event_crash_course,
     adoption_training: roleRequest.adoption_training || base.adoption_training,
-    // Trap-specific requirements are verified per role request — not inherited from profile.
-    shadow_completed: roleRequest.shadow_completed ?? false,
-    tnvr_certificate_uploaded: roleRequest.tnvr_certificate_uploaded ?? false,
+    // Shadow is verified per expansion request (admin may still check it off).
+    shadow_completed: roleRequest.shadow_completed || base.shadow_completed,
+    // Certificate already on the application/profile counts for new trap roles.
+    tnvr_certificate_uploaded:
+      roleRequest.tnvr_certificate_uploaded || base.tnvr_certificate_uploaded,
   };
 }
 

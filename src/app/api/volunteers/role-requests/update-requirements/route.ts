@@ -27,9 +27,43 @@ export async function POST(request: NextRequest) {
   }
 
   const service = await createServiceClient();
+
+  const patch: Record<string, boolean | string | null> = { [field]: value };
+
+  // When admin confirms certificate on a role request, attach any existing file
+  // from the application/profile so review doesn't show "no certificate file".
+  if (field === "tnvr_certificate_uploaded" && value) {
+    const { data: roleRequest } = await service
+      .from("volunteer_role_requests")
+      .select("id, email, tnvr_certificate_url")
+      .eq("id", requestId)
+      .maybeSingle();
+
+    if (roleRequest && !roleRequest.tnvr_certificate_url) {
+      const email = roleRequest.email.toLowerCase();
+      const [{ data: application }, { data: profile }] = await Promise.all([
+        service
+          .from("volunteer_applications")
+          .select("tnvr_certificate_url")
+          .ilike("email", email)
+          .maybeSingle(),
+        service
+          .from("profiles")
+          .select("tnvr_certificate_url")
+          .ilike("email", email)
+          .maybeSingle(),
+      ]);
+      const existingUrl =
+        application?.tnvr_certificate_url || profile?.tnvr_certificate_url || null;
+      if (existingUrl) {
+        patch.tnvr_certificate_url = existingUrl;
+      }
+    }
+  }
+
   const { data, error } = await service
     .from("volunteer_role_requests")
-    .update({ [field]: value })
+    .update(patch)
     .eq("id", requestId)
     .eq("status", "pending")
     .select()

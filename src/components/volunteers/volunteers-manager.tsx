@@ -1263,11 +1263,12 @@ export function VolunteersManager({
       ? true
       : reviewTeamId === "none" || trapTeamEligible;
     const certificateUrl =
-      context.pendingRoleRequests[0]?.tnvr_certificate_url ??
-      app.tnvr_certificate_url ??
-      linkedProfile?.tnvr_certificate_url ??
+      context.pendingRoleRequests[0]?.tnvr_certificate_url ||
+      app.tnvr_certificate_url ||
+      linkedProfile?.tnvr_certificate_url ||
       null;
-    const certificateUploaded = Boolean(requirementSource.tnvr_certificate_uploaded);
+    const certificateUploaded =
+      Boolean(requirementSource.tnvr_certificate_uploaded) || Boolean(certificateUrl);
     const showReviewActions =
       canReview || (isRoleExpansion && context.newRoles.length > 0);
     const showApprovedVolunteerManagement =
