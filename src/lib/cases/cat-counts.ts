@@ -1,4 +1,4 @@
-import type { Cat, ClinicFix, HelpRequest } from "@/lib/types";
+import type { HelpRequest } from "@/lib/types";
 
 export interface CatCountSummary {
   reportedAdults: number;
@@ -25,8 +25,16 @@ export interface CatCountSummary {
   unfixedTotal: number;
 }
 
-type FosterFix = Pick<ClinicFix, "age_category" | "went_to_foster_facility" | "cat_id">;
-type FosterCat = Pick<Cat, "id" | "age_category" | "went_to_foster_facility">;
+type FosterFix = {
+  age_category?: string | null;
+  went_to_foster_facility?: boolean | null;
+  cat_id?: string | null;
+};
+type FosterCat = {
+  id: string;
+  age_category?: string | null;
+  went_to_foster_facility?: boolean | null;
+};
 
 type CountHelpRequest = Pick<
   HelpRequest,
