@@ -152,7 +152,7 @@ export function VolunteerSignupStepsEditor({
         <div className="min-w-0 space-y-1">
           <h2 className="text-lg font-semibold">Volunteer application steps</h2>
           <p className="text-sm text-muted-foreground">
-            Extra steps shown while someone applies, after they choose volunteer opportunities.
+            Extra steps shown at the end of the volunteer application, after review.
             Leave opportunities blank to show a step to everyone. Otherwise it appears only when
             their interests match.
           </p>
@@ -268,7 +268,7 @@ export function VolunteerSignupStepsEditor({
 
                     <Section
                       title="Opportunities"
-                      description="Shown after the applicant selects interests. No boxes checked means everyone sees this step."
+                      description="Shown as the last application step when these interests match. No boxes checked means everyone sees this step."
                     >
                       <div className="flex flex-wrap gap-2">
                         <Button

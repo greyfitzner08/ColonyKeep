@@ -227,7 +227,7 @@ export function VolunteerSignupWizard({
       description: "Information for the opportunities you selected",
       content: step,
     }));
-    return [...BASE_BEFORE, ...contentSteps, ...BASE_AFTER];
+    return [...BASE_BEFORE, ...BASE_AFTER, ...contentSteps];
   }, [form.roles_requested, signupSteps]);
   const stepIndex = Math.max(
     0,
