@@ -36,44 +36,73 @@ import {
   VolunteerContactFieldsForm,
   type VolunteerContactFormValues,
 } from "@/components/volunteers/volunteer-contact-fields-form";
+import { sanitizeIntakeAboutHtml } from "@/lib/intake-about-html";
+import {
+  matchingVolunteerSignupSteps,
+  type VolunteerSignupStep,
+} from "@/lib/volunteers/signup-steps";
 import type { Profile, RoleDescription, VolunteerRole } from "@/lib/types";
 
-const STEPS = [
+type StepCategory = "personal" | "roles" | "content" | "requirements" | "review";
+
+type WizardStep =
+  | {
+      id: "about" | "roles" | "background" | "requirements" | "review";
+      label: string;
+      category: Exclude<StepCategory, "content">;
+      description: string;
+      content?: undefined;
+    }
+  | {
+      id: string;
+      label: string;
+      category: "content";
+      description: string;
+      content: VolunteerSignupStep;
+    };
+
+const BASE_BEFORE: WizardStep[] = [
   {
+    id: "about",
     label: "About You",
-    category: "personal" as const,
+    category: "personal",
     description: "Your name, contact info, home address, and birthday",
   },
   {
+    id: "roles",
     label: "Roles",
-    category: "roles" as const,
+    category: "roles",
     description: "How you would like to help the team",
-  },
-  {
-    label: "Background",
-    category: "personal" as const,
-    description: "Your experience and what drew you to TNVR",
-  },
-  {
-    label: "Requirements",
-    category: "requirements" as const,
-    description: "Waivers and any role-specific documents",
-  },
-  {
-    label: "Review",
-    category: "review" as const,
-    description: "Confirm your application before submitting",
   },
 ];
 
-type StepCategory = (typeof STEPS)[number]["category"];
+const BASE_AFTER: WizardStep[] = [
+  {
+    id: "background",
+    label: "Background",
+    category: "personal",
+    description: "Your experience and what drew you to TNVR",
+  },
+  {
+    id: "requirements",
+    label: "Requirements",
+    category: "requirements",
+    description: "Waivers and any role-specific documents",
+  },
+  {
+    id: "review",
+    label: "Review",
+    category: "review",
+    description: "Confirm your application before submitting",
+  },
+];
 
 function FormSectionBanner({
   variant,
   title,
   description,
 }: {
-  variant: Exclude<StepCategory, "review">;
+  variant: Exclude<StepCategory, "review" | "content">;
   title: string;
   description: string;
 }) {
@@ -103,12 +132,14 @@ function stepPillClass(category: StepCategory, index: number, currentStep: numbe
   if (index === currentStep) {
     if (category === "roles") return "bg-violet-600 text-white border-violet-600";
     if (category === "personal") return "bg-blue-600 text-white border-blue-600";
+    if (category === "content") return "bg-amber-700 text-white border-amber-700";
     if (category === "requirements") return "bg-slate-700 text-white border-slate-700";
     return "bg-primary text-white border-primary";
   }
   if (index < currentStep) {
     if (category === "roles") return "bg-violet-100 text-violet-900 border-violet-200";
     if (category === "personal") return "bg-blue-100 text-blue-900 border-blue-200";
+    if (category === "content") return "bg-amber-100 text-amber-950 border-amber-200";
     if (category === "requirements") return "bg-slate-100 text-slate-900 border-slate-200";
     return "bg-primary/20 text-primary border-primary/20";
   }
@@ -118,6 +149,7 @@ function stepPillClass(category: StepCategory, index: number, currentStep: numbe
 export interface VolunteerSignupWizardProps {
   variant: "page" | "gate";
   signupRoleCatalog?: RoleDescription[];
+  signupSteps?: VolunteerSignupStep[];
   profile?: Pick<
     Profile,
     | "id"
@@ -138,10 +170,11 @@ export interface VolunteerSignupWizardProps {
 export function VolunteerSignupWizard({
   variant,
   signupRoleCatalog,
+  signupSteps = [],
   profile,
   onSubmitted,
 }: VolunteerSignupWizardProps) {
-  const [step, setStep] = useState(0);
+  const [stepId, setStepId] = useState<string>("about");
   const [roleDescriptions, setRoleDescriptions] = useState<RoleDescription[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
@@ -183,6 +216,29 @@ export function VolunteerSignupWizard({
   const visibleRoleDescriptions = filterSignupRoleDescriptions(signupRoles, form.birthday);
   const needsTnvrCert = form.roles_requested.some((role) => TNVR_ROLES.includes(role));
   const isMinor = isMinorVolunteer(form.birthday);
+  const wizardSteps = useMemo(() => {
+    const contentSteps: WizardStep[] = matchingVolunteerSignupSteps(
+      signupSteps,
+      form.roles_requested
+    ).map((step) => ({
+      id: `content:${step.id}`,
+      label: step.name.trim() || step.title.trim() || "Next steps",
+      category: "content" as const,
+      description: "Information for the opportunities you selected",
+      content: step,
+    }));
+    return [...BASE_BEFORE, ...contentSteps, ...BASE_AFTER];
+  }, [form.roles_requested, signupSteps]);
+  const stepIndex = Math.max(
+    0,
+    wizardSteps.findIndex((entry) => entry.id === stepId)
+  );
+  const currentStep = wizardSteps[stepIndex] ?? wizardSteps[0];
+
+  useEffect(() => {
+    if (wizardSteps.some((entry) => entry.id === stepId)) return;
+    setStepId("roles");
+  }, [wizardSteps, stepId]);
 
   useEffect(() => {
     if (signupRoleCatalog) {
@@ -231,8 +287,8 @@ export function VolunteerSignupWizard({
     }
   }
 
-  function canAdvanceFromStep(currentStep: number) {
-    if (currentStep === 0) {
+  function canAdvanceFromStep(entry: WizardStep | undefined) {
+    if (!entry || entry.id === "about") {
       return Boolean(
         form.full_name.trim() &&
           (variant === "gate" ? true : form.email.trim()) &&
@@ -241,13 +297,10 @@ export function VolunteerSignupWizard({
           isHomeAddressComplete(form)
       );
     }
-    if (currentStep === 1) {
+    if (entry.id === "roles") {
       return form.roles_requested.length > 0;
     }
-    if (currentStep === 2) {
-      return true;
-    }
-    if (currentStep === 3) {
+    if (entry.id === "requirements") {
       return (
         liabilityOpened &&
         policyOpened &&
@@ -314,21 +367,23 @@ export function VolunteerSignupWizard({
   }
 
   const bannerTitle =
-    step === 0
+    currentStep.id === "about"
       ? "About you"
-      : step === 1
+      : currentStep.id === "roles"
         ? "Roles you are interested in"
-        : step === 2
+        : currentStep.id === "background"
           ? "Your background"
-          : "Requirements";
+          : currentStep.category === "content"
+            ? currentStep.content.title.trim() || currentStep.label
+            : "Requirements";
 
   const formBody = (
     <>
       <div className="flex flex-wrap justify-center gap-2 mb-6">
-        {STEPS.map((entry, index) => (
+        {wizardSteps.map((entry, index) => (
           <div
-            key={entry.label}
-            className={`text-xs px-2 py-1 rounded-full border ${stepPillClass(entry.category, index, step)}`}
+            key={entry.id}
+            className={`text-xs px-2 py-1 rounded-full border ${stepPillClass(entry.category, index, stepIndex)}`}
           >
             {entry.label}
           </div>
@@ -337,15 +392,15 @@ export function VolunteerSignupWizard({
 
       <Card>
         <CardContent className="pt-6 space-y-4">
-          {STEPS[step].category !== "review" && (
+          {currentStep.category !== "review" && currentStep.category !== "content" && (
             <FormSectionBanner
-              variant={STEPS[step].category}
+              variant={currentStep.category}
               title={bannerTitle}
-              description={STEPS[step].description}
+              description={currentStep.description}
             />
           )}
 
-          {step === 0 && (
+          {currentStep.id === "about" && (
             <VolunteerContactFieldsForm
               values={form as VolunteerContactFormValues}
               onChange={(values) =>
@@ -368,7 +423,7 @@ export function VolunteerSignupWizard({
             />
           )}
 
-          {step === 1 && (
+          {currentStep.id === "roles" && (
             <>
               {isMinor ? (
                 <p className="text-sm text-muted-foreground rounded-md border bg-muted/40 p-3">
@@ -405,7 +460,37 @@ export function VolunteerSignupWizard({
             </>
           )}
 
-          {step === 2 && (
+          {currentStep.category === "content" && currentStep.content ? (
+            <div className="space-y-4">
+              <div className="space-y-1">
+                <h2 className="text-lg font-semibold">
+                  {currentStep.content.title.trim() || currentStep.label}
+                </h2>
+                <p className="text-sm text-muted-foreground">{currentStep.description}</p>
+              </div>
+              {currentStep.content.body.trim() ? (
+                <div
+                  className="prose prose-sm max-w-none text-sm leading-relaxed [&_a]:text-primary [&_a]:underline [&_ul]:list-disc [&_ul]:pl-5"
+                  dangerouslySetInnerHTML={{
+                    __html: sanitizeIntakeAboutHtml(currentStep.content.body, { allowLinks: true }),
+                  }}
+                />
+              ) : null}
+              {currentStep.content.links.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {currentStep.content.links.map((link) => (
+                    <Button key={`${link.label}-${link.url}`} type="button" variant="outline" asChild>
+                      <a href={link.url} target="_blank" rel="noopener noreferrer">
+                        {link.label}
+                      </a>
+                    </Button>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+
+          {currentStep.id === "background" && (
             <>
               <div className="space-y-2">
                 <Label>Prior experience with cats or TNVR</Label>
@@ -425,7 +510,7 @@ export function VolunteerSignupWizard({
             </>
           )}
 
-          {step === 3 && (
+          {currentStep.id === "requirements" && (
             <>
               <div className="flex items-start gap-2">
                 <Checkbox
@@ -503,7 +588,7 @@ export function VolunteerSignupWizard({
             </>
           )}
 
-          {step === 4 && (
+          {currentStep.id === "review" && (
             <div className="space-y-4 text-sm">
               <div className="rounded-lg border border-blue-200 bg-blue-50/50 p-4 space-y-2">
                 <p className="font-semibold text-blue-950 flex items-center gap-2">
@@ -565,11 +650,18 @@ export function VolunteerSignupWizard({
           )}
 
           <div className="flex justify-between pt-4">
-            <Button variant="outline" onClick={() => setStep(step - 1)} disabled={step === 0}>
+            <Button
+              variant="outline"
+              onClick={() => setStepId(wizardSteps[Math.max(0, stepIndex - 1)]?.id ?? "about")}
+              disabled={stepIndex === 0}
+            >
               <ChevronLeft className="h-4 w-4" /> Back
             </Button>
-            {step < STEPS.length - 1 ? (
-              <Button onClick={() => setStep(step + 1)} disabled={!canAdvanceFromStep(step)}>
+            {stepIndex < wizardSteps.length - 1 ? (
+              <Button
+                onClick={() => setStepId(wizardSteps[stepIndex + 1]?.id ?? currentStep.id)}
+                disabled={!canAdvanceFromStep(currentStep)}
+              >
                 Next <ChevronRight className="h-4 w-4" />
               </Button>
             ) : (

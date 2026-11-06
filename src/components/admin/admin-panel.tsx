@@ -5,6 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AdminUsersManager } from "@/components/admin/admin-users-manager";
 import { BrandingSettings } from "@/components/admin/branding-settings";
 import { InquiryFormCustomFieldsEditor } from "@/components/admin/inquiry-form-custom-fields-editor";
+import { VolunteerSignupStepsEditor } from "@/components/admin/volunteer-signup-steps-editor";
 import { RoleDescriptionsManager } from "@/components/admin/role-descriptions-manager";
 import { TrapTeamsManager } from "@/components/admin/trap-teams-manager";
 import { PageHeader } from "@/components/layout/page-header";
@@ -96,6 +97,7 @@ export function AdminPanel({
         <TabsTrigger value="roles">Volunteer Roles</TabsTrigger>
         <TabsTrigger value="branding">Branding</TabsTrigger>
         <TabsTrigger value="colony-intro">Inquiry Form Custom Fields</TabsTrigger>
+        <TabsTrigger value="volunteer-signup">Volunteer Application Steps</TabsTrigger>
         <TabsTrigger value="imports">Data Import</TabsTrigger>
       </TabsList>
 
@@ -126,6 +128,13 @@ export function AdminPanel({
 
       <TabsContent value="colony-intro" className="mt-4">
         <InquiryFormCustomFieldsEditor branding={branding} />
+      </TabsContent>
+
+      <TabsContent value="volunteer-signup" className="mt-4">
+        <VolunteerSignupStepsEditor
+          branding={branding}
+          roles={roleDescriptions.filter((role) => !disabledRoleIds.includes(role.role_id))}
+        />
       </TabsContent>
 
       <TabsContent value="imports" className="mt-4 space-y-4">

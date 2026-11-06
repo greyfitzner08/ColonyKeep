@@ -5,15 +5,18 @@ import { ClipboardList } from "lucide-react";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { VolunteerSignupWizard } from "@/components/volunteers/volunteer-signup-wizard";
 import type { Profile, RoleDescription } from "@/lib/types";
+import type { VolunteerSignupStep } from "@/lib/volunteers/signup-steps";
 
 interface VolunteerApplicationGateProps {
   profile: Profile;
   signupRoleCatalog: RoleDescription[];
+  signupSteps?: VolunteerSignupStep[];
 }
 
 export function VolunteerApplicationGate({
   profile,
   signupRoleCatalog,
+  signupSteps = [],
 }: VolunteerApplicationGateProps) {
   const router = useRouter();
 
@@ -36,6 +39,7 @@ export function VolunteerApplicationGate({
           variant="gate"
           profile={profile}
           signupRoleCatalog={signupRoleCatalog}
+          signupSteps={signupSteps}
           onSubmitted={() => router.refresh()}
         />
       </div>

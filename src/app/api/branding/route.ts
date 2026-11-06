@@ -12,6 +12,7 @@ import {
   type PlatformBranding,
 } from "@/lib/branding";
 import { normalizeIntakeHelpFunnelRules } from "@/lib/intake/help-funnel";
+import { normalizeVolunteerSignupSteps } from "@/lib/volunteers/signup-steps";
 import { createServiceClient } from "@/lib/supabase/server";
 import { intakeAboutPlainText, sanitizeIntakeAboutHtml } from "@/lib/intake-about-html";
 
@@ -52,7 +53,7 @@ function validateThemeColor(value: unknown, fallback: string): string | null {
 }
 
 const BRANDING_SELECT =
-  "app_name, logo_url, logo_light_url, primary_color, sidebar_color, google_calendar_embed_url, intake_about_message, intake_donate_url, intake_donate_text, intake_help_funnel_rules, adoption_entrance_about_message, adoption_entrance_button_text, adoption_entrance_button_url, adoption_entrance_links" as const;
+  "app_name, logo_url, logo_light_url, primary_color, sidebar_color, google_calendar_embed_url, intake_about_message, intake_donate_url, intake_donate_text, intake_help_funnel_rules, volunteer_signup_steps, adoption_entrance_about_message, adoption_entrance_button_text, adoption_entrance_button_url, adoption_entrance_links" as const;
 
 export async function GET() {
   try {
@@ -151,6 +152,30 @@ export async function POST(request: NextRequest) {
 
   if ("section" in body && body.section === "intake") {
     return saveIntakeIntro(body, profile!.id);
+  }
+
+  if ("section" in body && body.section === "volunteer-signup") {
+    const steps = normalizeVolunteerSignupSteps(
+      (body as { volunteer_signup_steps?: unknown }).volunteer_signup_steps
+    );
+    const service = await createServiceClient();
+    const { data, error } = await service
+      .from("platform_branding")
+      .update({
+        volunteer_signup_steps: steps,
+        updated_by: profile!.id,
+      })
+      .eq("id", 1)
+      .select(BRANDING_SELECT)
+      .maybeSingle();
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
+    if (!data) {
+      return NextResponse.json({ error: "Branding settings were not found." }, { status: 404 });
+    }
+    return NextResponse.json({ branding: normalizePlatformBranding(data) });
   }
 
   const appName = validateName((body as { app_name?: unknown }).app_name);

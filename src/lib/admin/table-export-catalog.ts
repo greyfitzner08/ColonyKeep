@@ -410,6 +410,7 @@ export const EXPORTABLE_TABLES: ExportableTable[] = [
       { id: "intake_donate_url", label: "inquiry donate url" },
       { id: "intake_donate_text", label: "inquiry donate button" },
       { id: "intake_help_funnel_rules", label: "inquiry help funnel rules" },
+      { id: "volunteer_signup_steps", label: "volunteer application steps" },
       { id: "adoption_entrance_about_message", label: "rescue about us" },
       { id: "adoption_entrance_button_text", label: "rescue about button" },
       { id: "adoption_entrance_button_url", label: "rescue about button link" },

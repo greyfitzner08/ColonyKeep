@@ -8,6 +8,7 @@ import { AppShellFrame } from "@/components/layout/app-shell-frame";
 import { isKnownUserRole } from "@/lib/constants";
 import { hasSupabaseServerConfig } from "@/lib/supabase/env";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
+import { getPlatformBranding } from "@/lib/branding-server";
 import { fetchVolunteerRoleCatalogInputs } from "@/lib/volunteers/load-role-catalog";
 import {
   isApplicationPendingReview,
@@ -80,10 +81,12 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
       const { signupCatalog } = await fetchVolunteerRoleCatalogInputs(supabase);
       signupRoleCatalog = signupCatalog;
     }
+    const branding = await getPlatformBranding();
     return (
       <VolunteerApplicationGate
         profile={effectiveProfile}
         signupRoleCatalog={signupRoleCatalog}
+        signupSteps={branding.volunteer_signup_steps}
       />
     );
   }
