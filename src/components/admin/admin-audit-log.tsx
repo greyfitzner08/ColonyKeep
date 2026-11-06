@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -31,7 +30,7 @@ function actorLabel(event: AuditEvent) {
 }
 
 function sourceLabel(source: string) {
-  if (source === "case_history") return "Case history";
+  if (source === "login") return "Sign-in";
   if (source === "api") return "App action";
   return source;
 }
@@ -82,9 +81,10 @@ export function AdminAuditLog() {
       <div className="space-y-1">
         <h2 className="text-lg font-semibold">Audit log</h2>
         <p className="text-sm text-muted-foreground">
-          Admin-only record of actions. Case history already on file is included. New saves,
-          claims, approvals, and other changes are added as they happen. This log does not include
-          page views.
+          Admin-only record of sign-ins and changes made outside a case. Notes, claims, and other
+          updates that already show on a case are not listed here. Page views are not included.
+          Sign-ins already on record are the latest one saved for each person; new sign-ins are
+          added as they happen.
         </p>
       </div>
 
@@ -98,7 +98,7 @@ export function AdminAuditLog() {
         <Input
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          placeholder="Search person, case, or action"
+          placeholder="Search person or action"
           className="h-9 w-full sm:w-72"
           aria-label="Search audit log"
         />
@@ -108,8 +108,8 @@ export function AdminAuditLog() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All activity</SelectItem>
+            <SelectItem value="login">Sign-ins</SelectItem>
             <SelectItem value="api">App actions</SelectItem>
-            <SelectItem value="case_history">Case history</SelectItem>
           </SelectContent>
         </Select>
         <Button type="submit" size="sm" variant="outline">
@@ -130,14 +130,7 @@ export function AdminAuditLog() {
             </tr>
           </thead>
           <tbody>
-            {events.map((event) => {
-              const caseHref =
-                event.entity_type === "case" && event.entity_id
-                  ? `/case/${event.entity_id}`
-                  : event.path?.startsWith("/case/")
-                    ? event.path
-                    : null;
-              return (
+            {events.map((event) => (
                 <tr key={event.id} className="border-b last:border-b-0 align-top">
                   <td className="whitespace-nowrap px-3 py-2 text-muted-foreground">
                     {formatDateTime(event.occurred_at)}
@@ -148,21 +141,12 @@ export function AdminAuditLog() {
                       <p className="text-xs text-muted-foreground">{event.actor_email}</p>
                     ) : null}
                   </td>
-                  <td className="px-3 py-2">
-                    {caseHref ? (
-                      <Link href={caseHref} className="text-primary hover:underline">
-                        {event.summary}
-                      </Link>
-                    ) : (
-                      event.summary
-                    )}
-                  </td>
+                  <td className="px-3 py-2">{event.summary}</td>
                   <td className="whitespace-nowrap px-3 py-2 text-muted-foreground">
                     {sourceLabel(event.source)}
                   </td>
                 </tr>
-              );
-            })}
+              ))}
             {!loading && events.length === 0 ? (
               <tr>
                 <td colSpan={4} className="px-3 py-8 text-center text-muted-foreground">

@@ -25,9 +25,16 @@ export async function GET(request: NextRequest) {
     .order("occurred_at", { ascending: false })
     .limit(PAGE_SIZE);
 
-  if (source === "api" || source === "case_history") {
+  if (source === "api" || source === "login") {
     query = query.eq("source", source);
   }
+  query = query
+    .neq("source", "case_history")
+    .not("path", "like", "/case/%")
+    .not("path", "like", "/api/help-requests%")
+    .not("path", "like", "/api/cats%")
+    .not("path", "like", "/api/appointments%")
+    .not("path", "like", "/api/public/case-progress%");
   if (before) {
     query = query.lt("occurred_at", before);
   }

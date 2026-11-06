@@ -11,7 +11,7 @@ import {
   getVolunteerApplicationStatusByEmail,
   isVolunteerLoginBlockedStatus,
 } from "@/lib/volunteers/login-access";
-import { recordApiAudit } from "@/lib/audit/record-api-audit";
+import { recordApiAudit, trackLogin } from "@/lib/audit/record-api-audit";
 import type { Profile } from "@/lib/types";
 
 const PUBLIC_ROUTES = [
@@ -87,11 +87,20 @@ export async function updateSession(request: NextRequest) {
 
   if (isApi) {
     await recordApiAudit(request, user);
+    return supabaseResponse;
   }
 
-  // Public pages and APIs handle their own access rules — never redirect to the dashboard.
-  if (isPublic || isApi) {
-    return supabaseResponse;
+  const stampLogin = user
+    ? await trackLogin(
+        request,
+        user,
+        (await supabase.auth.getSession()).data.session?.access_token ?? null
+      )
+    : (response: NextResponse) => response;
+
+  // Public pages handle their own access rules — never redirect to the dashboard.
+  if (isPublic) {
+    return stampLogin(supabaseResponse);
   }
 
   if (!user) {
@@ -130,16 +139,16 @@ export async function updateSession(request: NextRequest) {
       const url = request.nextUrl.clone();
       url.pathname = "/set-password";
       url.search = "";
-      return NextResponse.redirect(url);
+      return stampLogin(NextResponse.redirect(url));
     }
 
     if (!canAccessRoute(profile as Profile, pathname)) {
       const url = request.nextUrl.clone();
       url.pathname = "/";
       url.search = "";
-      return NextResponse.redirect(url);
+      return stampLogin(NextResponse.redirect(url));
     }
   }
 
-  return supabaseResponse;
+  return stampLogin(supabaseResponse);
 }
