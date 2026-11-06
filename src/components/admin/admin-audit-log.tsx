@@ -10,7 +10,24 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { formatDateTime } from "@/lib/utils";
+
+const EASTERN_TIME_ZONE = "America/New_York";
+
+function formatAuditWhen(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: EASTERN_TIME_ZONE,
+    month: "2-digit",
+    day: "2-digit",
+    year: "2-digit",
+    hour: "numeric",
+    minute: "2-digit",
+  }).formatToParts(date);
+  const part = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((item) => item.type === type)?.value ?? "";
+  return `${part("month")}/${part("day")}/${part("year")} ${part("hour")}:${part("minute")} ${part("dayPeriod")} (EST)`;
+}
 
 interface AuditEvent {
   id: string;
@@ -119,43 +136,64 @@ export function AdminAuditLog() {
 
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
 
-      <div className="overflow-hidden rounded-lg border">
-        <table className="w-full text-sm">
-          <thead className="border-b bg-muted/40 text-left text-xs text-muted-foreground">
-            <tr>
-              <th className="px-3 py-2 font-medium">When</th>
-              <th className="px-3 py-2 font-medium">Who</th>
-              <th className="px-3 py-2 font-medium">Action</th>
-              <th className="px-3 py-2 font-medium">Source</th>
-            </tr>
-          </thead>
-          <tbody>
-            {events.map((event) => (
+      <div className="min-w-0">
+        <div className="divide-y rounded-lg border md:hidden">
+          {events.map((event) => (
+            <article key={event.id} className="space-y-1 px-3 py-3">
+              <p className="text-xs text-muted-foreground">{formatAuditWhen(event.occurred_at)}</p>
+              <p className="break-words font-medium">{actorLabel(event)}</p>
+              <p className="break-words text-sm">{event.summary}</p>
+              <p className="break-words text-xs text-muted-foreground">
+                {sourceLabel(event.source)}
+                {event.actor_name && event.actor_email ? ` · ${event.actor_email}` : ""}
+              </p>
+            </article>
+          ))}
+          {!loading && events.length === 0 ? (
+            <p className="px-3 py-8 text-center text-sm text-muted-foreground">
+              No audit events match this view.
+            </p>
+          ) : null}
+        </div>
+
+        <div className="hidden overflow-x-auto rounded-lg border md:block">
+          <table className="w-full min-w-[40rem] text-sm">
+            <thead className="border-b bg-muted/40 text-left text-xs text-muted-foreground">
+              <tr>
+                <th className="px-3 py-2 font-medium">When</th>
+                <th className="px-3 py-2 font-medium">Who</th>
+                <th className="px-3 py-2 font-medium">Action</th>
+                <th className="px-3 py-2 font-medium">Source</th>
+              </tr>
+            </thead>
+            <tbody>
+              {events.map((event) => (
                 <tr key={event.id} className="border-b last:border-b-0 align-top">
                   <td className="whitespace-nowrap px-3 py-2 text-muted-foreground">
-                    {formatDateTime(event.occurred_at)}
+                    {formatAuditWhen(event.occurred_at)}
                   </td>
                   <td className="px-3 py-2">
-                    <p>{actorLabel(event)}</p>
+                    <p className="break-words">{actorLabel(event)}</p>
                     {event.actor_name && event.actor_email ? (
-                      <p className="text-xs text-muted-foreground">{event.actor_email}</p>
+                      <p className="break-all text-xs text-muted-foreground">{event.actor_email}</p>
                     ) : null}
                   </td>
-                  <td className="px-3 py-2">{event.summary}</td>
+                  <td className="px-3 py-2 break-words">{event.summary}</td>
                   <td className="whitespace-nowrap px-3 py-2 text-muted-foreground">
                     {sourceLabel(event.source)}
                   </td>
                 </tr>
               ))}
-            {!loading && events.length === 0 ? (
-              <tr>
-                <td colSpan={4} className="px-3 py-8 text-center text-muted-foreground">
-                  No audit events match this view.
-                </td>
-              </tr>
-            ) : null}
-          </tbody>
-        </table>
+              {!loading && events.length === 0 ? (
+                <tr>
+                  <td colSpan={4} className="px-3 py-8 text-center text-muted-foreground">
+                    No audit events match this view.
+                  </td>
+                </tr>
+              ) : null}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       <div className="flex items-center gap-3">
