@@ -66,7 +66,7 @@ export function AdminPanel({
   );
 
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 max-w-full space-y-6">
       <PageHeader
         title="Admin Settings"
         description="Manage users, teams, branding, and role descriptions"
@@ -91,17 +91,19 @@ export function AdminPanel({
         }
       />
 
-    <Tabs value={tab} onValueChange={setTab}>
-      <TabsList>
-        <TabsTrigger value="users">Users</TabsTrigger>
-        <TabsTrigger value="teams">Trap Teams</TabsTrigger>
-        <TabsTrigger value="roles">Volunteer Roles</TabsTrigger>
-        <TabsTrigger value="branding">Branding</TabsTrigger>
-        <TabsTrigger value="colony-intro">Inquiry Form Custom Fields</TabsTrigger>
-        <TabsTrigger value="volunteer-signup">Volunteer Application Steps</TabsTrigger>
-        <TabsTrigger value="imports">Data Import</TabsTrigger>
-        <TabsTrigger value="audit">Audit Log</TabsTrigger>
-      </TabsList>
+    <Tabs value={tab} onValueChange={setTab} className="min-w-0 max-w-full">
+      <div className="min-w-0 max-w-full overflow-x-auto overscroll-x-contain">
+        <TabsList className="h-auto w-max max-w-none justify-start">
+          <TabsTrigger value="users" className="shrink-0">Users</TabsTrigger>
+          <TabsTrigger value="teams" className="shrink-0">Trap Teams</TabsTrigger>
+          <TabsTrigger value="roles" className="shrink-0">Volunteer Roles</TabsTrigger>
+          <TabsTrigger value="branding" className="shrink-0">Branding</TabsTrigger>
+          <TabsTrigger value="colony-intro" className="shrink-0">Inquiry Form Custom Fields</TabsTrigger>
+          <TabsTrigger value="volunteer-signup" className="shrink-0">Volunteer Application Steps</TabsTrigger>
+          <TabsTrigger value="imports" className="shrink-0">Data Import</TabsTrigger>
+          <TabsTrigger value="audit" className="shrink-0">Audit Log</TabsTrigger>
+        </TabsList>
+      </div>
 
       <TabsContent value="users" className="mt-4">
         <AdminUsersManager
