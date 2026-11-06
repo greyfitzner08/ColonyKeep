@@ -11,6 +11,7 @@ import {
   getVolunteerApplicationStatusByEmail,
   isVolunteerLoginBlockedStatus,
 } from "@/lib/volunteers/login-access";
+import { recordApiAudit } from "@/lib/audit/record-api-audit";
 import type { Profile } from "@/lib/types";
 
 const PUBLIC_ROUTES = [
@@ -83,6 +84,10 @@ export async function updateSession(request: NextRequest) {
   );
   const isApi = pathname.startsWith("/api/");
   const isPublicHome = pathname === "/";
+
+  if (isApi) {
+    await recordApiAudit(request, user);
+  }
 
   // Public pages and APIs handle their own access rules — never redirect to the dashboard.
   if (isPublic || isApi) {

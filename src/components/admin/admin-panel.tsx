@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { AdminAuditLog } from "@/components/admin/admin-audit-log";
 import { AdminUsersManager } from "@/components/admin/admin-users-manager";
 import { BrandingSettings } from "@/components/admin/branding-settings";
 import { InquiryFormCustomFieldsEditor } from "@/components/admin/inquiry-form-custom-fields-editor";
@@ -99,6 +100,7 @@ export function AdminPanel({
         <TabsTrigger value="colony-intro">Inquiry Form Custom Fields</TabsTrigger>
         <TabsTrigger value="volunteer-signup">Volunteer Application Steps</TabsTrigger>
         <TabsTrigger value="imports">Data Import</TabsTrigger>
+        <TabsTrigger value="audit">Audit Log</TabsTrigger>
       </TabsList>
 
       <TabsContent value="users" className="mt-4">
@@ -135,6 +137,10 @@ export function AdminPanel({
           branding={branding}
           roles={roleDescriptions.filter((role) => !disabledRoleIds.includes(role.role_id))}
         />
+      </TabsContent>
+
+      <TabsContent value="audit" className="mt-4">
+        <AdminAuditLog />
       </TabsContent>
 
       <TabsContent value="imports" className="mt-4 space-y-4">
