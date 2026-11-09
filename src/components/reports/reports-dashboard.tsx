@@ -61,7 +61,8 @@ type ReportBreakdown =
   | "status"
   | "clinic"
   | "totals"
-  | "detail";
+  | "detail"
+  | "emails";
 
 interface ReportBreakdownOption {
   value: ReportBreakdown;
@@ -155,6 +156,12 @@ const REPORT_FAMILIES: ReportFamily[] = [
         label: "List",
         type: "case_detail",
         hint: "One row per matching case.",
+      },
+      {
+        value: "emails",
+        label: "Reporter emails",
+        type: "reporter_emails",
+        hint: "Reporter emails for cases submitted in the date range.",
       },
     ],
   },

@@ -102,6 +102,7 @@ export type ReportType =
   | "clinic_usage"
   | "case_status_summary"
   | "case_detail"
+  | "reporter_emails"
   | "adoptable_cats_by_status"
   | "adoptable_cats_detail"
   | "adoption_applications_by_status"
@@ -856,6 +857,7 @@ export function runReport(
           count: catCount(hr),
           cats: catCount(hr),
           extra: {
+            email: hr.contact_email?.trim() || "—",
             status: statusLabel,
             zip: normalizeZip(hr.colony_zip) || "—",
             team: team?.name ?? "Unassigned",
@@ -874,7 +876,8 @@ export function runReport(
         description: "Row-level case list matching current filters.",
         columns: [
           { key: "label", label: "Case #" },
-          { key: "sublabel", label: "Contact" },
+          { key: "sublabel", label: "Reporter" },
+          { key: "extra.email", label: "Reporter email" },
           { key: "extra.status", label: "Status" },
           { key: "extra.zip", label: "ZIP" },
           { key: "extra.team", label: "Team" },
@@ -884,6 +887,48 @@ export function runReport(
         ],
         rows,
         totals: [{ label: "Cases", value: rows.length }],
+      };
+    }
+
+    case "reporter_emails": {
+      const withEmail = filtered.filter((hr) => hr.contact_email?.trim());
+      const unique = new Set(withEmail.map((hr) => hr.contact_email.trim().toLowerCase()));
+      const rows: ReportRow[] = withEmail.map((hr) => {
+        const team = teamForRequest(hr, teams);
+        const statusLabel =
+          CASE_STATUSES.find((entry) => entry.value === hr.status)?.label ?? hr.status;
+        return {
+          key: hr.id,
+          label: hr.contact_email.trim(),
+          sublabel: hr.contact_name?.trim() || "—",
+          count: 1,
+          extra: {
+            case: hr.case_number,
+            status: statusLabel,
+            zip: normalizeZip(hr.colony_zip) || "—",
+            team: team?.name ?? "Unassigned",
+            created: hr.created_at.slice(0, 10),
+          },
+        };
+      });
+      return {
+        title: "Reporter emails",
+        description:
+          "Reporter email addresses from TNVR cases submitted in the selected date range. Use From/To dates and Export CSV.",
+        columns: [
+          { key: "label", label: "Reporter email" },
+          { key: "sublabel", label: "Reporter name" },
+          { key: "extra.case", label: "Case #" },
+          { key: "extra.created", label: "Submitted" },
+          { key: "extra.status", label: "Status" },
+          { key: "extra.zip", label: "ZIP" },
+          { key: "extra.team", label: "Team" },
+        ],
+        rows,
+        totals: [
+          { label: "Cases with email", value: rows.length },
+          { label: "Unique emails", value: unique.size },
+        ],
       };
     }
 
