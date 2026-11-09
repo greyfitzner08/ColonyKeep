@@ -17,6 +17,7 @@ type CatGroupInput = {
   name?: unknown;
   names?: unknown;
   gender?: unknown;
+  ageCategory?: unknown;
   clinicName?: unknown;
   medical_notes?: unknown;
   wentToFoster?: unknown;
@@ -60,6 +61,11 @@ function parseCatGroups(
     if (gender !== "male" && gender !== "female") {
       return { error: `${label}: select male or female.` };
     }
+    const ageCategory =
+      typeof group.ageCategory === "string" ? group.ageCategory.trim().toLowerCase() : "";
+    if (ageCategory !== "adult" && ageCategory !== "kitten") {
+      return { error: `${label}: select adult or kitten.` };
+    }
     const clinicName = typeof group.clinicName === "string" ? group.clinicName.trim() : "";
     const fixedAtClinic = clinicName.length > 0;
     const wentToFoster = (group.wentToFoster ?? "") as "" | "yes" | "no";
@@ -79,6 +85,7 @@ function parseCatGroups(
 
     const shared = {
       gender,
+      age_category: ageCategory,
       medical_notes: medicalNotes,
       ...(fosterFields ?? {}),
       ...(fixedAtClinic

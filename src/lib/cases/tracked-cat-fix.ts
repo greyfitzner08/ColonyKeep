@@ -1,7 +1,11 @@
-import { clinicFixAgeBucket, summarizeCatCounts } from "@/lib/cases/cat-counts";
+import { summarizeCatCounts } from "@/lib/cases/cat-counts";
 import { fosterFieldsFromCat } from "@/lib/cases/tracked-cat-foster";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Cat } from "@/lib/types";
+
+function trackedCatAgeCategory(cat: Pick<Cat, "age_category">): "adult" | "kitten" | null {
+  return cat.age_category === "adult" || cat.age_category === "kitten" ? cat.age_category : null;
+}
 
 export const TRACKED_CAT_SYNC_ACTOR = "tracked-cat-sync";
 export const TRACKED_CAT_SYNC_NOTE = "Synced from tracked cat status";
@@ -168,7 +172,7 @@ export async function syncTrackedCatFixesForCase(
           const { error } = await service
             .from("clinic_fixes")
             .update({
-              age_category: clinicFixAgeBucket(cat.age_category),
+              age_category: trackedCatAgeCategory(cat),
               gender: parseTrackedCatGender(cat.gender),
               clinic_name: cat.clinic_name,
               fix_date: fixDateFromCat(cat),
@@ -186,7 +190,7 @@ export async function syncTrackedCatFixesForCase(
           help_request_id: helpRequestId,
           cat_id: cat.id,
           appointment_id: cat.appointment_id,
-          age_category: clinicFixAgeBucket(cat.age_category),
+          age_category: trackedCatAgeCategory(cat),
           gender: parseTrackedCatGender(cat.gender),
           clinic_name: cat.clinic_name,
           fix_date: fixDateFromCat(cat),

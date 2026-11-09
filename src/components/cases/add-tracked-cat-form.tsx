@@ -36,6 +36,7 @@ type CatGroup = {
   count: number;
   names: string[];
   gender: "" | "male" | "female";
+  ageCategory: "" | "adult" | "kitten";
   clinicName: string;
   wentToFoster: "" | "yes" | "no";
   fosterFacility: FosterFacility | "";
@@ -55,6 +56,7 @@ function newGroup(): CatGroup {
     count: 1,
     names: [""],
     gender: "",
+    ageCategory: "",
     clinicName: "",
     wentToFoster: "",
     fosterFacility: "",
@@ -121,6 +123,10 @@ export function AddTrackedCatDialog({
         setError(`${label}: select male or female.`);
         return;
       }
+      if (group.ageCategory !== "adult" && group.ageCategory !== "kitten") {
+        setError(`${label}: select adult or kitten.`);
+        return;
+      }
       if (group.clinicName.trim() && !group.wentToFoster) {
         setError(`${label}: select whether these cats are going to a facility.`);
         return;
@@ -147,6 +153,7 @@ export function AddTrackedCatDialog({
           count: group.count,
           names: resizeNames(group.names, group.count).map((name) => name.trim()),
           gender: group.gender,
+          ageCategory: group.ageCategory,
           clinicName: group.clinicName.trim(),
           medical_notes: group.medicalNotes.trim(),
           wentToFoster: group.wentToFoster,
@@ -180,8 +187,8 @@ export function AddTrackedCatDialog({
         <DialogHeader>
           <DialogTitle>Add cats</DialogTitle>
           <DialogDescription>
-            Enter clinic and gender once, then how many cats. Name fields appear for each cat so you
-            do not re-enter clinic or gender.
+            Enter clinic, gender, and age once, then how many cats. Name fields appear for each cat so
+            you do not re-enter those details.
           </DialogDescription>
         </DialogHeader>
 
@@ -228,6 +235,23 @@ export function AddTrackedCatDialog({
                     <SelectContent>
                       <SelectItem value="male">Male</SelectItem>
                       <SelectItem value="female">Female</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1">
+                  <Label>Age</Label>
+                  <Select
+                    value={group.ageCategory || undefined}
+                    onValueChange={(value) =>
+                      updateGroup(group.key, { ageCategory: value as "adult" | "kitten" })
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Adult or kitten" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="adult">Adult</SelectItem>
+                      <SelectItem value="kitten">Kitten</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
