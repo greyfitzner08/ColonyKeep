@@ -186,7 +186,9 @@ function buildCaseRecords(
     if (measure === "sum_cats") {
       measureValue = omitReported
         ? 0
-        : (hr.cats_over_8_weeks ?? 0) + (hr.kittens_under_8_weeks ?? 0);
+        : typeof hr.cats_remaining === "number" && Number.isFinite(hr.cats_remaining)
+          ? Math.max(0, hr.cats_remaining)
+          : (hr.cats_over_8_weeks ?? 0) + (hr.kittens_under_8_weeks ?? 0);
     } else if (measure === "sum_adults") {
       measureValue = omitReported ? 0 : (hr.cats_over_8_weeks ?? 0);
     } else if (measure === "sum_kittens") {
