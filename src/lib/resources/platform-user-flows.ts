@@ -162,6 +162,6 @@ Community/event participation, not trap cases. Interests help organizers know wh
 5. **Idle claims** (21+ days without updates) surface as a Trap Queue follow-up banner + sidebar dot for the claimant.
 6. **Events** is the shared calendar path for all volunteers (shift sign-ups optional when enabled).
 7. **Contact sharing** is opt-in on My Profile (everything starts hidden).
-8. **Reports** omit duplicate-closed cases so cats are not double-counted; Referred Elsewhere closed cases keep case counts but drop intake cats reported. Partial TNVR still counts reported cats. Click **Remaining vs fixed** quick reports for open-queue cats still unfixed versus TNR’d (clinic-logged or public update), by ZIP, team, or month. “Not fixed” uses each case’s remaining cat total — the same figure as the public help-request queue.
+8. **Reports** omit duplicate-closed cases so cats are not double-counted; Referred Elsewhere closed cases keep case counts but drop intake cats reported. Partial TNVR still counts reported cats. Click **Remaining vs fixed** quick reports for open-queue cats still unfixed versus TNR’d (clinic-logged or public update), by ZIP, team, or month. “Not fixed” is remaining adults plus kittens on each open case — the same figure as the public help-request queue.
 9. **Dashboard** summarizes; **queues/calendars** are where work happens.
 `;
