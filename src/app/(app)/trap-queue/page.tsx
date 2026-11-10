@@ -21,6 +21,10 @@ import { ShareRequestFormLink } from "@/components/cases/share-request-form-link
 import { PageHeader } from "@/components/layout/page-header";
 import { getServerAppUrl } from "@/lib/app-url";
 import { isClaimedTrapCase } from "@/lib/cases/statuses";
+import {
+  filterCasesByTrapQueueFlag,
+  resolveTrapQueueFlagFilter,
+} from "@/lib/cases/trap-queue-flag-filter";
 import { isTrapQueueAssignedOnly } from "@/lib/permissions";
 import type { HelpRequest } from "@/lib/types";
 
@@ -31,6 +35,7 @@ interface TrapQueuePageProps {
     team?: string;
     scope?: string;
     claimed?: string;
+    flag?: string;
     trapSchool?: string;
     needsClinicDate?: string;
     q?: string;
@@ -48,8 +53,13 @@ export default async function TrapQueuePage({ searchParams }: TrapQueuePageProps
 
   const isHistoryScope = params.scope === "history";
   const isClosedScope = params.scope === "closed";
-  const trapSchoolOnly = !isHistoryScope && params.trapSchool === "only";
-  const needsClinicDateOnly = !isHistoryScope && params.needsClinicDate === "only";
+  const flagFilter = isHistoryScope
+    ? "all"
+    : resolveTrapQueueFlagFilter({
+        flag: params.flag,
+        trapSchool: params.trapSchool,
+        needsClinicDate: params.needsClinicDate,
+      });
   const isSearching = Boolean(params.q?.trim());
   const defaultTeamScope = defaultTrapQueueTeamScope({
     role: profile?.role,
@@ -105,21 +115,10 @@ export default async function TrapQueuePage({ searchParams }: TrapQueuePageProps
       const { data: helpRequests } = await query;
       cases = (helpRequests ?? []) as HelpRequest[];
     }
-    if (trapSchoolOnly) {
-      cases = cases.filter((helpRequest) => Boolean(helpRequest.trap_school_eligible));
-    }
-    if (needsClinicDateOnly) {
-      cases = cases.filter((helpRequest) => Boolean(helpRequest.needs_clinic_date));
-    }
+    cases = filterCasesByTrapQueueFlag(cases, flagFilter);
   } else if (assignedOnly || (focus === "mine" && !isSearching)) {
     const { data: helpRequests } = await buildMyClaimsQuery(supabase, actorEmail);
-    cases = (helpRequests ?? []) as HelpRequest[];
-    if (trapSchoolOnly) {
-      cases = cases.filter((helpRequest) => Boolean(helpRequest.trap_school_eligible));
-    }
-    if (needsClinicDateOnly) {
-      cases = cases.filter((helpRequest) => Boolean(helpRequest.needs_clinic_date));
-    }
+    cases = filterCasesByTrapQueueFlag((helpRequests ?? []) as HelpRequest[], flagFilter);
   } else {
     // All Cases — or My Cases while searching (so search can find any active case).
     const query = buildTrapQueueQuery(supabase, {
@@ -136,12 +135,7 @@ export default async function TrapQueuePage({ searchParams }: TrapQueuePageProps
       cases = cases.filter((helpRequest) => !isClaimedTrapCase(helpRequest));
     }
 
-    if (trapSchoolOnly) {
-      cases = cases.filter((helpRequest) => Boolean(helpRequest.trap_school_eligible));
-    }
-    if (needsClinicDateOnly) {
-      cases = cases.filter((helpRequest) => Boolean(helpRequest.needs_clinic_date));
-    }
+    cases = filterCasesByTrapQueueFlag(cases, flagFilter);
   }
 
   const teamLabel = trapQueueTeamScopeLabel(teamScope, teams ?? [], myTeam?.name);

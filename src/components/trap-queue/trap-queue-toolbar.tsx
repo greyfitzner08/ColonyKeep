@@ -17,6 +17,10 @@ import {
   type TrapQueueFocus,
   type TrapQueueTeamScope,
 } from "@/lib/cases/trap-queue-query";
+import {
+  resolveTrapQueueFlagFilter,
+  type TrapQueueFlagFilter,
+} from "@/lib/cases/trap-queue-flag-filter";
 import type { UserRole } from "@/lib/types";
 import { sortTrapTeams } from "@/lib/trap-teams/sort-teams";
 import { cn } from "@/lib/utils";
@@ -75,9 +79,14 @@ export function TrapQueueToolbar({
     assignedOnly,
   });
 
-  const trapSchoolOnly = scope !== "history" && searchParams.get("trapSchool") === "only";
-  const needsClinicDateOnly =
-    scope !== "history" && searchParams.get("needsClinicDate") === "only";
+  const flagFilter: TrapQueueFlagFilter =
+    scope === "history"
+      ? "all"
+      : resolveTrapQueueFlagFilter({
+          flag: searchParams.get("flag"),
+          trapSchool: searchParams.get("trapSchool"),
+          needsClinicDate: searchParams.get("needsClinicDate"),
+        });
   const geographicTeams = sortTrapTeams(teams).filter((team) => !isTrapSchoolTeamName(team.name));
   const showMyTeamOption = Boolean(isTrapRole && myTeamId);
 
@@ -115,8 +124,7 @@ export function TrapQueueToolbar({
     (showWorkHistory && scope !== "queue" ? 1 : 0) +
     (!assignedOnly && scope !== "history" && teamScope !== defaultTeamScope ? 1 : 0) +
     (!assignedOnly && scope === "queue" && focus === "needs_claim" && showOthersClaimed ? 1 : 0) +
-    (trapSchoolOnly ? 1 : 0) +
-    (needsClinicDateOnly ? 1 : 0) +
+    (flagFilter !== "all" ? 1 : 0) +
     (scope !== "closed" && layout !== "cards" ? 1 : 0) +
     (scope !== "closed" && sort !== "date_asc" ? 1 : 0);
 
@@ -279,60 +287,34 @@ export function TrapQueueToolbar({
           {scope === "queue" || scope === "closed" ? (
             <div className="space-y-1.5 min-w-0">
               <Label
-                htmlFor="trap-queue-trap-school"
+                htmlFor="trap-queue-flag"
                 className="text-xs font-medium text-muted-foreground"
               >
-                Trap School
+                Flags
               </Label>
               <Select
-                value={trapSchoolOnly ? "only" : "all"}
+                value={flagFilter}
                 onValueChange={(value) =>
                   updateParams((params) => {
-                    if (value === "only") {
-                      params.set("trapSchool", "only");
+                    const next = value as TrapQueueFlagFilter;
+                    params.delete("trapSchool");
+                    params.delete("needsClinicDate");
+                    if (next === "all") {
+                      params.delete("flag");
                     } else {
-                      params.delete("trapSchool");
+                      params.set("flag", next);
                     }
                   })
                 }
               >
-                <SelectTrigger id="trap-queue-trap-school" className="h-9 w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All colonies</SelectItem>
-                  <SelectItem value="only">Trap School only</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          ) : null}
-
-          {scope === "queue" || scope === "closed" ? (
-            <div className="space-y-1.5 min-w-0">
-              <Label
-                htmlFor="trap-queue-clinic-date"
-                className="text-xs font-medium text-muted-foreground"
-              >
-                Clinic date
-              </Label>
-              <Select
-                value={needsClinicDateOnly ? "only" : "all"}
-                onValueChange={(value) =>
-                  updateParams((params) => {
-                    if (value === "only") {
-                      params.set("needsClinicDate", "only");
-                    } else {
-                      params.delete("needsClinicDate");
-                    }
-                  })
-                }
-              >
-                <SelectTrigger id="trap-queue-clinic-date" className="h-9 w-full">
+                <SelectTrigger id="trap-queue-flag" className="h-9 w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All cases</SelectItem>
-                  <SelectItem value="only">Needs Clinic Date only</SelectItem>
+                  <SelectItem value="medical">Medical only</SelectItem>
+                  <SelectItem value="trapSchool">Trap School only</SelectItem>
+                  <SelectItem value="clinicDate">Needs Clinic Date only</SelectItem>
                 </SelectContent>
               </Select>
             </div>
