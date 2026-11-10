@@ -9,6 +9,7 @@ export type IntakeSortKey =
   | "worker_asc"
   | "worker_desc"
   | "medical_first"
+  | "needs_clinic_date_first"
   | "trap_school_first";
 
 export const INTAKE_SORT_OPTIONS: { value: IntakeSortKey; label: string }[] = [
@@ -19,6 +20,7 @@ export const INTAKE_SORT_OPTIONS: { value: IntakeSortKey; label: string }[] = [
   { value: "worker_asc", label: "Working (A–Z)" },
   { value: "worker_desc", label: "Working (Z–A)" },
   { value: "medical_first", label: "Medical first" },
+  { value: "needs_clinic_date_first", label: "Needs Clinic Date first" },
   { value: "trap_school_first", label: "Trap School first" },
 ];
 
@@ -89,6 +91,13 @@ export function sortIntakeCases(cases: HelpRequest[], sortKey: IntakeSortKey): H
         if (aMedical && !bMedical) return -1;
         if (!aMedical && bMedical) return 1;
         return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      }
+      case "needs_clinic_date_first": {
+        const aNeeds = Boolean(a.needs_clinic_date);
+        const bNeeds = Boolean(b.needs_clinic_date);
+        if (aNeeds && !bNeeds) return -1;
+        if (!aNeeds && bNeeds) return 1;
+        return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
       }
       case "trap_school_first": {
         const aSchool = Boolean(a.trap_school_eligible);

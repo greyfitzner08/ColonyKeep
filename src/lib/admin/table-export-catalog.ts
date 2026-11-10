@@ -358,6 +358,7 @@ export const EXPORTABLE_TABLES: ExportableTable[] = [
       { id: "medical_flags", label: "medical flags" },
       { id: "medical_flag_dismissed", label: "medical flag dismissed" },
       { id: "medical_flag_forced", label: "medical flag forced" },
+      { id: "needs_clinic_date", label: "Needs clinic date" },
       { id: "history_log", label: "history log" },
       { id: "colony_lat", label: "colony lat" },
       { id: "colony_lng", label: "colony lng" },

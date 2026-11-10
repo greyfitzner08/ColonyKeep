@@ -19,6 +19,7 @@ import { formatColonyCardLocation } from "@/lib/cases/colony-notes";
 import { hasActiveMedicalFlag } from "@/lib/medical-flags";
 import { CaseFollowUpIndicator } from "@/components/cases/case-follow-up-indicator";
 import { ClaimantReviewFlag } from "@/components/cases/claimant-review-flag";
+import { NeedsClinicDateFlag } from "@/components/cases/needs-clinic-date-flag";
 import type { HelpRequest } from "@/lib/types";
 import { cn, formatDate } from "@/lib/utils";
 
@@ -105,6 +106,7 @@ export function CaseCard({
                   Medical
                 </Badge>
               )}
+              <NeedsClinicDateFlag helpRequest={hr} className="text-xs" />
               {hr.trap_school_eligible ? (
                 <Badge variant="outline" className="text-xs whitespace-nowrap">
                   Trap School

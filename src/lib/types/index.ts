@@ -192,6 +192,8 @@ export interface HelpRequest {
   medical_flags: MedicalFlag[];
   medical_flag_dismissed: boolean;
   medical_flag_forced: boolean;
+  /** Manual flag: case still needs a clinic appointment date. */
+  needs_clinic_date?: boolean;
   outcome: string | null;
   closure_notes: string | null;
   contact_first_name: string | null;

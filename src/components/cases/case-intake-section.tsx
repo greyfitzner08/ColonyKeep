@@ -10,6 +10,7 @@ import { CaseFollowUpAlert } from "@/components/cases/case-follow-up-alert";
 import { CaseHistorySection } from "@/components/cases/case-history-section";
 import { InfoRow } from "@/components/cases/case-detail-fields";
 import { MedicalReviewActions } from "@/components/cases/medical-review-actions";
+import { NeedsClinicDateActions } from "@/components/cases/needs-clinic-date-actions";
 import {
   applyCaseLifecycleStatus,
   CASE_LIFECYCLE_STATUSES,
@@ -103,6 +104,15 @@ export function CaseIntakeSection({
           <MedicalReviewActions helpRequest={hr} />
         </CaseCollapsibleSection>
       )}
+
+      {!readOnly ? (
+        <CaseCollapsibleSection
+          title="Clinic date"
+          defaultOpen={Boolean(hr.needs_clinic_date)}
+        >
+          <NeedsClinicDateActions helpRequest={hr} />
+        </CaseCollapsibleSection>
+      ) : null}
 
       <CaseCollapsibleSection title="Case management" defaultOpen>
         <div className="space-y-4">

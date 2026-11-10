@@ -61,6 +61,7 @@ export const HELP_REQUEST_INSERT_COLUMNS = new Set([
   "medical_flags",
   "medical_flag_dismissed",
   "medical_flag_forced",
+  "needs_clinic_date",
   "outcome",
   "closure_notes",
   "resolution",

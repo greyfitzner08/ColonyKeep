@@ -76,6 +76,8 @@ export function TrapQueueToolbar({
   });
 
   const trapSchoolOnly = scope !== "history" && searchParams.get("trapSchool") === "only";
+  const needsClinicDateOnly =
+    scope !== "history" && searchParams.get("needsClinicDate") === "only";
   const geographicTeams = sortTrapTeams(teams).filter((team) => !isTrapSchoolTeamName(team.name));
   const showMyTeamOption = Boolean(isTrapRole && myTeamId);
 
@@ -114,6 +116,7 @@ export function TrapQueueToolbar({
     (!assignedOnly && scope !== "history" && teamScope !== defaultTeamScope ? 1 : 0) +
     (!assignedOnly && scope === "queue" && focus === "needs_claim" && showOthersClaimed ? 1 : 0) +
     (trapSchoolOnly ? 1 : 0) +
+    (needsClinicDateOnly ? 1 : 0) +
     (scope !== "closed" && layout !== "cards" ? 1 : 0) +
     (scope !== "closed" && sort !== "date_asc" ? 1 : 0);
 
@@ -299,6 +302,37 @@ export function TrapQueueToolbar({
                 <SelectContent>
                   <SelectItem value="all">All colonies</SelectItem>
                   <SelectItem value="only">Trap School only</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          ) : null}
+
+          {scope === "queue" || scope === "closed" ? (
+            <div className="space-y-1.5 min-w-0">
+              <Label
+                htmlFor="trap-queue-clinic-date"
+                className="text-xs font-medium text-muted-foreground"
+              >
+                Clinic date
+              </Label>
+              <Select
+                value={needsClinicDateOnly ? "only" : "all"}
+                onValueChange={(value) =>
+                  updateParams((params) => {
+                    if (value === "only") {
+                      params.set("needsClinicDate", "only");
+                    } else {
+                      params.delete("needsClinicDate");
+                    }
+                  })
+                }
+              >
+                <SelectTrigger id="trap-queue-clinic-date" className="h-9 w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All cases</SelectItem>
+                  <SelectItem value="only">Needs Clinic Date only</SelectItem>
                 </SelectContent>
               </Select>
             </div>

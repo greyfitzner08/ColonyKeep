@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import { STATUS_COLORS } from "@/lib/constants";
+import { NeedsClinicDateFlag } from "@/components/cases/needs-clinic-date-flag";
 import { hasActiveMedicalFlag } from "@/lib/medical-flags";
 import { AssignCaseButton } from "@/components/cases/assign-case-button";
 import { CaseFollowUpIndicator } from "@/components/cases/case-follow-up-indicator";
@@ -128,6 +129,7 @@ export function IntakeCaseTable({
                   Medical
                 </Badge>
               )}
+              <NeedsClinicDateFlag helpRequest={helpRequest} className="text-xs" />
               {helpRequest.trap_school_eligible ? (
                 <Badge variant="outline" className="text-xs whitespace-nowrap">
                   Trap School

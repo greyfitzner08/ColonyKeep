@@ -2,7 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { HelpRequest, HelpRequestStatus, MedicalFlag, TeamAnnouncement } from "@/lib/types";
 
 const ASSIGNED_CASE_FIELDS =
-  "id, case_number, status, claimed_by_email, claimed_by_name, assigned_team_id, contact_name, colony_address, colony_city, colony_zip, kittens_under_8_weeks, cats_over_8_weeks, medical_flags, medical_flag_dismissed, medical_flag_forced, follow_up_due_date, updated_at";
+  "id, case_number, status, claimed_by_email, claimed_by_name, assigned_team_id, contact_name, colony_address, colony_city, colony_zip, kittens_under_8_weeks, cats_over_8_weeks, medical_flags, medical_flag_dismissed, medical_flag_forced, needs_clinic_date, follow_up_due_date, updated_at";
 
 const MEMBER_CASE_FIELDS =
   "id, case_number, status, claimed_by_email, claimed_by_name, assigned_team_id";
@@ -20,6 +20,7 @@ export interface TrapTeamUnclaimedCase {
   medical_flags: MedicalFlag[];
   medical_flag_dismissed: boolean;
   medical_flag_forced: boolean;
+  needs_clinic_date: boolean;
   follow_up_due_date: string | null;
   updated_at: string;
 }
@@ -124,6 +125,7 @@ export async function fetchTrapTeamDashboardData(
       medical_flags: c.medical_flags ?? [],
       medical_flag_dismissed: c.medical_flag_dismissed ?? false,
       medical_flag_forced: c.medical_flag_forced ?? false,
+      needs_clinic_date: Boolean(c.needs_clinic_date),
       follow_up_due_date: c.follow_up_due_date ?? null,
       updated_at: c.updated_at,
     }));

@@ -32,6 +32,7 @@ interface TrapQueuePageProps {
     scope?: string;
     claimed?: string;
     trapSchool?: string;
+    needsClinicDate?: string;
     q?: string;
   }>;
 }
@@ -48,6 +49,7 @@ export default async function TrapQueuePage({ searchParams }: TrapQueuePageProps
   const isHistoryScope = params.scope === "history";
   const isClosedScope = params.scope === "closed";
   const trapSchoolOnly = !isHistoryScope && params.trapSchool === "only";
+  const needsClinicDateOnly = !isHistoryScope && params.needsClinicDate === "only";
   const isSearching = Boolean(params.q?.trim());
   const defaultTeamScope = defaultTrapQueueTeamScope({
     role: profile?.role,
@@ -106,11 +108,17 @@ export default async function TrapQueuePage({ searchParams }: TrapQueuePageProps
     if (trapSchoolOnly) {
       cases = cases.filter((helpRequest) => Boolean(helpRequest.trap_school_eligible));
     }
+    if (needsClinicDateOnly) {
+      cases = cases.filter((helpRequest) => Boolean(helpRequest.needs_clinic_date));
+    }
   } else if (assignedOnly || (focus === "mine" && !isSearching)) {
     const { data: helpRequests } = await buildMyClaimsQuery(supabase, actorEmail);
     cases = (helpRequests ?? []) as HelpRequest[];
     if (trapSchoolOnly) {
       cases = cases.filter((helpRequest) => Boolean(helpRequest.trap_school_eligible));
+    }
+    if (needsClinicDateOnly) {
+      cases = cases.filter((helpRequest) => Boolean(helpRequest.needs_clinic_date));
     }
   } else {
     // All Cases — or My Cases while searching (so search can find any active case).
@@ -130,6 +138,9 @@ export default async function TrapQueuePage({ searchParams }: TrapQueuePageProps
 
     if (trapSchoolOnly) {
       cases = cases.filter((helpRequest) => Boolean(helpRequest.trap_school_eligible));
+    }
+    if (needsClinicDateOnly) {
+      cases = cases.filter((helpRequest) => Boolean(helpRequest.needs_clinic_date));
     }
   }
 

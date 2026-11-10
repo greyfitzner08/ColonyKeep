@@ -14,6 +14,7 @@ import {
   intakeClaimGateMessage,
 } from "@/lib/cases/intake-claim-gate";
 import { ClaimantReviewFlag } from "@/components/cases/claimant-review-flag";
+import { NeedsClinicDateFlag } from "@/components/cases/needs-clinic-date-flag";
 import { AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { canAddCaseHistoryNote } from "@/lib/cases/case-permissions";
@@ -134,6 +135,7 @@ export default async function CasePage({ params }: CasePageProps) {
                 <AlertTriangle className="h-3 w-3" /> Medical
               </Badge>
             )}
+            <NeedsClinicDateFlag helpRequest={hr} className="text-sm" />
             {hr.trap_school_eligible ? (
               <Badge variant="outline" className="text-sm">
                 Trap School
