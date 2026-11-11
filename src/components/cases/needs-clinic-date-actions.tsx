@@ -51,7 +51,7 @@ export function NeedsClinicDateActions({
   }
 
   return (
-    <div className="space-y-3 rounded-lg border p-4">
+    <div className="space-y-3">
       <div className="flex items-center gap-2 text-sm font-medium">
         <CalendarClock className="h-4 w-4" />
         Clinic date

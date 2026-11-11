@@ -38,7 +38,7 @@ export function MedicalReviewActions({ helpRequest, compact = false }: MedicalRe
 
   if (pending) {
     return (
-      <div className={compact ? "space-y-2" : "rounded-lg border border-destructive/30 bg-destructive/5 p-4 space-y-3"}>
+      <div className={compact ? "space-y-2" : "space-y-3"}>
         {!compact && (
           <div className="flex items-center gap-2 text-sm font-medium text-destructive">
             <AlertTriangle className="h-4 w-4" />
@@ -77,7 +77,7 @@ export function MedicalReviewActions({ helpRequest, compact = false }: MedicalRe
   if (compact) return null;
 
   return (
-    <div className="rounded-lg border p-4 space-y-3">
+    <div className="space-y-3">
       <p className="text-sm font-medium">Medical status</p>
       <p className="text-sm text-muted-foreground">
         {active
