@@ -53,8 +53,23 @@ export function parseTrackedCatGender(
   return null;
 }
 
-function fixDateFromCat(cat: Pick<Cat, "return_date" | "trap_date">) {
-  return cat.return_date ?? cat.trap_date ?? new Date().toISOString().split("T")[0];
+function calendarDayFromTimestamp(value: string | null | undefined): string | null {
+  if (!value) return null;
+  const trimmed = value.trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
+  const match = /^(\d{4}-\d{2}-\d{2})/.exec(trimmed);
+  return match?.[1] ?? null;
+}
+
+/** Prefer the cat’s known clinic/trap day; never invent “today” on re-sync. */
+function fixDateFromCat(
+  cat: Pick<Cat, "return_date" | "trap_date" | "created_at">
+): string | null {
+  return (
+    calendarDayFromTimestamp(cat.return_date) ??
+    calendarDayFromTimestamp(cat.trap_date) ??
+    calendarDayFromTimestamp(cat.created_at)
+  );
 }
 
 export async function updateHelpRequestCatCounts(
@@ -133,14 +148,21 @@ export async function syncTrackedCatFixesForCase(
 
   const { data: fixes, error: fixesError } = await service
     .from("clinic_fixes")
-    .select("id, cat_id, appointment_id, logged_by")
+    .select("id, cat_id, appointment_id, logged_by, fix_date")
     .eq("help_request_id", helpRequestId);
 
   if (fixesError) {
     throw new Error(fixesError.message);
   }
 
-  const fixRows = fixes ?? [];
+  type SyncFixRow = {
+    id: string;
+    cat_id: string | null;
+    appointment_id: string | null;
+    logged_by: string | null;
+    fix_date: string | null;
+  };
+  const fixRows = (fixes ?? []) as SyncFixRow[];
 
   for (const cat of (cats ?? []) as Cat[]) {
     const fixed = isTrackedCatClinicFixed(cat);
@@ -162,20 +184,25 @@ export async function syncTrackedCatFixesForCase(
       }
 
       if (existingByCat || existingByAppointment) {
-        const fixId = existingByCat?.id ?? existingByAppointment?.id;
+        const existing = existingByCat ?? existingByAppointment;
+        const fixId = existing?.id;
         if (
           fixed &&
           fixId &&
-          (existingByCat?.logged_by === TRACKED_CAT_SYNC_ACTOR ||
-            existingByAppointment?.logged_by === TRACKED_CAT_SYNC_ACTOR)
+          existing &&
+          existing.logged_by === TRACKED_CAT_SYNC_ACTOR
         ) {
+          const explicitDate =
+            calendarDayFromTimestamp(cat.return_date) ??
+            calendarDayFromTimestamp(cat.trap_date);
           const { error } = await service
             .from("clinic_fixes")
             .update({
               age_category: trackedCatAgeCategory(cat),
               gender: parseTrackedCatGender(cat.gender),
               clinic_name: cat.clinic_name,
-              fix_date: fixDateFromCat(cat),
+              // Never rewrite an existing day to "today" when the cat has no date.
+              ...(explicitDate ? { fix_date: explicitDate } : {}),
               ...fosterFieldsFromCat(cat),
             })
             .eq("id", fixId);
@@ -193,12 +220,13 @@ export async function syncTrackedCatFixesForCase(
           age_category: trackedCatAgeCategory(cat),
           gender: parseTrackedCatGender(cat.gender),
           clinic_name: cat.clinic_name,
-          fix_date: fixDateFromCat(cat),
+          fix_date:
+            fixDateFromCat(cat) ?? new Date().toISOString().split("T")[0],
           logged_by: TRACKED_CAT_SYNC_ACTOR,
           notes: null,
           ...fosterFieldsFromCat(cat),
         })
-        .select("id, cat_id, appointment_id, logged_by")
+        .select("id, cat_id, appointment_id, logged_by, fix_date")
         .single();
 
       if (insertError) {
