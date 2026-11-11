@@ -82,113 +82,116 @@ export function CaseHistorySection({
   }
 
   return (
-    <div className="space-y-4">
-      {canAddNote && (
-        <div className="rounded-lg border bg-muted/20 p-3 space-y-3">
-          <div className={cn(historyEntryClasses(previewEntry), "p-0 overflow-hidden")}>
-            <Textarea
-              id="history-note-text"
-              value={noteText}
-              onChange={(e) => setNoteText(e.target.value)}
-              rows={2}
-              className="min-h-[4.5rem] resize-y border-0 bg-transparent shadow-none focus-visible:ring-0 rounded-none text-sm"
-              placeholder={
-                notesOnly
-                  ? "Log a call, email, or inquiry update… Tag as follow-up when someone still needs contact."
-                  : "Add a note — call, visit, trap update…"
-              }
-              onKeyDown={(e) => {
-                if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
-                  e.preventDefault();
-                  void handleSubmit();
+    <CaseCollapsibleSection
+      title={notesOnly ? "Case notes" : "Timeline"}
+      description={
+        notesOnly
+          ? "Add and review intake calls, inquiry updates, and follow-ups here."
+          : `${sortedEntries.length} entr${sortedEntries.length === 1 ? "y" : "ies"}`
+      }
+      defaultOpen
+    >
+      <div className="space-y-4">
+        {canAddNote ? (
+          <div className="space-y-3 rounded-lg border bg-muted/20 p-3">
+            <div className={cn(historyEntryClasses(previewEntry), "overflow-hidden p-0")}>
+              <Textarea
+                id="history-note-text"
+                value={noteText}
+                onChange={(e) => setNoteText(e.target.value)}
+                rows={2}
+                className="min-h-[4.5rem] resize-y rounded-none border-0 bg-transparent text-sm shadow-none focus-visible:ring-0"
+                placeholder={
+                  notesOnly
+                    ? "Log a call, email, or inquiry update… Tag as follow-up when someone still needs contact."
+                    : "Add a note — call, visit, trap update…"
                 }
-              }}
-            />
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2">
-            <div
-              className="flex items-center gap-1.5 rounded-md border bg-background px-2 py-1.5"
-              role="group"
-              aria-label="Note color"
-            >
-              {HISTORY_NOTE_COLORS.map((option) => (
-                <button
-                  key={option.value}
-                  type="button"
-                  title={option.label}
-                  aria-label={option.label}
-                  aria-pressed={textColor === option.value}
-                  onClick={() => setTextColor(option.value)}
-                  className={cn(
-                    "h-6 w-6 rounded-full transition-all",
-                    HISTORY_NOTE_SWATCH[option.value],
-                    textColor === option.value &&
-                      "ring-2 ring-primary ring-offset-2 ring-offset-background scale-110"
-                  )}
-                />
-              ))}
+                onKeyDown={(e) => {
+                  if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+                    e.preventDefault();
+                    void handleSubmit();
+                  }
+                }}
+              />
             </div>
 
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className={cn(
-                "h-8 px-2.5 text-xs",
-                followUp && "border-orange-500 bg-orange-50 text-orange-950"
-              )}
-              aria-pressed={followUp}
-              onClick={() => setFollowUp((value) => !value)}
-            >
-              <Flag className="h-3.5 w-3.5 mr-1.5" />
-              Follow-up
-            </Button>
+            <div className="flex flex-wrap items-center gap-2">
+              <div
+                className="flex items-center gap-1.5 rounded-md border bg-background px-2 py-1.5"
+                role="group"
+                aria-label="Note color"
+              >
+                {HISTORY_NOTE_COLORS.map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    title={option.label}
+                    aria-label={option.label}
+                    aria-pressed={textColor === option.value}
+                    onClick={() => setTextColor(option.value)}
+                    className={cn(
+                      "h-6 w-6 rounded-full transition-all",
+                      HISTORY_NOTE_SWATCH[option.value],
+                      textColor === option.value &&
+                        "scale-110 ring-2 ring-primary ring-offset-2 ring-offset-background"
+                    )}
+                  />
+                ))}
+              </div>
 
-            <div className="ml-auto flex items-center gap-2">
               <Button
                 type="button"
+                variant="outline"
                 size="sm"
-                className="h-8"
-                onClick={() => void handleSubmit()}
-                disabled={saving || !noteText.trim()}
+                className={cn(
+                  "h-8 px-2.5 text-xs",
+                  followUp && "border-orange-500 bg-orange-50 text-orange-950"
+                )}
+                aria-pressed={followUp}
+                onClick={() => setFollowUp((value) => !value)}
               >
-                <Plus className="h-3.5 w-3.5 mr-1" />
-                {saving ? "Saving…" : "Add note"}
+                <Flag className="mr-1.5 h-3.5 w-3.5" />
+                Follow-up
               </Button>
+
+              <div className="ml-auto flex items-center gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  className="h-8"
+                  onClick={() => void handleSubmit()}
+                  disabled={saving || !noteText.trim()}
+                >
+                  <Plus className="mr-1 h-3.5 w-3.5" />
+                  {saving ? "Saving…" : "Add note"}
+                </Button>
+              </div>
             </div>
-          </div>
 
-          <div className="flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
-            <span>Saved as {authorName} · {authorEmail}</span>
-            {(followUp || textColor !== "default") && (
-              <span className="text-foreground/70">
-                ·
-                {textColor !== "default" && ` ${HISTORY_NOTE_COLORS.find((c) => c.value === textColor)?.label} text`}
-                {followUp && " · follow-up"}
+            <div className="flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
+              <span>
+                Saved as {authorName} · {authorEmail}
               </span>
-            )}
+              {(followUp || textColor !== "default") && (
+                <span className="text-foreground/70">
+                  ·
+                  {textColor !== "default" &&
+                    ` ${HISTORY_NOTE_COLORS.find((c) => c.value === textColor)?.label} text`}
+                  {followUp && " · follow-up"}
+                </span>
+              )}
+            </div>
+
+            {saveError ? <p className="text-sm text-destructive">{saveError}</p> : null}
           </div>
+        ) : null}
 
-          {saveError && (
-            <p className="text-sm text-destructive">{saveError}</p>
-          )}
-        </div>
-      )}
-
-      <CaseCollapsibleSection
-        title={notesOnly ? "Case notes" : "Timeline"}
-        description={
-          notesOnly
-            ? "Intake calls, inquiry updates, and follow-ups in one place."
-            : `${sortedEntries.length} entr${sortedEntries.length === 1 ? "y" : "ies"}`
-        }
-        defaultOpen
-      >
         {sortedEntries.length === 0 ? (
           <p className="text-sm text-muted-foreground">
             {notesOnly
-              ? "No notes yet. Add intake calls, inquiry updates, and follow-ups below."
+              ? canAddNote
+                ? "No notes yet. Use the box above to log calls, emails, and follow-ups."
+                : "No notes yet."
               : "No history entries yet."}
           </p>
         ) : (
@@ -202,7 +205,7 @@ export function CaseHistorySection({
                   <span className="text-xs text-muted-foreground">
                     {formatDateTime(entry.timestamp)}
                   </span>
-                  <Badge variant="outline" className="text-[10px] font-normal px-1.5 py-0">
+                  <Badge variant="outline" className="px-1.5 py-0 text-[10px] font-normal">
                     {historyEntryLabel(entry)}
                   </Badge>
                   {(entry.actor_name || entry.actor_email) && (
@@ -210,33 +213,33 @@ export function CaseHistorySection({
                       {entry.actor_name ?? entry.actor_email}
                     </span>
                   )}
-                  {entry.follow_up && (
+                  {entry.follow_up ? (
                     entry.follow_up_completed ? (
-                      <Badge className="bg-muted text-muted-foreground hover:bg-muted text-[10px] px-1.5 py-0">
+                      <Badge className="bg-muted px-1.5 py-0 text-[10px] text-muted-foreground hover:bg-muted">
                         Follow-up complete
                       </Badge>
                     ) : (
-                      <Badge className="bg-orange-100 text-orange-900 hover:bg-orange-100 text-[10px] px-1.5 py-0">
+                      <Badge className="bg-orange-100 px-1.5 py-0 text-[10px] text-orange-900 hover:bg-orange-100">
                         Follow-up
                       </Badge>
                     )
-                  )}
+                  ) : null}
                   {canResolveFollowUp &&
-                    entry.follow_up &&
-                    !entry.follow_up_completed &&
-                    onResolveFollowUp && (
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        className="ml-auto h-7 px-2 text-[11px]"
-                        disabled={resolvingFollowUp}
-                        onClick={() => void onResolveFollowUp(entry)}
-                      >
-                        <CheckCircle2 className="h-3 w-3 mr-1" />
-                        Mark complete
-                      </Button>
-                    )}
+                  entry.follow_up &&
+                  !entry.follow_up_completed &&
+                  onResolveFollowUp ? (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="ml-auto h-7 px-2 text-[11px]"
+                      disabled={resolvingFollowUp}
+                      onClick={() => void onResolveFollowUp(entry)}
+                    >
+                      <CheckCircle2 className="mr-1 h-3 w-3" />
+                      Mark complete
+                    </Button>
+                  ) : null}
                 </div>
                 <p className="whitespace-pre-wrap text-sm leading-relaxed">
                   {historyEntryBody(entry)}
@@ -245,7 +248,7 @@ export function CaseHistorySection({
             ))}
           </div>
         )}
-      </CaseCollapsibleSection>
-    </div>
+      </div>
+    </CaseCollapsibleSection>
   );
 }
