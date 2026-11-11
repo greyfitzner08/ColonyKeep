@@ -93,7 +93,7 @@ export function CaseHistorySection({
     >
       <div className="space-y-4">
         {canAddNote ? (
-          <div className="space-y-3 rounded-lg border bg-muted/20 p-3">
+          <div className="space-y-3">
             <div className={cn(historyEntryClasses(previewEntry), "overflow-hidden p-0")}>
               <Textarea
                 id="history-note-text"
