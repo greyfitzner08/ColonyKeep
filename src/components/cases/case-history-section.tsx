@@ -86,7 +86,7 @@ export function CaseHistorySection({
       title={notesOnly ? "Case notes" : "Timeline"}
       description={
         notesOnly
-          ? "Add and review intake calls, inquiry updates, and follow-ups here."
+          ? undefined
           : `${sortedEntries.length} entr${sortedEntries.length === 1 ? "y" : "ies"}`
       }
       defaultOpen
