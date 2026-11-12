@@ -417,8 +417,13 @@ export function CaseDetailTabs({
           cats={cats}
           savingFeeder={savingFeeder}
           canLogClinicFix={canLogClinicFix && !readOnly}
+          canEditReportedCounts={userRole === "admin"}
           readOnly={readOnly}
           onFeederChange={handleFeederChange}
+          onReportedCountsChange={(next) => {
+            setHr(next);
+            router.refresh();
+          }}
           onCatUpdated={updateCat}
           onCatAdded={addCat}
           onCatRemoved={removeCat}

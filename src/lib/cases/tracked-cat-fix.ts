@@ -74,7 +74,11 @@ function fixDateFromCat(
 
 export async function updateHelpRequestCatCounts(
   service: SupabaseClient,
-  helpRequestId: string
+  helpRequestId: string,
+  options?: {
+    /** When true, recompute remaining from reported − fixed (ignore stored age split). */
+    ignoreStoredRemaining?: boolean;
+  }
 ) {
   const { data: helpRequest, error: fetchError } = await service
     .from("help_requests")
@@ -106,7 +110,15 @@ export async function updateHelpRequestCatCounts(
     throw new Error(catsError.message);
   }
 
-  const counts = summarizeCatCounts(helpRequest, fixes ?? [], cats ?? []);
+  const forSummary = options?.ignoreStoredRemaining
+    ? {
+        ...helpRequest,
+        cats_over_8_weeks: null,
+        kittens_under_8_weeks: null,
+      }
+    : helpRequest;
+
+  const counts = summarizeCatCounts(forSummary, fixes ?? [], cats ?? []);
   const reportedAdultsValue =
     helpRequest.reported_cats_over_8_weeks ??
     counts.unfixedAdults + counts.fixedAdults + Math.max(0, counts.outcomeAcc);
@@ -131,6 +143,15 @@ export async function updateHelpRequestCatCounts(
   if (updateError) {
     throw new Error(updateError.message);
   }
+
+  return {
+    reported_cats_over_8_weeks: reportedAdultsValue,
+    reported_kittens_under_8_weeks: reportedKittensValue,
+    cats_over_8_weeks: counts.unfixedAdults,
+    kittens_under_8_weeks: counts.unfixedKittens,
+    cats_remaining: counts.unfixedTotal,
+    outcome_tnvr_count: outcomeTnvr,
+  };
 }
 
 export async function syncTrackedCatFixesForCase(

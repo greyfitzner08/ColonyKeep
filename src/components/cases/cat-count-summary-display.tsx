@@ -175,9 +175,9 @@ export function CatCountSummaryDisplay({ counts, pregnantCount }: CatCountSummar
       </div>
 
       <p className="border-t px-4 py-2 text-xs text-muted-foreground">
-        Originally reported stays as the intake count unless more cats are found. Fixed cats
-        (clinic or public TNR) and cats that died, moved, or were rehomed no longer count toward
-        still need fixing. Cats still waiting for TNR are not an “other” outcome.
+        Originally reported is the intake count (or an admin correction). Fixed cats (clinic or
+        public TNR) and cats that died, moved, or were rehomed no longer count toward still need
+        fixing. Cats still waiting for TNR are not an “other” outcome.
       </p>
 
       {pregnantCount !== undefined && pregnantCount > 0 && (

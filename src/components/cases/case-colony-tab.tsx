@@ -4,6 +4,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import { CaseCollapsibleSection } from "@/components/cases/case-collapsible-section";
 import { CaseFeederSection } from "@/components/cases/case-feeder-section";
 import { CatCountSummaryDisplay } from "@/components/cases/cat-count-summary-display";
+import { EditReportedCatCounts } from "@/components/cases/edit-reported-cat-counts";
 import { InfoRow } from "@/components/cases/case-detail-fields";
 import { AddTrackedCatDialog } from "@/components/cases/add-tracked-cat-form";
 import { ClinicFixSummary } from "@/components/cases/clinic-fix-summary";
@@ -15,7 +16,7 @@ import type { Cat, ClinicFix, HelpRequest } from "@/lib/types";
 import { Info, Plus } from "lucide-react";
 
 const CAT_COUNTS_HELP =
-  "Originally reported is the intake count. Still need fixing is cats not yet TNR’d. Other / no longer need TNR is only cats that died, moved, or were rehomed — not the cats left to trap.";
+  "Originally reported is the intake count (admins can correct typos). Still need fixing is cats not yet TNR’d. Other / no longer need TNR is only cats that died, moved, or were rehomed — not the cats left to trap.";
 
 function CatCountsInfoTip() {
   const [open, setOpen] = useState(false);
@@ -72,8 +73,10 @@ interface CaseColonyTabProps {
   cats: Cat[];
   savingFeeder?: boolean;
   canLogClinicFix: boolean;
+  canEditReportedCounts?: boolean;
   readOnly?: boolean;
   onFeederChange: (next: HelpRequest) => void;
+  onReportedCountsChange?: (next: HelpRequest) => void;
   onCatUpdated: (cat: Cat) => void;
   onCatAdded: (cat: Cat) => void;
   onCatRemoved: (catId: string) => void;
@@ -85,8 +88,10 @@ export function CaseColonyTab({
   cats,
   savingFeeder = false,
   canLogClinicFix,
+  canEditReportedCounts = false,
   readOnly = false,
   onFeederChange,
+  onReportedCountsChange,
   onCatUpdated,
   onCatAdded,
   onCatRemoved,
@@ -129,6 +134,14 @@ export function CaseColonyTab({
         }
       >
         <CatCountSummaryDisplay counts={counts} pregnantCount={hr.pregnant_count} />
+        {canEditReportedCounts && !readOnly && onReportedCountsChange ? (
+          <EditReportedCatCounts
+            helpRequestId={hr.id}
+            adults={counts.reportedAdults}
+            kittens={counts.reportedKittens}
+            onSaved={(patch) => onReportedCountsChange({ ...hr, ...patch })}
+          />
+        ) : null}
 
         {cats.length === 0 ? (
           <p className="mt-4 text-sm text-muted-foreground">
