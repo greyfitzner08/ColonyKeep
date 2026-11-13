@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import Link from "next/link";
 import { Cat, ChevronLeft, ChevronRight, CheckCircle, User, ExternalLink } from "lucide-react";
 import { BrandMark } from "@/components/branding/brand-mark";
@@ -61,8 +61,12 @@ const STEPS = [
   {
     label: "About the Cats",
     category: "colony" as const,
-    description:
-      "How many cats are left to be fixed (TNVR’d), and what is happening at the colony. Do not count cats that are already fixed.",
+    description: (
+      <>
+        How many cats are left to be fixed (TNVR’d), and what is happening at the colony.{" "}
+        <strong>Do not count cats that are already fixed.</strong>
+      </>
+    ),
   },
   {
     label: "How You Can Help",
@@ -83,7 +87,7 @@ function FormSectionBanner({
 }: {
   variant: "reporter" | "colony";
   title: string;
-  description: string;
+  description: ReactNode;
 }) {
   const Icon = variant === "reporter" ? User : Cat;
   const styles =
