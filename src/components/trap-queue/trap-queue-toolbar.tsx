@@ -21,6 +21,10 @@ import {
   resolveTrapQueueFlagFilter,
   type TrapQueueFlagFilter,
 } from "@/lib/cases/trap-queue-flag-filter";
+import {
+  trapQueueParamsToSavedView,
+  writeTrapQueueSavedView,
+} from "@/lib/cases/trap-queue-view-storage";
 import type { UserRole } from "@/lib/types";
 import { sortTrapTeams } from "@/lib/trap-teams/sort-teams";
 import { cn } from "@/lib/utils";
@@ -31,6 +35,7 @@ interface TrapQueueToolbarProps {
   myTeamName?: string | null;
   isTrapRole: boolean;
   userRole?: UserRole | null;
+  profileId?: string | null;
   showWorkHistory?: boolean;
   layout: CaseViewMode;
   sort: IntakeSortKey;
@@ -50,6 +55,7 @@ export function TrapQueueToolbar({
   myTeamName,
   isTrapRole,
   userRole = null,
+  profileId = null,
   showWorkHistory = false,
   layout,
   sort,
@@ -103,6 +109,34 @@ export function TrapQueueToolbar({
     if (params.has("focus") || params.has("team")) {
       params.delete("view");
     }
+
+    if (profileId) {
+      const resolved = resolveTrapQueueNavigation({
+        focusParam: params.get("focus"),
+        teamParam: params.get("team"),
+        viewParam: params.get("view"),
+        claimedParam: params.get("claimed"),
+        role: userRole,
+        teamId: myTeamId,
+        hasMyClaims,
+        assignedOnly,
+      });
+      // Capture layout/sort from live controls even when URL omits defaults.
+      const paramsForSave = new URLSearchParams(params);
+      if (layout === "table") paramsForSave.set("layout", "table");
+      else paramsForSave.delete("layout");
+      paramsForSave.set("sort", sort);
+      writeTrapQueueSavedView(
+        profileId,
+        trapQueueParamsToSavedView({
+          params: paramsForSave,
+          focus: resolved.focus,
+          teamScope: resolved.teamScope,
+          showOthersClaimed: resolved.showOthersClaimed,
+        })
+      );
+    }
+
     const query = params.toString();
     router.replace(query ? `/trap-queue?${query}` : "/trap-queue", { scroll: false });
   }

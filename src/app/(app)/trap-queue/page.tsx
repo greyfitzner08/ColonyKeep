@@ -198,6 +198,7 @@ export default async function TrapQueuePage({ searchParams }: TrapQueuePageProps
           myTeamName={myTeam?.name ?? null}
           isTrapRole={isTrapRole}
           userRole={profile?.role ?? null}
+          profileId={profile?.id ?? null}
           showWorkHistory
           defaultTeamScope={defaultTeamScope}
           hasMyClaims={hasMyClaims}

@@ -11,7 +11,18 @@ import { filterCasesBySearch } from "@/lib/cases/search-cases";
 import { sortIntakeCases, type IntakeSortKey } from "@/lib/cases/sort-intake-cases";
 import type { CaseViewMode } from "@/components/cases/case-queue-view";
 import type { CaseAssigneeOption } from "@/lib/cases/case-assignees";
-import type { TrapQueueFocus, TrapQueueTeamScope } from "@/lib/cases/trap-queue-query";
+import {
+  resolveTrapQueueNavigation,
+  type TrapQueueFocus,
+  type TrapQueueTeamScope,
+} from "@/lib/cases/trap-queue-query";
+import {
+  readTrapQueueSavedView,
+  trapQueueParamsToSavedView,
+  trapQueueSavedViewToSearchParams,
+  trapQueueUrlHasViewParams,
+  writeTrapQueueSavedView,
+} from "@/lib/cases/trap-queue-view-storage";
 import type { HelpRequest, UserRole } from "@/lib/types";
 
 interface TrapQueueShellProps {
@@ -24,6 +35,7 @@ interface TrapQueueShellProps {
   myTeamName?: string | null;
   isTrapRole: boolean;
   userRole?: UserRole | null;
+  profileId?: string | null;
   showWorkHistory?: boolean;
   defaultTeamScope?: TrapQueueTeamScope;
   hasMyClaims?: boolean;
@@ -48,6 +60,7 @@ export function TrapQueueShell({
   myTeamName = null,
   isTrapRole,
   userRole = null,
+  profileId = null,
   showWorkHistory = true,
   defaultTeamScope = "all",
   hasMyClaims = false,
@@ -59,6 +72,7 @@ export function TrapQueueShell({
   const router = useRouter();
   const searchParams = useSearchParams();
   const [, startTransition] = useTransition();
+  const restoredViewRef = useRef(false);
 
   const layout = (searchParams.get("layout") === "table" ? "table" : "cards") as CaseViewMode;
   const sort = (searchParams.get("sort") ?? "date_asc") as IntakeSortKey;
@@ -75,12 +89,88 @@ export function TrapQueueShell({
     setSearchQuery(urlSearchQuery);
   }, [urlSearchQuery]);
 
+  useEffect(() => {
+    if (!profileId || restoredViewRef.current) return;
+    restoredViewRef.current = true;
+
+    const liveParams = new URLSearchParams(window.location.search);
+    if (trapQueueUrlHasViewParams(liveParams)) {
+      const resolved = resolveTrapQueueNavigation({
+        focusParam: liveParams.get("focus"),
+        teamParam: liveParams.get("team"),
+        viewParam: liveParams.get("view"),
+        claimedParam: liveParams.get("claimed"),
+        role: userRole,
+        teamId: myTeamId,
+        hasMyClaims,
+        assignedOnly,
+      });
+      writeTrapQueueSavedView(
+        profileId,
+        trapQueueParamsToSavedView({
+          params: liveParams,
+          focus: resolved.focus,
+          teamScope: resolved.teamScope,
+          showOthersClaimed: resolved.showOthersClaimed,
+        })
+      );
+      return;
+    }
+
+    const saved = readTrapQueueSavedView(profileId);
+    if (!saved) return;
+
+    // Assigned-only users can keep layout/sort/scope, but not All Cases browse params.
+    const restoredParams = trapQueueSavedViewToSearchParams(
+      assignedOnly
+        ? {
+            ...saved,
+            focus: "mine",
+            team: undefined,
+            claimed: undefined,
+          }
+        : saved
+    );
+    const existingQuery = liveParams.get("q");
+    if (existingQuery?.trim()) {
+      restoredParams.set("q", existingQuery);
+    }
+
+    const href = buildTrapQueueHref(restoredParams);
+    const currentHref = `${window.location.pathname}${window.location.search}`;
+    if (href === currentHref) return;
+    router.replace(href, { scroll: false });
+  }, [profileId, router, userRole, myTeamId, hasMyClaims, assignedOnly]);
+
   function currentParams(): URLSearchParams {
     // Prefer the live URL so soft-synced `q` survives other filter updates.
     if (typeof window !== "undefined") {
       return new URLSearchParams(window.location.search);
     }
     return new URLSearchParams(searchParams.toString());
+  }
+
+  function persistView(params: URLSearchParams) {
+    if (!profileId) return;
+    const resolved = resolveTrapQueueNavigation({
+      focusParam: params.get("focus"),
+      teamParam: params.get("team"),
+      viewParam: params.get("view"),
+      claimedParam: params.get("claimed"),
+      role: userRole,
+      teamId: myTeamId,
+      hasMyClaims,
+      assignedOnly,
+    });
+    writeTrapQueueSavedView(
+      profileId,
+      trapQueueParamsToSavedView({
+        params,
+        focus: resolved.focus,
+        teamScope: resolved.teamScope,
+        showOthersClaimed: resolved.showOthersClaimed,
+      })
+    );
   }
 
   function softSyncSearchToUrl(query: string) {
@@ -99,6 +189,7 @@ export function TrapQueueShell({
       params.delete("q");
     }
     mutate(params);
+    persistView(params);
     router.replace(buildTrapQueueHref(params), { scroll: false });
   }
 
@@ -145,6 +236,7 @@ export function TrapQueueShell({
         myTeamName={myTeamName}
         isTrapRole={isTrapRole}
         userRole={userRole}
+        profileId={profileId}
         showWorkHistory={showWorkHistory}
         layout={layout}
         sort={sort}
