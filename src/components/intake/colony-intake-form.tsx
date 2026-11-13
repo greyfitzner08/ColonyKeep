@@ -61,7 +61,8 @@ const STEPS = [
   {
     label: "About the Cats",
     category: "colony" as const,
-    description: "How many cats are there and what is happening at the colony",
+    description:
+      "How many cats are left to be fixed (TNVR’d), and what is happening at the colony. Do not count cats that are already fixed.",
   },
   {
     label: "How You Can Help",
@@ -1213,7 +1214,7 @@ export function ColonyIntakeForm({
                     </div>
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    Enter at least one cat or kitten total.
+                    Count only cats still needing TNVR. Enter at least one cat or kitten total.
                   </p>
                   {fieldErrors.cat_counts ? (
                     <p className="text-sm text-destructive">{fieldErrors.cat_counts}</p>
