@@ -531,14 +531,14 @@ export function TrapEquipmentManager({
     [currentProfileId, currentUserName, volunteerById]
   );
 
-  function handleSort(key: EquipmentSortKey) {
+  const handleSort = useCallback((key: EquipmentSortKey) => {
     if (sortKey === key) {
       setSortDirection((prev) => (prev === "asc" ? "desc" : "asc"));
       return;
     }
     setSortKey(key);
     setSortDirection("asc");
-  }
+  }, [sortKey]);
 
   const filteredRows = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
@@ -648,7 +648,7 @@ export function TrapEquipmentManager({
         </button>
       );
     },
-    [sortDirection, sortKey]
+    [handleSort, sortDirection, sortKey]
   );
 
   const equipmentColumns = useMemo((): DataTableColumn<TrapEquipmentItem>[] => {
