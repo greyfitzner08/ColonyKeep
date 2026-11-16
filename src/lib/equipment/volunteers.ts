@@ -33,6 +33,7 @@ export function buildVolunteerOptions(
       full_name: profile.full_name,
       phone: phonesByEmail.get(profile.email.toLowerCase()) ?? null,
       volunteer_roles: profile.volunteer_roles ?? [],
+      team_id: profile.team_id ?? null,
     }))
     .sort((a, b) =>
       (a.full_name ?? a.email).localeCompare(b.full_name ?? b.email, undefined, {

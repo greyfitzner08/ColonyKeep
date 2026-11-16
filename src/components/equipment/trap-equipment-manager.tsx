@@ -1050,12 +1050,22 @@ export function TrapEquipmentManager({
                 <Label>Who keeps this</Label>
                 <Select
                   value={form.assigned_to_profile_id || UNASSIGNED}
-                  onValueChange={(value) =>
+                  onValueChange={(value) => {
+                    if (value === UNASSIGNED) {
+                      setForm({
+                        ...form,
+                        assigned_to_profile_id: "",
+                      });
+                      return;
+                    }
+                    const volunteer = volunteerById.get(value);
                     setForm({
                       ...form,
-                      assigned_to_profile_id: value === UNASSIGNED ? "" : value,
-                    })
-                  }
+                      assigned_to_profile_id: value,
+                      // Match inventory team to the keeper's trap team when known.
+                      ...(volunteer?.team_id ? { team_id: volunteer.team_id } : {}),
+                    });
+                  }}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Who stores / maintains this gear?" />

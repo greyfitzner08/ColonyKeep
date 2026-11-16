@@ -122,6 +122,7 @@ export interface EquipmentVolunteerOption {
   full_name: string | null;
   phone: string | null;
   volunteer_roles: VolunteerRole[];
+  team_id: string | null;
 }
 
 export interface Profile {
