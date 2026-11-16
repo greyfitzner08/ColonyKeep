@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { ChevronDown } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { formatSingleLineAddress } from "@/lib/cases/colony-notes";
 import {
+  HOTSPOT_CLINIC_COLOR,
   HOTSPOT_COLONY_LEGEND,
   HOTSPOT_OPEN_CASE_COLOR,
   hotspotColonyMarkerColor,
@@ -19,7 +20,9 @@ import {
   volunteerRoleLabel,
   type HotspotMapVolunteer,
 } from "@/lib/hotspots/volunteer-role-filter";
+import type { MapClinic } from "@/lib/hotspots/load-hotspot-clinics";
 import { densityMapCenter } from "@/lib/maps/density-center";
+import { HotspotClinicMarker } from "@/components/maps/hotspot-clinic-marker";
 import { HotspotsMapViewController } from "@/components/maps/hotspots-map-view-controller";
 import { HotspotsUnmappedColonies } from "@/components/maps/hotspots-unmapped-colonies";
 import { hasStoredColonyCoords } from "@/lib/cases/colony-address-fields";
@@ -65,9 +68,9 @@ export interface MapFeeder {
   detailsVisible?: boolean;
 }
 
-type MapLayer = "colonies" | "volunteers" | "feeders";
+type MapLayer = "colonies" | "volunteers" | "feeders" | "clinics";
 
-const LAYER_COLORS: Record<Exclude<MapLayer, "colonies">, string> = {
+const LAYER_COLORS: Record<Exclude<MapLayer, "colonies" | "clinics">, string> = {
   volunteers: "#059669",
   feeders: "#d97706",
 };
@@ -135,6 +138,7 @@ interface HotspotsMapProps {
   helpRequests: HotspotHelpRequest[];
   volunteers: HotspotMapVolunteer[];
   feeders: MapFeeder[];
+  clinics?: MapClinic[];
   defaultLayers?: Partial<Record<MapLayer, boolean>>;
   volunteersLoading?: boolean;
   canEditColonyAddress?: boolean;
@@ -145,6 +149,7 @@ export function HotspotsMap({
   helpRequests,
   volunteers,
   feeders,
+  clinics = [],
   defaultLayers,
   volunteersLoading = false,
   canEditColonyAddress = false,
@@ -155,9 +160,11 @@ export function HotspotsMap({
     colonies: defaultLayers?.colonies ?? true,
     volunteers: defaultLayers?.volunteers ?? volunteers.length > 0,
     feeders: defaultLayers?.feeders ?? feeders.length > 0,
+    clinics: defaultLayers?.clinics ?? clinics.length > 0,
   });
   const [selectedVolunteerRoles, setSelectedVolunteerRoles] = useState<VolunteerRole[]>([]);
   const [volunteerFiltersOpen, setVolunteerFiltersOpen] = useState(false);
+  const clinicsLayerInitialized = useRef(clinics.length > 0);
 
   useEffect(() => {
     setMounted(true);
@@ -185,6 +192,12 @@ export function HotspotsMap({
     [volunteers, selectedVolunteerRoles]
   );
 
+  useEffect(() => {
+    if (clinicsLayerInitialized.current || clinics.length === 0) return;
+    clinicsLayerInitialized.current = true;
+    setLayers((current) => (current.clinics ? current : { ...current, clinics: true }));
+  }, [clinics.length]);
+
   const allPoints = useMemo(() => {
     const points: [number, number][] = [];
     if (layers.colonies) {
@@ -196,8 +209,11 @@ export function HotspotsMap({
     if (layers.feeders) {
       feeders.forEach((f) => points.push([f.feeder_lat, f.feeder_lng]));
     }
+    if (layers.clinics) {
+      clinics.forEach((clinic) => points.push([clinic.clinic_lat, clinic.clinic_lng]));
+    }
     return points;
-  }, [coloniesWithCoords, filteredVolunteers, feeders, layers]);
+  }, [coloniesWithCoords, filteredVolunteers, feeders, clinics, layers]);
 
   const center: [number, number] =
     allPoints.length > 0 ? densityMapCenter(allPoints) : [35.7796, -78.6382];
@@ -205,7 +221,8 @@ export function HotspotsMap({
   const visibleCount =
     (layers.colonies ? coloniesWithCoords.length : 0) +
     (layers.volunteers ? filteredVolunteers.length : 0) +
-    (layers.feeders ? feeders.length : 0);
+    (layers.feeders ? feeders.length : 0) +
+    (layers.clinics ? clinics.length : 0);
 
   function toggleLayer(layer: MapLayer) {
     setLayers((current) => ({ ...current, [layer]: !current[layer] }));
@@ -260,6 +277,20 @@ export function HotspotsMap({
               style={{ backgroundColor: LAYER_COLORS.feeders }}
             />
             Colony feeders ({feeders.length})
+          </label>
+          <label className="flex items-center gap-2 text-sm cursor-pointer">
+            <Checkbox
+              checked={layers.clinics}
+              onCheckedChange={() => toggleLayer("clinics")}
+            />
+            <span
+              className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full text-[9px] font-bold leading-none text-white"
+              style={{ backgroundColor: HOTSPOT_CLINIC_COLOR }}
+              aria-hidden
+            >
+              +
+            </span>
+            Clinics ({clinics.length})
           </label>
         </div>
         <p className="text-xs text-muted-foreground sm:text-right">
@@ -487,13 +518,17 @@ export function HotspotsMap({
                 </Popup>
               </CircleMarker>
             ))}
+          {layers.clinics &&
+            clinics.map((clinic) => (
+              <HotspotClinicMarker key={`clinic-${clinic.id}`} clinic={clinic} />
+            ))}
         </MapContainer>
       </div>
 
       {visibleCount === 0 && (
         <p className="text-sm text-muted-foreground text-center">
           No locations to show. Turn on a map layer above, or add addresses with coordinates for colonies,
-          volunteer home addresses, or colony feeder contacts on cases.
+          volunteer home addresses, colony feeder contacts, or partner clinics.
         </p>
       )}
     </div>

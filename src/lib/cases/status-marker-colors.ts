@@ -21,6 +21,9 @@ export const DEFAULT_MARKER_COLOR = "#64748b";
 /** Single marker color for open (non-closed) colonies on the hotspots map. */
 export const HOTSPOT_OPEN_CASE_COLOR = "#2563eb";
 
+/** Partner clinic pins on the hotspots map — brand orange with medical-plus icon. */
+export const HOTSPOT_CLINIC_COLOR = "#ea580c";
+
 /** Hotspots map legend — open vs closed only (no trap-workflow breakdown). */
 export const HOTSPOT_COLONY_LEGEND = [
   { label: "Open colony", color: HOTSPOT_OPEN_CASE_COLOR },

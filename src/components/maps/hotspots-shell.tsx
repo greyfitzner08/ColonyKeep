@@ -7,6 +7,7 @@ import { HotspotsColoniesTable } from "@/components/maps/hotspots-colonies-table
 import { HotspotsGeocodeBackfill } from "@/components/maps/hotspots-geocode-backfill";
 import type { MapFeeder } from "@/components/maps/hotspots-map";
 import type { HotspotHelpRequest } from "@/lib/hotspots/contact-privacy";
+import type { MapClinic } from "@/lib/hotspots/load-hotspot-clinics";
 import type { HotspotMapVolunteer } from "@/lib/hotspots/volunteer-role-filter";
 import type { HelpRequest } from "@/lib/types";
 
@@ -23,6 +24,7 @@ const HotspotsMap = dynamic(
 interface HotspotsShellProps {
   helpRequests: HotspotHelpRequest[];
   feeders: MapFeeder[];
+  initialClinics?: MapClinic[];
   initialVolunteers: HotspotMapVolunteer[];
   isAdmin?: boolean;
   canEditColonyAddress?: boolean;
@@ -32,12 +34,14 @@ interface HotspotsShellProps {
 export function HotspotsShell({
   helpRequests: initialHelpRequests,
   feeders,
+  initialClinics = [],
   initialVolunteers,
   isAdmin = false,
   canEditColonyAddress = false,
   assignedOnly = false,
 }: HotspotsShellProps) {
   const [helpRequests, setHelpRequests] = useState(initialHelpRequests);
+  const [clinics, setClinics] = useState(initialClinics);
   const [volunteers, setVolunteers] = useState(initialVolunteers);
   const [volunteersLoading, setVolunteersLoading] = useState(false);
   const [volunteersFetched, setVolunteersFetched] = useState(false);
@@ -83,8 +87,21 @@ export function HotspotsShell({
       }
     }
 
+    async function loadClinics() {
+      try {
+        const response = await fetch("/api/hotspots/clinics");
+        const payload = await response.json().catch(() => null);
+        if (!cancelled && response.ok && Array.isArray(payload?.clinics)) {
+          setClinics(payload.clinics);
+        }
+      } catch {
+        // Keep SSR clinics if the refresh fails.
+      }
+    }
+
     void loadVolunteers();
     void loadColonies();
+    void loadClinics();
 
     return () => {
       cancelled = true;
@@ -117,6 +134,7 @@ export function HotspotsShell({
           helpRequests={helpRequests}
           volunteers={volunteers}
           feeders={feeders}
+          clinics={clinics}
           volunteersLoading={(volunteersLoading && !volunteersFetched) || coloniesLoading}
           canEditColonyAddress={canEditColonyAddress}
           onHelpRequestUpdated={handleHelpRequestUpdated}

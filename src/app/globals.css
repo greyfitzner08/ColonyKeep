@@ -57,6 +57,10 @@
   margin: 0.75rem !important;
   word-break: break-word;
 }
+.hotspot-clinic-marker {
+  background: transparent !important;
+  border: none !important;
+}
 
 @media print {
   body {

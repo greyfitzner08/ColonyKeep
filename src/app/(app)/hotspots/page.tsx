@@ -12,7 +12,7 @@ export default async function HotspotsPage() {
   const isAdmin = profile?.role === "admin";
   const assignedOnly = isTrapQueueAssignedOnly(profile);
   const canEditColonyAddress = isCaseWorker(profile) && !assignedOnly;
-  const { helpRequests, feeders, volunteers, error } = await getHotspotsData();
+  const { helpRequests, feeders, clinics, volunteers, error } = await getHotspotsData();
   const privateData = applyHotspotContactPrivacy({
     helpRequests,
     feeders,
@@ -46,10 +46,13 @@ export default async function HotspotsPage() {
         description={[
           assignedOnly
             ? "Colony locations across the service area. Contact details show only for cases assigned to you or that you reported."
-            : "Trap queue colonies, volunteers who opted in, and colony feeders across the service area",
+            : "Trap queue colonies, volunteers who opted in, colony feeders, and partner clinics across the service area",
           coloniesMapped > 0 ? `${coloniesMapped} colonies mapped` : null,
           privateData.feeders.length > 0
             ? `${privateData.feeders.length} feeder${privateData.feeders.length === 1 ? "" : "s"} mapped`
+            : null,
+          clinics.length > 0
+            ? `${clinics.length} clinic${clinics.length === 1 ? "" : "s"} mapped`
             : null,
         ]
           .filter(Boolean)
@@ -58,6 +61,7 @@ export default async function HotspotsPage() {
       <HotspotsShell
         helpRequests={privateData.helpRequests}
         feeders={privateData.feeders}
+        initialClinics={clinics}
         initialVolunteers={volunteers}
         isAdmin={isAdmin}
         canEditColonyAddress={canEditColonyAddress}

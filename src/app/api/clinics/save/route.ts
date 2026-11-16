@@ -1,10 +1,21 @@
+import { revalidateTag } from "next/cache";
 import { NextRequest, NextResponse } from "next/server";
 import { requireClinicManager } from "@/lib/api/auth";
 import { normalizeClinicEmails, normalizeClinicWebsite } from "@/lib/clinics/contact";
 import { normalizeClinicHours, pruneClinicHours } from "@/lib/clinics/hours";
 import { catalogToLegacyFields } from "@/lib/clinics/service-catalog";
+import { geocodeFreeformAddress } from "@/lib/geocode";
 import { createServiceClient } from "@/lib/supabase/server";
 import type { ClinicServiceOption } from "@/lib/types";
+
+function parseCoord(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string" && value.trim() !== "") {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return null;
+}
 
 export async function POST(request: NextRequest) {
   const { response } = await requireClinicManager();
@@ -13,11 +24,23 @@ export async function POST(request: NextRequest) {
   const body = await request.json();
   const catalog = (body.service_catalog ?? []) as ClinicServiceOption[];
   const legacy = catalogToLegacyFields(catalog);
+  const address = typeof body.address === "string" ? body.address.trim() : "";
+
+  let clinicLat = parseCoord(body.clinic_lat);
+  let clinicLng = parseCoord(body.clinic_lng);
+
+  if ((clinicLat == null || clinicLng == null) && address) {
+    const coords = await geocodeFreeformAddress(address);
+    if (coords) {
+      clinicLat = coords.lat;
+      clinicLng = coords.lng;
+    }
+  }
 
   const service = await createServiceClient();
   const payload = {
     name: body.name,
-    address: typeof body.address === "string" ? body.address.trim() : "",
+    address,
     phone: typeof body.phone === "string" ? body.phone.trim() : "",
     emails: normalizeClinicEmails(body.emails),
     website: normalizeClinicWebsite(body.website),
@@ -35,6 +58,8 @@ export async function POST(request: NextRequest) {
     check_in_details: body.check_in_details ?? null,
     notes: body.notes ?? null,
     is_active: body.is_active ?? true,
+    clinic_lat: clinicLat,
+    clinic_lng: clinicLng,
   };
 
   const query = body.id
@@ -47,5 +72,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 400 });
   }
 
+  revalidateTag("hotspots");
   return NextResponse.json({ clinic: data });
 }

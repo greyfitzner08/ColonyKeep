@@ -161,6 +161,22 @@ export async function geocodeStreetAddress(parts: {
   });
 }
 
+/** Geocode a single freeform address line (e.g. partner clinic address). */
+export async function geocodeFreeformAddress(
+  address: string | null | undefined
+): Promise<GeocodeResult | null> {
+  const trimmed = address?.trim();
+  if (!trimmed) return null;
+
+  const googleKey = getGoogleMapsApiKey();
+  if (googleKey) {
+    const coords = await geocodeWithGoogle(trimmed, googleKey);
+    if (coords) return coords;
+  }
+
+  return geocodeWithNominatim(trimmed);
+}
+
 export async function geocodeAddress(parts: GeocodeAddressParts): Promise<GeocodeResult | null> {
   const queries = buildGeocodeQueries(parts);
   if (queries.length === 0) return null;

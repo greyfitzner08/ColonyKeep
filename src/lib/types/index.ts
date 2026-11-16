@@ -290,6 +290,9 @@ export interface Clinic {
   check_in_details: string | null;
   notes: string | null;
   is_active: boolean;
+  /** Map pin for Hotspots (from address autocomplete or geocode). */
+  clinic_lat?: number | null;
+  clinic_lng?: number | null;
   created_at: string;
   updated_at: string;
 }

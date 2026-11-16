@@ -60,6 +60,8 @@ const emptyClinic = {
   check_in_details: "",
   notes: "",
   is_active: true,
+  clinic_lat: null as number | null,
+  clinic_lng: null as number | null,
 };
 
 export function ClinicsManager({ clinics: initial }: ClinicsManagerProps) {
@@ -103,6 +105,8 @@ export function ClinicsManager({ clinics: initial }: ClinicsManagerProps) {
       check_in_details: clinic.check_in_details ?? "",
       notes: clinic.notes ?? "",
       is_active: clinic.is_active,
+      clinic_lat: clinic.clinic_lat ?? null,
+      clinic_lng: clinic.clinic_lng ?? null,
     });
     setSameHours(initialSameHours(clinic.operating_days, normalizeClinicHours(clinic.hours_by_day)));
     setSaveError(null);
@@ -265,11 +269,20 @@ export function ClinicsManager({ clinics: initial }: ClinicsManagerProps) {
                 <AddressAutocomplete
                   label="Address"
                   defaultValue={form.address}
-                  onAddressChange={(address) => setForm({ ...form, address })}
+                  onAddressChange={(address) =>
+                    setForm({
+                      ...form,
+                      address,
+                      clinic_lat: null,
+                      clinic_lng: null,
+                    })
+                  }
                   onSelect={(parts) =>
                     setForm({
                       ...form,
                       address: formatAddressPartsLine(parts),
+                      clinic_lat: parts.lat ?? null,
+                      clinic_lng: parts.lng ?? null,
                     })
                   }
                 />
