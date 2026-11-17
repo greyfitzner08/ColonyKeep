@@ -22,6 +22,7 @@ import {
 } from "@/lib/hotspots/volunteer-role-filter";
 import type { MapClinic } from "@/lib/hotspots/load-hotspot-clinics";
 import { densityMapCenter } from "@/lib/maps/density-center";
+import { HotspotClinicDetailsDialog } from "@/components/maps/hotspot-clinic-details-dialog";
 import { HotspotClinicMarker } from "@/components/maps/hotspot-clinic-marker";
 import { HotspotsMapViewController } from "@/components/maps/hotspots-map-view-controller";
 import { HotspotsUnmappedColonies } from "@/components/maps/hotspots-unmapped-colonies";
@@ -164,6 +165,7 @@ export function HotspotsMap({
   });
   const [selectedVolunteerRoles, setSelectedVolunteerRoles] = useState<VolunteerRole[]>([]);
   const [volunteerFiltersOpen, setVolunteerFiltersOpen] = useState(false);
+  const [detailsClinicId, setDetailsClinicId] = useState<string | null>(null);
   const clinicsLayerInitialized = useRef(clinics.length > 0);
 
   useEffect(() => {
@@ -520,10 +522,22 @@ export function HotspotsMap({
             ))}
           {layers.clinics &&
             clinics.map((clinic) => (
-              <HotspotClinicMarker key={`clinic-${clinic.id}`} clinic={clinic} />
+              <HotspotClinicMarker
+                key={`clinic-${clinic.id}`}
+                clinic={clinic}
+                onViewDetails={setDetailsClinicId}
+              />
             ))}
         </MapContainer>
       </div>
+
+      <HotspotClinicDetailsDialog
+        clinicId={detailsClinicId}
+        open={detailsClinicId !== null}
+        onOpenChange={(open) => {
+          if (!open) setDetailsClinicId(null);
+        }}
+      />
 
       {visibleCount === 0 && (
         <p className="text-sm text-muted-foreground text-center">

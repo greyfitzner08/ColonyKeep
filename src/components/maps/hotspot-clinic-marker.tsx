@@ -23,9 +23,10 @@ function clinicMarkerIconHtml(color: string) {
 
 interface HotspotClinicMarkerProps {
   clinic: MapClinic;
+  onViewDetails: (clinicId: string) => void;
 }
 
-export function HotspotClinicMarker({ clinic }: HotspotClinicMarkerProps) {
+export function HotspotClinicMarker({ clinic, onViewDetails }: HotspotClinicMarkerProps) {
   const icon = useMemo(
     () =>
       divIcon({
@@ -64,6 +65,13 @@ export function HotspotClinicMarker({ clinic }: HotspotClinicMarkerProps) {
               </a>
             </p>
           ) : null}
+          <button
+            type="button"
+            className="inline-block text-left text-primary underline font-medium"
+            onClick={() => onViewDetails(clinic.id)}
+          >
+            View full details
+          </button>
         </div>
       </Popup>
     </Marker>

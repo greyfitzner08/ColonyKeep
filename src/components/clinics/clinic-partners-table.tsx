@@ -4,23 +4,15 @@ import { useMemo, useState } from "react";
 import { Eye, Pencil, Search } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { ClinicPackagesDisplay } from "@/components/clinics/clinic-packages-display";
-import { ServiceCatalogDisplay } from "@/components/clinics/service-catalog-display";
+import { ClinicDetailsDialog } from "@/components/clinics/clinic-details-dialog";
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import { getVisibleClinicPackages } from "@/lib/clinics/clinic-packages";
 import {
   getAddonOptions,
-  hasVisibleClinicPackages,
   normalizeServiceCatalog,
 } from "@/lib/clinics/service-catalog";
-import { clinicWebsiteHref, normalizeClinicEmails } from "@/lib/clinics/contact";
+import { normalizeClinicEmails } from "@/lib/clinics/contact";
 import {
   formatClinicHoursSummary,
   normalizeClinicHours,
@@ -232,10 +224,6 @@ export function ClinicPartnersTable({ clinics, onEdit }: ClinicPartnersTableProp
     ];
   }, [onEdit]);
 
-  const viewingUsesPackagePricing = viewingClinic
-    ? hasVisibleClinicPackages(viewingClinic.packages)
-    : false;
-
   return (
     <>
       <div className="space-y-4">
@@ -264,104 +252,12 @@ export function ClinicPartnersTable({ clinics, onEdit }: ClinicPartnersTableProp
         />
       </div>
 
-      <Dialog open={viewingClinic !== null} onOpenChange={(open) => !open && setViewingClinic(null)}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-          {viewingClinic && (
-            <>
-              <DialogHeader>
-                <DialogTitle>{viewingClinic.name}</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4 text-sm">
-                <div className="space-y-1">
-                  <p className="text-muted-foreground">{viewingClinic.address || "No address on file"}</p>
-                  {viewingClinic.phone && (
-                    <a href={`tel:${viewingClinic.phone}`} className="block text-primary hover:underline">
-                      {viewingClinic.phone}
-                    </a>
-                  )}
-                  {normalizeClinicEmails(viewingClinic.emails).map((email) => (
-                    <a
-                      key={email}
-                      href={`mailto:${email}`}
-                      className="block text-primary hover:underline"
-                    >
-                      {email}
-                    </a>
-                  ))}
-                  {viewingClinic.website?.trim() ? (
-                    <a
-                      href={clinicWebsiteHref(viewingClinic.website)}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="block text-primary hover:underline"
-                    >
-                      {viewingClinic.website.trim()}
-                    </a>
-                  ) : null}
-                </div>
-
-                <div>
-                  <p>
-                    <span className="font-medium">Days open:</span>{" "}
-                    {viewingClinic.operating_days.join(", ") || "Not set"}
-                  </p>
-                  {clinicScheduleLines(viewingClinic).hours ? (
-                    <p>
-                      <span className="font-medium">Hours:</span>{" "}
-                      {clinicScheduleLines(viewingClinic).hours}
-                    </p>
-                  ) : null}
-                  {APPOINTMENTS_UI_ENABLED ? (
-                    <p>
-                      <span className="font-medium">Slots per day:</span>{" "}
-                      {viewingClinic.slots_per_day}
-                    </p>
-                  ) : null}
-                </div>
-
-                <ClinicPackagesDisplay packages={viewingClinic.packages ?? []} />
-
-                <ServiceCatalogDisplay
-                  catalog={viewingClinic.service_catalog ?? []}
-                  legacyIncluded={viewingClinic.included_services}
-                  legacyAddons={viewingClinic.addon_services}
-                  hideIncluded={viewingUsesPackagePricing}
-                />
-
-                {viewingClinic.check_in_details && (
-                  <div>
-                    <p className="font-medium mb-1">Check-in details</p>
-                    <p className="text-muted-foreground whitespace-pre-wrap">
-                      {viewingClinic.check_in_details}
-                    </p>
-                  </div>
-                )}
-
-                {viewingClinic.notes && (
-                  <div>
-                    <p className="font-medium mb-1">Notes</p>
-                    <p className="text-muted-foreground whitespace-pre-wrap">{viewingClinic.notes}</p>
-                  </div>
-                )}
-
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full"
-                  onClick={() => {
-                    const clinic = viewingClinic;
-                    setViewingClinic(null);
-                    onEdit(clinic);
-                  }}
-                >
-                  <Pencil className="h-4 w-4 mr-2" />
-                  Edit clinic
-                </Button>
-              </div>
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
+      <ClinicDetailsDialog
+        clinic={viewingClinic}
+        open={viewingClinic !== null}
+        onOpenChange={(open) => !open && setViewingClinic(null)}
+        onEdit={onEdit}
+      />
     </>
   );
 }
