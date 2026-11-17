@@ -96,6 +96,7 @@ const emptyForm = {
 const UNASSIGNED = "__unassigned__";
 
 type EquipmentDialogSectionId = "trap" | "custody" | "loan" | "notes";
+type EquipmentDialogMode = "full" | "loan";
 
 const DEFAULT_OPEN_SECTIONS: Record<EquipmentDialogSectionId, boolean> = {
   trap: false,
@@ -185,6 +186,7 @@ export function TrapEquipmentManager({
   const router = useRouter();
   const [rows, setRows] = useState(initialItems);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [dialogMode, setDialogMode] = useState<EquipmentDialogMode>("full");
   const [scannerOpen, setScannerOpen] = useState(false);
   const [scannerPurpose, setScannerPurpose] = useState<"claim" | "identify">("claim");
   const [editing, setEditing] = useState<TrapEquipmentItem | null>(null);
@@ -278,8 +280,7 @@ export function TrapEquipmentManager({
     if (!current) return;
 
     if (patch.status === "loaned" && !current.borrower_name?.trim()) {
-      openEdit({ ...current, status: "loaned" });
-      setSaveError("Enter who this trap was loaned to before saving.");
+      openLoanDetails({ ...current, status: "loaned" });
       return;
     }
 
@@ -308,6 +309,7 @@ export function TrapEquipmentManager({
 
   function openNew() {
     setEditing(null);
+    setDialogMode("full");
     setForm({
       ...emptyForm,
       team_id: defaultTeamId ?? "",
@@ -318,7 +320,7 @@ export function TrapEquipmentManager({
     setDialogOpen(true);
   }
 
-  function openEdit(item: TrapEquipmentItem) {
+  function fillFormFromItem(item: TrapEquipmentItem) {
     setEditing(item);
     setForm({
       equipment_type: item.equipment_type,
@@ -335,6 +337,11 @@ export function TrapEquipmentManager({
       borrower_email: item.borrower_email ?? "",
       borrower_phone: item.borrower_phone ?? "",
     });
+  }
+
+  function openEdit(item: TrapEquipmentItem) {
+    fillFormFromItem(item);
+    setDialogMode("full");
     setOpenSections({
       ...DEFAULT_OPEN_SECTIONS,
       custody: true,
@@ -342,6 +349,21 @@ export function TrapEquipmentManager({
       trap: false,
     });
     setSaveError(null);
+    setScanNotice(null);
+    setDialogOpen(true);
+  }
+
+  /** Status toggle → loaned without a borrower: only collect loan details. */
+  function openLoanDetails(item: TrapEquipmentItem) {
+    fillFormFromItem(item);
+    setDialogMode("loan");
+    setOpenSections({
+      trap: false,
+      custody: false,
+      loan: true,
+      notes: false,
+    });
+    setSaveError("Enter who this trap was loaned to before saving.");
     setScanNotice(null);
     setDialogOpen(true);
   }
@@ -364,6 +386,7 @@ export function TrapEquipmentManager({
   function openNewFromScan(payload: string) {
     const parsed = parseEquipmentQrPayload(payload);
     setEditing(null);
+    setDialogMode("full");
     setForm({
       ...emptyForm,
       team_id: defaultTeamId ?? "",
@@ -1001,12 +1024,28 @@ export function TrapEquipmentManager({
         </AlertDialogContent>
       </AlertDialog>
 
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+      <Dialog
+        open={dialogOpen}
+        onOpenChange={(open) => {
+          setDialogOpen(open);
+          if (!open) setDialogMode("full");
+        }}
+      >
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{editing ? "Edit equipment" : "Add equipment"}</DialogTitle>
+            <DialogTitle>
+              {dialogMode === "loan"
+                ? "Loan details"
+                : editing
+                  ? "Edit equipment"
+                  : "Add equipment"}
+            </DialogTitle>
+            {dialogMode === "loan" && editing ? (
+              <p className="text-sm text-muted-foreground">{itemTitle(editing)}</p>
+            ) : null}
           </DialogHeader>
           <div className="space-y-5">
+            {dialogMode === "full" ? (
             <EquipmentDialogSection
               title="Status & custody"
               description="Where the trap sits in inventory and who is responsible for it."
@@ -1115,9 +1154,55 @@ export function TrapEquipmentManager({
                 />
               </div>
             </EquipmentDialogSection>
+            ) : null}
 
-            {form.status === "loaned" && (
+            {(dialogMode === "loan" || form.status === "loaned") && (
               <div ref={loanSectionRef}>
+                {dialogMode === "loan" ? (
+                  <div className="space-y-4 rounded-lg border border-primary/40 bg-primary/5 p-4 shadow-sm shadow-primary/5">
+                    <div>
+                      <p className="text-sm font-medium">Who currently has this trap</p>
+                      <p className="mt-0.5 text-sm text-muted-foreground">
+                        A borrower name is required to mark this as loaned out.
+                      </p>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="borrower-name">
+                        Borrower name <span className="text-destructive">*</span>
+                      </Label>
+                      <Input
+                        id="borrower-name"
+                        placeholder="Borrower full name"
+                        value={form.borrower_name}
+                        required
+                        autoFocus
+                        onChange={(e) => setForm({ ...form, borrower_name: e.target.value })}
+                      />
+                    </div>
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                      <div className="space-y-2">
+                        <Label htmlFor="borrower-phone">Phone (optional)</Label>
+                        <Input
+                          id="borrower-phone"
+                          type="tel"
+                          placeholder="(555) 555-5555"
+                          value={form.borrower_phone}
+                          onChange={(e) => setForm({ ...form, borrower_phone: e.target.value })}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="borrower-email">Email (optional)</Label>
+                        <Input
+                          id="borrower-email"
+                          type="email"
+                          placeholder="name@example.com"
+                          value={form.borrower_email}
+                          onChange={(e) => setForm({ ...form, borrower_email: e.target.value })}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ) : (
                 <EquipmentDialogSection
                   title="Loan details"
                   description="Who currently has this trap. A borrower name is required."
@@ -1162,9 +1247,12 @@ export function TrapEquipmentManager({
                     </div>
                   </div>
                 </EquipmentDialogSection>
+                )}
               </div>
             )}
 
+            {dialogMode === "full" ? (
+            <>
             <EquipmentDialogSection
               title="Trap information"
               description={
@@ -1312,12 +1400,14 @@ export function TrapEquipmentManager({
                 placeholder="Condition, pickup instructions, etc."
               />
             </EquipmentDialogSection>
+            </>
+            ) : null}
 
-            {!isAdmin && defaultTeamId && (
+            {dialogMode === "full" && !isAdmin && defaultTeamId ? (
               <p className="text-sm text-muted-foreground">
                 This entry will be assigned to your trap team.
               </p>
-            )}
+            ) : null}
 
             {saveError && <p className="text-sm text-destructive">{saveError}</p>}
 
@@ -1326,7 +1416,13 @@ export function TrapEquipmentManager({
                 Cancel
               </Button>
               <Button onClick={saveDialog} disabled={saving}>
-                {saving ? "Saving…" : editing ? "Save changes" : "Add item"}
+                {saving
+                  ? "Saving…"
+                  : dialogMode === "loan"
+                    ? "Save loan"
+                    : editing
+                      ? "Save changes"
+                      : "Add item"}
               </Button>
             </div>
           </div>
