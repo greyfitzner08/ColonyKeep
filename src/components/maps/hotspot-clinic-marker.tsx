@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import dynamic from "next/dynamic";
+import { divIcon } from "leaflet";
 import { HOTSPOT_CLINIC_COLOR } from "@/lib/cases/status-marker-colors";
 import type { MapClinic } from "@/lib/hotspots/load-hotspot-clinics";
 
@@ -25,18 +26,17 @@ interface HotspotClinicMarkerProps {
 }
 
 export function HotspotClinicMarker({ clinic }: HotspotClinicMarkerProps) {
-  const icon = useMemo(() => {
-    // Leaflet only runs in the browser; Marker is client-only.
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const L = require("leaflet") as typeof import("leaflet");
-    return L.divIcon({
-      className: "hotspot-clinic-marker",
-      html: clinicMarkerIconHtml(HOTSPOT_CLINIC_COLOR),
-      iconSize: [28, 28],
-      iconAnchor: [14, 14],
-      popupAnchor: [0, -14],
-    });
-  }, []);
+  const icon = useMemo(
+    () =>
+      divIcon({
+        className: "hotspot-clinic-marker",
+        html: clinicMarkerIconHtml(HOTSPOT_CLINIC_COLOR),
+        iconSize: [28, 28],
+        iconAnchor: [14, 14],
+        popupAnchor: [0, -14],
+      }),
+    []
+  );
 
   return (
     <Marker position={[clinic.clinic_lat, clinic.clinic_lng]} icon={icon}>
