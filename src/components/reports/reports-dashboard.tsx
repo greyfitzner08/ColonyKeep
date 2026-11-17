@@ -302,6 +302,7 @@ export function ReportsDashboard({
   const [filters, setFilters] = useState<ReportFilters>(DEFAULT_REPORT_FILTERS);
   const [reportType, setReportType] = useState<ReportType>("queue_cats_by_zip");
   const [moreFiltersOpen, setMoreFiltersOpen] = useState(false);
+  const [quickReportOpen, setQuickReportOpen] = useState(true);
 
   const visibleFamilies = useMemo(
     () =>
@@ -483,13 +484,29 @@ export function ReportsDashboard({
       <Card>
         <CardHeader className="pb-3">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-            <div>
-              <CardTitle className="text-lg">Quick report</CardTitle>
-              <CardDescription>
-                Choose what to measure, how to break it down, then set criteria. Leave dates blank
-                for all time.
-              </CardDescription>
-            </div>
+            <button
+              type="button"
+              className="flex min-w-0 flex-1 items-start gap-3 rounded-md text-left transition-colors hover:bg-muted/40 py-1"
+              onClick={() => setQuickReportOpen((open) => !open)}
+              aria-expanded={quickReportOpen}
+            >
+              <div className="min-w-0 flex-1">
+                <CardTitle className="text-lg leading-snug">Quick report</CardTitle>
+                <CardDescription className="mt-1">
+                  {quickReportOpen
+                    ? "Choose what to measure, how to break it down, then set criteria. Leave dates blank for all time."
+                    : activeFamily
+                      ? `${activeFamily.label}${activeBreakdown ? ` · ${activeBreakdown.label}` : ""}`
+                      : "Choose what to measure, how to break it down, then set criteria."}
+                </CardDescription>
+              </div>
+              <ChevronDown
+                className={cn(
+                  "mt-0.5 h-5 w-5 shrink-0 text-muted-foreground transition-transform",
+                  quickReportOpen && "rotate-180"
+                )}
+              />
+            </button>
             <Button
               variant="outline"
               onClick={exportReport}
@@ -501,6 +518,7 @@ export function ReportsDashboard({
             </Button>
           </div>
         </CardHeader>
+        {quickReportOpen ? (
         <CardContent className="space-y-6">
           <div className="grid gap-4 lg:grid-cols-[minmax(0,20rem)_1fr]">
             <div className="space-y-2">
@@ -749,6 +767,7 @@ export function ReportsDashboard({
             ) : null}
           </div>
         </CardContent>
+        ) : null}
       </Card>
 
       <Card>
