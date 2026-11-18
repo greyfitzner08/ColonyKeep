@@ -8,14 +8,15 @@ export async function fetchCommunityStats(): Promise<CommunityStats> {
   const service = await createServiceClient();
   const today = new Date().toISOString().split("T")[0];
 
-  const [{ count: openCases }, { data: caseFixRows }, { data: clinicFixes }, { data: nextClinic }] =
+  const [{ count: openCases }, { data: caseFixRows }, { data: clinicFixes }, { data: transferredCats }, { data: nextClinic }] =
     await Promise.all([
       service
         .from("help_requests")
         .select("*", { count: "exact", head: true })
         .in("status", TRAP_QUEUE_STATUSES),
       service.from("help_requests").select("id, status, outcome, outcome_tnvr_count"),
-      service.from("clinic_fixes").select("help_request_id"),
+      service.from("clinic_fixes").select("help_request_id, cat_id"),
+      service.from("cats").select("id").eq("transferred_unfixed", true),
       service
         .from("public_clinic_events")
         .select("title, clinic_name, date, location")
@@ -26,16 +27,26 @@ export async function fetchCommunityStats(): Promise<CommunityStats> {
         .maybeSingle(),
     ]);
 
+  const transferredIds = new Set((transferredCats ?? []).map((cat) => cat.id as string));
   const clinicCountByCase = new Map<string, number>();
+  const excludedTransfersByCase = new Map<string, number>();
   for (const row of clinicFixes ?? []) {
     const id = row.help_request_id as string;
     if (!id) continue;
+    if (row.cat_id && transferredIds.has(row.cat_id as string)) {
+      excludedTransfersByCase.set(id, (excludedTransfersByCase.get(id) ?? 0) + 1);
+      continue;
+    }
     clinicCountByCase.set(id, (clinicCountByCase.get(id) ?? 0) + 1);
   }
 
   const catsFixed = (caseFixRows ?? []).reduce((sum, row) => {
     if (isDuplicateClosedCase(row)) return sum;
-    return sum + caseFixedCount(row, clinicCountByCase.get(row.id as string) ?? 0);
+    return sum + caseFixedCount(
+      row,
+      clinicCountByCase.get(row.id as string) ?? 0,
+      excludedTransfersByCase.get(row.id as string) ?? 0
+    );
   }, 0);
 
   return {

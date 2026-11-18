@@ -29,6 +29,7 @@ export interface ReportCat {
   created_at: string;
   age_category: "adult" | "kitten" | null;
   went_to_foster_facility: boolean | null;
+  transferred_unfixed?: boolean | null;
   foster_facility: FosterFacility | null;
   foster_facility_other: string | null;
 }
@@ -301,30 +302,67 @@ function monthKeyFromIso(iso: string): { key: string; label: string } {
   };
 }
 
+function transferredUnfixedIds(cats: ReportCat[]): Set<string> {
+  return new Set(cats.filter((cat) => cat.transferred_unfixed === true).map((cat) => cat.id));
+}
+
 function clinicFixCountsForRequests(
   clinicFixes: ReportClinicFix[],
+  requestIds: Set<string>,
+  reportableIds: Set<string>,
+  transferredIds: Set<string> = new Set()
+): { fixes: Map<string, number>; excludedTransfers: Map<string, number> } {
+  const fixes = new Map<string, number>();
+  const excludedTransfers = new Map<string, number>();
+  for (const fix of clinicFixes) {
+    if (!reportableIds.has(fix.help_request_id)) continue;
+    if (!requestIds.has(fix.help_request_id)) continue;
+    if (fix.cat_id && transferredIds.has(fix.cat_id)) {
+      excludedTransfers.set(
+        fix.help_request_id,
+        (excludedTransfers.get(fix.help_request_id) ?? 0) + 1
+      );
+      continue;
+    }
+    fixes.set(fix.help_request_id, (fixes.get(fix.help_request_id) ?? 0) + 1);
+  }
+  return { fixes, excludedTransfers };
+}
+
+function transferredUnfixedCounts(
+  cats: ReportCat[],
   requestIds: Set<string>,
   reportableIds: Set<string>
 ): Map<string, number> {
   const counts = new Map<string, number>();
-  for (const fix of clinicFixes) {
-    if (!reportableIds.has(fix.help_request_id)) continue;
-    if (!requestIds.has(fix.help_request_id)) continue;
-    counts.set(fix.help_request_id, (counts.get(fix.help_request_id) ?? 0) + 1);
+  for (const cat of cats) {
+    if (cat.transferred_unfixed !== true) continue;
+    if (!reportableIds.has(cat.help_request_id)) continue;
+    if (!requestIds.has(cat.help_request_id)) continue;
+    counts.set(cat.help_request_id, (counts.get(cat.help_request_id) ?? 0) + 1);
   }
   return counts;
 }
 
-/** Clinic-logged fixes plus public/manual TNR on the case, without double-counting. */
+/** Clinic-logged fixes plus public/manual TNR, excluding cats transferred before they were fixed. */
 export function caseFixedCount(
   hr: Pick<ReportHelpRequest, "id" | "outcome_tnvr_count">,
-  clinicFixCount: number
+  clinicFixCount: number,
+  excludedTransferredFixes = 0
 ): number {
-  return Math.max(clinicFixCount, hr.outcome_tnvr_count ?? 0);
+  const outcome = Math.max(0, (hr.outcome_tnvr_count ?? 0) - excludedTransferredFixes);
+  return Math.max(clinicFixCount, outcome);
 }
 
 function groupRemainingVsFixed(
-  items: { key: string; label: string; sublabel?: string; remaining: number; fixed: number }[],
+  items: {
+    key: string;
+    label: string;
+    sublabel?: string;
+    remaining: number;
+    fixed: number;
+    transferred: number;
+  }[],
   sort: "activity" | "month"
 ): ReportRow[] {
   const map = new Map<string, ReportRow>();
@@ -335,6 +373,7 @@ function groupRemainingVsFixed(
       existing.extra = {
         remaining: Number(existing.extra?.remaining ?? 0) + item.remaining,
         fixed: Number(existing.extra?.fixed ?? 0) + item.fixed,
+        transferred: Number(existing.extra?.transferred ?? 0) + item.transferred,
       };
     } else {
       map.set(item.key, {
@@ -342,7 +381,11 @@ function groupRemainingVsFixed(
         label: item.label,
         sublabel: item.sublabel,
         count: 1,
-        extra: { remaining: item.remaining, fixed: item.fixed },
+        extra: {
+          remaining: item.remaining,
+          fixed: item.fixed,
+          transferred: item.transferred,
+        },
       });
     }
   }
@@ -353,8 +396,14 @@ function groupRemainingVsFixed(
   }
 
   return rows.sort((a, b) => {
-    const aWork = Number(a.extra?.remaining ?? 0) + Number(a.extra?.fixed ?? 0);
-    const bWork = Number(b.extra?.remaining ?? 0) + Number(b.extra?.fixed ?? 0);
+    const aWork =
+      Number(a.extra?.remaining ?? 0) +
+      Number(a.extra?.fixed ?? 0) +
+      Number(a.extra?.transferred ?? 0);
+    const bWork =
+      Number(b.extra?.remaining ?? 0) +
+      Number(b.extra?.fixed ?? 0) +
+      Number(b.extra?.transferred ?? 0);
     return bWork - aWork || b.count - a.count || a.label.localeCompare(b.label);
   });
 }
@@ -365,23 +414,37 @@ function remainingVsFixedResult(
   groupLabel: string,
   queue: ReportHelpRequest[],
   clinicFixes: ReportClinicFix[],
+  cats: ReportCat[],
   reportableIds: Set<string>,
   groupOf: (hr: ReportHelpRequest) => { key: string; label: string; sublabel?: string },
   sort: "activity" | "month",
   includeSublabel = false
 ): ReportResult {
   const requestIds = new Set(queue.map((hr) => hr.id));
-  const fixCounts = clinicFixCountsForRequests(clinicFixes, requestIds, reportableIds);
+  const transferredIds = transferredUnfixedIds(cats);
+  const { fixes: fixCounts, excludedTransfers } = clinicFixCountsForRequests(
+    clinicFixes,
+    requestIds,
+    reportableIds,
+    transferredIds
+  );
+  const transferredCounts = transferredUnfixedCounts(cats, requestIds, reportableIds);
   const rows = groupRemainingVsFixed(
     queue.map((hr) => ({
       ...groupOf(hr),
       remaining: catCount(hr),
-      fixed: caseFixedCount(hr, fixCounts.get(hr.id) ?? 0),
+      fixed: caseFixedCount(
+        hr,
+        fixCounts.get(hr.id) ?? 0,
+        excludedTransfers.get(hr.id) ?? 0
+      ),
+      transferred: transferredCounts.get(hr.id) ?? 0,
     })),
     sort
   );
   const remaining = rows.reduce((sum, row) => sum + Number(row.extra?.remaining ?? 0), 0);
   const fixed = rows.reduce((sum, row) => sum + Number(row.extra?.fixed ?? 0), 0);
+  const transferred = rows.reduce((sum, row) => sum + Number(row.extra?.transferred ?? 0), 0);
 
   return {
     title,
@@ -392,12 +455,14 @@ function remainingVsFixedResult(
       { key: "count", label: "Open cases" },
       { key: "extra.remaining", label: "Not fixed" },
       { key: "extra.fixed", label: "Fixed" },
+      { key: "extra.transferred", label: "Transferred, not fixed" },
     ],
     rows,
     totals: [
       { label: "Open cases", value: queue.length },
       { label: "Not fixed", value: remaining },
       { label: "Fixed", value: fixed },
+      { label: "Transferred, not fixed", value: transferred },
     ],
   };
 }
@@ -429,7 +494,7 @@ interface FosterPlacement {
   facilityLabel: string;
   ageCategory: string;
   placementDate: string;
-  source: "clinic_fix" | "tracked_cat";
+  source: "fixed_and_transferred" | "transferred_unfixed" | "tracked_cat";
 }
 
 function fosterPlacementLabel(
@@ -451,9 +516,11 @@ function collectFosterPlacements(
   const filteredCats = filterCats(cats, filters, requestIds, reportableIds);
   const placements: FosterPlacement[] = [];
   const catIdsFromFixes = new Set<string>();
+  const transferredIds = transferredUnfixedIds(cats);
 
   for (const fix of filteredFixes) {
     if (!fix.went_to_foster_facility) continue;
+    if (fix.cat_id && transferredIds.has(fix.cat_id)) continue;
     if (fix.cat_id) catIdsFromFixes.add(fix.cat_id);
     placements.push({
       key: `fix:${fix.id}`,
@@ -462,13 +529,14 @@ function collectFosterPlacements(
       facilityLabel: fosterPlacementLabel(fix.foster_facility, fix.foster_facility_other),
       ageCategory: fix.age_category ?? "—",
       placementDate: fix.fix_date,
-      source: "clinic_fix",
+      source: "fixed_and_transferred",
     });
   }
 
   for (const cat of filteredCats) {
-    if (cat.went_to_foster_facility !== true) continue;
-    if (catIdsFromFixes.has(cat.id)) continue;
+    const transferredUnfixed = cat.transferred_unfixed === true;
+    if (!transferredUnfixed && cat.went_to_foster_facility !== true) continue;
+    if (!transferredUnfixed && catIdsFromFixes.has(cat.id)) continue;
     placements.push({
       key: `cat:${cat.id}`,
       helpRequestId: cat.help_request_id,
@@ -476,7 +544,7 @@ function collectFosterPlacements(
       facilityLabel: fosterPlacementLabel(cat.foster_facility, cat.foster_facility_other),
       ageCategory: cat.age_category ?? "—",
       placementDate: cat.trap_date ?? cat.created_at,
-      source: "tracked_cat",
+      source: transferredUnfixed ? "transferred_unfixed" : "tracked_cat",
     });
   }
 
@@ -558,10 +626,11 @@ export function runReport(
       if (type === "queue_cats_by_zip") {
         return remainingVsFixedResult(
           "Queue cats remaining vs fixed by ZIP",
-          "Open Trap Queue cases only, including claimed. Not fixed is remaining adults and kittens on the case. Fixed is clinic-logged and public TNR on those same cases.",
+          "Open Trap Queue cases only, including claimed. Not fixed is cats still needing TNR. Transferred, not fixed is cats taken to a facility who were not fixed, and those cats are in neither Not fixed nor Fixed. Fixed is clinic-logged and public TNR.",
           "ZIP code",
           queue,
           clinicFixes,
+          cats,
           reportableIds,
           (hr) => ({
             key: normalizeZip(hr.colony_zip) || "unknown",
@@ -575,10 +644,11 @@ export function runReport(
       if (type === "queue_cats_by_team") {
         return remainingVsFixedResult(
           "Queue cats remaining vs fixed by team",
-          "Open Trap Queue cases only, including claimed. Not fixed is remaining adults and kittens on the case. Fixed is clinic-logged and public TNR on those same cases.",
+          "Open Trap Queue cases only, including claimed. Not fixed is cats still needing TNR. Transferred, not fixed is cats taken to a facility who were not fixed, and those cats are in neither Not fixed nor Fixed. Fixed is clinic-logged and public TNR.",
           "Trap team",
           queue,
           clinicFixes,
+          cats,
           reportableIds,
           (hr) => {
             const team = teamForRequest(hr, teams);
@@ -589,10 +659,11 @@ export function runReport(
       }
       return remainingVsFixedResult(
         "Queue cats remaining vs fixed by month",
-        "Open Trap Queue cases grouped by the month the case was created, including claimed. Not fixed is remaining adults and kittens. Fixed is clinic-logged and public TNR on those same cases.",
+        "Open Trap Queue cases grouped by the month the case was created, including claimed. Not fixed is cats still needing TNR. Transferred, not fixed is cats taken to a facility who were not fixed, and those cats are in neither Not fixed nor Fixed. Fixed is clinic-logged and public TNR.",
         "Month",
         queue,
         clinicFixes,
+        cats,
         reportableIds,
         (hr) => monthKeyFromIso(hr.created_at),
         "month"
@@ -750,10 +821,13 @@ export function runReport(
       );
       const adults = fosterPlacements.filter((p) => p.ageCategory === "adult").length;
       const kittens = fosterPlacements.filter((p) => p.ageCategory === "kitten").length;
+      const transferredUnfixed = fosterPlacements.filter(
+        (placement) => placement.source === "transferred_unfixed"
+      ).length;
       return {
         title: "TNVR cats sent to foster / facility",
         description:
-          "Trap-case cats recorded as going to foster or a facility, grouped by destination. This is not the Adoptable Cats list. A cat from a trap team may later be entered there; that adoption record is not assigned to a trap team.",
+          "Trap-case cats recorded as going to foster or a facility, grouped by destination. Transferred, not fixed cats are included here as a destination, and they are not counted as fixed. This is not the Adoptable Cats list.",
         columns: [
           { key: "label", label: "Foster / facility" },
           { key: "count", label: "Cats" },
@@ -761,6 +835,7 @@ export function runReport(
         rows,
         totals: [
           { label: "Total sent to foster/facility", value: fosterPlacements.length },
+          { label: "Transferred, not fixed", value: transferredUnfixed },
           { label: "Adults", value: adults },
           { label: "Kittens", value: kittens },
           { label: "Destinations", value: rows.length },
@@ -782,7 +857,12 @@ export function runReport(
             date: placement.placementDate.slice(0, 10),
             zip: hr ? normalizeZip(hr.colony_zip) || "—" : "—",
             team: team?.name ?? "—",
-            source: placement.source === "clinic_fix" ? "Clinic outcome" : "TNVR cat on the case",
+            source:
+              placement.source === "transferred_unfixed"
+                ? "Transferred, not fixed"
+                : placement.source === "fixed_and_transferred"
+                  ? "Fixed and transferred"
+                  : "TNVR cat on the case",
           },
         };
       });

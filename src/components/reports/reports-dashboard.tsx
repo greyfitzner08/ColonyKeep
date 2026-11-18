@@ -85,7 +85,7 @@ const REPORT_FAMILIES: ReportFamily[] = [
     id: "remaining_vs_fixed",
     label: "Remaining vs fixed",
     group: "Trap queue",
-    hint: "Open Trap Queue cats still unfixed versus already TNR’d (clinic or public update), including claimed cases.",
+    hint: "Open Trap Queue cats still needing TNR, cats already fixed, and cats transferred to a facility without being fixed. Transferred cats are not counted in either of the other two.",
     breakdowns: [
       {
         value: "zip",
@@ -375,10 +375,11 @@ export function ReportsDashboard({
       defaultWidth:
         column.key === "count" ||
         column.key === "cats" ||
-        column.key === "extra.remaining" ||
-        column.key === "extra.fixed"
+        column.key === "extra.remaining" || column.key === "extra.fixed"
           ? 110
-          : 180,
+          : column.key === "extra.transferred"
+            ? 190
+            : 180,
       render: (row) => cellValue(row, column.key),
       sortValue: (row) => {
         if (column.key.startsWith("extra.")) {
