@@ -37,15 +37,13 @@ interface AddTrackedCatDialogProps {
   onAdded: (cat: Cat) => void;
 }
 
-type CatDisposition = "pending" | "fixed" | "transferred";
-
 type CatGroup = {
   key: string;
   count: number;
   names: string[];
   gender: "" | "male" | "female";
   ageCategory: "" | "adult" | "kitten";
-  disposition: CatDisposition;
+  fixedAtClinic: boolean;
   clinicName: string;
   fixDate: string;
   wentToFoster: "" | "yes" | "no";
@@ -67,7 +65,7 @@ function newGroup(): CatGroup {
     names: [""],
     gender: "",
     ageCategory: "",
-    disposition: "pending",
+    fixedAtClinic: false,
     clinicName: "",
     fixDate: todayIsoDate(),
     wentToFoster: "",
@@ -139,19 +137,15 @@ export function AddTrackedCatDialog({
         setError(`${label}: select adult or kitten.`);
         return;
       }
-      if (group.disposition === "fixed" && !group.clinicName.trim()) {
+      if (group.fixedAtClinic && !group.clinicName.trim()) {
         setError(`${label}: enter where these cats were fixed.`);
         return;
       }
-      if (group.disposition === "fixed" && !isCalendarIsoDate(group.fixDate)) {
+      if (group.fixedAtClinic && !isCalendarIsoDate(group.fixDate)) {
         setError(`${label}: enter a valid fix date like September 4, 2026.`);
         return;
       }
-      if (group.disposition === "fixed" && !group.wentToFoster) {
-        setError(`${label}: select whether these cats are going to a facility.`);
-        return;
-      }
-      const needsFacility = group.disposition === "transferred" || group.wentToFoster === "yes";
+      const needsFacility = group.wentToFoster === "yes";
       if (needsFacility && !group.fosterFacility) {
         setError(`${label}: select where these cats are going.`);
         return;
@@ -175,11 +169,12 @@ export function AddTrackedCatDialog({
           names: resizeNames(group.names, group.count).map((name) => name.trim()),
           gender: group.gender,
           ageCategory: group.ageCategory,
-          disposition: group.disposition,
-          clinicName: group.disposition === "fixed" ? group.clinicName.trim() : "",
-          fixDate: group.disposition === "fixed" ? group.fixDate : "",
+          fixedAtClinic: group.fixedAtClinic,
+          transferred: group.wentToFoster === "yes",
+          clinicName: group.fixedAtClinic ? group.clinicName.trim() : "",
+          fixDate: group.fixedAtClinic ? group.fixDate : "",
           medical_notes: group.medicalNotes.trim(),
-          wentToFoster: group.disposition === "transferred" ? "yes" : group.wentToFoster,
+          wentToFoster: group.wentToFoster === "yes" ? "yes" : "no",
           fosterFacility: group.fosterFacility,
           fosterFacilityOther: group.fosterFacilityOther,
         })),
@@ -198,9 +193,7 @@ export function AddTrackedCatDialog({
     for (const cat of cats) onAdded(cat);
     const shouldRefresh = groups.some(
       (group) =>
-        group.disposition !== "pending" ||
-        group.wentToFoster === "yes" ||
-        group.wentToFoster === "no"
+        group.fixedAtClinic || group.wentToFoster === "yes" || group.wentToFoster === "no"
     );
     resetForm();
     onOpenChange(false);
@@ -213,8 +206,8 @@ export function AddTrackedCatDialog({
         <DialogHeader>
           <DialogTitle>Add cats</DialogTitle>
           <DialogDescription>
-            Record cats that still need fixing, were fixed at a clinic, or were transferred to a
-            facility before they were fixed. Name fields appear for each cat.
+            Fixed and transferred are separate. A cat can be both, or transferred without being
+            fixed. Name fields appear for each cat.
           </DialogDescription>
         </DialogHeader>
 
@@ -239,16 +232,33 @@ export function AddTrackedCatDialog({
                 ) : null}
               </div>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                <div className="space-y-1 sm:col-span-2 lg:col-span-3">
-                  <Label>What happened to these cats?</Label>
+                <div className="space-y-1">
+                  <Label>Fixed at a clinic?</Label>
                   <Select
-                    value={group.disposition}
+                    value={group.fixedAtClinic ? "yes" : "no"}
+                    onValueChange={(value) =>
+                      updateGroup(group.key, { fixedAtClinic: value === "yes" })
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="no">No</SelectItem>
+                      <SelectItem value="yes">Yes</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1">
+                  <Label>Transferred to a facility?</Label>
+                  <Select
+                    value={group.wentToFoster === "yes" ? "yes" : "no"}
                     onValueChange={(value) => {
-                      const disposition = value as CatDisposition;
+                      const transferred = value === "yes";
                       updateGroup(group.key, {
-                        disposition,
-                        wentToFoster: disposition === "transferred" ? "yes" : group.wentToFoster,
-                        clinicName: disposition === "fixed" ? group.clinicName : "",
+                        wentToFoster: transferred ? "yes" : "no",
+                        fosterFacility: transferred ? group.fosterFacility : "",
+                        fosterFacilityOther: transferred ? group.fosterFacilityOther : "",
                       });
                     }}
                   >
@@ -256,15 +266,12 @@ export function AddTrackedCatDialog({
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="pending">Still need fixing</SelectItem>
-                      <SelectItem value="fixed">Fixed at a clinic</SelectItem>
-                      <SelectItem value="transferred">
-                        Transferred to a facility, not fixed
-                      </SelectItem>
+                      <SelectItem value="no">No</SelectItem>
+                      <SelectItem value="yes">Yes</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
-                {group.disposition === "fixed" ? (
+                {group.fixedAtClinic ? (
                   <>
                     <div className="space-y-1">
                       <Label>Where fixed</Label>
@@ -333,38 +340,15 @@ export function AddTrackedCatDialog({
                     }
                   />
                 </div>
-                {group.disposition !== "transferred" ? (
-                <div className="space-y-1 sm:col-span-2 lg:col-span-3">
-                  <Label>Going to a facility?</Label>
-                  <Select
-                    value={group.wentToFoster || "unset"}
-                    onValueChange={(value) => {
-                      const next = value === "unset" ? "" : (value as "yes" | "no");
-                      updateGroup(group.key, {
-                        wentToFoster: next,
-                        fosterFacility: next === "yes" ? group.fosterFacility : "",
-                        fosterFacilityOther: next === "yes" ? group.fosterFacilityOther : "",
-                      });
-                    }}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="unset">Select</SelectItem>
-                      <SelectItem value="no">No — staying at the colony</SelectItem>
-                      <SelectItem value="yes">Yes — foster or facility</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                ) : null}
               </div>
-              {group.disposition === "transferred" ? (
+              {group.wentToFoster === "yes" ? (
                 <p className="text-sm text-muted-foreground">
-                  They leave the count of cats that still need fixing, and are not counted as fixed.
+                  {group.fixedAtClinic
+                    ? "They count as fixed, and as transferred to a facility."
+                    : "They leave the count of cats that still need fixing, and are not counted as fixed."}
                 </p>
               ) : null}
-              {group.disposition === "transferred" || group.wentToFoster === "yes" ? (
+              {group.wentToFoster === "yes" ? (
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <div className="space-y-1">
                     <Label>Facility</Label>

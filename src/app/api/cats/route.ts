@@ -26,6 +26,8 @@ type CatGroupInput = {
   fosterFacility?: unknown;
   fosterFacilityOther?: unknown;
   disposition?: unknown;
+  fixedAtClinic?: unknown;
+  transferred?: unknown;
 };
 
 function parseIsoDate(value: unknown): string | null {
@@ -77,14 +79,12 @@ function parseCatGroups(
       return { error: `${label}: select adult or kitten.` };
     }
     const clinicName = typeof group.clinicName === "string" ? group.clinicName.trim() : "";
-    const requestedDisposition =
-      group.disposition === "fixed" || group.disposition === "transferred" || group.disposition === "pending"
-        ? group.disposition
-        : clinicName
-          ? "fixed"
-          : "pending";
-    const fixedAtClinic = requestedDisposition === "fixed";
-    const transferred = requestedDisposition === "transferred";
+    const fixedAtClinic = group.fixedAtClinic === true || group.disposition === "fixed";
+    const transferred =
+      group.transferred === true ||
+      group.wentToFoster === "yes" ||
+      group.disposition === "transferred";
+    const transferredUnfixed = transferred && !fixedAtClinic;
     if (fixedAtClinic && !clinicName) {
       return { error: `${label}: enter where these cats were fixed.` };
     }
@@ -94,15 +94,13 @@ function parseCatGroups(
         error: `${label}: enter a valid fix date like September 4, 2026.`,
       };
     }
-    const wentToFoster = (
-      transferred ? "yes" : (group.wentToFoster ?? "")
-    ) as "" | "yes" | "no";
+    const wentToFoster = (transferred ? "yes" : "no") as "" | "yes" | "no";
     const { error: fosterError, fields: fosterFields } = resolveTrackedCatFosterFields({
       wentToFoster,
       fosterFacility: (group.fosterFacility ?? "") as FosterFacility | "",
       fosterFacilityOther: typeof group.fosterFacilityOther === "string" ? group.fosterFacilityOther : "",
       clinicFixed: fixedAtClinic,
-      requireFoster: fixedAtClinic || transferred,
+      requireFoster: transferred,
     });
     if (fosterError) return { error: `${label}: ${fosterError}` };
 
@@ -116,7 +114,7 @@ function parseCatGroups(
       age_category: ageCategory,
       medical_notes: medicalNotes,
       ...(fosterFields ?? {}),
-      transferred_unfixed: transferred,
+      transferred_unfixed: transferredUnfixed,
       ...(fixedAtClinic
         ? {
             clinic_name: clinicName.slice(0, 120),
@@ -127,7 +125,7 @@ function parseCatGroups(
         : {}),
     };
     if (fixedAtClinic) anyFixed = true;
-    if (transferred) anyTransferred = true;
+    if (transferredUnfixed) anyTransferred = true;
     for (let i = 0; i < count; i += 1) {
       rows.push({ ...shared, name: names[i] });
     }

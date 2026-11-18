@@ -34,8 +34,8 @@ export async function PATCH(
   const trappedStatus = emptyOrNull(body?.trapped_status);
   const appointmentStatus = emptyOrNull(body?.appointment_status);
   const fixedAtClinicProvided = body?.fixedAtClinic !== undefined;
-  const transferredUnfixed = body?.transferredUnfixed === true;
-  const fixedAtClinic = body?.fixedAtClinic === true && !transferredUnfixed;
+  const fixedAtClinic = body?.fixedAtClinic === true;
+  const transferredUnfixed = body?.transferredUnfixed === true && !fixedAtClinic;
   const ageCategory = (body?.ageCategory ?? body?.age_category) as "adult" | "kitten" | "" | undefined;
 
   try {
@@ -127,14 +127,8 @@ export async function PATCH(
       );
     }
 
-    if (fixedAtClinicProvided || transferredUnfixed) {
-      if (transferredUnfixed) {
-        updatePayload.transferred_unfixed = true;
-        updatePayload.trapped_status = null;
-        updatePayload.appointment_status = null;
-        updatePayload.clinic_name = null;
-        updatePayload.age_category = ageCategory;
-      } else if (fixedAtClinic) {
+    if (fixedAtClinicProvided || body?.transferredUnfixed !== undefined) {
+      if (fixedAtClinic) {
         updatePayload.transferred_unfixed = false;
         updatePayload.trapped_status = "Trapped";
         updatePayload.appointment_status = "Complete";
@@ -144,6 +138,12 @@ export async function PATCH(
           updatePayload.clinic_name = clinicName;
         }
         if (fixDate) updatePayload.return_date = fixDate;
+      } else if (transferredUnfixed) {
+        updatePayload.transferred_unfixed = true;
+        updatePayload.trapped_status = null;
+        updatePayload.appointment_status = null;
+        updatePayload.clinic_name = null;
+        updatePayload.age_category = ageCategory;
       } else {
         updatePayload.transferred_unfixed = false;
         updatePayload.trapped_status = null;
@@ -183,7 +183,7 @@ export async function PATCH(
     }
 
     let removedClinicFixes = 0;
-    if (transferredUnfixed) {
+    if (fixedAtClinicProvided && !fixedAtClinic) {
       const { count, error: countError } = await service
         .from("clinic_fixes")
         .select("id", { count: "exact", head: true })
