@@ -35,7 +35,9 @@ export async function PATCH(
   const appointmentStatus = emptyOrNull(body?.appointment_status);
   const fixedAtClinicProvided = body?.fixedAtClinic !== undefined;
   const fixedAtClinic = body?.fixedAtClinic === true;
-  const transferredUnfixed = body?.transferredUnfixed === true && !fixedAtClinic;
+  const alreadyFixed = body?.alreadyFixed === true && !fixedAtClinic;
+  const transferredUnfixed =
+    body?.transferredUnfixed === true && !fixedAtClinic && !alreadyFixed;
   const ageCategory = (body?.ageCategory ?? body?.age_category) as "adult" | "kitten" | "" | undefined;
 
   try {
@@ -120,16 +122,25 @@ export async function PATCH(
         { status: 400 }
       );
     }
-    if (transferredUnfixed && ageCategory !== "adult" && ageCategory !== "kitten") {
+    if (
+      (transferredUnfixed || alreadyFixed) &&
+      ageCategory !== "adult" &&
+      ageCategory !== "kitten"
+    ) {
       return NextResponse.json(
-        { error: "Select adult or kitten for a transferred cat." },
+        { error: "Select adult or kitten." },
         { status: 400 }
       );
     }
 
-    if (fixedAtClinicProvided || body?.transferredUnfixed !== undefined) {
+    if (
+      fixedAtClinicProvided ||
+      body?.transferredUnfixed !== undefined ||
+      body?.alreadyFixed !== undefined
+    ) {
       if (fixedAtClinic) {
         updatePayload.transferred_unfixed = false;
+        updatePayload.already_fixed = false;
         updatePayload.trapped_status = "Trapped";
         updatePayload.appointment_status = "Complete";
         updatePayload.age_category =
@@ -138,7 +149,15 @@ export async function PATCH(
           updatePayload.clinic_name = clinicName;
         }
         if (fixDate) updatePayload.return_date = fixDate;
+      } else if (alreadyFixed) {
+        updatePayload.already_fixed = true;
+        updatePayload.transferred_unfixed = false;
+        updatePayload.trapped_status = null;
+        updatePayload.appointment_status = null;
+        updatePayload.clinic_name = null;
+        updatePayload.age_category = ageCategory;
       } else if (transferredUnfixed) {
+        updatePayload.already_fixed = false;
         updatePayload.transferred_unfixed = true;
         updatePayload.trapped_status = null;
         updatePayload.appointment_status = null;
@@ -146,6 +165,7 @@ export async function PATCH(
         updatePayload.age_category = ageCategory;
       } else {
         updatePayload.transferred_unfixed = false;
+        updatePayload.already_fixed = false;
         updatePayload.trapped_status = null;
         updatePayload.appointment_status = null;
         updatePayload.age_category = null;

@@ -79,7 +79,7 @@ export async function updateHelpRequestCatCounts(
     /** When true, recompute remaining from reported − fixed (ignore stored age split). */
     ignoreStoredRemaining?: boolean;
     /**
-     * Clinic-fix rows removed because those cats were transferred, not fixed.
+     * Clinic-fix rows removed because those cats were transferred or already fixed.
      * Lowers the stored TNVR total by the same amount so they are not kept as public fixes.
      */
     removedClinicFixes?: number;
@@ -108,7 +108,7 @@ export async function updateHelpRequestCatCounts(
 
   const { data: cats, error: catsError } = await service
     .from("cats")
-    .select("id, age_category, went_to_foster_facility, transferred_unfixed")
+    .select("id, age_category, went_to_foster_facility, transferred_unfixed, already_fixed")
     .eq("help_request_id", helpRequestId);
 
   if (catsError) {
@@ -196,7 +196,10 @@ export async function syncTrackedCatFixesForCase(
   const fixRows = (fixes ?? []) as SyncFixRow[];
 
   for (const cat of (cats ?? []) as Cat[]) {
-    const fixed = cat.transferred_unfixed !== true && isTrackedCatClinicFixed(cat);
+    const fixed =
+      cat.transferred_unfixed !== true &&
+      cat.already_fixed !== true &&
+      isTrackedCatClinicFixed(cat);
     const existingByCat = fixRows.find((fix) => fix.cat_id === cat.id);
     const existingByAppointment =
       cat.appointment_id != null

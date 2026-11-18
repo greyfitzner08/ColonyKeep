@@ -398,6 +398,8 @@ export interface Cat {
   went_to_foster_facility: boolean | null;
   /** Taken to a facility and not fixed. Removed from cats that still need fixing. */
   transferred_unfixed?: boolean | null;
+  /** Already fixed when trapped or reported. Removed from cats that still need fixing, and not counted as a cat this program fixed. */
+  already_fixed?: boolean | null;
   foster_facility:
     | "humane_society_charlotte"
     | "animal_care_control"

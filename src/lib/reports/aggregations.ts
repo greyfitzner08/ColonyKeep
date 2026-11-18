@@ -30,6 +30,7 @@ export interface ReportCat {
   age_category: "adult" | "kitten" | null;
   went_to_foster_facility: boolean | null;
   transferred_unfixed?: boolean | null;
+  already_fixed?: boolean | null;
   foster_facility: FosterFacility | null;
   foster_facility_other: string | null;
 }
@@ -306,6 +307,10 @@ function transferredUnfixedIds(cats: ReportCat[]): Set<string> {
   return new Set(cats.filter((cat) => cat.transferred_unfixed === true).map((cat) => cat.id));
 }
 
+function alreadyFixedIds(cats: ReportCat[]): Set<string> {
+  return new Set(cats.filter((cat) => cat.already_fixed === true).map((cat) => cat.id));
+}
+
 function clinicFixCountsForRequests(
   clinicFixes: ReportClinicFix[],
   requestIds: Set<string>,
@@ -329,14 +334,16 @@ function clinicFixCountsForRequests(
   return { fixes, excludedTransfers };
 }
 
-function transferredUnfixedCounts(
+function flagCounts(
   cats: ReportCat[],
   requestIds: Set<string>,
-  reportableIds: Set<string>
+  reportableIds: Set<string>,
+  flag: "transferred_unfixed" | "already_fixed"
 ): Map<string, number> {
   const counts = new Map<string, number>();
   for (const cat of cats) {
-    if (cat.transferred_unfixed !== true) continue;
+    if (cat[flag] !== true) continue;
+    if (flag === "transferred_unfixed" && cat.already_fixed === true) continue;
     if (!reportableIds.has(cat.help_request_id)) continue;
     if (!requestIds.has(cat.help_request_id)) continue;
     counts.set(cat.help_request_id, (counts.get(cat.help_request_id) ?? 0) + 1);
@@ -362,6 +369,7 @@ function groupRemainingVsFixed(
     remaining: number;
     fixed: number;
     transferred: number;
+    alreadyFixed: number;
   }[],
   sort: "activity" | "month"
 ): ReportRow[] {
@@ -374,6 +382,7 @@ function groupRemainingVsFixed(
         remaining: Number(existing.extra?.remaining ?? 0) + item.remaining,
         fixed: Number(existing.extra?.fixed ?? 0) + item.fixed,
         transferred: Number(existing.extra?.transferred ?? 0) + item.transferred,
+        alreadyFixed: Number(existing.extra?.alreadyFixed ?? 0) + item.alreadyFixed,
       };
     } else {
       map.set(item.key, {
@@ -385,6 +394,7 @@ function groupRemainingVsFixed(
           remaining: item.remaining,
           fixed: item.fixed,
           transferred: item.transferred,
+          alreadyFixed: item.alreadyFixed,
         },
       });
     }
@@ -399,11 +409,13 @@ function groupRemainingVsFixed(
     const aWork =
       Number(a.extra?.remaining ?? 0) +
       Number(a.extra?.fixed ?? 0) +
-      Number(a.extra?.transferred ?? 0);
+      Number(a.extra?.transferred ?? 0) +
+      Number(a.extra?.alreadyFixed ?? 0);
     const bWork =
       Number(b.extra?.remaining ?? 0) +
       Number(b.extra?.fixed ?? 0) +
-      Number(b.extra?.transferred ?? 0);
+      Number(b.extra?.transferred ?? 0) +
+      Number(b.extra?.alreadyFixed ?? 0);
     return bWork - aWork || b.count - a.count || a.label.localeCompare(b.label);
   });
 }
@@ -421,14 +433,18 @@ function remainingVsFixedResult(
   includeSublabel = false
 ): ReportResult {
   const requestIds = new Set(queue.map((hr) => hr.id));
-  const transferredIds = transferredUnfixedIds(cats);
+  const excludedCatIds = new Set([
+    ...transferredUnfixedIds(cats),
+    ...alreadyFixedIds(cats),
+  ]);
   const { fixes: fixCounts, excludedTransfers } = clinicFixCountsForRequests(
     clinicFixes,
     requestIds,
     reportableIds,
-    transferredIds
+    excludedCatIds
   );
-  const transferredCounts = transferredUnfixedCounts(cats, requestIds, reportableIds);
+  const transferredCounts = flagCounts(cats, requestIds, reportableIds, "transferred_unfixed");
+  const alreadyFixedCounts = flagCounts(cats, requestIds, reportableIds, "already_fixed");
   const rows = groupRemainingVsFixed(
     queue.map((hr) => ({
       ...groupOf(hr),
@@ -439,12 +455,14 @@ function remainingVsFixedResult(
         excludedTransfers.get(hr.id) ?? 0
       ),
       transferred: transferredCounts.get(hr.id) ?? 0,
+      alreadyFixed: alreadyFixedCounts.get(hr.id) ?? 0,
     })),
     sort
   );
   const remaining = rows.reduce((sum, row) => sum + Number(row.extra?.remaining ?? 0), 0);
   const fixed = rows.reduce((sum, row) => sum + Number(row.extra?.fixed ?? 0), 0);
   const transferred = rows.reduce((sum, row) => sum + Number(row.extra?.transferred ?? 0), 0);
+  const alreadyFixed = rows.reduce((sum, row) => sum + Number(row.extra?.alreadyFixed ?? 0), 0);
 
   return {
     title,
@@ -456,6 +474,7 @@ function remainingVsFixedResult(
       { key: "extra.remaining", label: "Not fixed" },
       { key: "extra.fixed", label: "Fixed" },
       { key: "extra.transferred", label: "Transferred, not fixed" },
+      { key: "extra.alreadyFixed", label: "Already fixed" },
     ],
     rows,
     totals: [
@@ -463,6 +482,7 @@ function remainingVsFixedResult(
       { label: "Not fixed", value: remaining },
       { label: "Fixed", value: fixed },
       { label: "Transferred, not fixed", value: transferred },
+      { label: "Already fixed", value: alreadyFixed },
     ],
   };
 }
@@ -626,7 +646,7 @@ export function runReport(
       if (type === "queue_cats_by_zip") {
         return remainingVsFixedResult(
           "Queue cats remaining vs fixed by ZIP",
-          "Open Trap Queue cases only, including claimed. Not fixed is cats still needing TNR. Transferred, not fixed is cats taken to a facility who were not fixed, and those cats are in neither Not fixed nor Fixed. Fixed is clinic-logged and public TNR.",
+          "Open Trap Queue cases only, including claimed. Not fixed is cats still needing TNR. Transferred, not fixed and Already fixed are in neither Not fixed nor Fixed. Already fixed means the cat was already fixed when trapped or reported, and is not counted as a cat we fixed. Fixed is clinic-logged and public TNR.",
           "ZIP code",
           queue,
           clinicFixes,
@@ -644,7 +664,7 @@ export function runReport(
       if (type === "queue_cats_by_team") {
         return remainingVsFixedResult(
           "Queue cats remaining vs fixed by team",
-          "Open Trap Queue cases only, including claimed. Not fixed is cats still needing TNR. Transferred, not fixed is cats taken to a facility who were not fixed, and those cats are in neither Not fixed nor Fixed. Fixed is clinic-logged and public TNR.",
+          "Open Trap Queue cases only, including claimed. Not fixed is cats still needing TNR. Transferred, not fixed and Already fixed are in neither Not fixed nor Fixed. Already fixed means the cat was already fixed when trapped or reported, and is not counted as a cat we fixed. Fixed is clinic-logged and public TNR.",
           "Trap team",
           queue,
           clinicFixes,
@@ -659,7 +679,7 @@ export function runReport(
       }
       return remainingVsFixedResult(
         "Queue cats remaining vs fixed by month",
-        "Open Trap Queue cases grouped by the month the case was created, including claimed. Not fixed is cats still needing TNR. Transferred, not fixed is cats taken to a facility who were not fixed, and those cats are in neither Not fixed nor Fixed. Fixed is clinic-logged and public TNR.",
+        "Open Trap Queue cases grouped by the month the case was created, including claimed. Not fixed is cats still needing TNR. Transferred, not fixed and Already fixed are in neither Not fixed nor Fixed. Already fixed means the cat was already fixed when trapped or reported, and is not counted as a cat we fixed. Fixed is clinic-logged and public TNR.",
         "Month",
         queue,
         clinicFixes,

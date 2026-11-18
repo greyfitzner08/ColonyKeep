@@ -63,6 +63,7 @@ type CatDraft = {
   microchip_id: string;
   medical_notes: string;
   fixedAtClinic: boolean;
+  alreadyFixed: boolean;
   clinicName: string;
   fixDate: string;
   age_category: "" | "adult" | "kitten";
@@ -101,6 +102,8 @@ function toDraft(cat: Cat, clinicFix?: ClinicFix | null): CatDraft {
     microchip_id: cat.microchip_id ?? "",
     medical_notes: cat.medical_notes ?? "",
     fixedAtClinic: isTrackedCatClinicFixed(cat) || Boolean(clinicFix),
+    alreadyFixed:
+      cat.already_fixed === true && !(isTrackedCatClinicFixed(cat) || Boolean(clinicFix)),
     clinicName: cat.clinic_name?.trim() || clinicFix?.clinic_name?.trim() || "",
     fixDate: isoDateFromValue(clinicFix?.fix_date ?? cat.return_date ?? cat.trap_date),
     age_category: cat.age_category ?? "",
@@ -184,6 +187,7 @@ export function TrackedCatCard({
   const isFixed = isTrackedCatClinicFixed(cat) || Boolean(clinicFix);
   const wentToFacility = cat.went_to_foster_facility === true || cat.transferred_unfixed === true;
   const transferredUnfixed = !isFixed && cat.transferred_unfixed === true;
+  const alreadyFixed = !isFixed && cat.already_fixed === true;
   const ageLabel = ageLabelForCat(cat);
   const clinicLine = clinicLineForCat(cat, clinicFix);
   const subtitle = catSubtitle(cat);
@@ -203,6 +207,7 @@ export function TrackedCatCard({
 
   async function saveCat() {
     const transferred = draft.wentToFoster === "yes";
+    const alreadyFixedDraft = draft.alreadyFixed && !draft.fixedAtClinic;
     const fosterError = validateTrackedCatFosterForm(
       {
         wentToFoster: transferred ? "yes" : "no",
@@ -219,7 +224,12 @@ export function TrackedCatCard({
       setError("Enter a valid fix date like September 4, 2026.");
       return;
     }
-    if (transferred && !draft.fixedAtClinic && draft.age_category !== "adult" && draft.age_category !== "kitten") {
+    if (
+      (transferred || alreadyFixedDraft) &&
+      !draft.fixedAtClinic &&
+      draft.age_category !== "adult" &&
+      draft.age_category !== "kitten"
+    ) {
       setError("Select adult or kitten.");
       return;
     }
@@ -238,10 +248,12 @@ export function TrackedCatCard({
         microchip_id: draft.microchip_id,
         medical_notes: draft.medical_notes,
         fixedAtClinic: draft.fixedAtClinic,
-        transferredUnfixed: transferred && !draft.fixedAtClinic,
+        alreadyFixed: alreadyFixedDraft,
+        transferredUnfixed: transferred && !draft.fixedAtClinic && !alreadyFixedDraft,
         clinicName: draft.fixedAtClinic ? draft.clinicName : "",
         fixDate: draft.fixedAtClinic ? draft.fixDate : "",
-        ageCategory: draft.fixedAtClinic || transferred ? draft.age_category : "",
+        ageCategory:
+          draft.fixedAtClinic || transferred || alreadyFixedDraft ? draft.age_category : "",
         wentToFoster: transferred ? "yes" : "no",
         fosterFacility: draft.fosterFacility,
         fosterFacilityOther: draft.fosterFacilityOther,
@@ -408,7 +420,33 @@ export function TrackedCatCard({
             <Select
               value={draft.fixedAtClinic ? "yes" : "no"}
               onValueChange={(value) => {
-                setDraft({ ...draft, fixedAtClinic: value === "yes" });
+                setDraft({
+                  ...draft,
+                  fixedAtClinic: value === "yes",
+                  alreadyFixed: value === "yes" ? false : draft.alreadyFixed,
+                });
+                setError(null);
+              }}
+            >
+              <SelectTrigger className="text-base">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="no">No</SelectItem>
+                <SelectItem value="yes">Yes</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label className="text-sm font-medium">Already fixed (not by us)?</Label>
+            <Select
+              value={draft.alreadyFixed ? "yes" : "no"}
+              onValueChange={(value) => {
+                setDraft({
+                  ...draft,
+                  alreadyFixed: value === "yes",
+                  fixedAtClinic: value === "yes" ? false : draft.fixedAtClinic,
+                });
                 setError(null);
               }}
             >
@@ -445,7 +483,13 @@ export function TrackedCatCard({
               </SelectContent>
             </Select>
           </div>
-          {draft.wentToFoster === "yes" && (
+          {draft.alreadyFixed && (
+            <p className="text-sm text-muted-foreground sm:col-span-2">
+              They were already fixed before we trapped or reported them. They leave the count of
+              cats that still need fixing, and are not counted as cats we fixed.
+            </p>
+          )}
+          {draft.wentToFoster === "yes" && !draft.alreadyFixed && (
             <p className="text-sm text-muted-foreground sm:col-span-2">
               {draft.fixedAtClinic
                 ? "They count as fixed, and as transferred to a facility."
@@ -500,7 +544,7 @@ export function TrackedCatCard({
             </>
           )}
 
-          {draft.wentToFoster === "yes" && !draft.fixedAtClinic && (
+          {(draft.wentToFoster === "yes" || draft.alreadyFixed) && !draft.fixedAtClinic && (
             <div className="space-y-2">
               <Label className="text-sm font-medium">Age</Label>
               <Select
@@ -578,12 +622,17 @@ export function TrackedCatCard({
                     Fixed at clinic
                   </Badge>
                 )}
+                {alreadyFixed && (
+                  <Badge variant="default" className="bg-violet-700 hover:bg-violet-700/90">
+                    Already fixed
+                  </Badge>
+                )}
                 {wentToFacility && (
                   <Badge variant="default" className="bg-sky-700 hover:bg-sky-700/90">
                     {transferredUnfixed ? "Transferred, not fixed" : "Transferred"}
                   </Badge>
                 )}
-                {!isFixed && !wentToFacility && (
+                {!isFixed && !wentToFacility && !alreadyFixed && (
                   <Badge variant="secondary">In progress</Badge>
                 )}
               </div>
@@ -620,7 +669,7 @@ export function TrackedCatCard({
             cat.medical_notes ||
             cat.notes) && (
             <dl className="mt-4 rounded-lg border bg-muted/20 px-3">
-              {(isFixed || transferredUnfixed) && ageLabel && (
+              {(isFixed || transferredUnfixed || alreadyFixed) && ageLabel && (
                 <InfoRow label={isFixed ? "Age at clinic" : "Age"} value={ageLabel} />
               )}
               <InfoRow label="Microchip ID" value={cat.microchip_id} />
@@ -641,7 +690,7 @@ export function TrackedCatCard({
             </dl>
           )}
 
-          {!isFixed && canLogClinicFix && (
+          {!isFixed && !alreadyFixed && canLogClinicFix && (
             <div className="mt-4">
               <Button size="sm" onClick={() => setLogFixOpen(true)}>
                 Log clinic fix

@@ -224,6 +224,8 @@ type PublicCountCat = {
   id: string;
   age_category: string | null;
   went_to_foster_facility: boolean | null;
+  transferred_unfixed?: boolean | null;
+  already_fixed?: boolean | null;
 };
 
 export function toPublicProgressSummary(
@@ -266,7 +268,7 @@ export async function toPublicProgressSummaryWithCounts(
       .eq("help_request_id", row.id),
     service
       .from("cats")
-      .select("id, age_category, went_to_foster_facility, transferred_unfixed")
+      .select("id, age_category, went_to_foster_facility, transferred_unfixed, already_fixed")
       .eq("help_request_id", row.id),
   ]);
 

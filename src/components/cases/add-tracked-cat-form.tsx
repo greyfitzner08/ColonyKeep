@@ -44,6 +44,7 @@ type CatGroup = {
   gender: "" | "male" | "female";
   ageCategory: "" | "adult" | "kitten";
   fixedAtClinic: boolean;
+  alreadyFixed: boolean;
   clinicName: string;
   fixDate: string;
   wentToFoster: "" | "yes" | "no";
@@ -66,6 +67,7 @@ function newGroup(): CatGroup {
     gender: "",
     ageCategory: "",
     fixedAtClinic: false,
+    alreadyFixed: false,
     clinicName: "",
     fixDate: todayIsoDate(),
     wentToFoster: "",
@@ -170,6 +172,7 @@ export function AddTrackedCatDialog({
           gender: group.gender,
           ageCategory: group.ageCategory,
           fixedAtClinic: group.fixedAtClinic,
+          alreadyFixed: group.alreadyFixed && !group.fixedAtClinic,
           transferred: group.wentToFoster === "yes",
           clinicName: group.fixedAtClinic ? group.clinicName.trim() : "",
           fixDate: group.fixedAtClinic ? group.fixDate : "",
@@ -193,7 +196,10 @@ export function AddTrackedCatDialog({
     for (const cat of cats) onAdded(cat);
     const shouldRefresh = groups.some(
       (group) =>
-        group.fixedAtClinic || group.wentToFoster === "yes" || group.wentToFoster === "no"
+        group.fixedAtClinic ||
+        group.alreadyFixed ||
+        group.wentToFoster === "yes" ||
+        group.wentToFoster === "no"
     );
     resetForm();
     onOpenChange(false);
@@ -206,8 +212,9 @@ export function AddTrackedCatDialog({
         <DialogHeader>
           <DialogTitle>Add cats</DialogTitle>
           <DialogDescription>
-            Fixed and transferred are separate. A cat can be both, or transferred without being
-            fixed. Name fields appear for each cat.
+            Fixed, already fixed, and transferred are separate. A cat we fix can also be
+            transferred. A cat that was already fixed is not counted as one we fixed. Name
+            fields appear for each cat.
           </DialogDescription>
         </DialogHeader>
 
@@ -237,7 +244,30 @@ export function AddTrackedCatDialog({
                   <Select
                     value={group.fixedAtClinic ? "yes" : "no"}
                     onValueChange={(value) =>
-                      updateGroup(group.key, { fixedAtClinic: value === "yes" })
+                      updateGroup(group.key, {
+                        fixedAtClinic: value === "yes",
+                        alreadyFixed: value === "yes" ? false : group.alreadyFixed,
+                      })
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="no">No</SelectItem>
+                      <SelectItem value="yes">Yes</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1">
+                  <Label>Already fixed (not by us)?</Label>
+                  <Select
+                    value={group.alreadyFixed ? "yes" : "no"}
+                    onValueChange={(value) =>
+                      updateGroup(group.key, {
+                        alreadyFixed: value === "yes",
+                        fixedAtClinic: value === "yes" ? false : group.fixedAtClinic,
+                      })
                     }
                   >
                     <SelectTrigger>
@@ -341,7 +371,12 @@ export function AddTrackedCatDialog({
                   />
                 </div>
               </div>
-              {group.wentToFoster === "yes" ? (
+              {group.alreadyFixed ? (
+                <p className="text-sm text-muted-foreground">
+                  They were already fixed before we trapped or reported them. They leave the count
+                  of cats that still need fixing, and are not counted as cats we fixed.
+                </p>
+              ) : group.wentToFoster === "yes" ? (
                 <p className="text-sm text-muted-foreground">
                   {group.fixedAtClinic
                     ? "They count as fixed, and as transferred to a facility."

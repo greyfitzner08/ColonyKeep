@@ -28,6 +28,7 @@ type CatGroupInput = {
   disposition?: unknown;
   fixedAtClinic?: unknown;
   transferred?: unknown;
+  alreadyFixed?: unknown;
 };
 
 function parseIsoDate(value: unknown): string | null {
@@ -52,7 +53,14 @@ function parseGroupNames(group: CatGroupInput, count: number): (string | null)[]
 
 function parseCatGroups(
   groups: unknown
-): { error: string } | { rows: Record<string, unknown>[]; anyFixed: boolean; anyTransferred: boolean } {
+):
+  | { error: string }
+  | {
+      rows: Record<string, unknown>[];
+      anyFixed: boolean;
+      anyTransferred: boolean;
+      anyAlreadyFixed: boolean;
+    } {
   if (!Array.isArray(groups) || groups.length === 0) {
     return { error: "Add at least one group of cats." };
   }
@@ -60,6 +68,7 @@ function parseCatGroups(
   const rows: Record<string, unknown>[] = [];
   let anyFixed = false;
   let anyTransferred = false;
+  let anyAlreadyFixed = false;
 
   for (const [index, raw] of groups.entries()) {
     const group = (raw ?? {}) as CatGroupInput;
@@ -80,11 +89,12 @@ function parseCatGroups(
     }
     const clinicName = typeof group.clinicName === "string" ? group.clinicName.trim() : "";
     const fixedAtClinic = group.fixedAtClinic === true || group.disposition === "fixed";
+    const alreadyFixed = group.alreadyFixed === true && !fixedAtClinic;
     const transferred =
       group.transferred === true ||
       group.wentToFoster === "yes" ||
       group.disposition === "transferred";
-    const transferredUnfixed = transferred && !fixedAtClinic;
+    const transferredUnfixed = transferred && !fixedAtClinic && !alreadyFixed;
     if (fixedAtClinic && !clinicName) {
       return { error: `${label}: enter where these cats were fixed.` };
     }
@@ -115,6 +125,7 @@ function parseCatGroups(
       medical_notes: medicalNotes,
       ...(fosterFields ?? {}),
       transferred_unfixed: transferredUnfixed,
+      already_fixed: alreadyFixed,
       ...(fixedAtClinic
         ? {
             clinic_name: clinicName.slice(0, 120),
@@ -126,6 +137,7 @@ function parseCatGroups(
     };
     if (fixedAtClinic) anyFixed = true;
     if (transferredUnfixed) anyTransferred = true;
+    if (alreadyFixed) anyAlreadyFixed = true;
     for (let i = 0; i < count; i += 1) {
       rows.push({ ...shared, name: names[i] });
     }
@@ -135,7 +147,7 @@ function parseCatGroups(
     return { error: `Add up to ${MAX_CATS_PER_SAVE} cats at a time.` };
   }
 
-  return { rows, anyFixed, anyTransferred };
+  return { rows, anyFixed, anyTransferred, anyAlreadyFixed };
 }
 
 export async function POST(request: NextRequest) {
@@ -180,7 +192,7 @@ export async function POST(request: NextRequest) {
       if ("error" in parsed) {
         return NextResponse.json({ error: parsed.error }, { status: 400 });
       }
-      const { rows, anyFixed, anyTransferred } = parsed;
+      const { rows, anyFixed, anyTransferred, anyAlreadyFixed } = parsed;
       const { data: cats, error: insertError } = await service
         .from("cats")
         .insert(rows.map((row) => ({ ...row, help_request_id: helpRequestId })))
@@ -193,9 +205,11 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      if (anyFixed || anyTransferred) {
+      if (anyFixed || anyTransferred || anyAlreadyFixed) {
         await syncTrackedCatFixesForCase(service, helpRequestId);
-      } else if (cats.some((cat) => cat.went_to_foster_facility || cat.transferred_unfixed)) {
+      } else if (
+        cats.some((cat) => cat.went_to_foster_facility || cat.transferred_unfixed || cat.already_fixed)
+      ) {
         await updateHelpRequestCatCounts(service, helpRequestId);
       }
 

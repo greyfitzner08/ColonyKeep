@@ -40,6 +40,7 @@ export async function saveTrackedCatFromClinicLog(
     trapped_status: "Trapped",
     appointment_status: "Complete",
     transferred_unfixed: false,
+    already_fixed: false,
     clinic_name: input.clinicName?.trim() || null,
     ...returnFields,
   };

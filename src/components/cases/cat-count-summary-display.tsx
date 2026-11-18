@@ -17,7 +17,11 @@ function CountCell({ value, className }: { value: number; className?: string }) 
 export function CatCountSummaryDisplay({ counts, pregnantCount }: CatCountSummaryDisplayProps) {
   const reportedTotal = counts.reportedAdults + counts.reportedKittens;
   const resolvedTotal =
-    counts.fixedTotal + counts.transferredTotal + counts.outcomeAcc + counts.outcomeOther;
+    counts.fixedTotal +
+    counts.transferredTotal +
+    counts.alreadyFixedTotal +
+    counts.outcomeAcc +
+    counts.outcomeOther;
   const fixedPercent = reportedTotal > 0 ? Math.round((counts.fixedTotal / reportedTotal) * 100) : 0;
   const unfixedPercent =
     reportedTotal > 0 ? Math.round((counts.unfixedTotal / reportedTotal) * 100) : 0;
@@ -39,6 +43,12 @@ export function CatCountSummaryDisplay({ counts, pregnantCount }: CatCountSummar
             <>
               {" · "}
               {counts.transferredTotal} transferred, not fixed
+            </>
+          )}
+          {counts.alreadyFixedTotal > 0 && (
+            <>
+              {" · "}
+              {counts.alreadyFixedTotal} already fixed, not by us
             </>
           )}
           {counts.fosterTotal > 0 && (
@@ -149,6 +159,31 @@ export function CatCountSummaryDisplay({ counts, pregnantCount }: CatCountSummar
                 />
               </tr>
             )}
+            {counts.alreadyFixedTotal > 0 && (
+              <tr className="border-b bg-violet-50 dark:bg-violet-950/20">
+                <th
+                  className="px-4 py-2.5 text-left font-medium text-violet-900 dark:text-violet-100"
+                  scope="row"
+                >
+                  Already fixed
+                  <span className="mt-0.5 block text-xs font-normal text-violet-900/80 dark:text-violet-100/80">
+                    Already fixed when trapped or reported. Not counted as cats we fixed.
+                  </span>
+                </th>
+                <CountCell
+                  value={counts.alreadyFixedAdults}
+                  className="text-violet-900 dark:text-violet-100"
+                />
+                <CountCell
+                  value={counts.alreadyFixedKittens}
+                  className="text-violet-900 dark:text-violet-100"
+                />
+                <CountCell
+                  value={counts.alreadyFixedTotal}
+                  className="font-medium text-violet-900 dark:text-violet-100"
+                />
+              </tr>
+            )}
             {counts.fosterTotal > 0 && (
               <tr className="border-b bg-amber-50 dark:bg-amber-950/20">
                 <th
@@ -208,9 +243,10 @@ export function CatCountSummaryDisplay({ counts, pregnantCount }: CatCountSummar
 
       <p className="border-t px-4 py-2 text-xs text-muted-foreground">
         Originally reported is the intake count (or an admin correction). Fixed cats, cats
-        transferred to a facility before they were fixed, and cats that died, moved, or were
-        rehomed no longer count toward still need fixing. Cats still waiting for TNR are not an
-        “other” outcome.
+        transferred to a facility before they were fixed, cats that were already fixed when
+        trapped or reported, and cats that died, moved, or were rehomed no longer count toward
+        still need fixing. Already-fixed cats are not counted as cats we fixed. Cats still
+        waiting for TNR are not an “other” outcome.
       </p>
 
       {pregnantCount !== undefined && pregnantCount > 0 && (

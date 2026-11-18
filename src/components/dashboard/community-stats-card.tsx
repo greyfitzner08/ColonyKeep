@@ -8,7 +8,7 @@ export async function fetchCommunityStats(): Promise<CommunityStats> {
   const service = await createServiceClient();
   const today = new Date().toISOString().split("T")[0];
 
-  const [{ count: openCases }, { data: caseFixRows }, { data: clinicFixes }, { data: transferredCats }, { data: nextClinic }] =
+  const [{ count: openCases }, { data: caseFixRows }, { data: clinicFixes }, { data: transferredCats }, { data: alreadyFixedCats }, { data: nextClinic }] =
     await Promise.all([
       service
         .from("help_requests")
@@ -17,6 +17,7 @@ export async function fetchCommunityStats(): Promise<CommunityStats> {
       service.from("help_requests").select("id, status, outcome, outcome_tnvr_count"),
       service.from("clinic_fixes").select("help_request_id, cat_id"),
       service.from("cats").select("id").eq("transferred_unfixed", true),
+      service.from("cats").select("id").eq("already_fixed", true),
       service
         .from("public_clinic_events")
         .select("title, clinic_name, date, location")
@@ -27,7 +28,10 @@ export async function fetchCommunityStats(): Promise<CommunityStats> {
         .maybeSingle(),
     ]);
 
-  const transferredIds = new Set((transferredCats ?? []).map((cat) => cat.id as string));
+  const transferredIds = new Set([
+    ...(transferredCats ?? []).map((cat) => cat.id as string),
+    ...(alreadyFixedCats ?? []).map((cat) => cat.id as string),
+  ]);
   const clinicCountByCase = new Map<string, number>();
   const excludedTransfersByCase = new Map<string, number>();
   for (const row of clinicFixes ?? []) {
