@@ -831,26 +831,47 @@ export function runReport(
         if (fix.cat_id && excludedCatIds.has(fix.cat_id)) return false;
         return true;
       });
-      const rows = groupCount(
-        fixesOnDate.map((fix) => {
-          const label = fix.clinic_name?.trim() || "No clinic recorded";
-          return {
-            key: label.toLowerCase(),
-            label,
-            cats: 1,
-          };
-        })
-      );
+      const clinicRows = fixesOnDate.map((fix) => {
+        const label = fix.clinic_name?.trim() || "No clinic recorded";
+        return {
+          key: label.toLowerCase(),
+          label,
+          cats: 1,
+        };
+      });
+      // A case can be marked fixed without a clinic log. Those cats have no fix
+      // date, so they are included only when the report is not limited to a date range.
+      if (!filters.dateFrom && !filters.dateTo && !selectedClinicName) {
+        const { fixes, excludedTransfers } = clinicFixCountsForRequests(
+          clinicFixes,
+          casesInScope,
+          reportableIds,
+          excludedCatIds
+        );
+        for (const hr of filterHelpRequests(helpRequests, filters, teams, { skipDateFilter: true })) {
+          const logged = fixes.get(hr.id) ?? 0;
+          const fixed = caseFixedCount(hr, logged, excludedTransfers.get(hr.id) ?? 0);
+          const unlogged = Math.max(0, fixed - logged);
+          for (let index = 0; index < unlogged; index += 1) {
+            clinicRows.push({
+              key: "no clinic recorded",
+              label: "No clinic recorded",
+              cats: 1,
+            });
+          }
+        }
+      }
+      const rows = groupCount(clinicRows);
       return {
         title: "TNVR cats by clinic",
         description:
-          "Cats grouped by the clinic where they were fixed. The date range is the fix date, not the date the case was opened. Adoptable Cats are not included.",
+          "Cats grouped by the clinic where they were fixed. The date range is the fix date, not the date the case was opened. Cats marked fixed with no clinic are listed as No clinic recorded when no date range is set. Adoptable Cats are not included.",
         columns: [
           { key: "label", label: "Clinic" },
           { key: "count", label: "Cats" },
         ],
         rows,
-        totals: [{ label: "Cats", value: fixesOnDate.length }],
+        totals: [{ label: "Cats", value: clinicRows.length }],
       };
     }
 
