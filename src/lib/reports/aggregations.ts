@@ -792,16 +792,19 @@ export function runReport(
 
     case "cats_by_clinic": {
       const rows = groupCount(
-        filteredCats.map((cat) => ({
-          key: cat.clinic_id ?? "unknown",
-          label: cat.clinic_name?.trim() || "No clinic recorded",
-          cats: 1,
-        }))
+        filteredCats.map((cat) => {
+          const label = cat.clinic_name?.trim() || "No clinic recorded";
+          return {
+            key: label.toLowerCase(),
+            label,
+            cats: 1,
+          };
+        })
       );
       return {
         title: "TNVR cats by clinic",
         description:
-          "Trap-case cats with clinic assignments in the filtered date range. Adoptable Cats are not included.",
+          "Trap-case cats grouped by the clinic name recorded on the cat. Adoptable Cats are not included.",
         columns: [
           { key: "label", label: "Clinic" },
           { key: "count", label: "Cats" },
