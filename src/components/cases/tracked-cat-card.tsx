@@ -26,7 +26,7 @@ import {
   femaleReproductiveStatusLabel,
   type FemaleReproductiveStatus,
 } from "@/lib/cases/female-reproductive-status";
-import { formatFosterFacilitySummary } from "@/lib/cases/foster-facility";
+import { formatFosterFacilitySummary, fosterFacilityLabel } from "@/lib/cases/foster-facility";
 import { InfoRow } from "@/components/cases/case-detail-fields";
 import {
   AlertDialog,
@@ -55,6 +55,8 @@ interface TrackedCatCardProps {
   onRemoved: (catId: string) => void;
 }
 
+type CatDisposition = "pending" | "fixed" | "transferred";
+
 type CatDraft = {
   name: string;
   gender: "" | "male" | "female";
@@ -62,7 +64,7 @@ type CatDraft = {
   colors: string;
   microchip_id: string;
   medical_notes: string;
-  fixedAtClinic: boolean;
+  disposition: CatDisposition;
   clinicName: string;
   fixDate: string;
   age_category: "" | "adult" | "kitten";
@@ -70,6 +72,12 @@ type CatDraft = {
   fosterFacility: FosterFacility | "";
   fosterFacilityOther: string;
 };
+
+function dispositionForCat(cat: Cat, clinicFix?: ClinicFix | null): CatDisposition {
+  if (cat.transferred_unfixed) return "transferred";
+  if (isTrackedCatClinicFixed(cat) || clinicFix) return "fixed";
+  return "pending";
+}
 
 function todayIsoDate() {
   return new Date().toISOString().split("T")[0];
@@ -100,7 +108,7 @@ function toDraft(cat: Cat, clinicFix?: ClinicFix | null): CatDraft {
     colors: cat.colors ?? "",
     microchip_id: cat.microchip_id ?? "",
     medical_notes: cat.medical_notes ?? "",
-    fixedAtClinic: isTrackedCatClinicFixed(cat) || Boolean(clinicFix),
+    disposition: dispositionForCat(cat, clinicFix),
     clinicName: cat.clinic_name?.trim() || clinicFix?.clinic_name?.trim() || "",
     fixDate: isoDateFromValue(clinicFix?.fix_date ?? cat.return_date ?? cat.trap_date),
     age_category: cat.age_category ?? "",
@@ -180,7 +188,8 @@ export function TrackedCatCard({
   const catDisplayName = cat.name?.trim() || "Unnamed cat";
   const fosterSummary = fosterSummaryForCat(cat);
   const defaultGender = parseTrackedCatGender(cat.gender);
-  const isFixed = isTrackedCatClinicFixed(cat) || Boolean(clinicFix);
+  const isTransferred = cat.transferred_unfixed === true;
+  const isFixed = !isTransferred && (isTrackedCatClinicFixed(cat) || Boolean(clinicFix));
   const ageLabel = ageLabelForCat(cat);
   const clinicLine = clinicLineForCat(cat, clinicFix);
   const subtitle = catSubtitle(cat);
@@ -199,20 +208,26 @@ export function TrackedCatCard({
   }
 
   async function saveCat() {
+    const fixedAtClinic = draft.disposition === "fixed";
+    const transferred = draft.disposition === "transferred";
     const fosterError = validateTrackedCatFosterForm(
       {
-        wentToFoster: draft.wentToFoster,
+        wentToFoster: transferred ? "yes" : draft.wentToFoster,
         fosterFacility: draft.fosterFacility,
         fosterFacilityOther: draft.fosterFacilityOther,
       },
-      { required: draft.fixedAtClinic }
+      { required: fixedAtClinic || transferred }
     );
     if (fosterError) {
       setError(fosterError);
       return;
     }
-    if (draft.fixedAtClinic && !isCalendarIsoDate(draft.fixDate)) {
+    if (fixedAtClinic && !isCalendarIsoDate(draft.fixDate)) {
       setError("Enter a valid fix date like September 4, 2026.");
+      return;
+    }
+    if (transferred && draft.age_category !== "adult" && draft.age_category !== "kitten") {
+      setError("Select adult or kitten.");
       return;
     }
 
@@ -229,11 +244,12 @@ export function TrackedCatCard({
         colors: draft.colors,
         microchip_id: draft.microchip_id,
         medical_notes: draft.medical_notes,
-        fixedAtClinic: draft.fixedAtClinic,
-        clinicName: draft.fixedAtClinic ? draft.clinicName : "",
-        fixDate: draft.fixedAtClinic ? draft.fixDate : "",
-        ageCategory: draft.fixedAtClinic ? draft.age_category : undefined,
-        wentToFoster: draft.wentToFoster,
+        fixedAtClinic: draft.disposition === "fixed",
+        transferredUnfixed: draft.disposition === "transferred",
+        clinicName: draft.disposition === "fixed" ? draft.clinicName : "",
+        fixDate: draft.disposition === "fixed" ? draft.fixDate : "",
+        ageCategory: draft.disposition === "pending" ? "" : draft.age_category,
+        wentToFoster: draft.disposition === "transferred" ? "yes" : draft.wentToFoster,
         fosterFacility: draft.fosterFacility,
         fosterFacilityOther: draft.fosterFacilityOther,
       }),
@@ -395,15 +411,17 @@ export function TrackedCatCard({
           </div>
 
           <div className="space-y-2 sm:col-span-2">
-            <Label className="text-sm font-medium">Fixed at clinic?</Label>
+            <Label className="text-sm font-medium">What happened to this cat?</Label>
             <Select
-              value={draft.fixedAtClinic ? "yes" : "no"}
+              value={draft.disposition}
               onValueChange={(value) => {
-                const fixedAtClinic = value === "yes";
+                const disposition = value as CatDisposition;
                 setDraft({
                   ...draft,
-                  fixedAtClinic,
-                  age_category: fixedAtClinic ? draft.age_category : "",
+                  disposition,
+                  wentToFoster:
+                    disposition === "transferred" ? "yes" : draft.wentToFoster,
+                  age_category: disposition === "pending" ? "" : draft.age_category,
                 });
                 setError(null);
               }}
@@ -412,13 +430,21 @@ export function TrackedCatCard({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="no">Not yet — still at colony or in progress</SelectItem>
-                <SelectItem value="yes">Yes — already fixed at clinic</SelectItem>
+                <SelectItem value="pending">Still needs fixing</SelectItem>
+                <SelectItem value="fixed">Fixed at a clinic</SelectItem>
+                <SelectItem value="transferred">
+                  Transferred to a facility, not fixed
+                </SelectItem>
               </SelectContent>
             </Select>
+            {draft.disposition === "transferred" && (
+              <p className="text-sm text-muted-foreground">
+                They leave the count of cats that still need fixing, and are not counted as fixed.
+              </p>
+            )}
           </div>
 
-          {draft.fixedAtClinic && (
+          {draft.disposition === "fixed" && (
             <>
             <div className="space-y-2">
               <Label className="text-sm font-medium">Where fixed</Label>
@@ -465,11 +491,36 @@ export function TrackedCatCard({
             </>
           )}
 
+          {draft.disposition === "transferred" && (
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Age</Label>
+              <Select
+                value={draft.age_category || "unset"}
+                onValueChange={(value) =>
+                  setDraft({
+                    ...draft,
+                    age_category: value === "unset" ? "" : (value as "adult" | "kitten"),
+                  })
+                }
+              >
+                <SelectTrigger className="text-base">
+                  <SelectValue placeholder="Select age" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="unset">Select age</SelectItem>
+                  <SelectItem value="adult">Adult (8+ weeks)</SelectItem>
+                  <SelectItem value="kitten">Kitten (&lt;8 weeks)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
           <div className="sm:col-span-2">
             <ClinicFixFosterFields
               variant="tracked-cat"
+              destinationOnly={draft.disposition === "transferred"}
               value={{
-                wentToFoster: draft.wentToFoster,
+                wentToFoster: draft.disposition === "transferred" ? "yes" : draft.wentToFoster,
                 fosterFacility: draft.fosterFacility,
                 fosterFacilityOther: draft.fosterFacilityOther,
               }}
@@ -512,10 +563,20 @@ export function TrackedCatCard({
             <div className="min-w-0 flex-1 space-y-1">
               <div className="flex flex-wrap items-center gap-2">
                 <Badge
-                  variant={isFixed ? "default" : "secondary"}
-                  className={isFixed ? "bg-emerald-600 hover:bg-emerald-600/90" : undefined}
+                  variant={isFixed || isTransferred ? "default" : "secondary"}
+                  className={
+                    isFixed
+                      ? "bg-emerald-600 hover:bg-emerald-600/90"
+                      : isTransferred
+                        ? "bg-sky-700 hover:bg-sky-700/90"
+                        : undefined
+                  }
                 >
-                  {isFixed ? "Fixed at clinic" : "In progress"}
+                  {isFixed
+                    ? "Fixed at clinic"
+                    : isTransferred
+                      ? "Transferred, not fixed"
+                      : "In progress"}
                 </Badge>
               </div>
               {subtitle && <p className="text-sm text-muted-foreground">{subtitle}</p>}
@@ -551,16 +612,30 @@ export function TrackedCatCard({
             cat.medical_notes ||
             cat.notes) && (
             <dl className="mt-4 rounded-lg border bg-muted/20 px-3">
-              {isFixed && ageLabel && <InfoRow label="Age at clinic" value={ageLabel} />}
+              {(isFixed || isTransferred) && ageLabel && (
+                <InfoRow label={isTransferred ? "Age" : "Age at clinic"} value={ageLabel} />
+              )}
               <InfoRow label="Microchip ID" value={cat.microchip_id} />
-              <InfoRow label="Clinic" value={clinicLine} />
-              <InfoRow label="After clinic" value={fosterSummary} />
+              {isTransferred ? (
+                <InfoRow
+                  label="Transferred to"
+                  value={
+                    fosterFacilityLabel(cat.foster_facility, cat.foster_facility_other) ??
+                    fosterSummary
+                  }
+                />
+              ) : (
+                <>
+                  <InfoRow label="Clinic" value={clinicLine} />
+                  <InfoRow label="After clinic" value={fosterSummary} />
+                </>
+              )}
               <InfoRow label="Medical notes" value={cat.medical_notes} />
               <InfoRow label="Notes" value={cat.notes} />
             </dl>
           )}
 
-          {!isFixed && canLogClinicFix && (
+          {!isFixed && !isTransferred && canLogClinicFix && (
             <div className="mt-4">
               <Button size="sm" onClick={() => setLogFixOpen(true)}>
                 Log clinic fix

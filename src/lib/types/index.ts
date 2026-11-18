@@ -396,6 +396,8 @@ export interface Cat {
   clinic_name: string | null;
   return_status: string | null;
   went_to_foster_facility: boolean | null;
+  /** Taken to a facility and not fixed. Removed from cats that still need fixing. */
+  transferred_unfixed?: boolean | null;
   foster_facility:
     | "humane_society_charlotte"
     | "animal_care_control"

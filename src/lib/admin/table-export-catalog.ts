@@ -173,6 +173,7 @@ export const EXPORTABLE_TABLES: ExportableTable[] = [
       { id: "medical_notes", label: "medical notes" },
       { id: "age_category", label: "age category" },
       { id: "went_to_foster_facility", label: "went to foster facility" },
+      { id: "transferred_unfixed", label: "transferred, not fixed" },
       { id: "foster_facility", label: "foster facility" },
       { id: "foster_facility_other", label: "foster facility other" },
       { id: "female_reproductive_status", label: "female reproductive status" },

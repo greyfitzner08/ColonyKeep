@@ -39,6 +39,7 @@ export async function saveTrackedCatFromClinicLog(
     age_category: input.ageCategory ?? null,
     trapped_status: "Trapped",
     appointment_status: "Complete",
+    transferred_unfixed: false,
     clinic_name: input.clinicName?.trim() || null,
     ...returnFields,
   };

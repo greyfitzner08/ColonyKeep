@@ -34,18 +34,23 @@ interface ClinicFixFosterFieldsProps {
   onChange: (value: FosterFormFields) => void;
   /** Use tracked-cat copy when the cat may not be fixed yet. */
   variant?: "clinic-fix" | "tracked-cat";
+  /** Facility only: the cat was transferred and was not fixed. */
+  destinationOnly?: boolean;
 }
 
 export function ClinicFixFosterFields({
   value,
   onChange,
   variant = "clinic-fix",
+  destinationOnly = false,
 }: ClinicFixFosterFieldsProps) {
   const isTrackedCat = variant === "tracked-cat";
   const { wentToFoster, fosterFacility, fosterFacilityOther } = value;
+  const showFacility = destinationOnly || wentToFoster === "yes";
 
   return (
     <div className="space-y-4">
+      {!destinationOnly && (
       <div className="space-y-2">
         <Label>
           {isTrackedCat
@@ -77,16 +82,24 @@ export function ClinicFixFosterFields({
           </SelectContent>
         </Select>
       </div>
+      )}
 
-      {wentToFoster === "yes" && (
+      {showFacility && (
         <div className="space-y-2">
-          <Label>{isTrackedCat ? "Where will the cat go?" : "Where did the cat go?"}</Label>
+          <Label>
+            {destinationOnly
+              ? "Where were they transferred?"
+              : isTrackedCat
+                ? "Where will the cat go?"
+                : "Where did the cat go?"}
+          </Label>
           <Select
             value={fosterFacility || "unset"}
             onValueChange={(nextValue) => {
               const facility = nextValue === "unset" ? "" : (nextValue as FosterFacility);
               onChange({
                 ...value,
+                wentToFoster: destinationOnly ? "yes" : value.wentToFoster,
                 fosterFacility: facility,
                 fosterFacilityOther: facility === "other" ? fosterFacilityOther : "",
               });
@@ -107,7 +120,7 @@ export function ClinicFixFosterFields({
         </div>
       )}
 
-      {wentToFoster === "yes" && fosterFacility === "other" && (
+      {showFacility && fosterFacility === "other" && (
         <div className="space-y-2">
           <Label>Other location</Label>
           <Input

@@ -25,6 +25,7 @@ type CatGroupInput = {
   wentToFoster?: unknown;
   fosterFacility?: unknown;
   fosterFacilityOther?: unknown;
+  disposition?: unknown;
 };
 
 function parseIsoDate(value: unknown): string | null {
@@ -49,13 +50,14 @@ function parseGroupNames(group: CatGroupInput, count: number): (string | null)[]
 
 function parseCatGroups(
   groups: unknown
-): { error: string } | { rows: Record<string, unknown>[]; anyFixed: boolean } {
+): { error: string } | { rows: Record<string, unknown>[]; anyFixed: boolean; anyTransferred: boolean } {
   if (!Array.isArray(groups) || groups.length === 0) {
     return { error: "Add at least one group of cats." };
   }
 
   const rows: Record<string, unknown>[] = [];
   let anyFixed = false;
+  let anyTransferred = false;
 
   for (const [index, raw] of groups.entries()) {
     const group = (raw ?? {}) as CatGroupInput;
@@ -75,20 +77,32 @@ function parseCatGroups(
       return { error: `${label}: select adult or kitten.` };
     }
     const clinicName = typeof group.clinicName === "string" ? group.clinicName.trim() : "";
-    const fixedAtClinic = clinicName.length > 0;
+    const requestedDisposition =
+      group.disposition === "fixed" || group.disposition === "transferred" || group.disposition === "pending"
+        ? group.disposition
+        : clinicName
+          ? "fixed"
+          : "pending";
+    const fixedAtClinic = requestedDisposition === "fixed";
+    const transferred = requestedDisposition === "transferred";
+    if (fixedAtClinic && !clinicName) {
+      return { error: `${label}: enter where these cats were fixed.` };
+    }
     const fixDate = parseIsoDate(group.fixDate);
     if (fixedAtClinic && !fixDate) {
       return {
         error: `${label}: enter a valid fix date like September 4, 2026.`,
       };
     }
-    const wentToFoster = (group.wentToFoster ?? "") as "" | "yes" | "no";
+    const wentToFoster = (
+      transferred ? "yes" : (group.wentToFoster ?? "")
+    ) as "" | "yes" | "no";
     const { error: fosterError, fields: fosterFields } = resolveTrackedCatFosterFields({
       wentToFoster,
       fosterFacility: (group.fosterFacility ?? "") as FosterFacility | "",
       fosterFacilityOther: typeof group.fosterFacilityOther === "string" ? group.fosterFacilityOther : "",
       clinicFixed: fixedAtClinic,
-      requireFoster: fixedAtClinic,
+      requireFoster: fixedAtClinic || transferred,
     });
     if (fosterError) return { error: `${label}: ${fosterError}` };
 
@@ -102,6 +116,7 @@ function parseCatGroups(
       age_category: ageCategory,
       medical_notes: medicalNotes,
       ...(fosterFields ?? {}),
+      transferred_unfixed: transferred,
       ...(fixedAtClinic
         ? {
             clinic_name: clinicName.slice(0, 120),
@@ -112,6 +127,7 @@ function parseCatGroups(
         : {}),
     };
     if (fixedAtClinic) anyFixed = true;
+    if (transferred) anyTransferred = true;
     for (let i = 0; i < count; i += 1) {
       rows.push({ ...shared, name: names[i] });
     }
@@ -121,7 +137,7 @@ function parseCatGroups(
     return { error: `Add up to ${MAX_CATS_PER_SAVE} cats at a time.` };
   }
 
-  return { rows, anyFixed };
+  return { rows, anyFixed, anyTransferred };
 }
 
 export async function POST(request: NextRequest) {
@@ -166,7 +182,7 @@ export async function POST(request: NextRequest) {
       if ("error" in parsed) {
         return NextResponse.json({ error: parsed.error }, { status: 400 });
       }
-      const { rows, anyFixed } = parsed;
+      const { rows, anyFixed, anyTransferred } = parsed;
       const { data: cats, error: insertError } = await service
         .from("cats")
         .insert(rows.map((row) => ({ ...row, help_request_id: helpRequestId })))
@@ -179,9 +195,9 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      if (anyFixed) {
+      if (anyFixed || anyTransferred) {
         await syncTrackedCatFixesForCase(service, helpRequestId);
-      } else if (cats.some((cat) => cat.went_to_foster_facility)) {
+      } else if (cats.some((cat) => cat.went_to_foster_facility || cat.transferred_unfixed)) {
         await updateHelpRequestCatCounts(service, helpRequestId);
       }
 

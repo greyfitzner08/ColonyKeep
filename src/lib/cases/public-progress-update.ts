@@ -266,7 +266,7 @@ export async function toPublicProgressSummaryWithCounts(
       .eq("help_request_id", row.id),
     service
       .from("cats")
-      .select("id, age_category, went_to_foster_facility")
+      .select("id, age_category, went_to_foster_facility, transferred_unfixed")
       .eq("help_request_id", row.id),
   ]);
 

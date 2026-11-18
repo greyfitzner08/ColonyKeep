@@ -17,6 +17,10 @@ export interface CatCountSummary {
   fosterAdults: number;
   fosterKittens: number;
   fosterTotal: number;
+  /** Left the colony for a facility and were not fixed. */
+  transferredAdults: number;
+  transferredKittens: number;
+  transferredTotal: number;
   outcomeAcc: number;
   outcomeOther: number;
   /** Cats not yet fixed / removed (still need trapping or TNR). */
@@ -34,6 +38,7 @@ type FosterCat = {
   id: string;
   age_category?: string | null;
   went_to_foster_facility?: boolean | null;
+  transferred_unfixed?: boolean | null;
 };
 
 type CountHelpRequest = Pick<
@@ -78,7 +83,10 @@ function fosterCountsFromFixes(fixes: FosterFix[]) {
 
 function fosterCountsFromTrackedCats(cats: FosterCat[], linkedCatIds: Set<string>) {
   const fosterCats = cats.filter(
-    (cat) => cat.went_to_foster_facility === true && !linkedCatIds.has(cat.id)
+    (cat) =>
+      cat.went_to_foster_facility === true &&
+      cat.transferred_unfixed !== true &&
+      !linkedCatIds.has(cat.id)
   );
 
   return {
@@ -118,6 +126,16 @@ export function summarizeCatCounts(
   const reportedKittensCount =
     hr.reported_kittens_under_8_weeks ?? (hr.kittens_under_8_weeks ?? 0) + clinicFixedKittens;
 
+  const clinicFixCatIds = new Set(
+    fixes.map((fix) => fix.cat_id).filter((id): id is string => Boolean(id))
+  );
+  const transferredCats = cats.filter(
+    (cat) => cat.transferred_unfixed === true && !clinicFixCatIds.has(cat.id)
+  );
+  const transferredAdults = transferredCats.filter((cat) => cat.age_category !== "kitten").length;
+  const transferredKittens = transferredCats.filter((cat) => cat.age_category === "kitten").length;
+  const transferredTotal = transferredAdults + transferredKittens;
+
   const fosterFromFixes = fosterCountsFromFixes(fixes);
   const fosterFromCats = fosterCountsFromTrackedCats(cats, fosterFromFixes.fixCatIds);
   const fosterAdults = fosterFromFixes.fosterAdults + fosterFromCats.fosterAdults;
@@ -137,10 +155,17 @@ export function summarizeCatCounts(
 
   const clinicUnfixedAdults = Math.max(0, reportedAdultsCount - clinicFixedAdults);
   const clinicUnfixedKittens = Math.max(0, reportedKittensCount - clinicFixedKittens);
+  const afterTransferAdults = Math.max(0, clinicUnfixedAdults - transferredAdults);
+  const afterTransferKittens = Math.max(0, clinicUnfixedKittens - transferredKittens);
 
-  const reduced = subtractFromBuckets(
+  const reducedBeforeTransfer = subtractFromBuckets(
     clinicUnfixedAdults,
     clinicUnfixedKittens,
+    nonClinicRemovals
+  );
+  const reduced = subtractFromBuckets(
+    afterTransferAdults,
+    afterTransferKittens,
     nonClinicRemovals
   );
   // Prefer the stored remaining age split when it matches the computed total so
@@ -152,8 +177,13 @@ export function summarizeCatCounts(
   const unfixedKittens = useStoredSplit ? storedKittens : reduced.kittens;
 
   // Attribute public TNR extras to adult/kitten for the Fixed row.
-  const adultsRemovedOutsideClinic = Math.max(0, clinicUnfixedAdults - unfixedAdults);
-  const kittensRemovedOutsideClinic = Math.max(0, clinicUnfixedKittens - unfixedKittens);
+  // Transfers are removed before this so they are not counted as fixes.
+  const attributionAdults =
+    transferredTotal > 0 ? reducedBeforeTransfer.adults : unfixedAdults;
+  const attributionKittens =
+    transferredTotal > 0 ? reducedBeforeTransfer.kittens : unfixedKittens;
+  const adultsRemovedOutsideClinic = Math.max(0, clinicUnfixedAdults - attributionAdults);
+  const kittensRemovedOutsideClinic = Math.max(0, clinicUnfixedKittens - attributionKittens);
   const publicTnvrAdults = Math.min(publicTnvrExtra, adultsRemovedOutsideClinic);
   const publicTnvrKittens = Math.min(
     Math.max(0, publicTnvrExtra - publicTnvrAdults),
@@ -176,6 +206,9 @@ export function summarizeCatCounts(
     fosterAdults,
     fosterKittens,
     fosterTotal: Math.max(fosterTotal, outcomeFoster),
+    transferredAdults,
+    transferredKittens,
+    transferredTotal,
     outcomeAcc,
     outcomeOther,
     unfixedAdults,

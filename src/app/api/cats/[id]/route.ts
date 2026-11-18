@@ -34,7 +34,8 @@ export async function PATCH(
   const trappedStatus = emptyOrNull(body?.trapped_status);
   const appointmentStatus = emptyOrNull(body?.appointment_status);
   const fixedAtClinicProvided = body?.fixedAtClinic !== undefined;
-  const fixedAtClinic = body?.fixedAtClinic === true;
+  const transferredUnfixed = body?.transferredUnfixed === true;
+  const fixedAtClinic = body?.fixedAtClinic === true && !transferredUnfixed;
   const ageCategory = (body?.ageCategory ?? body?.age_category) as "adult" | "kitten" | "" | undefined;
 
   try {
@@ -67,7 +68,9 @@ export async function PATCH(
           appointment_status: resolvedAppointmentStatus,
         });
 
-    const wentToFoster = (body?.wentToFoster ?? "") as "" | "yes" | "no";
+    const wentToFoster = (
+      transferredUnfixed ? "yes" : (body?.wentToFoster ?? "")
+    ) as "" | "yes" | "no";
     const fosterFacility = (body?.fosterFacility ?? "") as FosterFacility | "";
     const fosterFacilityOther = (body?.fosterFacilityOther ?? "") as string;
 
@@ -76,7 +79,7 @@ export async function PATCH(
       fosterFacility,
       fosterFacilityOther,
       clinicFixed,
-      requireFoster: clinicFixed,
+      requireFoster: clinicFixed || transferredUnfixed,
     });
     if (fosterError) {
       return NextResponse.json({ error: fosterError }, { status: 400 });
@@ -117,9 +120,22 @@ export async function PATCH(
         { status: 400 }
       );
     }
+    if (transferredUnfixed && ageCategory !== "adult" && ageCategory !== "kitten") {
+      return NextResponse.json(
+        { error: "Select adult or kitten for a transferred cat." },
+        { status: 400 }
+      );
+    }
 
-    if (fixedAtClinicProvided) {
-      if (fixedAtClinic) {
+    if (fixedAtClinicProvided || transferredUnfixed) {
+      if (transferredUnfixed) {
+        updatePayload.transferred_unfixed = true;
+        updatePayload.trapped_status = null;
+        updatePayload.appointment_status = null;
+        updatePayload.clinic_name = null;
+        updatePayload.age_category = ageCategory;
+      } else if (fixedAtClinic) {
+        updatePayload.transferred_unfixed = false;
         updatePayload.trapped_status = "Trapped";
         updatePayload.appointment_status = "Complete";
         updatePayload.age_category =
@@ -129,6 +145,7 @@ export async function PATCH(
         }
         if (fixDate) updatePayload.return_date = fixDate;
       } else {
+        updatePayload.transferred_unfixed = false;
         updatePayload.trapped_status = null;
         updatePayload.appointment_status = null;
         updatePayload.age_category = null;
@@ -165,7 +182,25 @@ export async function PATCH(
       );
     }
 
-    await syncTrackedCatFixesForCase(service, existing.help_request_id);
+    let removedClinicFixes = 0;
+    if (transferredUnfixed) {
+      const { count, error: countError } = await service
+        .from("clinic_fixes")
+        .select("id", { count: "exact", head: true })
+        .eq("cat_id", id);
+      if (countError) {
+        return NextResponse.json({ error: countError.message }, { status: 400 });
+      }
+      removedClinicFixes = count ?? 0;
+      const { error: deleteFixError } = await service.from("clinic_fixes").delete().eq("cat_id", id);
+      if (deleteFixError) {
+        return NextResponse.json({ error: deleteFixError.message }, { status: 400 });
+      }
+    }
+
+    await syncTrackedCatFixesForCase(service, existing.help_request_id, {
+      removedClinicFixes,
+    });
 
     if (fixedAtClinic && (fixDate || clinicName)) {
       const fixPatch: Record<string, string> = {};

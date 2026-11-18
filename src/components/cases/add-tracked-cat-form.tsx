@@ -37,12 +37,15 @@ interface AddTrackedCatDialogProps {
   onAdded: (cat: Cat) => void;
 }
 
+type CatDisposition = "pending" | "fixed" | "transferred";
+
 type CatGroup = {
   key: string;
   count: number;
   names: string[];
   gender: "" | "male" | "female";
   ageCategory: "" | "adult" | "kitten";
+  disposition: CatDisposition;
   clinicName: string;
   fixDate: string;
   wentToFoster: "" | "yes" | "no";
@@ -64,6 +67,7 @@ function newGroup(): CatGroup {
     names: [""],
     gender: "",
     ageCategory: "",
+    disposition: "pending",
     clinicName: "",
     fixDate: todayIsoDate(),
     wentToFoster: "",
@@ -135,19 +139,24 @@ export function AddTrackedCatDialog({
         setError(`${label}: select adult or kitten.`);
         return;
       }
-      if (group.clinicName.trim() && !isCalendarIsoDate(group.fixDate)) {
+      if (group.disposition === "fixed" && !group.clinicName.trim()) {
+        setError(`${label}: enter where these cats were fixed.`);
+        return;
+      }
+      if (group.disposition === "fixed" && !isCalendarIsoDate(group.fixDate)) {
         setError(`${label}: enter a valid fix date like September 4, 2026.`);
         return;
       }
-      if (group.clinicName.trim() && !group.wentToFoster) {
+      if (group.disposition === "fixed" && !group.wentToFoster) {
         setError(`${label}: select whether these cats are going to a facility.`);
         return;
       }
-      if (group.wentToFoster === "yes" && !group.fosterFacility) {
+      const needsFacility = group.disposition === "transferred" || group.wentToFoster === "yes";
+      if (needsFacility && !group.fosterFacility) {
         setError(`${label}: select where these cats are going.`);
         return;
       }
-      if (group.wentToFoster === "yes" && group.fosterFacility === "other" && !group.fosterFacilityOther.trim()) {
+      if (needsFacility && group.fosterFacility === "other" && !group.fosterFacilityOther.trim()) {
         setError(`${label}: enter the facility name.`);
         return;
       }
@@ -166,10 +175,11 @@ export function AddTrackedCatDialog({
           names: resizeNames(group.names, group.count).map((name) => name.trim()),
           gender: group.gender,
           ageCategory: group.ageCategory,
-          clinicName: group.clinicName.trim(),
-          fixDate: group.fixDate,
+          disposition: group.disposition,
+          clinicName: group.disposition === "fixed" ? group.clinicName.trim() : "",
+          fixDate: group.disposition === "fixed" ? group.fixDate : "",
           medical_notes: group.medicalNotes.trim(),
-          wentToFoster: group.wentToFoster,
+          wentToFoster: group.disposition === "transferred" ? "yes" : group.wentToFoster,
           fosterFacility: group.fosterFacility,
           fosterFacilityOther: group.fosterFacilityOther,
         })),
@@ -187,7 +197,10 @@ export function AddTrackedCatDialog({
     const cats = (result?.cats ?? []) as Cat[];
     for (const cat of cats) onAdded(cat);
     const shouldRefresh = groups.some(
-      (group) => group.clinicName.trim() || group.wentToFoster === "yes" || group.wentToFoster === "no"
+      (group) =>
+        group.disposition !== "pending" ||
+        group.wentToFoster === "yes" ||
+        group.wentToFoster === "no"
     );
     resetForm();
     onOpenChange(false);
@@ -200,8 +213,8 @@ export function AddTrackedCatDialog({
         <DialogHeader>
           <DialogTitle>Add cats</DialogTitle>
           <DialogDescription>
-            Enter clinic, fix date, gender, and age once, then how many cats. Name fields appear for
-            each cat so you do not re-enter those details.
+            Record cats that still need fixing, were fixed at a clinic, or were transferred to a
+            facility before they were fixed. Name fields appear for each cat.
           </DialogDescription>
         </DialogHeader>
 
@@ -226,23 +239,52 @@ export function AddTrackedCatDialog({
                 ) : null}
               </div>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                <div className="space-y-1">
-                  <Label>Where fixed</Label>
-                  <Input
-                    value={group.clinicName}
-                    onChange={(event) => updateGroup(group.key, { clinicName: event.target.value })}
-                    placeholder="Clinic name, or blank"
-                  />
+                <div className="space-y-1 sm:col-span-2 lg:col-span-3">
+                  <Label>What happened to these cats?</Label>
+                  <Select
+                    value={group.disposition}
+                    onValueChange={(value) => {
+                      const disposition = value as CatDisposition;
+                      updateGroup(group.key, {
+                        disposition,
+                        wentToFoster: disposition === "transferred" ? "yes" : group.wentToFoster,
+                        clinicName: disposition === "fixed" ? group.clinicName : "",
+                      });
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="pending">Still need fixing</SelectItem>
+                      <SelectItem value="fixed">Fixed at a clinic</SelectItem>
+                      <SelectItem value="transferred">
+                        Transferred to a facility, not fixed
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
-                <div className="space-y-1">
-                  <Label htmlFor={`fix-date-${group.key}`}>Fix date</Label>
-                  <DisplayDateInput
-                    id={`fix-date-${group.key}`}
-                    monthDayYear
-                    value={group.fixDate}
-                    onValueChange={(value) => updateGroup(group.key, { fixDate: value })}
-                  />
-                </div>
+                {group.disposition === "fixed" ? (
+                  <>
+                    <div className="space-y-1">
+                      <Label>Where fixed</Label>
+                      <Input
+                        value={group.clinicName}
+                        onChange={(event) => updateGroup(group.key, { clinicName: event.target.value })}
+                        placeholder="Clinic name"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor={`fix-date-${group.key}`}>Fix date</Label>
+                      <DisplayDateInput
+                        id={`fix-date-${group.key}`}
+                        monthDayYear
+                        value={group.fixDate}
+                        onValueChange={(value) => updateGroup(group.key, { fixDate: value })}
+                      />
+                    </div>
+                  </>
+                ) : null}
                 <div className="space-y-1">
                   <Label>Gender</Label>
                   <Select
@@ -291,6 +333,7 @@ export function AddTrackedCatDialog({
                     }
                   />
                 </div>
+                {group.disposition !== "transferred" ? (
                 <div className="space-y-1 sm:col-span-2 lg:col-span-3">
                   <Label>Going to a facility?</Label>
                   <Select
@@ -314,8 +357,14 @@ export function AddTrackedCatDialog({
                     </SelectContent>
                   </Select>
                 </div>
+                ) : null}
               </div>
-              {group.wentToFoster === "yes" ? (
+              {group.disposition === "transferred" ? (
+                <p className="text-sm text-muted-foreground">
+                  They leave the count of cats that still need fixing, and are not counted as fixed.
+                </p>
+              ) : null}
+              {group.disposition === "transferred" || group.wentToFoster === "yes" ? (
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <div className="space-y-1">
                     <Label>Facility</Label>

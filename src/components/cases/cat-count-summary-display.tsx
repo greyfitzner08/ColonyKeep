@@ -16,7 +16,8 @@ function CountCell({ value, className }: { value: number; className?: string }) 
 
 export function CatCountSummaryDisplay({ counts, pregnantCount }: CatCountSummaryDisplayProps) {
   const reportedTotal = counts.reportedAdults + counts.reportedKittens;
-  const resolvedTotal = counts.fixedTotal + counts.outcomeAcc + counts.outcomeOther;
+  const resolvedTotal =
+    counts.fixedTotal + counts.transferredTotal + counts.outcomeAcc + counts.outcomeOther;
   const fixedPercent = reportedTotal > 0 ? Math.round((counts.fixedTotal / reportedTotal) * 100) : 0;
   const unfixedPercent =
     reportedTotal > 0 ? Math.round((counts.unfixedTotal / reportedTotal) * 100) : 0;
@@ -34,6 +35,12 @@ export function CatCountSummaryDisplay({ counts, pregnantCount }: CatCountSummar
         <p className="mt-1 text-sm text-muted-foreground tabular-nums">
           {counts.unfixedTotal} still need fixing
           {reportedTotal > 0 ? ` (${unfixedPercent}% of reported)` : ""}
+          {counts.transferredTotal > 0 && (
+            <>
+              {" · "}
+              {counts.transferredTotal} transferred, not fixed
+            </>
+          )}
           {counts.fosterTotal > 0 && (
             <>
               {" · "}
@@ -117,6 +124,31 @@ export function CatCountSummaryDisplay({ counts, pregnantCount }: CatCountSummar
               <CountCell value={counts.fixedKittens} className="text-primary" />
               <CountCell value={counts.fixedTotal} className="font-medium text-primary" />
             </tr>
+            {counts.transferredTotal > 0 && (
+              <tr className="border-b bg-sky-50 dark:bg-sky-950/20">
+                <th
+                  className="px-4 py-2.5 text-left font-medium text-sky-900 dark:text-sky-100"
+                  scope="row"
+                >
+                  Transferred, not fixed
+                  <span className="mt-0.5 block text-xs font-normal text-sky-900/80 dark:text-sky-100/80">
+                    Taken to a facility. Not counted as fixed.
+                  </span>
+                </th>
+                <CountCell
+                  value={counts.transferredAdults}
+                  className="text-sky-900 dark:text-sky-100"
+                />
+                <CountCell
+                  value={counts.transferredKittens}
+                  className="text-sky-900 dark:text-sky-100"
+                />
+                <CountCell
+                  value={counts.transferredTotal}
+                  className="font-medium text-sky-900 dark:text-sky-100"
+                />
+              </tr>
+            )}
             {counts.fosterTotal > 0 && (
               <tr className="border-b bg-amber-50 dark:bg-amber-950/20">
                 <th
@@ -175,9 +207,10 @@ export function CatCountSummaryDisplay({ counts, pregnantCount }: CatCountSummar
       </div>
 
       <p className="border-t px-4 py-2 text-xs text-muted-foreground">
-        Originally reported is the intake count (or an admin correction). Fixed cats (clinic or
-        public TNR) and cats that died, moved, or were rehomed no longer count toward still need
-        fixing. Cats still waiting for TNR are not an “other” outcome.
+        Originally reported is the intake count (or an admin correction). Fixed cats, cats
+        transferred to a facility before they were fixed, and cats that died, moved, or were
+        rehomed no longer count toward still need fixing. Cats still waiting for TNR are not an
+        “other” outcome.
       </p>
 
       {pregnantCount !== undefined && pregnantCount > 0 && (

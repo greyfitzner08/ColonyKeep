@@ -78,6 +78,11 @@ export async function updateHelpRequestCatCounts(
   options?: {
     /** When true, recompute remaining from reported − fixed (ignore stored age split). */
     ignoreStoredRemaining?: boolean;
+    /**
+     * Clinic-fix rows removed because those cats were transferred, not fixed.
+     * Lowers the stored TNVR total by the same amount so they are not kept as public fixes.
+     */
+    removedClinicFixes?: number;
   }
 ) {
   const { data: helpRequest, error: fetchError } = await service
@@ -103,20 +108,21 @@ export async function updateHelpRequestCatCounts(
 
   const { data: cats, error: catsError } = await service
     .from("cats")
-    .select("id, age_category, went_to_foster_facility")
+    .select("id, age_category, went_to_foster_facility, transferred_unfixed")
     .eq("help_request_id", helpRequestId);
 
   if (catsError) {
     throw new Error(catsError.message);
   }
 
-  const forSummary = options?.ignoreStoredRemaining
-    ? {
-        ...helpRequest,
-        cats_over_8_weeks: null,
-        kittens_under_8_weeks: null,
-      }
-    : helpRequest;
+  const removedClinicFixes = Math.max(0, options?.removedClinicFixes ?? 0);
+  const forSummary = {
+    ...helpRequest,
+    outcome_tnvr_count: Math.max(0, (helpRequest.outcome_tnvr_count ?? 0) - removedClinicFixes),
+    ...(options?.ignoreStoredRemaining
+      ? { cats_over_8_weeks: null, kittens_under_8_weeks: null }
+      : {}),
+  };
 
   const counts = summarizeCatCounts(forSummary, fixes ?? [], cats ?? []);
   const reportedAdultsValue =
@@ -126,7 +132,10 @@ export async function updateHelpRequestCatCounts(
     helpRequest.reported_kittens_under_8_weeks ??
     counts.unfixedKittens + counts.fixedKittens;
 
-  const outcomeTnvr = Math.max(counts.fixedTotal, helpRequest.outcome_tnvr_count ?? 0);
+  const outcomeTnvr =
+    removedClinicFixes > 0
+      ? counts.fixedTotal
+      : Math.max(counts.fixedTotal, helpRequest.outcome_tnvr_count ?? 0);
 
   const { error: updateError } = await service
     .from("help_requests")
@@ -156,7 +165,8 @@ export async function updateHelpRequestCatCounts(
 
 export async function syncTrackedCatFixesForCase(
   service: SupabaseClient,
-  helpRequestId: string
+  helpRequestId: string,
+  options?: { removedClinicFixes?: number }
 ) {
   const { data: cats, error: catsError } = await service
     .from("cats")
@@ -186,7 +196,7 @@ export async function syncTrackedCatFixesForCase(
   const fixRows = (fixes ?? []) as SyncFixRow[];
 
   for (const cat of (cats ?? []) as Cat[]) {
-    const fixed = isTrackedCatClinicFixed(cat);
+    const fixed = cat.transferred_unfixed !== true && isTrackedCatClinicFixed(cat);
     const existingByCat = fixRows.find((fix) => fix.cat_id === cat.id);
     const existingByAppointment =
       cat.appointment_id != null
@@ -266,5 +276,7 @@ export async function syncTrackedCatFixesForCase(
     }
   }
 
-  await updateHelpRequestCatCounts(service, helpRequestId);
+  await updateHelpRequestCatCounts(service, helpRequestId, {
+    removedClinicFixes: options?.removedClinicFixes,
+  });
 }
