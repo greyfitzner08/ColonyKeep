@@ -42,7 +42,7 @@ export default async function ReportsPage() {
     supabase
       .from("cats")
       .select(
-        "id, help_request_id, clinic_id, clinic_name, trap_date, created_at, age_category, went_to_foster_facility, transferred_unfixed, already_fixed, foster_facility, foster_facility_other"
+        "id, help_request_id, name, clinic_id, clinic_name, trap_date, created_at, age_category, went_to_foster_facility, transferred_unfixed, already_fixed, foster_facility, foster_facility_other"
       ),
     supabase
       .from("clinic_fixes")

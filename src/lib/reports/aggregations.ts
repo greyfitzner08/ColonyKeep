@@ -19,6 +19,7 @@ import { CASE_STATUSES } from "@/lib/constants";
 import { reportCaseStatuses } from "@/lib/reports/visibility";
 import { sortTrapTeams } from "@/lib/trap-teams/sort-teams";
 import type { HelpRequestStatus } from "@/lib/types";
+import { formatDate } from "@/lib/utils";
 
 export interface ReportCat {
   id: string;
@@ -27,6 +28,7 @@ export interface ReportCat {
   clinic_name: string | null;
   trap_date: string | null;
   created_at: string;
+  name?: string | null;
   age_category: "adult" | "kitten" | null;
   went_to_foster_facility: boolean | null;
   transferred_unfixed?: boolean | null;
@@ -162,6 +164,14 @@ export const DEFAULT_REPORT_FILTERS: ReportFilters = {
   intakeOnly: false,
 };
 
+/** One record that contributed to a report total. */
+export interface ReportSource {
+  id: string;
+  href?: string;
+  title: string;
+  detail: string;
+}
+
 export interface ReportRow {
   key: string;
   label: string;
@@ -169,6 +179,7 @@ export interface ReportRow {
   count: number;
   cats?: number;
   extra?: Record<string, string | number>;
+  sources?: ReportSource[];
 }
 
 export interface ReportResult {
@@ -270,22 +281,45 @@ function filterAppointments(
   });
 }
 
+function caseStatusLabel(status: string): string {
+  return CASE_STATUSES.find((entry) => entry.value === status)?.label ?? status;
+}
+
+function caseSource(hr: ReportHelpRequest, detail: string, id = hr.id): ReportSource {
+  return {
+    id,
+    href: `/case/${hr.id}`,
+    title: hr.case_number,
+    detail,
+  };
+}
+
 function groupCount(
-  items: { key: string; label: string; sublabel?: string; cats?: number }[]
+  items: {
+    key: string;
+    label: string;
+    sublabel?: string;
+    cats?: number;
+    count?: number;
+    source?: ReportSource;
+  }[]
 ): ReportRow[] {
   const map = new Map<string, ReportRow>();
   for (const item of items) {
     const existing = map.get(item.key);
+    const add = item.count ?? 1;
     if (existing) {
-      existing.count += 1;
+      existing.count += add;
       existing.cats = (existing.cats ?? 0) + (item.cats ?? 0);
+      if (item.source) existing.sources = [...(existing.sources ?? []), item.source];
     } else {
       map.set(item.key, {
         key: item.key,
         label: item.label,
         sublabel: item.sublabel,
-        count: 1,
+        count: add,
         cats: item.cats ?? 0,
+        sources: item.source ? [item.source] : [],
       });
     }
   }
@@ -370,6 +404,7 @@ function groupRemainingVsFixed(
     fixed: number;
     transferred: number;
     alreadyFixed: number;
+    source?: ReportSource;
   }[],
   sort: "activity" | "month"
 ): ReportRow[] {
@@ -384,12 +419,14 @@ function groupRemainingVsFixed(
         transferred: Number(existing.extra?.transferred ?? 0) + item.transferred,
         alreadyFixed: Number(existing.extra?.alreadyFixed ?? 0) + item.alreadyFixed,
       };
+      if (item.source) existing.sources = [...(existing.sources ?? []), item.source];
     } else {
       map.set(item.key, {
         key: item.key,
         label: item.label,
         sublabel: item.sublabel,
         count: 1,
+        sources: item.source ? [item.source] : [],
         extra: {
           remaining: item.remaining,
           fixed: item.fixed,
@@ -446,17 +483,35 @@ function remainingVsFixedResult(
   const transferredCounts = flagCounts(cats, requestIds, reportableIds, "transferred_unfixed");
   const alreadyFixedCounts = flagCounts(cats, requestIds, reportableIds, "already_fixed");
   const rows = groupRemainingVsFixed(
-    queue.map((hr) => ({
-      ...groupOf(hr),
-      remaining: catCount(hr),
-      fixed: caseFixedCount(
+    queue.map((hr) => {
+      const remaining = catCount(hr);
+      const fixed = caseFixedCount(
         hr,
         fixCounts.get(hr.id) ?? 0,
         excludedTransfers.get(hr.id) ?? 0
-      ),
-      transferred: transferredCounts.get(hr.id) ?? 0,
-      alreadyFixed: alreadyFixedCounts.get(hr.id) ?? 0,
-    })),
+      );
+      const transferred = transferredCounts.get(hr.id) ?? 0;
+      const alreadyFixed = alreadyFixedCounts.get(hr.id) ?? 0;
+      const parts = [
+        `Not fixed ${remaining}`,
+        `Fixed ${fixed}`,
+        transferred > 0 ? `Transferred, not fixed ${transferred}` : "",
+        alreadyFixed > 0 ? `Already fixed ${alreadyFixed}` : "",
+      ].filter(Boolean);
+      const place = [hr.colony_city, normalizeZip(hr.colony_zip)].filter(Boolean).join(", ");
+      return {
+        ...groupOf(hr),
+        remaining,
+        fixed,
+        transferred,
+        alreadyFixed,
+        source: caseSource(
+          hr,
+          `${caseStatusLabel(hr.status)}${place ? ` · ${place}` : ""} · ${parts.join(" · ")}`,
+          `queue:${hr.id}`
+        ),
+      };
+    }),
     sort
   );
   const remaining = rows.reduce((sum, row) => sum + Number(row.extra?.remaining ?? 0), 0);
@@ -637,6 +692,33 @@ export function runReport(
   const caseById = new Map(
     helpRequests.filter((hr) => !isDuplicateClosedCase(hr)).map((hr) => [hr.id, hr])
   );
+  const catNameById = new Map(cats.map((cat) => [cat.id, cat.name?.trim() || ""]));
+
+  function groupedCaseSource(hr: ReportHelpRequest): ReportSource {
+    const place = [hr.colony_city, normalizeZip(hr.colony_zip)].filter(Boolean).join(", ");
+    return caseSource(
+      hr,
+      `${caseStatusLabel(hr.status)}${place ? ` · ${place}` : ""} · ${catCount(hr)} cats`,
+      `case:${hr.id}`
+    );
+  }
+
+  function placementSource(placement: FosterPlacement): ReportSource {
+    const hr = caseById.get(placement.helpRequestId);
+    const name = (placement.catId && catNameById.get(placement.catId)) || "Unnamed cat";
+    const kind =
+      placement.source === "transferred_unfixed"
+        ? "Transferred, not fixed"
+        : placement.source === "fixed_and_transferred"
+          ? "Fixed and transferred"
+          : "TNVR cat on the case";
+    return {
+      id: placement.key,
+      href: hr ? `/case/${hr.id}` : undefined,
+      title: hr?.case_number ?? "Case",
+      detail: `${name} · ${placement.ageCategory} · ${formatDate(placement.placementDate)} · ${kind}`,
+    };
+  }
 
   switch (type) {
     case "queue_cats_by_zip":
@@ -697,6 +779,7 @@ export function runReport(
           label: normalizeZip(hr.colony_zip) || "Unknown ZIP",
           sublabel: hr.colony_county || undefined,
           cats: catCount(hr),
+          source: groupedCaseSource(hr),
         }))
       );
       return {
@@ -725,6 +808,7 @@ export function runReport(
             label: team?.name ?? "Unassigned",
             sublabel: normalizeZip(hr.colony_zip) || undefined,
             cats: catCount(hr),
+            source: groupedCaseSource(hr),
           };
         })
       );
@@ -760,6 +844,7 @@ export function runReport(
             label,
             sublabel: hr.assigned_team_name ?? undefined,
             cats: catCount(hr),
+            source: groupedCaseSource(hr),
           };
         })
       );
@@ -788,6 +873,7 @@ export function runReport(
             key: team?.id ?? "unassigned",
             label: team?.name ?? "Unassigned",
             cats: catCount(hr),
+            source: groupedCaseSource(hr),
           };
         })
       );
@@ -831,12 +917,26 @@ export function runReport(
         if (fix.cat_id && excludedCatIds.has(fix.cat_id)) return false;
         return true;
       });
-      const clinicRows = fixesOnDate.map((fix) => {
+      const clinicRows: {
+        key: string;
+        label: string;
+        cats?: number;
+        count?: number;
+        source?: ReportSource;
+      }[] = fixesOnDate.map((fix) => {
         const label = fix.clinic_name?.trim() || "No clinic recorded";
+        const hr = caseById.get(fix.help_request_id);
+        const name = (fix.cat_id && catNameById.get(fix.cat_id)) || "Unnamed cat";
         return {
           key: label.toLowerCase(),
           label,
           cats: 1,
+          source: {
+            id: fix.id,
+            href: hr ? `/case/${hr.id}` : undefined,
+            title: hr?.case_number ?? "Case",
+            detail: `${name} · ${formatDate(fix.fix_date)}`,
+          },
         };
       });
       // A case can be marked fixed without a clinic log. Those cats have no fix
@@ -852,11 +952,17 @@ export function runReport(
           const logged = fixes.get(hr.id) ?? 0;
           const fixed = caseFixedCount(hr, logged, excludedTransfers.get(hr.id) ?? 0);
           const unlogged = Math.max(0, fixed - logged);
-          for (let index = 0; index < unlogged; index += 1) {
+          if (unlogged > 0) {
             clinicRows.push({
               key: "no clinic recorded",
               label: "No clinic recorded",
-              cats: 1,
+              cats: unlogged,
+              count: unlogged,
+              source: caseSource(
+                hr,
+                `${unlogged} marked fixed with no clinic`,
+                `unlogged:${hr.id}`
+              ),
             });
           }
         }
@@ -881,6 +987,7 @@ export function runReport(
           key: placement.facilityLabel.toLowerCase(),
           label: placement.facilityLabel,
           cats: 1,
+          source: placementSource(placement),
         }))
       );
       const adults = fosterPlacements.filter((p) => p.ageCategory === "adult").length;
@@ -928,6 +1035,7 @@ export function runReport(
                   ? "Fixed and transferred"
                   : "TNVR cat on the case",
           },
+          sources: [placementSource(placement)],
         };
       });
       return {
@@ -950,10 +1058,19 @@ export function runReport(
 
     case "clinic_usage": {
       const rows = groupCount(
-        filteredAppointments.map((appt) => ({
-          key: appt.clinic_id,
-          label: appt.clinic_name,
-        }))
+        filteredAppointments.map((appt) => {
+          const hr = appt.help_request_id ? caseById.get(appt.help_request_id) : undefined;
+          return {
+            key: appt.clinic_id,
+            label: appt.clinic_name,
+            source: {
+              id: appt.id,
+              href: hr ? `/case/${hr.id}` : undefined,
+              title: hr?.case_number ?? appt.clinic_name,
+              detail: `${formatDate(appt.date)} · ${appt.status || "Unknown status"}`,
+            },
+          };
+        })
       );
       const reserved = filteredAppointments.filter((appt) => appt.status === "reserved").length;
       return {
@@ -973,11 +1090,15 @@ export function runReport(
     }
 
     case "case_status_summary": {
-      const rows = reportCaseStatuses().map((entry) => ({
-        key: entry.value,
-        label: entry.label,
-        count: filtered.filter((hr) => hr.status === entry.value).length,
-      })).filter((row) => row.count > 0);
+      const rows = reportCaseStatuses().map((entry) => {
+        const matches = filtered.filter((hr) => hr.status === entry.value);
+        return {
+          key: entry.value,
+          label: entry.label,
+          count: matches.length,
+          sources: matches.map((hr) => groupedCaseSource(hr)),
+        };
+      }).filter((row) => row.count > 0);
       return {
         title: "Cases by status",
         description: "Status breakdown for filtered cases.",
@@ -1014,6 +1135,7 @@ export function runReport(
             created: hr.created_at.slice(0, 10),
             city: hr.colony_city,
           },
+          sources: [groupedCaseSource(hr)],
         };
       });
       return {
@@ -1054,6 +1176,7 @@ export function runReport(
             team: team?.name ?? "Unassigned",
             created: hr.created_at.slice(0, 10),
           },
+          sources: [groupedCaseSource(hr)],
         };
       });
       return {
@@ -1079,11 +1202,20 @@ export function runReport(
 
     case "adoptable_cats_by_status": {
       const listed = filterAdoptableCats(adoptableCats, filters);
-      const rows = ADOPTABLE_CAT_STATUSES.map((entry) => ({
-        key: entry.value,
-        label: entry.label,
-        count: listed.filter((cat) => cat.status === entry.value).length,
-      })).filter((row) => row.count > 0);
+      const rows = ADOPTABLE_CAT_STATUSES.map((entry) => {
+        const matches = listed.filter((cat) => cat.status === entry.value);
+        return {
+          key: entry.value,
+          label: entry.label,
+          count: matches.length,
+          sources: matches.map((cat) => ({
+            id: cat.id,
+            href: "/adoption",
+            title: cat.name,
+            detail: [catSexLabel(cat.sex), cat.fosterName, cat.petStore].filter(Boolean).join(" · ") || "Adoptable cat",
+          })),
+        };
+      }).filter((row) => row.count > 0);
       return {
         title: "Adoptable cats by status",
         description:
@@ -1110,6 +1242,16 @@ export function runReport(
           store: cat.petStore || "—",
           added: cat.created_at.slice(0, 10),
         },
+        sources: [
+          {
+            id: cat.id,
+            href: "/adoption",
+            title: cat.name,
+            detail: [adoptableCatStatusLabel(cat.status), catSexLabel(cat.sex), cat.fosterName, cat.petStore]
+              .filter(Boolean)
+              .join(" · "),
+          },
+        ],
       }));
       return {
         title: "Adoptable cats",
@@ -1130,11 +1272,20 @@ export function runReport(
 
     case "adoption_applications_by_status": {
       const listed = filterAdoptionApplications(adoptionApplications, filters);
-      const rows = ADOPTION_APPLICATION_STATUSES.map((entry) => ({
-        key: entry.value,
-        label: entry.label,
-        count: listed.filter((application) => application.status === entry.value).length,
-      })).filter((row) => row.count > 0);
+      const rows = ADOPTION_APPLICATION_STATUSES.map((entry) => {
+        const matches = listed.filter((application) => application.status === entry.value);
+        return {
+          key: entry.value,
+          label: entry.label,
+          count: matches.length,
+          sources: matches.map((application) => ({
+            id: application.id,
+            href: "/adoption/applications",
+            title: application.applicantName || "Applicant",
+            detail: [application.catInterestName, application.applicantEmail].filter(Boolean).join(" · ") || "Application",
+          })),
+        };
+      }).filter((row) => row.count > 0);
       return {
         title: "Adoption applications by status",
         description: "Applications from people who want to adopt, grouped by review status.",
@@ -1160,6 +1311,16 @@ export function runReport(
           linked: application.linkedCatName || "—",
           submitted: application.created_at.slice(0, 10),
         },
+        sources: [
+          {
+            id: application.id,
+            href: "/adoption/applications",
+            title: application.applicantName || "Applicant",
+            detail: [adoptionApplicationStatusLabel(application.status), application.catInterestName, application.applicantEmail]
+              .filter(Boolean)
+              .join(" · "),
+          },
+        ],
       }));
       return {
         title: "Adoption applications",

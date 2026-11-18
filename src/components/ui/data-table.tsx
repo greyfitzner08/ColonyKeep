@@ -58,6 +58,8 @@ export interface DataTableProps<T> {
   searchPlaceholder?: string;
   /** Custom searchable text. Defaults to values from column sortValue functions. */
   getSearchText?: (row: T) => string;
+  /** Called when a row is clicked or activated with the keyboard. */
+  onRowClick?: (row: T) => void;
   /**
    * Replace the default table toolbar. Use this to put Columns next to page
    * search/filters instead of a second bar.
@@ -91,6 +93,7 @@ export function DataTable<T>({
   enableColumnVisibility = true,
   searchPlaceholder = "Search table…",
   getSearchText,
+  onRowClick,
   renderToolbar,
 }: DataTableProps<T>) {
   const isFixedSizing = columnSizing === "fixed";
@@ -562,7 +565,23 @@ export function DataTable<T>({
               {sortedRows.map((row) => (
                 <tr
                   key={getRowKey(row)}
-                  className={cn("border-t align-top hover:bg-muted/30", getRowClassName?.(row))}
+                  className={cn(
+                    "border-t align-top hover:bg-muted/30",
+                    onRowClick && "cursor-pointer",
+                    getRowClassName?.(row)
+                  )}
+                  onClick={onRowClick ? () => onRowClick(row) : undefined}
+                  onKeyDown={
+                    onRowClick
+                      ? (event) => {
+                          if (event.key === "Enter" || event.key === " ") {
+                            event.preventDefault();
+                            onRowClick(row);
+                          }
+                        }
+                      : undefined
+                  }
+                  tabIndex={onRowClick ? 0 : undefined}
                 >
                   {orderedColumns.map((column) => (
                     <td

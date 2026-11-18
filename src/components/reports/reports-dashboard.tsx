@@ -19,6 +19,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PageHeader } from "@/components/layout/page-header";
 import { PivotReportBuilder } from "@/components/reports/pivot-report-builder";
+import { ReportRowSourcesDialog } from "@/components/reports/report-row-sources-dialog";
 import { TableExportPanel } from "@/components/reports/table-export-panel";
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import {
@@ -32,6 +33,7 @@ import {
   type ReportFilters,
   type ReportHelpRequest,
   type ReportTrapTeam,
+  type ReportRow,
   type ReportType,
   isAdoptionProgramReport,
   reportFilterOptions,
@@ -303,6 +305,7 @@ export function ReportsDashboard({
   const [reportType, setReportType] = useState<ReportType>("queue_cats_by_zip");
   const [moreFiltersOpen, setMoreFiltersOpen] = useState(false);
   const [quickReportOpen, setQuickReportOpen] = useState(true);
+  const [sourceRow, setSourceRow] = useState<ReportRow | null>(null);
 
   const visibleFamilies = useMemo(
     () =>
@@ -334,6 +337,10 @@ export function ReportsDashboard({
     const fallback = visibleFamilies[0]?.breakdowns[0];
     if (fallback) setReportType(fallback.type);
   }, [reportType, visibleFamilies]);
+
+  useEffect(() => {
+    setSourceRow(null);
+  }, [reportType, filters]);
 
   const options = useMemo(
     () => reportFilterOptions(helpRequests, teams, clinics),
@@ -790,6 +797,9 @@ export function ReportsDashboard({
             ))}
           </div>
 
+          <p className="text-xs text-muted-foreground">
+            Click a row to see the cases or records behind that number.
+          </p>
           <DataTable
             tableId={`reports-${reportType}`}
             columns={reportTableColumns}
@@ -798,9 +808,13 @@ export function ReportsDashboard({
             getSearchText={(row) =>
               result.columns.map((column) => String(cellValue(row, column.key) ?? "")).join(" ")
             }
+            onRowClick={(row) => {
+              if ((row.sources?.length ?? 0) > 0) setSourceRow(row);
+            }}
             searchPlaceholder="Search report…"
             emptyMessage="No rows match the current filters."
           />
+          <ReportRowSourcesDialog row={sourceRow} onOpenChange={(open) => !open && setSourceRow(null)} />
         </CardContent>
       </Card>
         </TabsContent>
