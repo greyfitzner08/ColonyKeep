@@ -811,9 +811,29 @@ export function runReport(
     }
 
     case "cats_by_clinic": {
+      const casesInScope = new Set(
+        filterHelpRequests(helpRequests, filters, teams, { skipDateFilter: true }).map(
+          (hr) => hr.id
+        )
+      );
+      const excludedCatIds = new Set([
+        ...transferredUnfixedIds(cats),
+        ...alreadyFixedIds(cats),
+      ]);
+      const selectedClinicName = filters.clinicId
+        ? _clinics.find((clinic) => clinic.id === filters.clinicId)?.name?.trim()
+        : null;
+      const fixesOnDate = clinicFixes.filter((fix) => {
+        if (!reportableIds.has(fix.help_request_id)) return false;
+        if (!casesInScope.has(fix.help_request_id)) return false;
+        if (!inDateRange(fix.fix_date, filters.dateFrom, filters.dateTo)) return false;
+        if (selectedClinicName && fix.clinic_name?.trim() !== selectedClinicName) return false;
+        if (fix.cat_id && excludedCatIds.has(fix.cat_id)) return false;
+        return true;
+      });
       const rows = groupCount(
-        filteredCats.map((cat) => {
-          const label = cat.clinic_name?.trim() || "No clinic recorded";
+        fixesOnDate.map((fix) => {
+          const label = fix.clinic_name?.trim() || "No clinic recorded";
           return {
             key: label.toLowerCase(),
             label,
@@ -824,13 +844,13 @@ export function runReport(
       return {
         title: "TNVR cats by clinic",
         description:
-          "Trap-case cats grouped by the clinic name recorded on the cat. Adoptable Cats are not included.",
+          "Cats grouped by the clinic where they were fixed. The date range is the fix date, not the date the case was opened. Adoptable Cats are not included.",
         columns: [
           { key: "label", label: "Clinic" },
           { key: "count", label: "Cats" },
         ],
         rows,
-        totals: [{ label: "Cats", value: filteredCats.length }],
+        totals: [{ label: "Cats", value: fixesOnDate.length }],
       };
     }
 

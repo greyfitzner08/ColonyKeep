@@ -169,13 +169,13 @@ const REPORT_FAMILIES: ReportFamily[] = [
     id: "cats_by_clinic",
     label: "Cats by clinic",
     group: "Clinic & foster",
-    hint: "TNVR case cats linked to each clinic. Adoptable cats are not included.",
+    hint: "Cats fixed at each clinic, using the date the fix was done.",
     breakdowns: [
       {
         value: "clinic",
         label: "Clinic",
         type: "cats_by_clinic",
-        hint: "TNVR case cats linked to each clinic.",
+        hint: "Grouped by clinic. Dates are the fix date.",
       },
     ],
   },
