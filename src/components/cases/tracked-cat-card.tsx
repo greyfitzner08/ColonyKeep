@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { DisplayDateInput } from "@/components/ui/display-date-input";
 import { Badge } from "@/components/ui/badge";
 import {
   Select,
@@ -62,13 +63,25 @@ type CatDraft = {
   microchip_id: string;
   medical_notes: string;
   fixedAtClinic: boolean;
+  clinicName: string;
+  fixDate: string;
   age_category: "" | "adult" | "kitten";
   wentToFoster: "" | "yes" | "no";
   fosterFacility: FosterFacility | "";
   fosterFacilityOther: string;
 };
 
-function toDraft(cat: Cat): CatDraft {
+function todayIsoDate() {
+  return new Date().toISOString().split("T")[0];
+}
+
+function isoDateFromValue(value: string | null | undefined): string {
+  if (!value) return todayIsoDate();
+  const match = /^(\d{4}-\d{2}-\d{2})/.exec(value.trim());
+  return match?.[1] ?? todayIsoDate();
+}
+
+function toDraft(cat: Cat, clinicFix?: ClinicFix | null): CatDraft {
   const foster = fosterFormFromCat(cat);
   const gender = cat.gender?.trim().toLowerCase();
   const normalizedGender =
@@ -87,7 +100,9 @@ function toDraft(cat: Cat): CatDraft {
     colors: cat.colors ?? "",
     microchip_id: cat.microchip_id ?? "",
     medical_notes: cat.medical_notes ?? "",
-    fixedAtClinic: isTrackedCatClinicFixed(cat),
+    fixedAtClinic: isTrackedCatClinicFixed(cat) || Boolean(clinicFix),
+    clinicName: cat.clinic_name?.trim() || clinicFix?.clinic_name?.trim() || "",
+    fixDate: isoDateFromValue(clinicFix?.fix_date ?? cat.return_date ?? cat.trap_date),
     age_category: cat.age_category ?? "",
     ...foster,
   };
@@ -157,7 +172,7 @@ export function TrackedCatCard({
   const [expanded, setExpanded] = useState(false);
   const [editing, setEditing] = useState(false);
   const [logFixOpen, setLogFixOpen] = useState(false);
-  const [draft, setDraft] = useState<CatDraft>(() => toDraft(cat));
+  const [draft, setDraft] = useState<CatDraft>(() => toDraft(cat, clinicFix));
   const [saving, setSaving] = useState(false);
   const [removing, setRemoving] = useState(false);
   const [removeDialogOpen, setRemoveDialogOpen] = useState(false);
@@ -171,14 +186,14 @@ export function TrackedCatCard({
   const subtitle = catSubtitle(cat);
 
   function startEditing() {
-    setDraft(toDraft(cat));
+    setDraft(toDraft(cat, clinicFix));
     setError(null);
     setExpanded(true);
     setEditing(true);
   }
 
   function cancelEditing() {
-    setDraft(toDraft(cat));
+    setDraft(toDraft(cat, clinicFix));
     setError(null);
     setEditing(false);
   }
@@ -211,6 +226,8 @@ export function TrackedCatCard({
         microchip_id: draft.microchip_id,
         medical_notes: draft.medical_notes,
         fixedAtClinic: draft.fixedAtClinic,
+        clinicName: draft.fixedAtClinic ? draft.clinicName : "",
+        fixDate: draft.fixedAtClinic ? draft.fixDate : "",
         ageCategory: draft.fixedAtClinic ? draft.age_category : undefined,
         wentToFoster: draft.wentToFoster,
         fosterFacility: draft.fosterFacility,
@@ -398,6 +415,29 @@ export function TrackedCatCard({
           </div>
 
           {draft.fixedAtClinic && (
+            <>
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Where fixed</Label>
+              <Input
+                className="text-base"
+                value={draft.clinicName}
+                onChange={(e) => setDraft({ ...draft, clinicName: e.target.value })}
+                placeholder="Clinic name"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-sm font-medium" htmlFor={`edit-cat-fix-date-${cat.id}`}>
+                Fix date
+              </Label>
+              <DisplayDateInput
+                id={`edit-cat-fix-date-${cat.id}`}
+                className="text-base"
+                value={draft.fixDate}
+                onValueChange={(value) =>
+                  setDraft({ ...draft, fixDate: value || todayIsoDate() })
+                }
+              />
+            </div>
             <div className="space-y-2">
               <Label className="text-sm font-medium">Age at clinic (optional)</Label>
               <Select
@@ -419,6 +459,7 @@ export function TrackedCatCard({
                 </SelectContent>
               </Select>
             </div>
+            </>
           )}
 
           <div className="sm:col-span-2">

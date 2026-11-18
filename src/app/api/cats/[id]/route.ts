@@ -14,6 +14,12 @@ function emptyOrNull(value: unknown) {
   return trimmed.length > 0 ? trimmed : null;
 }
 
+function parseIsoDate(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return /^\d{4}-\d{2}-\d{2}$/.test(trimmed) ? trimmed : null;
+}
+
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -102,12 +108,19 @@ export async function PATCH(
     }
     if (body?.notes !== undefined) updatePayload.notes = emptyOrNull(body.notes);
 
+    const fixDate = parseIsoDate(body?.fixDate);
+    const clinicName = emptyOrNull(body?.clinicName ?? body?.clinic_name);
+
     if (fixedAtClinicProvided) {
       if (fixedAtClinic) {
         updatePayload.trapped_status = "Trapped";
         updatePayload.appointment_status = "Complete";
         updatePayload.age_category =
           ageCategory === "adult" || ageCategory === "kitten" ? ageCategory : null;
+        if (body?.clinicName !== undefined || body?.clinic_name !== undefined) {
+          updatePayload.clinic_name = clinicName;
+        }
+        if (fixDate) updatePayload.return_date = fixDate;
       } else {
         updatePayload.trapped_status = null;
         updatePayload.appointment_status = null;
@@ -146,6 +159,19 @@ export async function PATCH(
     }
 
     await syncTrackedCatFixesForCase(service, existing.help_request_id);
+
+    if (fixedAtClinic && (fixDate || clinicName)) {
+      const fixPatch: Record<string, string> = {};
+      if (fixDate) fixPatch.fix_date = fixDate;
+      if (clinicName) fixPatch.clinic_name = clinicName;
+      const { error: fixError } = await service
+        .from("clinic_fixes")
+        .update(fixPatch)
+        .eq("cat_id", id);
+      if (fixError) {
+        return NextResponse.json({ error: fixError.message }, { status: 400 });
+      }
+    }
 
     return NextResponse.json({ cat });
   } catch (error) {
