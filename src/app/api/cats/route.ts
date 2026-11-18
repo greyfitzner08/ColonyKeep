@@ -19,11 +19,18 @@ type CatGroupInput = {
   gender?: unknown;
   ageCategory?: unknown;
   clinicName?: unknown;
+  fixDate?: unknown;
   medical_notes?: unknown;
   wentToFoster?: unknown;
   fosterFacility?: unknown;
   fosterFacilityOther?: unknown;
 };
+
+function parseIsoDate(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return /^\d{4}-\d{2}-\d{2}$/.test(trimmed) ? trimmed : null;
+}
 
 function parseGroupNames(group: CatGroupInput, count: number): (string | null)[] {
   if (Array.isArray(group.names)) {
@@ -68,6 +75,8 @@ function parseCatGroups(
     }
     const clinicName = typeof group.clinicName === "string" ? group.clinicName.trim() : "";
     const fixedAtClinic = clinicName.length > 0;
+    const fixDate =
+      parseIsoDate(group.fixDate) ?? new Date().toISOString().split("T")[0];
     const wentToFoster = (group.wentToFoster ?? "") as "" | "yes" | "no";
     const { error: fosterError, fields: fosterFields } = resolveTrackedCatFosterFields({
       wentToFoster,
@@ -91,6 +100,7 @@ function parseCatGroups(
       ...(fixedAtClinic
         ? {
             clinic_name: clinicName.slice(0, 120),
+            return_date: fixDate,
             trapped_status: "Trapped",
             appointment_status: "Complete",
           }

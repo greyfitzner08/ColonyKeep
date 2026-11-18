@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { NumberInput } from "@/components/ui/number-input";
+import { DisplayDateInput } from "@/components/ui/display-date-input";
 import {
   Select,
   SelectContent,
@@ -24,6 +25,10 @@ import { FOSTER_FACILITIES, type FosterFacility } from "@/lib/cases/foster-facil
 import type { Cat } from "@/lib/types";
 import { Plus, Trash2 } from "lucide-react";
 
+function todayIsoDate() {
+  return new Date().toISOString().split("T")[0];
+}
+
 interface AddTrackedCatDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -38,6 +43,7 @@ type CatGroup = {
   gender: "" | "male" | "female";
   ageCategory: "" | "adult" | "kitten";
   clinicName: string;
+  fixDate: string;
   wentToFoster: "" | "yes" | "no";
   fosterFacility: FosterFacility | "";
   fosterFacilityOther: string;
@@ -58,6 +64,7 @@ function newGroup(): CatGroup {
     gender: "",
     ageCategory: "",
     clinicName: "",
+    fixDate: todayIsoDate(),
     wentToFoster: "",
     fosterFacility: "",
     fosterFacilityOther: "",
@@ -155,6 +162,7 @@ export function AddTrackedCatDialog({
           gender: group.gender,
           ageCategory: group.ageCategory,
           clinicName: group.clinicName.trim(),
+          fixDate: group.fixDate,
           medical_notes: group.medicalNotes.trim(),
           wentToFoster: group.wentToFoster,
           fosterFacility: group.fosterFacility,
@@ -187,8 +195,8 @@ export function AddTrackedCatDialog({
         <DialogHeader>
           <DialogTitle>Add cats</DialogTitle>
           <DialogDescription>
-            Enter clinic, gender, and age once, then how many cats. Name fields appear for each cat so
-            you do not re-enter those details.
+            Enter clinic, fix date, gender, and age once, then how many cats. Name fields appear for
+            each cat so you do not re-enter those details.
           </DialogDescription>
         </DialogHeader>
 
@@ -219,6 +227,16 @@ export function AddTrackedCatDialog({
                     value={group.clinicName}
                     onChange={(event) => updateGroup(group.key, { clinicName: event.target.value })}
                     placeholder="Clinic name, or blank"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor={`fix-date-${group.key}`}>Fix date</Label>
+                  <DisplayDateInput
+                    id={`fix-date-${group.key}`}
+                    value={group.fixDate}
+                    onValueChange={(value) =>
+                      updateGroup(group.key, { fixDate: value || todayIsoDate() })
+                    }
                   />
                 </div>
                 <div className="space-y-1">
