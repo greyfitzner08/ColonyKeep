@@ -7,6 +7,7 @@ import { syncTrackedCatFixesForCase, updateHelpRequestCatCounts } from "@/lib/ca
 import { createServiceClient } from "@/lib/supabase/server";
 import type { FosterFacility } from "@/lib/cases/foster-facility";
 import { resolveFemaleReproductiveStatusForSave } from "@/lib/cases/female-reproductive-status";
+import { isCalendarIsoDate } from "@/lib/utils";
 
 function emptyOrNull(value: unknown) {
   if (typeof value !== "string") return null;
@@ -17,7 +18,7 @@ function emptyOrNull(value: unknown) {
 function parseIsoDate(value: unknown): string | null {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
-  return /^\d{4}-\d{2}-\d{2}$/.test(trimmed) ? trimmed : null;
+  return isCalendarIsoDate(trimmed) ? trimmed : null;
 }
 
 export async function PATCH(
@@ -110,6 +111,12 @@ export async function PATCH(
 
     const fixDate = parseIsoDate(body?.fixDate);
     const clinicName = emptyOrNull(body?.clinicName ?? body?.clinic_name);
+    if (fixedAtClinic && body?.fixDate !== undefined && !fixDate) {
+      return NextResponse.json(
+        { error: "Enter a valid fix date like September 4, 2026." },
+        { status: 400 }
+      );
+    }
 
     if (fixedAtClinicProvided) {
       if (fixedAtClinic) {

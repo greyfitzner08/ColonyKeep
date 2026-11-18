@@ -26,6 +26,7 @@ import {
 import { fosterFormFromCat } from "@/lib/cases/tracked-cat-foster";
 import type { FosterFacility } from "@/lib/cases/foster-facility";
 import type { Cat } from "@/lib/types";
+import { isCalendarIsoDate } from "@/lib/utils";
 
 interface LogClinicFixDialogProps {
   open: boolean;
@@ -116,6 +117,10 @@ export function LogClinicFixDialog({
     });
     if (fosterError) {
       setError(fosterError);
+      return;
+    }
+    if (!isCalendarIsoDate(fixDate)) {
+      setError("Enter a valid fix date like September 4, 2026.");
       return;
     }
 
@@ -214,6 +219,7 @@ export function LogClinicFixDialog({
               </Label>
               <DisplayDateInput
                 id="clinic-fix-date"
+                monthDayYear
                 className="text-base"
                 value={fixDate}
                 onValueChange={setFixDate}

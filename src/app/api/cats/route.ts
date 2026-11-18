@@ -9,6 +9,7 @@ import {
 import { createServiceClient } from "@/lib/supabase/server";
 import type { FosterFacility } from "@/lib/cases/foster-facility";
 import { resolveFemaleReproductiveStatusForSave } from "@/lib/cases/female-reproductive-status";
+import { isCalendarIsoDate } from "@/lib/utils";
 
 const MAX_CATS_PER_SAVE = 30;
 
@@ -29,7 +30,7 @@ type CatGroupInput = {
 function parseIsoDate(value: unknown): string | null {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
-  return /^\d{4}-\d{2}-\d{2}$/.test(trimmed) ? trimmed : null;
+  return isCalendarIsoDate(trimmed) ? trimmed : null;
 }
 
 function parseGroupNames(group: CatGroupInput, count: number): (string | null)[] {
@@ -75,8 +76,12 @@ function parseCatGroups(
     }
     const clinicName = typeof group.clinicName === "string" ? group.clinicName.trim() : "";
     const fixedAtClinic = clinicName.length > 0;
-    const fixDate =
-      parseIsoDate(group.fixDate) ?? new Date().toISOString().split("T")[0];
+    const fixDate = parseIsoDate(group.fixDate);
+    if (fixedAtClinic && !fixDate) {
+      return {
+        error: `${label}: enter a valid fix date like September 4, 2026.`,
+      };
+    }
     const wentToFoster = (group.wentToFoster ?? "") as "" | "yes" | "no";
     const { error: fosterError, fields: fosterFields } = resolveTrackedCatFosterFields({
       wentToFoster,

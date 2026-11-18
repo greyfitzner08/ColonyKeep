@@ -7,6 +7,7 @@ import { saveTrackedCatFromClinicLog } from "@/lib/cases/save-tracked-cat-from-c
 import { parseFemaleReproductiveStatus, type TrackedCatDetails } from "@/lib/cases/tracked-cat-form";
 import { isAutoSyncedClinicFix } from "@/lib/cases/tracked-cat-fix";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
+import { isCalendarIsoDate } from "@/lib/utils";
 
 function readCatDetails(body: Record<string, unknown>): TrackedCatDetails {
   return {
@@ -56,6 +57,12 @@ export async function POST(request: NextRequest) {
 
   if (!helpRequestId) {
     return NextResponse.json({ error: "Missing helpRequestId" }, { status: 400 });
+  }
+  if (!fixDate || !isCalendarIsoDate(fixDate)) {
+    return NextResponse.json(
+      { error: "Enter a valid fix date like September 4, 2026." },
+      { status: 400 }
+    );
   }
 
   const claimBlock = await caseClaimBlockForId({

@@ -22,6 +22,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { FOSTER_FACILITIES, type FosterFacility } from "@/lib/cases/foster-facility";
+import { isCalendarIsoDate } from "@/lib/utils";
 import type { Cat } from "@/lib/types";
 import { Plus, Trash2 } from "lucide-react";
 
@@ -134,6 +135,10 @@ export function AddTrackedCatDialog({
         setError(`${label}: select adult or kitten.`);
         return;
       }
+      if (group.clinicName.trim() && !isCalendarIsoDate(group.fixDate)) {
+        setError(`${label}: enter a valid fix date like September 4, 2026.`);
+        return;
+      }
       if (group.clinicName.trim() && !group.wentToFoster) {
         setError(`${label}: select whether these cats are going to a facility.`);
         return;
@@ -233,10 +238,9 @@ export function AddTrackedCatDialog({
                   <Label htmlFor={`fix-date-${group.key}`}>Fix date</Label>
                   <DisplayDateInput
                     id={`fix-date-${group.key}`}
+                    monthDayYear
                     value={group.fixDate}
-                    onValueChange={(value) =>
-                      updateGroup(group.key, { fixDate: value || todayIsoDate() })
-                    }
+                    onValueChange={(value) => updateGroup(group.key, { fixDate: value })}
                   />
                 </div>
                 <div className="space-y-1">

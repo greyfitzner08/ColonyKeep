@@ -62,11 +62,31 @@ function toIsoDate(year: number, month: number, day: number): string | null {
   return `${year}-${pad2(month)}-${pad2(day)}`;
 }
 
+/** True when value is a real calendar day stored as YYYY-MM-DD. */
+export function isCalendarIsoDate(value: string): boolean {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value.trim());
+  if (!match) return false;
+  return toIsoDate(Number(match[1]), Number(match[2]), Number(match[3])) === value.trim();
+}
+
 /** Display dates as "September 4, 2026" app-wide. */
 export function formatDate(date: string | Date): string {
   const d = toDisplayDate(date);
   if (Number.isNaN(d.getTime())) return "";
   return `${MONTH_NAMES[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
+}
+
+/**
+ * Parse "September 4, 2026" or "Sep 4 2026" into YYYY-MM-DD.
+ * Rejects impossible days such as February 31.
+ */
+export function parseMonthDayYear(value: string): string | null {
+  const trimmed = value.trim().replace(/\s+/g, " ").replace(/,/g, "");
+  const match = /^([A-Za-z]+)\s+(\d{1,2})\s+(\d{4})$/.exec(trimmed);
+  if (!match) return null;
+  const month = MONTH_LOOKUP[match[1].toLowerCase()];
+  if (!month) return null;
+  return toIsoDate(Number(match[3]), month, Number(match[2]));
 }
 
 /**

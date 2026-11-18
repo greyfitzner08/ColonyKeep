@@ -40,7 +40,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import type { Cat, ClinicFix } from "@/lib/types";
 import type { FosterFacility } from "@/lib/cases/foster-facility";
-import { formatDate, cn } from "@/lib/utils";
+import { formatDate, isCalendarIsoDate, cn } from "@/lib/utils";
 import { ChevronDown, Pencil, Trash2, X, Check } from "lucide-react";
 
 interface TrackedCatCardProps {
@@ -209,6 +209,10 @@ export function TrackedCatCard({
     );
     if (fosterError) {
       setError(fosterError);
+      return;
+    }
+    if (draft.fixedAtClinic && !isCalendarIsoDate(draft.fixDate)) {
+      setError("Enter a valid fix date like September 4, 2026.");
       return;
     }
 
@@ -431,11 +435,10 @@ export function TrackedCatCard({
               </Label>
               <DisplayDateInput
                 id={`edit-cat-fix-date-${cat.id}`}
+                monthDayYear
                 className="text-base"
                 value={draft.fixDate}
-                onValueChange={(value) =>
-                  setDraft({ ...draft, fixDate: value || todayIsoDate() })
-                }
+                onValueChange={(value) => setDraft({ ...draft, fixDate: value })}
               />
             </div>
             <div className="space-y-2">
