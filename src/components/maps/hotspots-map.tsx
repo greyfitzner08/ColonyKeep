@@ -21,6 +21,7 @@ import {
   type HotspotMapVolunteer,
 } from "@/lib/hotspots/volunteer-role-filter";
 import type { MapClinic } from "@/lib/hotspots/load-hotspot-clinics";
+import type { TrapTeamAreas, TrapTeamZipFeature } from "@/lib/hotspots/trap-team-areas";
 import { densityMapCenter } from "@/lib/maps/density-center";
 import { HotspotClinicDetailsDialog } from "@/components/maps/hotspot-clinic-details-dialog";
 import { HotspotClinicMarker } from "@/components/maps/hotspot-clinic-marker";
@@ -47,6 +48,10 @@ const Popup = dynamic(
   () => import("react-leaflet").then((mod) => mod.Popup),
   { ssr: false }
 );
+const GeoJSON = dynamic(
+  () => import("react-leaflet").then((mod) => mod.GeoJSON),
+  { ssr: false }
+);
 
 export type MapVolunteer = HotspotMapVolunteer;
 
@@ -69,9 +74,19 @@ export interface MapFeeder {
   detailsVisible?: boolean;
 }
 
-type MapLayer = "colonies" | "volunteers" | "feeders" | "clinics";
+type MapLayer = "colonies" | "volunteers" | "feeders" | "clinics" | "trapTeams";
 
-const LAYER_COLORS: Record<Exclude<MapLayer, "colonies" | "clinics">, string> = {
+const TRAP_TEAM_TOGGLE_COLOR = "#6d28d9";
+
+function escapePopupText(value: string): string {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;");
+}
+
+const LAYER_COLORS: Record<Exclude<MapLayer, "colonies" | "clinics" | "trapTeams">, string> = {
   volunteers: "#059669",
   feeders: "#d97706",
 };
@@ -162,10 +177,14 @@ export function HotspotsMap({
     volunteers: defaultLayers?.volunteers ?? volunteers.length > 0,
     feeders: defaultLayers?.feeders ?? feeders.length > 0,
     clinics: defaultLayers?.clinics ?? clinics.length > 0,
+    trapTeams: defaultLayers?.trapTeams ?? false,
   });
   const [selectedVolunteerRoles, setSelectedVolunteerRoles] = useState<VolunteerRole[]>([]);
   const [volunteerFiltersOpen, setVolunteerFiltersOpen] = useState(false);
   const [detailsClinicId, setDetailsClinicId] = useState<string | null>(null);
+  const [trapTeamAreas, setTrapTeamAreas] = useState<TrapTeamAreas | null>(null);
+  const [trapTeamsLoading, setTrapTeamsLoading] = useState(false);
+  const [trapTeamsError, setTrapTeamsError] = useState<string | null>(null);
   const clinicsLayerInitialized = useRef(clinics.length > 0);
 
   useEffect(() => {
@@ -200,6 +219,44 @@ export function HotspotsMap({
     setLayers((current) => (current.clinics ? current : { ...current, clinics: true }));
   }, [clinics.length]);
 
+  useEffect(() => {
+    if (!layers.trapTeams || trapTeamAreas) return;
+    let cancelled = false;
+    setTrapTeamsLoading(true);
+    setTrapTeamsError(null);
+
+    void fetch("/api/hotspots/trap-teams")
+      .then(async (response) => {
+        const payload = (await response.json().catch(() => null)) as
+          | (Partial<TrapTeamAreas> & { error?: string | null })
+          | null;
+        if (!response.ok) {
+          throw new Error(payload?.error || "Could not load trap teams");
+        }
+        return {
+          teams: payload?.teams ?? [],
+          features: payload?.features ?? [],
+          error: payload?.error ?? null,
+        } satisfies TrapTeamAreas;
+      })
+      .then((areas) => {
+        if (cancelled) return;
+        setTrapTeamAreas(areas);
+        if (areas.error) setTrapTeamsError(areas.error);
+      })
+      .catch((error: unknown) => {
+        if (cancelled) return;
+        setTrapTeamsError(error instanceof Error ? error.message : "Could not load trap teams");
+      })
+      .finally(() => {
+        if (!cancelled) setTrapTeamsLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [layers.trapTeams, trapTeamAreas]);
+
   const allPoints = useMemo(() => {
     const points: [number, number][] = [];
     if (layers.colonies) {
@@ -220,6 +277,7 @@ export function HotspotsMap({
   const center: [number, number] =
     allPoints.length > 0 ? densityMapCenter(allPoints) : [35.7796, -78.6382];
 
+  const visibleTrapTeamZips = layers.trapTeams ? (trapTeamAreas?.features.length ?? 0) : 0;
   const visibleCount =
     (layers.colonies ? coloniesWithCoords.length : 0) +
     (layers.volunteers ? filteredVolunteers.length : 0) +
@@ -293,6 +351,19 @@ export function HotspotsMap({
               +
             </span>
             Clinics ({clinics.length})
+          </label>
+          <label className="flex items-center gap-2 text-sm cursor-pointer">
+            <Checkbox
+              checked={layers.trapTeams}
+              onCheckedChange={() => toggleLayer("trapTeams")}
+            />
+            <span
+              className="inline-block h-3 w-3 rounded-sm border border-black/10"
+              style={{ backgroundColor: TRAP_TEAM_TOGGLE_COLOR }}
+            />
+            Trap teams
+            {trapTeamAreas ? ` (${trapTeamAreas.teams.length})` : ""}
+            {trapTeamsLoading && layers.trapTeams ? " · loading…" : ""}
           </label>
         </div>
         <p className="text-xs text-muted-foreground sm:text-right">
@@ -378,6 +449,31 @@ export function HotspotsMap({
         </div>
       )}
 
+      {layers.trapTeams && (
+        <div className="space-y-1.5">
+          <div className="flex flex-wrap gap-x-3 gap-y-1.5">
+            {(trapTeamAreas?.teams ?? []).map((team) => (
+              <div key={team.id} className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <span
+                  className="h-3 w-3 shrink-0 rounded-sm border border-black/10"
+                  style={{ backgroundColor: team.color }}
+                />
+                {team.name} ({team.zipCodes.length} ZIP{team.zipCodes.length === 1 ? "" : "s"})
+                {team.unmappedZipCodes.length > 0
+                  ? ` · ${team.unmappedZipCodes.join(", ")} not drawn`
+                  : ""}
+              </div>
+            ))}
+          </div>
+          {trapTeamsError && <p className="text-xs text-destructive">{trapTeamsError}</p>}
+          {!trapTeamsLoading && trapTeamAreas && trapTeamAreas.teams.length === 0 && (
+            <p className="text-xs text-muted-foreground">
+              No trap team ZIP areas yet. Add ZIP codes under Admin settings, Trap teams.
+            </p>
+          )}
+        </div>
+      )}
+
       {layers.colonies && unmappedColonyCount > 0 && (
         <HotspotsUnmappedColonies
           helpRequests={helpRequests}
@@ -393,6 +489,34 @@ export function HotspotsMap({
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
+          {layers.trapTeams && trapTeamAreas && trapTeamAreas.features.length > 0 && (
+            <GeoJSON
+              key={trapTeamAreas.features.map((feature) => feature.properties.zip).join(",")}
+              data={
+                {
+                  type: "FeatureCollection",
+                  features: trapTeamAreas.features,
+                } as GeoJSON.FeatureCollection
+              }
+              style={(feature) => {
+                const color =
+                  (feature?.properties as TrapTeamZipFeature["properties"] | undefined)?.color ??
+                  TRAP_TEAM_TOGGLE_COLOR;
+                return {
+                  color,
+                  fillColor: color,
+                  fillOpacity: 0.28,
+                  weight: 1.5,
+                };
+              }}
+              onEachFeature={(feature, layer) => {
+                const properties = feature.properties as TrapTeamZipFeature["properties"] | null;
+                const name = escapePopupText(properties?.teamName ?? "Trap team");
+                const zip = escapePopupText(properties?.zip ?? "");
+                layer.bindPopup(`<strong>${name}</strong><br/>ZIP ${zip}`);
+              }}
+            />
+          )}
           {layers.colonies &&
             coloniesWithCoords.map((hr) => (
               <CircleMarker
@@ -539,7 +663,7 @@ export function HotspotsMap({
         }}
       />
 
-      {visibleCount === 0 && (
+      {visibleCount === 0 && visibleTrapTeamZips === 0 && !trapTeamsLoading && (
         <p className="text-sm text-muted-foreground text-center">
           No locations to show. Turn on a map layer above, or add addresses with coordinates for colonies,
           volunteer home addresses, colony feeder contacts, or partner clinics.
