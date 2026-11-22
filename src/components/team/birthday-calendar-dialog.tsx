@@ -35,6 +35,51 @@ interface BirthdayCalendarDialogProps {
 
 const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
+function emailsForPeople(people: BirthdayPerson[]): string[] {
+  const seen = new Set<string>();
+  const emails: string[] = [];
+  for (const person of people) {
+    const email = person.email?.trim();
+    if (!email) continue;
+    const key = email.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    emails.push(email);
+  }
+  return emails;
+}
+
+function CopyDayEmailsButton({
+  people,
+  dayLabel,
+  copied,
+  onCopied,
+}: {
+  people: BirthdayPerson[];
+  dayLabel: string;
+  copied: boolean;
+  onCopied: () => void;
+}) {
+  const emails = emailsForPeople(people);
+  if (emails.length === 0) return null;
+
+  return (
+    <Button
+      type="button"
+      variant="ghost"
+      size="icon"
+      className="absolute right-1.5 top-1.5 h-7 w-7 text-pink-800 hover:bg-pink-100/80 hover:text-pink-900"
+      aria-label={copied ? `Copied email for ${dayLabel}` : `Copy email for ${dayLabel}`}
+      title={copied ? "Copied" : "Copy email"}
+      onClick={() => {
+        void navigator.clipboard.writeText(emails.join(", ")).then(onCopied);
+      }}
+    >
+      {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+    </Button>
+  );
+}
+
 function BirthdayNameChip({
   person,
   label,
@@ -106,33 +151,11 @@ export function BirthdayCalendarDialog({
 
   const listGroups = useMemo(() => upcomingBirthdayDayGroups(people, today), [people, today]);
   const partnerCount = people.filter(isPartnerBirthday).length;
-  const [copied, setCopied] = useState(false);
+  const [copiedDay, setCopiedDay] = useState<string | null>(null);
 
-  const visiblePeople = useMemo(() => {
-    if (view === "month") return monthBirthdays;
-    if (view === "week") return weekDays.flatMap((day) => birthdaysOnCalendarDay(people, day));
-    return listGroups.flatMap((group) => group.people);
-  }, [view, monthBirthdays, weekDays, people, listGroups]);
-
-  const birthdayEmails = useMemo(() => {
-    const seen = new Set<string>();
-    const emails: string[] = [];
-    for (const person of visiblePeople) {
-      const email = person.email?.trim();
-      if (!email) continue;
-      const key = email.toLowerCase();
-      if (seen.has(key)) continue;
-      seen.add(key);
-      emails.push(email);
-    }
-    return emails;
-  }, [visiblePeople]);
-
-  async function copyBirthdayEmails() {
-    if (birthdayEmails.length === 0) return;
-    await navigator.clipboard.writeText(birthdayEmails.join(", "));
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 2000);
+  function markDayCopied(dayKey: string) {
+    setCopiedDay(dayKey);
+    window.setTimeout(() => setCopiedDay((current) => (current === dayKey ? null : current)), 2000);
   }
 
   function shiftMonth(delta: number) {
@@ -158,29 +181,7 @@ export function BirthdayCalendarDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          className="absolute right-12 top-3.5 h-8 w-8"
-          onClick={() => void copyBirthdayEmails()}
-          disabled={birthdayEmails.length === 0}
-          aria-label={
-            copied
-              ? "Email addresses copied"
-              : `Copy email addresses for birthdays in this ${view}`
-          }
-          title={
-            birthdayEmails.length === 0
-              ? "No email addresses for the birthdays in this view"
-              : copied
-                ? "Copied"
-                : "Copy email addresses"
-          }
-        >
-          {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-        </Button>
-        <DialogHeader className="pr-16">
+        <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Cake className="h-5 w-5 text-pink-500" />
             Team birthdays
@@ -267,14 +268,22 @@ export function BirthdayCalendarDialog({
                     ? ` · ${partnerCount} community partner${partnerCount === 1 ? "" : "s"}`
                     : " · save a birthday on a community partner contact to see blue Name | Organization pills"}
                 </p>
-                {listGroups.map((group) => (
+                {listGroups.map((group) => {
+                  const dayKey = group.date.toISOString();
+                  return (
                   <div
-                    key={group.date.toISOString()}
+                    key={dayKey}
                     className={cn(
-                      "flex flex-col gap-2 rounded-md border p-3 sm:flex-row sm:items-start sm:gap-4",
+                      "relative flex flex-col gap-2 rounded-md border p-3 pr-10 sm:flex-row sm:items-start sm:gap-4",
                       isToday(group.date) && "border-pink-300 bg-pink-50/40"
                     )}
                   >
+                    <CopyDayEmailsButton
+                      people={group.people}
+                      dayLabel={formatDate(group.date)}
+                      copied={copiedDay === dayKey}
+                      onCopied={() => markDayCopied(dayKey)}
+                    />
                     <div className="flex shrink-0 items-baseline gap-2 sm:w-40 sm:flex-col sm:gap-0.5">
                       <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                         {group.date.toLocaleDateString(undefined, { weekday: "short" })}
@@ -299,7 +308,8 @@ export function BirthdayCalendarDialog({
                       ))}
                     </ul>
                   </div>
-                ))}
+                  );
+                })}
               </>
             )}
           </div>
@@ -370,14 +380,21 @@ export function BirthdayCalendarDialog({
             ) : (
               weekDaysWithBirthdays.map((day) => {
                 const dayBirthdays = birthdaysOnCalendarDay(people, day);
+                const dayKey = day.toISOString();
                 return (
                   <div
-                    key={day.toISOString()}
+                    key={dayKey}
                     className={cn(
-                      "flex flex-col gap-2 rounded-md border p-3 sm:flex-row sm:items-start sm:gap-4",
+                      "relative flex flex-col gap-2 rounded-md border p-3 pr-10 sm:flex-row sm:items-start sm:gap-4",
                       isToday(day) && "border-pink-300 bg-pink-50/40"
                     )}
                   >
+                    <CopyDayEmailsButton
+                      people={dayBirthdays}
+                      dayLabel={formatDate(day)}
+                      copied={copiedDay === dayKey}
+                      onCopied={() => markDayCopied(dayKey)}
+                    />
                     <div className="flex shrink-0 items-baseline gap-2 sm:w-36 sm:flex-col sm:gap-0.5">
                       <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                         {day.toLocaleDateString(undefined, { weekday: "short" })}
