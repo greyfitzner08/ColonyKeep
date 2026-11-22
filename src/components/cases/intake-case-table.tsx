@@ -184,13 +184,13 @@ export function IntakeCaseTable({
       },
       {
         id: "kittens",
-        label: "Kittens (<8 wk)",
+        label: "Kittens (<4 mo)",
         sortValue: (helpRequest) => helpRequest.kittens_under_8_weeks ?? 0,
         render: (helpRequest) => helpRequest.kittens_under_8_weeks ?? 0,
       },
       {
         id: "adults",
-        label: "Adults (8+ wk)",
+        label: "Adults (4+ mo)",
         sortValue: (helpRequest) => helpRequest.cats_over_8_weeks ?? 0,
         render: (helpRequest) => helpRequest.cats_over_8_weeks ?? 0,
       },

@@ -1187,7 +1187,7 @@ export function ColonyIntakeForm({
                 <div id="intake-cat_counts" className="space-y-2">
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <div className="space-y-2">
-                      <Label>Cats over 8 weeks</Label>
+                      <Label>Cats over 4 months</Label>
                       <NumberInput
                         integer
                         min={0}
@@ -1202,7 +1202,7 @@ export function ColonyIntakeForm({
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label>Kittens under 8 weeks</Label>
+                      <Label>Kittens under 4 months</Label>
                       <NumberInput
                         integer
                         min={0}
@@ -1453,8 +1453,8 @@ export function ColonyIntakeForm({
                     ({form.colony_county})
                   </p>
                   <p>
-                    {form.cats_over_8_weeks} cats over 8 weeks, {form.kittens_under_8_weeks} kittens
-                    under 8 weeks, {form.pregnant_count} suspected pregnant
+                    {form.cats_over_8_weeks} cats over 4 months, {form.kittens_under_8_weeks} kittens
+                    under 4 months, {form.pregnant_count} suspected pregnant
                   </p>
                   {form.feeding_cats && (
                     <p>

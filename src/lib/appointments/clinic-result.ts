@@ -100,8 +100,8 @@ export function formatClinicResultSummary(input: {
 }
 
 export function clinicResultAgeLabel(ageCategory: "adult" | "kitten" | null | undefined) {
-  if (ageCategory === "adult") return "Adult (8+ weeks)";
-  if (ageCategory === "kitten") return "Kitten (under 8 weeks)";
+  if (ageCategory === "adult") return "Adult (4+ months)";
+  if (ageCategory === "kitten") return "Kitten (under 4 months)";
   return "Age unknown";
 }
 

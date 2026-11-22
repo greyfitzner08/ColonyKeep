@@ -69,8 +69,8 @@ function PublicProgressPreview({
       <span className="font-medium">{preview.summary.remainingTotal}</span> still need TNR
       <span className="text-muted-foreground">
         {" "}
-        ({preview.summary.remainingAdults} over 8 weeks, {preview.summary.remainingKittens}{" "}
-        kittens)
+        ({preview.summary.remainingAdults} over 4 months, {preview.summary.remainingKittens}{" "}
+        kittens under 4 months)
       </span>
     </p>
   );
@@ -414,7 +414,7 @@ export function PublicCaseProgressForm() {
 
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
-                    <Label htmlFor="tnvr-adults">TNR’d (over 8 weeks)</Label>
+                    <Label htmlFor="tnvr-adults">TNR’d (over 4 months)</Label>
                     <NumberInput
                       id="tnvr-adults"
                       integer
@@ -427,7 +427,7 @@ export function PublicCaseProgressForm() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="tnvr-kittens">TNR’d (kittens under 8 weeks)</Label>
+                    <Label htmlFor="tnvr-kittens">TNR’d (kittens under 4 months)</Label>
                     <NumberInput
                       id="tnvr-kittens"
                       integer
@@ -493,7 +493,7 @@ export function PublicCaseProgressForm() {
                   </div>
                   <div className="grid gap-4 sm:grid-cols-2">
                     <div className="space-y-2">
-                      <Label htmlFor="additional-adults">Additional over 8 weeks</Label>
+                      <Label htmlFor="additional-adults">Additional over 4 months</Label>
                       <NumberInput
                         id="additional-adults"
                         integer
@@ -506,7 +506,7 @@ export function PublicCaseProgressForm() {
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="additional-kittens">Additional kittens</Label>
+                      <Label htmlFor="additional-kittens">Additional kittens under 4 months</Label>
                       <NumberInput
                         id="additional-kittens"
                         integer

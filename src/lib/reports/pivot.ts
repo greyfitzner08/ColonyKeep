@@ -75,8 +75,8 @@ export const PIVOT_DATASETS: { value: PivotDataset; label: string; hint: string 
 export const PIVOT_MEASURES: { value: PivotMeasure; label: string; datasets: PivotDataset[] }[] = [
   { value: "count", label: "Count of records", datasets: ["cases", "cats", "appointments", "clinic_fixes"] },
   { value: "sum_cats", label: "Sum of cats reported", datasets: ["cases"] },
-  { value: "sum_adults", label: "Sum of adults reported", datasets: ["cases"] },
-  { value: "sum_kittens", label: "Sum of kittens reported", datasets: ["cases"] },
+  { value: "sum_adults", label: "Sum of adults reported (4+ months)", datasets: ["cases"] },
+  { value: "sum_kittens", label: "Sum of kittens reported (under 4 months)", datasets: ["cases"] },
 ];
 
 const DIMENSION_META: Record<

@@ -97,8 +97,8 @@ export function TrackedCatIntakeSections({
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="unset">Select age</SelectItem>
-              <SelectItem value="adult">Adult (8+ weeks)</SelectItem>
-              <SelectItem value="kitten">Kitten (&lt;8 weeks)</SelectItem>
+              <SelectItem value="adult">Adult (4+ months)</SelectItem>
+              <SelectItem value="kitten">Kitten (&lt;4 months)</SelectItem>
             </SelectContent>
           </Select>
         </div>

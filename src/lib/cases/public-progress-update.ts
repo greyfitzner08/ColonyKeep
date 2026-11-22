@@ -147,11 +147,11 @@ function parseNonNegativeInt(value: unknown, label: string): number | { error: s
 export function parsePublicOutcomeDeltas(
   body: Record<string, unknown>
 ): PublicOutcomeDeltas | { error: string } {
-  const tnvrAdults = parseNonNegativeInt(body.tnvr_adults ?? body.tnvrAdults, "TNR’d cats over 8 weeks");
+  const tnvrAdults = parseNonNegativeInt(body.tnvr_adults ?? body.tnvrAdults, "TNR’d cats over 4 months");
   if (typeof tnvrAdults === "object") return tnvrAdults;
   const tnvrKittens = parseNonNegativeInt(
     body.tnvr_kittens ?? body.tnvrKittens,
-    "TNR’d kittens under 8 weeks"
+    "TNR’d kittens under 4 months"
   );
   if (typeof tnvrKittens === "object") return tnvrKittens;
   const acc = parseNonNegativeInt(body.acc ?? body.outcome_acc, "ACC count");
@@ -162,12 +162,12 @@ export function parsePublicOutcomeDeltas(
   if (typeof other === "object") return other;
   const additionalAdults = parseNonNegativeInt(
     body.additional_adults ?? body.additionalAdults,
-    "Additional cats over 8 weeks"
+    "Additional cats over 4 months"
   );
   if (typeof additionalAdults === "object") return additionalAdults;
   const additionalKittens = parseNonNegativeInt(
     body.additional_kittens ?? body.additionalKittens,
-    "Additional kittens under 8 weeks"
+    "Additional kittens under 4 months"
   );
   if (typeof additionalKittens === "object") return additionalKittens;
 

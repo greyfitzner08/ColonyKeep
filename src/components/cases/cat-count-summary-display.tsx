@@ -96,9 +96,11 @@ export function CatCountSummaryDisplay({ counts, pregnantCount }: CatCountSummar
               <th className="px-4 py-2 text-left font-medium" scope="col" />
               <th className="px-4 py-2 text-right font-medium" scope="col">
                 Adults
+                <span className="mt-0.5 block text-[11px] font-normal">4+ months</span>
               </th>
               <th className="px-4 py-2 text-right font-medium" scope="col">
                 Kittens
+                <span className="mt-0.5 block text-[11px] font-normal">under 4 months</span>
               </th>
               <th className="px-4 py-2 text-right font-medium" scope="col">
                 Total

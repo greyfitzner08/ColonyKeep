@@ -1007,8 +1007,8 @@ export function runReport(
         totals: [
           { label: "Total sent to foster/facility", value: fosterPlacements.length },
           { label: "Transferred, not fixed", value: transferredUnfixed },
-          { label: "Adults", value: adults },
-          { label: "Kittens", value: kittens },
+          { label: "Adults (4+ months)", value: adults },
+          { label: "Kittens (under 4 months)", value: kittens },
           { label: "Destinations", value: rows.length },
         ],
       };

@@ -113,7 +113,7 @@ export function EditReportedCatCounts({
       </p>
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="space-y-1.5">
-          <Label htmlFor="reported-adults">Adults</Label>
+          <Label htmlFor="reported-adults">Adults (4+ months)</Label>
           <Input
             id="reported-adults"
             type="number"
@@ -126,7 +126,7 @@ export function EditReportedCatCounts({
           />
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="reported-kittens">Kittens</Label>
+          <Label htmlFor="reported-kittens">Kittens (under 4 months)</Label>
           <Input
             id="reported-kittens"
             type="number"

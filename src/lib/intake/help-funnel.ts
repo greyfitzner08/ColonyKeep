@@ -40,7 +40,7 @@ export interface IntakeHelpFunnelConditions {
   able_to_trap_transport?: IntakeHelpAnswerMatch;
   has_recovery_space?: IntakeHelpAnswerMatch;
   /**
-   * Inclusive bounds on cats over 8 weeks + kittens under 8 weeks.
+   * Inclusive bounds on cats over 4 months + kittens under 4 months.
    * Omit (or leave blank in admin) to ignore colony size.
    */
   total_cats_min?: number;

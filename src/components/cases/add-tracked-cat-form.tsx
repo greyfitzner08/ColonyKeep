@@ -351,8 +351,8 @@ export function AddTrackedCatDialog({
                       <SelectValue placeholder="Adult or kitten" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="adult">Adult</SelectItem>
-                      <SelectItem value="kitten">Kitten</SelectItem>
+                      <SelectItem value="adult">Adult (4+ months)</SelectItem>
+                      <SelectItem value="kitten">Kitten (&lt;4 months)</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
