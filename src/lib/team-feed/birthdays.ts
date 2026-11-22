@@ -3,6 +3,7 @@ export type BirthdayPersonSource = "volunteer" | "partner";
 export interface BirthdayPerson {
   full_name: string;
   birthday: string;
+  email?: string | null;
   organization?: string | null;
   source?: BirthdayPersonSource;
 }

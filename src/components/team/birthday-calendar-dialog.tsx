@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Cake, ChevronLeft, ChevronRight } from "lucide-react";
+import { Cake, Check, ChevronLeft, ChevronRight, Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -106,6 +106,34 @@ export function BirthdayCalendarDialog({
 
   const listGroups = useMemo(() => upcomingBirthdayDayGroups(people, today), [people, today]);
   const partnerCount = people.filter(isPartnerBirthday).length;
+  const [copied, setCopied] = useState(false);
+
+  const visiblePeople = useMemo(() => {
+    if (view === "month") return monthBirthdays;
+    if (view === "week") return weekDays.flatMap((day) => birthdaysOnCalendarDay(people, day));
+    return listGroups.flatMap((group) => group.people);
+  }, [view, monthBirthdays, weekDays, people, listGroups]);
+
+  const birthdayEmails = useMemo(() => {
+    const seen = new Set<string>();
+    const emails: string[] = [];
+    for (const person of visiblePeople) {
+      const email = person.email?.trim();
+      if (!email) continue;
+      const key = email.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      emails.push(email);
+    }
+    return emails;
+  }, [visiblePeople]);
+
+  async function copyBirthdayEmails() {
+    if (birthdayEmails.length === 0) return;
+    await navigator.clipboard.writeText(birthdayEmails.join(", "));
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 2000);
+  }
 
   function shiftMonth(delta: number) {
     setMonthCursor((current) => new Date(current.getFullYear(), current.getMonth() + delta, 1));
@@ -130,7 +158,29 @@ export function BirthdayCalendarDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="absolute right-12 top-3.5 h-8 w-8"
+          onClick={() => void copyBirthdayEmails()}
+          disabled={birthdayEmails.length === 0}
+          aria-label={
+            copied
+              ? "Email addresses copied"
+              : `Copy email addresses for birthdays in this ${view}`
+          }
+          title={
+            birthdayEmails.length === 0
+              ? "No email addresses for the birthdays in this view"
+              : copied
+                ? "Copied"
+                : "Copy email addresses"
+          }
+        >
+          {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+        </Button>
+        <DialogHeader className="pr-16">
           <DialogTitle className="flex items-center gap-2">
             <Cake className="h-5 w-5 text-pink-500" />
             Team birthdays
