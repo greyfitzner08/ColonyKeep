@@ -69,6 +69,7 @@ interface TeamFeedProps {
   profile: Profile | null;
   birthdayPeople: BirthdayPerson[];
   trapTeams: TrapTeamOption[];
+  canCopyBirthdayEmails?: boolean;
 }
 
 function audienceLabel(post: TeamAnnouncement): string {
@@ -97,6 +98,7 @@ export function TeamFeed({
   profile,
   birthdayPeople,
   trapTeams,
+  canCopyBirthdayEmails = false,
 }: TeamFeedProps) {
   const router = useRouter();
   const [calendarOpen, setCalendarOpen] = useState(false);
@@ -337,6 +339,7 @@ export function TeamFeed({
             open={calendarOpen}
             onOpenChange={setCalendarOpen}
             people={birthdayPeople}
+            canCopyEmails={canCopyBirthdayEmails}
           />
         </>
       )}

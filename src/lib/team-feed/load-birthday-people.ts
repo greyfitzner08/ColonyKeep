@@ -5,7 +5,7 @@ export async function loadBirthdayPeople(service: SupabaseClient): Promise<Birth
   const [{ data: profiles }, contactsResult, partnersResult] = await Promise.all([
     service
       .from("profiles")
-      .select("full_name, birthday, email, show_email_in_directory")
+      .select("full_name, birthday, email")
       .not("birthday", "is", null)
       .not("full_name", "is", null),
     service
@@ -25,10 +25,7 @@ export async function loadBirthdayPeople(service: SupabaseClient): Promise<Birth
     .map((person) => ({
       full_name: person.full_name as string,
       birthday: String(person.birthday).slice(0, 10),
-      email:
-        person.show_email_in_directory === false
-          ? null
-          : ((person.email as string | null)?.trim() || null),
+      email: (person.email as string | null)?.trim() || null,
       source: "volunteer" as const,
     }));
 

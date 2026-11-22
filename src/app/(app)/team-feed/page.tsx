@@ -27,6 +27,15 @@ export default async function TeamFeedPage() {
   const announcements = ((announcementsRaw ?? []) as TeamAnnouncement[]).filter((post) =>
     announcementVisibleToProfile(post, profile)
   );
+  const isAdmin = profile?.role === "admin";
+  const birthdayPeopleForViewer = isAdmin
+    ? birthdayPeople
+    : birthdayPeople.map((person) => ({
+        full_name: person.full_name,
+        birthday: person.birthday,
+        organization: person.organization,
+        source: person.source,
+      }));
 
   return (
     <div className="space-y-6">
@@ -39,7 +48,8 @@ export default async function TeamFeedPage() {
         announcements={announcements}
         profile={profile}
         trapTeams={trapTeams ?? []}
-        birthdayPeople={birthdayPeople}
+        birthdayPeople={birthdayPeopleForViewer}
+        canCopyBirthdayEmails={isAdmin}
       />
     </div>
   );

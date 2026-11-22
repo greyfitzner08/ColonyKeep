@@ -31,6 +31,7 @@ interface BirthdayCalendarDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   people: BirthdayPerson[];
+  canCopyEmails?: boolean;
 }
 
 const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -116,6 +117,7 @@ export function BirthdayCalendarDialog({
   open,
   onOpenChange,
   people,
+  canCopyEmails = false,
 }: BirthdayCalendarDialogProps) {
   const today = useMemo(() => {
     const date = new Date();
@@ -274,16 +276,19 @@ export function BirthdayCalendarDialog({
                   <div
                     key={dayKey}
                     className={cn(
-                      "relative flex flex-col gap-2 rounded-md border p-3 pr-10 sm:flex-row sm:items-start sm:gap-4",
+                      "relative flex flex-col gap-2 rounded-md border p-3 sm:flex-row sm:items-start sm:gap-4",
+                      canCopyEmails && "pr-10",
                       isToday(group.date) && "border-pink-300 bg-pink-50/40"
                     )}
                   >
-                    <CopyDayEmailsButton
-                      people={group.people}
-                      dayLabel={formatDate(group.date)}
-                      copied={copiedDay === dayKey}
-                      onCopied={() => markDayCopied(dayKey)}
-                    />
+                    {canCopyEmails && (
+                      <CopyDayEmailsButton
+                        people={group.people}
+                        dayLabel={formatDate(group.date)}
+                        copied={copiedDay === dayKey}
+                        onCopied={() => markDayCopied(dayKey)}
+                      />
+                    )}
                     <div className="flex shrink-0 items-baseline gap-2 sm:w-40 sm:flex-col sm:gap-0.5">
                       <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                         {group.date.toLocaleDateString(undefined, { weekday: "short" })}
@@ -385,16 +390,19 @@ export function BirthdayCalendarDialog({
                   <div
                     key={dayKey}
                     className={cn(
-                      "relative flex flex-col gap-2 rounded-md border p-3 pr-10 sm:flex-row sm:items-start sm:gap-4",
+                      "relative flex flex-col gap-2 rounded-md border p-3 sm:flex-row sm:items-start sm:gap-4",
+                      canCopyEmails && "pr-10",
                       isToday(day) && "border-pink-300 bg-pink-50/40"
                     )}
                   >
-                    <CopyDayEmailsButton
-                      people={dayBirthdays}
-                      dayLabel={formatDate(day)}
-                      copied={copiedDay === dayKey}
-                      onCopied={() => markDayCopied(dayKey)}
-                    />
+                    {canCopyEmails && (
+                      <CopyDayEmailsButton
+                        people={dayBirthdays}
+                        dayLabel={formatDate(day)}
+                        copied={copiedDay === dayKey}
+                        onCopied={() => markDayCopied(dayKey)}
+                      />
+                    )}
                     <div className="flex shrink-0 items-baseline gap-2 sm:w-36 sm:flex-col sm:gap-0.5">
                       <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                         {day.toLocaleDateString(undefined, { weekday: "short" })}
