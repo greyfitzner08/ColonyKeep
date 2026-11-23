@@ -55,9 +55,10 @@ export async function POST(request: NextRequest) {
   const outcome = nextOutcome !== undefined ? nextOutcome : previousOutcome;
   const closureNotes = nextClosureNotes !== undefined ? nextClosureNotes : previousNotes;
 
+  const actorName = (profile!.full_name ?? profile!.email ?? "Unknown").trim() || "Unknown";
   const actor = {
     actor_email: profile!.email ?? null,
-    actor_name: profile!.full_name ?? profile!.email ?? null,
+    actor_name: actorName,
   };
   const now = new Date().toISOString();
   const historyEntries: HistoryEntry[] = [];
@@ -69,7 +70,7 @@ export async function POST(request: NextRequest) {
       timestamp: now,
       action: "note",
       ...actor,
-      details: `Close outcome updated: ${caseCloseOutcomeLabel(previousOutcome)} → ${caseCloseOutcomeLabel(nextOutcome)}`,
+      details: `${actorName} updated close outcome: ${caseCloseOutcomeLabel(previousOutcome)} → ${caseCloseOutcomeLabel(nextOutcome)}`,
       highlighted: false,
       follow_up: false,
       text_color: "default",
@@ -78,8 +79,8 @@ export async function POST(request: NextRequest) {
 
   if (nextClosureNotes !== undefined && nextClosureNotes !== previousNotes) {
     const details = nextClosureNotes
-      ? `Closure notes updated: ${nextClosureNotes}`
-      : "Closure notes cleared";
+      ? `${actorName} updated closure notes: ${nextClosureNotes}`
+      : `${actorName} cleared closure notes`;
     historyEntries.push({
       id: crypto.randomUUID(),
       timestamp: now,
