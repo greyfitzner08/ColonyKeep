@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -52,7 +53,7 @@ interface CaseIntakeSectionProps {
   onUpdateClosure?: (next: {
     outcome?: string | null;
     closure_notes?: string | null;
-  }) => void;
+  }) => Promise<boolean> | boolean | void;
   onCloseCase: () => void;
   canCloseCase: boolean;
   readOnly?: boolean;
@@ -95,6 +96,32 @@ export function CaseIntakeSection({
 }: CaseIntakeSectionProps) {
   const lifecycle = toCaseLifecycleStatus(hr);
   const caseAlreadyClosed = Boolean(hr.closed_at);
+  const [draftOutcome, setDraftOutcome] = useState(hr.outcome ?? "");
+  const [draftClosureNotes, setDraftClosureNotes] = useState(hr.closure_notes ?? "");
+  const [updatingClosure, setUpdatingClosure] = useState(false);
+
+  useEffect(() => {
+    setDraftOutcome(hr.outcome ?? "");
+    setDraftClosureNotes(hr.closure_notes ?? "");
+  }, [hr.id, hr.outcome, hr.closure_notes, hr.closed_at]);
+
+  const closureDraftDirty =
+    caseAlreadyClosed &&
+    ((draftOutcome || null) !== (hr.outcome ?? null) ||
+      (draftClosureNotes || null) !== (hr.closure_notes ?? null));
+
+  async function handleUpdateClosure() {
+    if (!onUpdateClosure || !caseAlreadyClosed || updatingClosure) return;
+    setUpdatingClosure(true);
+    try {
+      await onUpdateClosure({
+        outcome: draftOutcome || null,
+        closure_notes: draftClosureNotes || null,
+      });
+    } finally {
+      setUpdatingClosure(false);
+    }
+  }
 
   return (
     <div className="space-y-4">
@@ -224,10 +251,10 @@ export function CaseIntakeSection({
             <div className="space-y-2 max-w-sm">
               <Label>Close case — outcome</Label>
               <Select
-                value={hr.outcome ?? ""}
+                value={caseAlreadyClosed ? draftOutcome : (hr.outcome ?? "")}
                 onValueChange={(value) => {
-                  if (caseAlreadyClosed && onUpdateClosure) {
-                    onUpdateClosure({ outcome: value });
+                  if (caseAlreadyClosed) {
+                    setDraftOutcome(value);
                     return;
                   }
                   onChange({ ...hr, outcome: value });
@@ -248,11 +275,11 @@ export function CaseIntakeSection({
             <div className="space-y-2">
               <Label>Closure notes</Label>
               <Textarea
-                value={hr.closure_notes ?? ""}
+                value={caseAlreadyClosed ? draftClosureNotes : (hr.closure_notes ?? "")}
                 onChange={(event) => {
                   const closure_notes = event.target.value;
-                  if (caseAlreadyClosed && onUpdateClosure) {
-                    onUpdateClosure({ closure_notes });
+                  if (caseAlreadyClosed) {
+                    setDraftClosureNotes(closure_notes);
                     return;
                   }
                   onChange({ ...hr, closure_notes });
@@ -262,9 +289,18 @@ export function CaseIntakeSection({
               />
             </div>
             {hr.closed_at ? (
-              <p className="text-sm text-muted-foreground">
-                Closed {formatDateTime(hr.closed_at)}.
-              </p>
+              <div className="flex flex-wrap items-center gap-3">
+                <p className="text-sm text-muted-foreground">
+                  Closed {formatDateTime(hr.closed_at)}.
+                </p>
+                <Button
+                  type="button"
+                  onClick={() => void handleUpdateClosure()}
+                  disabled={!closureDraftDirty || updatingClosure || saveState === "saving"}
+                >
+                  {updatingClosure || saveState === "saving" ? "Updating…" : "Update"}
+                </Button>
+              </div>
             ) : (
               <Button onClick={onCloseCase} variant="destructive" disabled={saveState === "saving"}>
                 <Trash2 className="h-4 w-4 mr-2" />

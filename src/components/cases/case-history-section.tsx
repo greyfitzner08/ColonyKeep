@@ -87,7 +87,7 @@ export function CaseHistorySection({
       description={
         notesOnly
           ? undefined
-          : `${sortedEntries.length} entr${sortedEntries.length === 1 ? "y" : "ies"}`
+          : `${sortedEntries.length} entr${sortedEntries.length === 1 ? "y" : "ies"} · notes are added under Case details`
       }
       defaultOpen
     >

@@ -419,27 +419,6 @@ export function CaseDetailTabs({
     return true;
   }
 
-  const debouncedUpdateClosureNotes = useDebouncedCallback((closure_notes: string) => {
-    void updateClosure({ closure_notes });
-  }, 800);
-
-  function handleClosureFieldChange(next: {
-    outcome?: string | null;
-    closure_notes?: string | null;
-  }) {
-    if (next.outcome !== undefined) {
-      void updateClosure({ outcome: next.outcome });
-      return;
-    }
-    if (next.closure_notes !== undefined) {
-      const current = hrRef.current;
-      const optimistic = { ...current, closure_notes: next.closure_notes };
-      setHr(optimistic);
-      hrRef.current = optimistic;
-      debouncedUpdateClosureNotes(next.closure_notes ?? "");
-    }
-  }
-
   async function closeCase() {
     if (!showCloseCase || readOnly) return;
 
@@ -532,7 +511,7 @@ export function CaseDetailTabs({
           onResolveFollowUp={(entry) => resolveFollowUp({ entry })}
           onResolveAllFollowUps={() => resolveFollowUp({ resolveAll: true })}
           onChange={handleIntakeChange}
-          onUpdateClosure={handleClosureFieldChange}
+          onUpdateClosure={updateClosure}
           onCloseCase={closeCase}
           canCloseCase={showCloseCase}
           readOnly={readOnly}
@@ -561,7 +540,7 @@ export function CaseDetailTabs({
       <TabsContent value="history" className="mt-4">
         <CaseHistorySection
           entries={hr.history_log ?? []}
-          canAddNote={canAddHistoryNote && !readOnly}
+          canAddNote={false}
           canResolveFollowUp={canAddHistoryNote && !readOnly}
           authorName={userName}
           authorEmail={userEmail}
