@@ -43,6 +43,7 @@ import { Plus, Trash2 } from "lucide-react";
 
 interface ClinicsManagerProps {
   clinics: Clinic[];
+  canManage?: boolean;
 }
 
 const emptyClinic = {
@@ -64,7 +65,7 @@ const emptyClinic = {
   clinic_lng: null as number | null,
 };
 
-export function ClinicsManager({ clinics: initial }: ClinicsManagerProps) {
+export function ClinicsManager({ clinics: initial, canManage = false }: ClinicsManagerProps) {
   const router = useRouter();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Clinic | null>(null);
@@ -74,6 +75,7 @@ export function ClinicsManager({ clinics: initial }: ClinicsManagerProps) {
   const [saving, setSaving] = useState(false);
 
   function openNew() {
+    if (!canManage) return;
     setEditing(null);
     setForm(emptyClinic);
     setSameHours(true);
@@ -82,6 +84,7 @@ export function ClinicsManager({ clinics: initial }: ClinicsManagerProps) {
   }
 
   function openEdit(clinic: Clinic) {
+    if (!canManage) return;
     setEditing(clinic);
     setForm({
       name: clinic.name,
@@ -114,6 +117,7 @@ export function ClinicsManager({ clinics: initial }: ClinicsManagerProps) {
   }
 
   async function save() {
+    if (!canManage) return;
     const payload = {
       id: editing?.id,
       ...form,
@@ -162,15 +166,18 @@ export function ClinicsManager({ clinics: initial }: ClinicsManagerProps) {
 
   return (
     <>
-      <div className="flex justify-end">
-        <Button onClick={openNew}>
-          <Plus className="mr-2 h-4 w-4" />
-          Add Clinic
-        </Button>
-      </div>
+      {canManage ? (
+        <div className="flex justify-end">
+          <Button onClick={openNew}>
+            <Plus className="mr-2 h-4 w-4" />
+            Add Clinic
+          </Button>
+        </div>
+      ) : null}
 
-      <ClinicPartnersTable clinics={initial} onEdit={openEdit} />
+      <ClinicPartnersTable clinics={initial} onEdit={canManage ? openEdit : undefined} />
 
+      {canManage ? (
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
           <DialogHeader>
@@ -390,6 +397,7 @@ export function ClinicsManager({ clinics: initial }: ClinicsManagerProps) {
           </div>
         </DialogContent>
       </Dialog>
+      ) : null}
     </>
   );
 }

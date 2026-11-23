@@ -23,7 +23,7 @@ import { formatCurrency } from "@/lib/utils";
 
 interface ClinicPartnersTableProps {
   clinics: Clinic[];
-  onEdit: (clinic: Clinic) => void;
+  onEdit?: (clinic: Clinic) => void;
 }
 
 function matchesSearch(clinic: Clinic, query: string): boolean {
@@ -209,15 +209,17 @@ export function ClinicPartnersTable({ clinics, onEdit }: ClinicPartnersTableProp
             >
               <Eye className="h-4 w-4" />
             </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              aria-label={`Edit ${clinic.name}`}
-              onClick={() => onEdit(clinic)}
-            >
-              <Pencil className="h-4 w-4" />
-            </Button>
+            {onEdit ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                aria-label={`Edit ${clinic.name}`}
+                onClick={() => onEdit(clinic)}
+              >
+                <Pencil className="h-4 w-4" />
+              </Button>
+            ) : null}
           </div>
         ),
       },

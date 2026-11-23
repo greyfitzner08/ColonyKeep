@@ -142,6 +142,7 @@ export const ROLE_PERMISSIONS: Record<
       "/",
       "/case",
       "/trap-queue",
+      "/clinics",
       "/hotspots",
       "/shift-board",
       "/team-feed",

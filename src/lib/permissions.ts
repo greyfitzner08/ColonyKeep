@@ -174,6 +174,7 @@ export function getProfilePermissions(profile: Profile | null): ProfilePermissio
   if (role === "trap_team_lead") {
     routes.add("/trap-queue");
     routes.add("/hotspots");
+    routes.add("/clinics");
     if (APPOINTMENTS_UI_ENABLED) {
       routes.add("/appointments");
     }
