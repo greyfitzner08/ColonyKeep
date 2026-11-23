@@ -73,8 +73,13 @@ export function CaseDetailTabs({
   const skipIntakeAutosaveRef = useRef(true);
   const savedIndicatorTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const feederBackfillCaseIdRef = useRef<string | null>(null);
+  const hrRef = useRef(hr);
 
   const showCloseCase = canCloseCase(userRole);
+
+  useEffect(() => {
+    hrRef.current = hr;
+  }, [hr]);
 
   useEffect(() => {
     skipIntakeAutosaveRef.current = true;
@@ -175,17 +180,22 @@ export function CaseDetailTabs({
     const routedToTrap = includeStatus && payload.status === "routed_to_trap_team";
     const persistedPayload = routedToTrap ? releaseIntakeAssignmentFields(payload) : payload;
 
+    const caseAlreadyClosed = Boolean(persistedPayload.closed_at);
     const update: Record<string, unknown> = {
       follow_up_due_date: persistedPayload.follow_up_due_date,
       assigned_team_id: persistedPayload.assigned_team_id,
       assigned_team_name: persistedPayload.assigned_team_name,
       assigned_team: persistedPayload.assigned_team_name,
       trap_school_eligible: Boolean(persistedPayload.trap_school_eligible),
-      closure_notes: persistedPayload.closure_notes,
-      outcome: persistedPayload.outcome,
       resolution: persistedPayload.resolution,
       medical_flags: persistedPayload.medical_flags,
     };
+
+    // Closed-case outcome/notes go through /api/help-requests/update-closure so history is recorded.
+    if (!caseAlreadyClosed) {
+      update.closure_notes = persistedPayload.closure_notes;
+      update.outcome = persistedPayload.outcome;
+    }
 
     if (includeStatus) {
       update.status = persistedPayload.status;
@@ -357,6 +367,79 @@ export function CaseDetailTabs({
     return true;
   }
 
+  async function updateClosure(next: {
+    outcome?: string | null;
+    closure_notes?: string | null;
+  }): Promise<boolean> {
+    if (readOnly) {
+      setSaveError("Claim this case before making changes.");
+      return false;
+    }
+
+    const current = hrRef.current;
+    setIntakeSaveState("saving");
+    setSaveError(null);
+
+    const optimistic = {
+      ...current,
+      ...(next.outcome !== undefined ? { outcome: next.outcome } : {}),
+      ...(next.closure_notes !== undefined ? { closure_notes: next.closure_notes } : {}),
+    };
+    setHr(optimistic);
+    hrRef.current = optimistic;
+
+    const response = await fetch("/api/help-requests/update-closure", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        helpRequestId: current.id,
+        ...next,
+      }),
+    });
+    const result = await response.json().catch(() => null);
+
+    if (!response.ok) {
+      setIntakeSaveState("error");
+      setSaveError(result?.error ?? "Unable to update closure details");
+      setHr(current);
+      hrRef.current = current;
+      return false;
+    }
+
+    const saved = {
+      ...optimistic,
+      outcome: result?.outcome ?? optimistic.outcome,
+      closure_notes: result?.closure_notes ?? optimistic.closure_notes,
+      history_log: normalizeHistoryLog(result?.history_log ?? optimistic.history_log),
+    };
+    setHr(saved);
+    hrRef.current = saved;
+    markIntakeSaved();
+    router.refresh();
+    return true;
+  }
+
+  const debouncedUpdateClosureNotes = useDebouncedCallback((closure_notes: string) => {
+    void updateClosure({ closure_notes });
+  }, 800);
+
+  function handleClosureFieldChange(next: {
+    outcome?: string | null;
+    closure_notes?: string | null;
+  }) {
+    if (next.outcome !== undefined) {
+      void updateClosure({ outcome: next.outcome });
+      return;
+    }
+    if (next.closure_notes !== undefined) {
+      const current = hrRef.current;
+      const optimistic = { ...current, closure_notes: next.closure_notes };
+      setHr(optimistic);
+      hrRef.current = optimistic;
+      debouncedUpdateClosureNotes(next.closure_notes ?? "");
+    }
+  }
+
   async function closeCase() {
     if (!showCloseCase || readOnly) return;
 
@@ -384,6 +467,7 @@ export function CaseDetailTabs({
       ...hr,
       status: "closed",
       closed_at: result?.closed_at ?? new Date().toISOString(),
+      history_log: normalizeHistoryLog(result?.history_log ?? hr.history_log),
     });
     markIntakeSaved();
     router.refresh();
@@ -448,6 +532,7 @@ export function CaseDetailTabs({
           onResolveFollowUp={(entry) => resolveFollowUp({ entry })}
           onResolveAllFollowUps={() => resolveFollowUp({ resolveAll: true })}
           onChange={handleIntakeChange}
+          onUpdateClosure={handleClosureFieldChange}
           onCloseCase={closeCase}
           canCloseCase={showCloseCase}
           readOnly={readOnly}

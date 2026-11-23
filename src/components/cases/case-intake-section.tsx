@@ -19,6 +19,7 @@ import {
   toCaseLifecycleStatus,
   type CaseLifecycleStatus,
 } from "@/lib/cases/statuses";
+import { CASE_CLOSE_OUTCOMES } from "@/lib/cases/case-closure";
 import { sortTrapTeams } from "@/lib/trap-teams/sort-teams";
 import { formatDateTime, cn } from "@/lib/utils";
 import type { HelpRequest, HistoryNoteColor, HistoryEntry, UserRole } from "@/lib/types";
@@ -48,6 +49,10 @@ interface CaseIntakeSectionProps {
   onResolveFollowUp?: (entry: HistoryEntry) => Promise<boolean>;
   onResolveAllFollowUps?: () => Promise<boolean>;
   onChange: (next: HelpRequest) => void;
+  onUpdateClosure?: (next: {
+    outcome?: string | null;
+    closure_notes?: string | null;
+  }) => void;
   onCloseCase: () => void;
   canCloseCase: boolean;
   readOnly?: boolean;
@@ -83,11 +88,13 @@ export function CaseIntakeSection({
   onResolveFollowUp,
   onResolveAllFollowUps,
   onChange,
+  onUpdateClosure,
   onCloseCase,
   canCloseCase,
   readOnly = false,
 }: CaseIntakeSectionProps) {
   const lifecycle = toCaseLifecycleStatus(hr);
+  const caseAlreadyClosed = Boolean(hr.closed_at);
 
   return (
     <div className="space-y-4">
@@ -216,17 +223,25 @@ export function CaseIntakeSection({
           <div className="space-y-4">
             <div className="space-y-2 max-w-sm">
               <Label>Close case — outcome</Label>
-              <Select value={hr.outcome ?? ""} onValueChange={(v) => onChange({ ...hr, outcome: v })}>
+              <Select
+                value={hr.outcome ?? ""}
+                onValueChange={(value) => {
+                  if (caseAlreadyClosed && onUpdateClosure) {
+                    onUpdateClosure({ outcome: value });
+                    return;
+                  }
+                  onChange({ ...hr, outcome: value });
+                }}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Select outcome" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="tnvr_complete">TNVR Complete</SelectItem>
-                  <SelectItem value="partial_tnvr">Partial TNVR</SelectItem>
-                  <SelectItem value="referred_elsewhere">Referred Elsewhere</SelectItem>
-                  <SelectItem value="colony_relocated">Colony Relocated</SelectItem>
-                  <SelectItem value="unable_to_assist">Unable to Assist</SelectItem>
-                  <SelectItem value="duplicate">Duplicate</SelectItem>
+                  {CASE_CLOSE_OUTCOMES.map((outcome) => (
+                    <SelectItem key={outcome.value} value={outcome.value}>
+                      {outcome.label}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -234,7 +249,14 @@ export function CaseIntakeSection({
               <Label>Closure notes</Label>
               <Textarea
                 value={hr.closure_notes ?? ""}
-                onChange={(e) => onChange({ ...hr, closure_notes: e.target.value })}
+                onChange={(event) => {
+                  const closure_notes = event.target.value;
+                  if (caseAlreadyClosed && onUpdateClosure) {
+                    onUpdateClosure({ closure_notes });
+                    return;
+                  }
+                  onChange({ ...hr, closure_notes });
+                }}
                 rows={3}
                 placeholder="Recorded when closing the case…"
               />

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireApiRole } from "@/lib/api/auth";
 import { intakeClaimRequiredResponse } from "@/lib/cases/intake-claim-api";
+import { describeCaseCloseHistory } from "@/lib/cases/case-closure";
+import { normalizeHistoryLog } from "@/lib/cases/history-log";
 import { createServiceClient } from "@/lib/supabase/server";
 import type { HelpRequestStatus, HistoryEntry } from "@/lib/types";
 
@@ -42,14 +44,18 @@ export async function POST(request: NextRequest) {
   }
 
   const historyEntry: HistoryEntry = {
+    id: crypto.randomUUID(),
     timestamp: new Date().toISOString(),
     action: "closed",
     actor_email: profile!.email,
     actor_name: profile!.full_name ?? profile!.email,
-    details: outcome ? `Closed with outcome: ${outcome}` : "Case closed",
+    details: describeCaseCloseHistory({
+      outcome: outcome || null,
+      closureNotes,
+    }),
   };
 
-  const history_log = [...(existing.history_log ?? []), historyEntry];
+  const history_log = [...normalizeHistoryLog(existing.history_log), historyEntry];
   const closedAt = new Date().toISOString();
 
   const { error } = await service
@@ -67,5 +73,5 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 400 });
   }
 
-  return NextResponse.json({ success: true, closed_at: closedAt });
+  return NextResponse.json({ success: true, closed_at: closedAt, history_log });
 }

@@ -23,6 +23,9 @@ export function historyEntryLabel(entry: HistoryEntry): string {
   if (entry.action === "follow_up_completed") return "Follow-up completed";
   if (entry.action === "public_progress_update") return "Public colony update";
   if (entry.action === "reported_counts_corrected") return "Reported counts";
+  if (entry.action === "closure_outcome_updated") return "Close outcome updated";
+  if (entry.action === "closure_notes_updated") return "Closure notes updated";
+  if (entry.action === "closed") return "Closed";
   return entry.action.replace(/_/g, " ");
 }
 
