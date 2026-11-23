@@ -56,32 +56,39 @@ export async function POST(request: NextRequest) {
   const closureNotes = nextClosureNotes !== undefined ? nextClosureNotes : previousNotes;
 
   const actor = {
-    actor_email: profile!.email,
-    actor_name: profile!.full_name ?? profile!.email,
+    actor_email: profile!.email ?? null,
+    actor_name: profile!.full_name ?? profile!.email ?? null,
   };
   const now = new Date().toISOString();
   const historyEntries: HistoryEntry[] = [];
 
+  // Use action "note" so updates appear in Case notes and the History timeline.
   if (nextOutcome !== undefined && nextOutcome !== previousOutcome) {
     historyEntries.push({
       id: crypto.randomUUID(),
       timestamp: now,
-      action: "closure_outcome_updated",
+      action: "note",
       ...actor,
-      details: `Changed close outcome from ${caseCloseOutcomeLabel(previousOutcome)} to ${caseCloseOutcomeLabel(nextOutcome)}`,
+      details: `Close outcome updated: ${caseCloseOutcomeLabel(previousOutcome)} → ${caseCloseOutcomeLabel(nextOutcome)}`,
+      highlighted: false,
+      follow_up: false,
+      text_color: "default",
     });
   }
 
   if (nextClosureNotes !== undefined && nextClosureNotes !== previousNotes) {
     const details = nextClosureNotes
-      ? `Updated closure notes: ${nextClosureNotes}`
-      : "Cleared closure notes";
+      ? `Closure notes updated: ${nextClosureNotes}`
+      : "Closure notes cleared";
     historyEntries.push({
       id: crypto.randomUUID(),
       timestamp: now,
-      action: "closure_notes_updated",
+      action: "note",
       ...actor,
       details,
+      highlighted: false,
+      follow_up: false,
+      text_color: "default",
     });
   }
 
@@ -101,6 +108,7 @@ export async function POST(request: NextRequest) {
       outcome,
       closure_notes: closureNotes,
       history_log,
+      updated_at: now,
     })
     .eq("id", helpRequestId);
 

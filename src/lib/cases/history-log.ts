@@ -49,8 +49,14 @@ export function normalizeHistoryLog(raw: unknown): HistoryEntry[] {
   return raw.map(normalizeHistoryEntry);
 }
 
+const STAFF_NOTE_ACTIONS = new Set([
+  "note",
+  "closure_outcome_updated",
+  "closure_notes_updated",
+]);
+
 export function staffNotesFromHistory(raw: unknown): HistoryEntry[] {
-  return normalizeHistoryLog(raw).filter((entry) => entry.action === "note");
+  return normalizeHistoryLog(raw).filter((entry) => STAFF_NOTE_ACTIONS.has(entry.action));
 }
 
 export function staffNotesText(raw: unknown): string {

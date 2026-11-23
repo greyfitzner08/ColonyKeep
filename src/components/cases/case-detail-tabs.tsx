@@ -83,9 +83,22 @@ export function CaseDetailTabs({
 
   useEffect(() => {
     skipIntakeAutosaveRef.current = true;
-    setHr({
-      ...initial,
-      history_log: normalizeHistoryLog(initial.history_log),
+    setHr((prev) => {
+      const nextLog = normalizeHistoryLog(initial.history_log);
+      const prevLog = normalizeHistoryLog(prev.history_log);
+      // Keep a newer client history_log if router.refresh() returns a stale RSC payload.
+      const keepClientHistory =
+        prev.id === initial.id && prevLog.length > nextLog.length;
+      return {
+        ...initial,
+        history_log: keepClientHistory ? prevLog : nextLog,
+        ...(keepClientHistory
+          ? {
+              outcome: prev.outcome ?? initial.outcome,
+              closure_notes: prev.closure_notes ?? initial.closure_notes,
+            }
+          : {}),
+      };
     });
     const timer = setTimeout(() => {
       skipIntakeAutosaveRef.current = false;
